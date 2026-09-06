@@ -1,0 +1,52 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Bizhy-Bizhy"
+config/description="Нескінченний ранер для дітей 3–7 без програшу. MGP гра 1."
+run/main_scene="res://src/run/run.tscn"
+config/features=PackedStringArray("4.7", "Mobile")
+run/max_fps=60
+config/icon="res://icon.svg"
+
+[autoload]
+
+Events="*res://src/events.gd"
+SaveService="*res://addons/mgp_core/save/save_service.gd"
+Stats="*res://addons/mgp_core/stats/stats_local.gd"
+AgeAdapt="*res://addons/mgp_core/age_adapt/age_adapt.gd"
+SessionTimer="*res://addons/mgp_core/session/session_timer.gd"
+ParentGate="*res://addons/mgp_core/parent_gate/parent_gate.gd"
+AudioMgr="*res://addons/mgp_core/audio/audio_mgr.gd"
+Ads="*res://addons/mgp_core/ads/ads_service.gd"
+Purchase="*res://addons/mgp_core/purchase/purchase_service.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[physics]
+
+3d/physics_engine="Jolt Physics"
+2d/default_gravity=1800.0
+
+[rendering]
+
+rendering_device/driver.windows="d3d12"
+renderer/rendering_method="mobile"

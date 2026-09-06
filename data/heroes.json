@@ -1,0 +1,11 @@
+{
+  "puf":      {"name_uk": "Пуф",       "color": "#FFB84D", "unlock": {"type": "start"}},
+  "vushko":   {"name_uk": "Вушко",     "color": "#8ED1FC", "unlock": {"type": "stars", "amount": 100}},
+  "khvostyk": {"name_uk": "Хвостик",   "color": "#B39DDB", "unlock": {"type": "checkpoints", "amount": 3}},
+  "antenka":  {"name_uk": "Антенка",   "color": "#A5D6A7", "unlock": {"type": "rewarded_or_stars", "amount": 300}},
+  "smuhastyk":{"name_uk": "Смугастик", "color": "#F48FB1", "unlock": {"type": "growth", "stage": 2}},
+  "khmarynka":{"name_uk": "Хмаринка",  "color": "#E3F2FD", "unlock": {"type": "rewarded_or_stars", "amount": 600}},
+  "iskrynka": {"name_uk": "Іскринка",  "color": "#FFF176", "unlock": {"type": "full_game"}},
+  "sonia":    {"name_uk": "Соня",      "color": "#BCAAA4", "unlock": {"type": "full_game"}},
+  "growth": {"stage2": {"stars": 150, "feathers": 3}, "stage3": {"stars": 500, "feathers": 8}}
+}

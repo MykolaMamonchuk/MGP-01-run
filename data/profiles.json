@@ -1,0 +1,44 @@
+{
+  "_note": "session_minutes у профілях — на майбутнє (персональна тривалість сесії за віком). Зараз тривалість береться ТІЛЬКИ з налаштувань батьків: SaveService.setting(\"session_minutes\", 10).",
+  "young": {
+    "speed": 340,
+    "speed_ramp": 0.15,
+    "jump_velocity": -760,
+    "obstacle_interval": [3.0, 5.0],
+    "obstacle_types": ["stump", "puddle"],
+    "auto_assist_chance": 0.6,
+    "star_magnet": 1.5,
+    "session_minutes": 10,
+    "hint_after_sec": 5
+  },
+  "mid": {
+    "speed": 480,
+    "speed_ramp": 0.2,
+    "jump_velocity": -800,
+    "obstacle_interval": [1.8, 3.0],
+    "obstacle_types": ["stump", "branch", "puddle"],
+    "auto_assist_chance": 0.2,
+    "star_magnet": 1.0,
+    "session_minutes": 15,
+    "hint_after_sec": 6
+  },
+  "older": {
+    "speed": 620,
+    "speed_ramp": 0.25,
+    "jump_velocity": -820,
+    "obstacle_interval": [1.2, 2.2],
+    "obstacle_types": ["stump", "branch", "puddle"],
+    "auto_assist_chance": 0.0,
+    "star_magnet": 1.0,
+    "session_minutes": 20,
+    "hint_after_sec": 8
+  },
+  "age_adapt": {
+    "min_obstacles": 8,
+    "down_collision_rate": 0.4,
+    "down_reaction_ms": 900,
+    "up_collision_rate": 0.1,
+    "up_reaction_ms": 450
+  },
+  "checkpoint_seconds": 90
+}

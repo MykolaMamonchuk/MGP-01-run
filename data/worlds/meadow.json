@@ -1,0 +1,14 @@
+{
+  "id": "meadow",
+  "name_uk": "Лужок",
+  "sky": "#9BDDFF",
+  "ground": "#7CC46B",
+  "ground_dark": "#5FA553",
+  "far": "#B8E6A8",
+  "music": "meadow",
+  "obstacles": {
+    "stump":  {"w": 90,  "h": 70,  "y_off": 0,   "color": "#8D6E63", "tumble": true},
+    "branch": {"w": 220, "h": 40,  "y_off": -95, "color": "#6D4C41", "tumble": true},
+    "puddle": {"w": 140, "h": 18,  "y_off": 0,   "color": "#64B5F6", "tumble": false}
+  }
+}

@@ -1,0 +1,17 @@
+# Godot 4+
+.godot/
+/android/
+*.import.tmp
+# OS
+.DS_Store
+Thumbs.db
+# Exports
+/build/
+/export/*.apk
+/export/*.aab
+/export/*.ipa
+/export/web/
+# Secrets
+*.keystore
+*.jks
+export_credentials.cfg

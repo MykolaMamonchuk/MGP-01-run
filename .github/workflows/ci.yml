@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ВАЖЛИВО: версія Godot тут має збігатися з версією редактора команди (Godot 4.7.x).
+      # Якщо оновлюєте редактор — оновіть і version нижче, інакше імпорт/тести можуть розходитися.
+      - name: Setup Godot
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.0
+          use-dotnet: false
+
+      # ПРИМІТКА: GUT має бути завантажений з AssetLib один раз і закомічений
+      # у addons/gut — цей workflow його не встановлює й не завантажує.
+      - name: Import project (headless)
+        run: godot --headless --import
+        continue-on-error: true
+
+      - name: Run GUT tests
+        run: godot --headless -s addons/gut/gut_cmdln.gd -gconfig=res://tests/.gutconfig.json -gexit
