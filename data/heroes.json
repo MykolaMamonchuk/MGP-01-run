@@ -1,11 +1,12 @@
 {
-  "puf":      {"name_uk": "Пуф",       "color": "#FFB84D", "unlock": {"type": "start"}},
-  "vushko":   {"name_uk": "Вушко",     "color": "#8ED1FC", "unlock": {"type": "stars", "amount": 100}},
-  "khvostyk": {"name_uk": "Хвостик",   "color": "#B39DDB", "unlock": {"type": "checkpoints", "amount": 3}},
-  "antenka":  {"name_uk": "Антенка",   "color": "#A5D6A7", "unlock": {"type": "rewarded_or_stars", "amount": 300}},
-  "smuhastyk":{"name_uk": "Смугастик", "color": "#F48FB1", "unlock": {"type": "growth", "stage": 2}},
-  "khmarynka":{"name_uk": "Хмаринка",  "color": "#E3F2FD", "unlock": {"type": "rewarded_or_stars", "amount": 600}},
-  "iskrynka": {"name_uk": "Іскринка",  "color": "#FFF176", "unlock": {"type": "full_game"}},
-  "sonia":    {"name_uk": "Соня",      "color": "#BCAAA4", "unlock": {"type": "full_game"}},
+  "_note": "feature — риса героя, яку Hero3D домальовує до базового тіла: tuft (чубчик), ears (вуха), tail (хвіст), antenna (антенка світиться), stripes (смуги), cloud (напівпрозорий, пливе), sparkle (іскри), sleepy (сонні очі, зіває). order — порядок у каруселі.",
+  "puf":      {"name_uk": "Пуф",       "color": "#FFB84D", "feature": "tuft",    "order": 0, "unlock": {"type": "start"}},
+  "vushko":   {"name_uk": "Вушко",     "color": "#8ED1FC", "feature": "ears",    "order": 1, "unlock": {"type": "stars", "amount": 100}},
+  "khvostyk": {"name_uk": "Хвостик",   "color": "#B39DDB", "feature": "tail",    "order": 2, "unlock": {"type": "checkpoints", "amount": 3}},
+  "antenka":  {"name_uk": "Антенка",   "color": "#A5D6A7", "feature": "antenna", "order": 3, "unlock": {"type": "rewarded_or_stars", "amount": 300}},
+  "smuhastyk":{"name_uk": "Смугастик", "color": "#F48FB1", "feature": "stripes", "order": 4, "unlock": {"type": "growth", "stage": 2}},
+  "khmarynka":{"name_uk": "Хмаринка",  "color": "#E3F2FD", "feature": "cloud",   "order": 5, "unlock": {"type": "rewarded_or_stars", "amount": 600}},
+  "iskrynka": {"name_uk": "Іскринка",  "color": "#FFF176", "feature": "sparkle", "order": 6, "unlock": {"type": "full_game"}},
+  "sonia":    {"name_uk": "Соня",      "color": "#BCAAA4", "feature": "sleepy",  "order": 7, "unlock": {"type": "full_game"}},
   "growth": {"stage2": {"stars": 150, "feathers": 3}, "stage3": {"stars": 500, "feathers": 8}}
 }

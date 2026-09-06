@@ -37,23 +37,19 @@ static func load_profiles() -> Dictionary:
 	var parsed = JSON.parse_string(f.get_as_text())
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
 
-func _on_obstacle_spawned(_kind: String, node: Node2D) -> void:
+func _on_obstacle_spawned(_kind: String, seconds_to_hero: float) -> void:
 	# на попередню перешкоду не відповіли — рахуємо як пропущену реакцію
 	if _pending_threat_time > 0:
 		_reactions_ms.append(MISSED_REACTION_MS)
 		_pending_threat_time = -1.0
-	if not is_instance_valid(node):
-		return
-	# загроза стає «актуальною» лише коли до неї лишається ~1 с льоту
-	var spd: float = max(1.0, float(node.get("speed")))
-	var travel: float = (node.global_position.x - 340.0) / spd
-	get_tree().create_timer(max(0.0, travel - REACTION_LEAD_SEC)).timeout.connect(
-		_arm_threat.bind(weakref(node), _window_id)
+	# загроза стає «актуальною» лише коли до неї лишається ~1 с
+	get_tree().create_timer(max(0.0, seconds_to_hero - REACTION_LEAD_SEC)).timeout.connect(
+		_arm_threat.bind(_window_id)
 	)
 
-func _arm_threat(w: WeakRef, wid: int) -> void:
-	# перешкоду вже видалено або вікно спостереження змінилося — таймер застарілий
-	if w.get_ref() == null or wid != _window_id:
+func _arm_threat(wid: int) -> void:
+	# вікно спостереження змінилося (станція) — таймер застарілий
+	if wid != _window_id:
 		return
 	_pending_threat_time = Time.get_ticks_msec()
 

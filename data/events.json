@@ -1,0 +1,10 @@
+{
+  "_note": "Міні-події на дорозі. weights — вага випадкового вибору за профілем (0 = не буває). modes — у яких режимах руху трапляється.",
+  "events": [
+    {"id": "rainbow",   "modes": ["run", "slide"],        "weights": {"young": 3, "mid": 2, "older": 1}, "duration": 5.0,  "voice": "wow"},
+    {"id": "friend",    "modes": ["run", "hop", "slide"], "weights": {"young": 2, "mid": 2, "older": 2}, "duration": 15.0, "voice": "friend"},
+    {"id": "dragonfly", "modes": ["run"],                 "weights": {"young": 3, "mid": 1, "older": 0}, "duration": 6.0,  "voice": "look"},
+    {"id": "big_wave",  "modes": ["slide"],               "weights": {"young": 2, "mid": 2, "older": 2}, "duration": 2.5,  "voice": "wow"},
+    {"id": "bridge",    "modes": ["hop"],                 "weights": {"young": 0, "mid": 1, "older": 2}, "duration": 4.0,  "voice": "quick", "_todo": "не реалізовано у прототипі"}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "_note": "Колода на річці — безпечна клітинка.",
+  "size": 0.14,
+  "palette": {"b": "#8D6E63", "l": "#A1887F", "r": "#6D4C41"},
+  "layers": [
+    ["lbbbbbl", "lbbbbbl", "lbbbbbl"],
+    ["rbbbbbr", "rbrbrbr", "rbbbbbr"]
+  ]
+}

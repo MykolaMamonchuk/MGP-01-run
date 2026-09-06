@@ -3,6 +3,9 @@
 ## Autoload: ParentGate.
 extends CanvasLayer
 
+## Бар'єр закрито (успіх, «Назад» або блокування) — гра може зняти власну паузу.
+signal closed
+
 const HOLD_SECONDS := 3.0
 const MAX_FAILS := 2
 const LOCK_MSEC := 30000
@@ -70,9 +73,7 @@ func _build(kind: String) -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_layer.add_child(dim)
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.custom_minimum_size = Vector2(640, 360)
-	panel.position = Vector2(320, 180)
+	_center(panel, Vector2(640, 360))
 	_layer.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 24)
@@ -121,6 +122,18 @@ func _build(kind: String) -> void:
 	cancel.pressed.connect(close)
 	box.add_child(cancel)
 
+## Центрує панель у в'юпорті незалежно від його розміру.
+## (PRESET_CENTER + position зсував панель за екран: position при центральному якорі — це офсет від центру.)
+static func _center(c: Control, min_size: Vector2) -> void:
+	c.custom_minimum_size = min_size
+	c.set_anchors_preset(Control.PRESET_CENTER)
+	c.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	c.grow_vertical = Control.GROW_DIRECTION_BOTH
+	c.offset_left = 0
+	c.offset_top = 0
+	c.offset_right = 0
+	c.offset_bottom = 0
+
 func _on_hold_down() -> void:
 	_holding = true
 	_hold_time = 0.0
@@ -141,9 +154,7 @@ func _build_locked() -> void:
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_layer.add_child(dim)
 	var panel := PanelContainer.new()
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.custom_minimum_size = Vector2(640, 260)
-	panel.position = Vector2(320, 230)
+	_center(panel, Vector2(640, 260))
 	_layer.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 24)
@@ -185,8 +196,11 @@ func _succeed() -> void:
 		cb.call()
 
 func close() -> void:
+	var was_open := visible
 	visible = false
 	_holding = false
 	if _layer:
 		_layer.queue_free()
 		_layer = null
+	if was_open:
+		closed.emit()

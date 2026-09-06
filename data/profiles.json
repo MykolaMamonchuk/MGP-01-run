@@ -1,37 +1,49 @@
 {
-  "_note": "session_minutes у профілях — на майбутнє (персональна тривалість сесії за віком). Зараз тривалість береться ТІЛЬКИ з налаштувань батьків: SaveService.setting(\"session_minutes\", 10).",
+  "_note": "v1.1 (3D). speed — клітинок/с у режимі Біг (Хвиля ×0.8, Стрибки — темп дитини). jump_velocity — м/с угору (гравітація 22). worlds — які світи доступні профілю; fork_options — скільки дверей на Розвилці. session_minutes у профілях — на майбутнє; зараз береться з налаштувань батьків.",
   "young": {
-    "speed": 340,
+    "speed": 3.5,
     "speed_ramp": 0.15,
-    "jump_velocity": -760,
+    "jump_velocity": 7.2,
     "obstacle_interval": [3.0, 5.0],
-    "obstacle_types": ["stump", "puddle"],
+    "obstacle_types": ["stump", "puddle", "rock", "crab"],
     "auto_assist_chance": 0.6,
     "star_magnet": 1.5,
     "session_minutes": 10,
-    "hint_after_sec": 5
+    "hint_after_sec": 5,
+    "worlds": ["meadow", "beach"],
+    "fork_options": 2,
+    "hop_auto_step_sec": 3.0,
+    "event_interval": [20.0, 30.0]
   },
   "mid": {
-    "speed": 480,
+    "speed": 5.0,
     "speed_ramp": 0.2,
-    "jump_velocity": -800,
+    "jump_velocity": 7.6,
     "obstacle_interval": [1.8, 3.0],
-    "obstacle_types": ["stump", "branch", "puddle"],
+    "obstacle_types": ["stump", "branch", "puddle", "tree", "river", "rock", "crab"],
     "auto_assist_chance": 0.2,
     "star_magnet": 1.0,
     "session_minutes": 15,
-    "hint_after_sec": 6
+    "hint_after_sec": 6,
+    "worlds": ["meadow", "forest", "beach"],
+    "fork_options": 2,
+    "hop_auto_step_sec": 0.0,
+    "event_interval": [20.0, 30.0]
   },
   "older": {
-    "speed": 620,
+    "speed": 6.5,
     "speed_ramp": 0.25,
-    "jump_velocity": -820,
+    "jump_velocity": 8.0,
     "obstacle_interval": [1.2, 2.2],
-    "obstacle_types": ["stump", "branch", "puddle"],
+    "obstacle_types": ["stump", "branch", "puddle", "bush", "tree", "river", "hedgehog", "rock", "crab"],
     "auto_assist_chance": 0.0,
     "star_magnet": 1.0,
     "session_minutes": 20,
-    "hint_after_sec": 8
+    "hint_after_sec": 8,
+    "worlds": ["meadow", "forest", "beach"],
+    "fork_options": 3,
+    "hop_auto_step_sec": 0.0,
+    "event_interval": [25.0, 35.0]
   },
   "age_adapt": {
     "min_obstacles": 8,

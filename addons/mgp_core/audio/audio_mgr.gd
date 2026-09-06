@@ -8,6 +8,8 @@ var _voice: AudioStreamPlayer
 var _cache: Dictionary = {}
 
 func _ready() -> void:
+	# звук має грати й на паузі (станція, сон, екран батьків)
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	for i in 8:
 		var p := AudioStreamPlayer.new()
 		p.bus = "Master"

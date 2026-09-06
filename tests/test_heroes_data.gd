@@ -2,6 +2,7 @@
 extends GutTest
 
 const VALID_UNLOCK_TYPES := ["start", "stars", "checkpoints", "rewarded_or_stars", "growth", "full_game"]
+const VALID_FEATURES := ["tuft", "ears", "tail", "antenna", "stripes", "cloud", "sparkle", "sleepy"]
 const HEX_COLOR_RE := "^#[0-9A-Fa-f]{6}$"
 
 var _heroes: Dictionary
@@ -21,10 +22,13 @@ func test_each_hero_shape() -> void:
 	var re := RegEx.new()
 	re.compile(HEX_COLOR_RE)
 	var start_count := 0
+	var orders := []
 	for key in _heroes.keys():
-		if key == "growth":
+		if key == "growth" or String(key).begins_with("_"):
 			continue
 		var hero: Dictionary = _heroes[key]
+		assert_true(VALID_FEATURES.has(hero.get("feature", "")), "%s: feature одна з відомих" % key)
+		orders.append(int(hero.get("order", -1)))
 		assert_true(hero.has("name_uk"), "%s: має бути name_uk" % key)
 		assert_true(String(hero.get("name_uk", "")).length() > 0, "%s: name_uk не порожній" % key)
 
@@ -41,6 +45,8 @@ func test_each_hero_shape() -> void:
 			assert_gt(float(unlock.get("amount", 0)), 0.0, "%s: rewarded_or_stars має amount > 0" % key)
 
 	assert_eq(start_count, 1, "рівно один герой має unlock.type == start")
+	orders.sort()
+	assert_eq(orders, [0, 1, 2, 3, 4, 5, 6, 7], "order — 0..7 без дірок (карусель)")
 
 
 func test_growth_stages_increase() -> void:

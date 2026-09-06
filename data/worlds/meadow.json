@@ -1,14 +1,22 @@
 {
   "id": "meadow",
   "name_uk": "Лужок",
+  "mode": "run",
   "sky": "#9BDDFF",
+  "sky_evening": "#F7B58A",
   "ground": "#7CC46B",
   "ground_dark": "#5FA553",
-  "far": "#B8E6A8",
+  "side": "#6DB35E",
+  "far": "#A8DCA0",
+  "accent": "#F06292",
+  "decor": ["flower", "bush"],
+  "decor_colors": ["#F06292", "#FFF176", "#BA68C8", "#FF8A65"],
   "music": "meadow",
+  "camera": {"pos": [0.0, 3.4, 5.6], "look": [0.0, 0.9, -4.0], "fov": 62, "ortho": false},
   "obstacles": {
-    "stump":  {"w": 90,  "h": 70,  "y_off": 0,   "color": "#8D6E63", "tumble": true},
-    "branch": {"w": 220, "h": 40,  "y_off": -95, "color": "#6D4C41", "tumble": true},
-    "puddle": {"w": 140, "h": 18,  "y_off": 0,   "color": "#64B5F6", "tumble": false}
+    "stump":  {"voxel": "stump",  "action": "jump", "tumble": true,  "y": 0.0,  "box": [0.7, 0.7, 0.7]},
+    "branch": {"voxel": "branch", "action": "duck", "tumble": true,  "y": 1.05, "box": [1.1, 0.4, 0.3]},
+    "puddle": {"voxel": "puddle", "action": "any",  "tumble": false, "y": 0.0,  "box": [0.8, 0.2, 0.6]},
+    "bush":   {"voxel": "bush",   "action": "any",  "tumble": false, "y": 0.0,  "box": [0.8, 0.5, 0.6]}
   }
 }

@@ -1,0 +1,10 @@
+{
+  "_note": "Мінізавдання на сегмент (від mid). type: stars — зібрати N зірочок; passed — пройти N перешкод; events — побачити N подій. reward — зірочки за виконання.",
+  "quests": [
+    {"id": "stars_15",  "type": "stars",  "target": 15, "reward": 10, "profiles": ["mid", "older"]},
+    {"id": "stars_30",  "type": "stars",  "target": 30, "reward": 15, "profiles": ["older"]},
+    {"id": "passed_5",  "type": "passed", "target": 5,  "reward": 10, "profiles": ["mid", "older"]},
+    {"id": "passed_10", "type": "passed", "target": 10, "reward": 20, "profiles": ["older"]},
+    {"id": "events_2",  "type": "events", "target": 2,  "reward": 10, "profiles": ["mid", "older"]}
+  ]
+}

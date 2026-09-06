@@ -1,0 +1,22 @@
+{
+  "id": "beach",
+  "name_uk": "Пляж",
+  "mode": "slide",
+  "sky": "#BDE7FF",
+  "sky_evening": "#FFB07A",
+  "ground": "#4FC3F7",
+  "ground_dark": "#29B6F6",
+  "side": "#FFE0A3",
+  "far": "#F6D79A",
+  "water": "#4FC3F7",
+  "accent": "#EF5350",
+  "decor": ["rock", "flower"],
+  "decor_colors": ["#FFEE58", "#FF7043"],
+  "music": "beach",
+  "speed_factor": 0.8,
+  "camera": {"pos": [0.0, 2.4, 5.2], "look": [0.0, 0.6, -5.0], "fov": 70, "ortho": false},
+  "obstacles": {
+    "rock": {"voxel": "rock", "action": "side", "tumble": true,  "y": 0.0, "box": [0.7, 0.6, 0.6]},
+    "crab": {"voxel": "crab", "action": "jump", "tumble": false, "y": 0.0, "box": [0.7, 0.4, 0.5]}
+  }
+}

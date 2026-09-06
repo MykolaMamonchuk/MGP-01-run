@@ -118,3 +118,73 @@ class StationIcon:
 		draw_circle(Vector2(14, 30) * u, 20.0 * u, sign_color)
 		draw_circle(Vector2(82, 30) * u, 20.0 * u, sign_color)
 		draw_circle(Vector2(48, 30) * u, 9.0 * u, Color("#FFFFFF"))
+
+
+## Двері Розвилки: піктограма світу. meadow — горбок і квітка; forest — дерево; beach — хвиля і сонце.
+class WorldIcon:
+	extends Control
+
+	var world_id := "meadow"
+
+	func _init(id: String, px: float = 120.0) -> void:
+		world_id = id
+		custom_minimum_size = Vector2(px, px)
+		size = custom_minimum_size
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var u: float = min(size.x, size.y) / 120.0
+		match world_id:
+			"forest":
+				draw_rect(Rect2(Vector2(52, 70) * u, Vector2(16, 40) * u), Color("#795548"))
+				draw_circle(Vector2(60, 50) * u, 34.0 * u, Color("#2E7D32"))
+				draw_circle(Vector2(44, 62) * u, 22.0 * u, Color("#43A047"))
+				draw_circle(Vector2(78, 60) * u, 22.0 * u, Color("#43A047"))
+			"beach":
+				draw_circle(Vector2(86, 34) * u, 18.0 * u, Color("#FFEE58"))
+				var pts := PackedVector2Array()
+				for i in 25:
+					var x := 8.0 + i * 4.3
+					pts.append(Vector2(x, 78.0 + sin(i * 0.55) * 8.0) * u)
+				draw_polyline(pts, Color("#29B6F6"), 10.0 * u)
+				draw_rect(Rect2(Vector2(8, 92) * u, Vector2(104, 20) * u), Color("#FFE0A3"))
+			_:
+				draw_circle(Vector2(60, 110) * u, 60.0 * u, Color("#7CC46B"))
+				draw_rect(Rect2(Vector2(58, 40) * u, Vector2(4, 30) * u), Color("#388E3C"))
+				for i in 6:
+					var a := i * PI / 3.0
+					draw_circle(Vector2(60, 36) * u + Vector2(cos(a), sin(a)) * 12.0 * u, 8.0 * u, Color("#F06292"))
+				draw_circle(Vector2(60, 36) * u, 7.0 * u, Color("#FFF176"))
+
+
+## Мінізавдання: зірка / прапорець / іскра — залежно від типу.
+class QuestIcon:
+	extends Control
+
+	var kind := "stars"
+
+	func _init(k: String, px: float = 40.0) -> void:
+		kind = k
+		custom_minimum_size = Vector2(px, px)
+		size = custom_minimum_size
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var u: float = min(size.x, size.y) / 40.0
+		match kind:
+			"passed":
+				draw_rect(Rect2(Vector2(8, 4) * u, Vector2(4, 32) * u), Color("#8D6E63"))
+				draw_colored_polygon(PackedVector2Array([Vector2(12, 4) * u, Vector2(34, 12) * u, Vector2(12, 20) * u]), Color("#EF5350"))
+			"events":
+				for i in 4:
+					var a := i * PI / 2.0
+					draw_line(Vector2(20, 20) * u, Vector2(20, 20) * u + Vector2(cos(a), sin(a)) * 16.0 * u, Color("#26C6DA"), 4.0 * u)
+				draw_circle(Vector2(20, 20) * u, 6.0 * u, Color("#FFFFFF"))
+			_:
+				var c := Vector2(20, 20) * u
+				var pts := PackedVector2Array()
+				for i in 10:
+					var r := (17.0 if i % 2 == 0 else 7.0) * u
+					var a := -PI / 2.0 + i * PI / 5.0
+					pts.append(c + Vector2(cos(a), sin(a)) * r)
+				draw_colored_polygon(pts, Color("#FFD54F"))

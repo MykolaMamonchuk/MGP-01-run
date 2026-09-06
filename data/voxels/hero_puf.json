@@ -1,0 +1,17 @@
+{
+  "_note": "Базове тіло пухнастика (усі герої): 6×6 основа, 10 шарів, голова 60%. Очі, щічки, риса (вуха/хвіст/чубчик…) — окремі частини у Hero3D. o — основний колір (підміняється), d — темніший.",
+  "size": 0.12,
+  "palette": {"o": "#FFB84D", "d": "#E09A2E"},
+  "layers": [
+    ["......", "......", "......", "......", "......", "......"],
+    ["......", "......", "......", "......", "......", "......"],
+    ["......", ".oooo.", ".oooo.", ".oooo.", ".oooo.", "......"],
+    ["......", ".oooo.", ".oooo.", ".oooo.", ".oooo.", "......"],
+    ["......", ".oooo.", ".oooo.", ".oooo.", ".oooo.", "......"],
+    [".oooo.", "oooooo", "oooooo", "oooooo", "oooooo", ".oooo."],
+    ["oooooo", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo"],
+    ["oooooo", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo"],
+    ["oooooo", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo"],
+    [".oooo.", "oooooo", "oooooo", "oooooo", "oooooo", ".oooo."]
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "forest",
+  "name_uk": "Ліс",
+  "mode": "hop",
+  "sky": "#A8D8C8",
+  "sky_evening": "#D4A28C",
+  "ground": "#4E9A51",
+  "ground_dark": "#3F7F42",
+  "side": "#3B6E3D",
+  "far": "#5E8F62",
+  "water": "#4FC3F7",
+  "accent": "#8D6E63",
+  "decor": ["tree", "flower"],
+  "decor_colors": ["#FFF176", "#F06292", "#FFFFFF"],
+  "music": "forest",
+  "camera": {"pos": [3.2, 6.0, 6.2], "look": [0.0, 0.0, -1.5], "ortho": true, "size": 9.5},
+  "obstacles": {
+    "tree":     {"voxel": "tree",     "action": "side", "tumble": true, "y": 0.0, "box": [0.8, 1.2, 0.8]},
+    "river":    {"voxel": "log",      "action": "gap",  "tumble": true, "y": 0.0, "box": [1.0, 0.3, 1.0]},
+    "hedgehog": {"voxel": "hedgehog", "action": "side", "tumble": true, "y": 0.0, "box": [0.6, 0.5, 0.5], "moves": true, "move_speed": 1.2}
+  }
+}

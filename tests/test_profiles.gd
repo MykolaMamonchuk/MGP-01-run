@@ -1,7 +1,8 @@
 ## Перевіряє data/profiles.json через AgeAdapt.load_profiles().
 extends GutTest
 
-const VALID_OBSTACLES := ["stump", "branch", "puddle"]
+const VALID_OBSTACLES := ["stump", "branch", "puddle", "bush", "tree", "river", "hedgehog", "rock", "crab"]
+const VALID_WORLDS := ["meadow", "forest", "beach"]
 const AGE_KEYS := ["young", "mid", "older"]
 
 var _profiles: Dictionary
@@ -51,6 +52,21 @@ func test_each_profile_shape() -> void:
 		var minutes = p.get("session_minutes", 0)
 		assert_true(typeof(minutes) in [TYPE_INT, TYPE_FLOAT], "%s: session_minutes — число" % key)
 		assert_gt(float(minutes), 0.0, "%s: session_minutes > 0" % key)
+
+		var worlds = p.get("worlds", [])
+		assert_true(typeof(worlds) == TYPE_ARRAY and worlds.size() > 0, "%s: worlds не порожній" % key)
+		if typeof(worlds) == TYPE_ARRAY:
+			for w in worlds:
+				assert_true(VALID_WORLDS.has(w), "%s: невідомий світ %s" % [key, w])
+
+		var fork = p.get("fork_options", 0)
+		assert_between(int(fork), 1, 3, "%s: fork_options у [1,3]" % key)
+
+
+func test_young_has_no_forest() -> void:
+	# GDD §2: Ліс (Стрибки) — від mid
+	assert_false((_profiles["young"]["worlds"] as Array).has("forest"), "young не має Лісу")
+	assert_true((_profiles["mid"]["worlds"] as Array).has("forest"), "mid має Ліс")
 
 
 func test_speed_increases_with_age() -> void:

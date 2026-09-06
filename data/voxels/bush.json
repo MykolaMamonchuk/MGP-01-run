@@ -1,0 +1,9 @@
+{
+  "size": 0.14,
+  "palette": {"g": "#43A047", "h": "#66BB6A", "f": "#F06292"},
+  "layers": [
+    [".gggg.", "gggggg", "gggggg", ".gggg."],
+    [".hggh.", "gghggg", "ggghgg", ".gggg."],
+    ["..gg..", ".gfgg.", ".gggf.", "..gg.."]
+  ]
+}
