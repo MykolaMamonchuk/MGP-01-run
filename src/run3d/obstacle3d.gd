@@ -1,7 +1,16 @@
 ## Перешкода. Без фізики: габарит (AABB) перевіряє Spawner3D. Рухається разом зі світом (+Z).
-## action: "jump" (перестрибнути), "duck" (присісти), "any" (можна пробігти — бризки), "side" (обійти), "gap" (річка без колоди).
+## action: "jump" (перестрибнути), "duck" (присісти), "any" (можна пробігти — бризки), "side" (обійти),
+## "boost" (трамплін), "rail" (рейка-бонус), "wind" (зносить убік).
+## Читабельність (GDD v1.3 §8): чорне обведення (вивернута оболонка) і смугаста «небезпечна» плитка під тими, що збивають.
 class_name Obstacle3D
 extends Node3D
+
+## Дії без плитки: не збивають або є бонусом.
+const NO_PLATE_ACTIONS := ["any", "boost", "rail", "wind"]
+const OUTLINE_SCALE := 1.04
+
+static var _outline_mat: Material
+static var _plate_mat: ShaderMaterial
 
 var kind := ""
 var action := "any"
@@ -40,10 +49,62 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		_base_scale = Vector3.ONE * float(def.get("scale", 1.0))
 		_mesh.scale = _base_scale
 		add_child(_mesh)
+		# обведення: той самий меш, трохи роздутий, чорний, лицьові грані відсічені; дитина меша — повторює анімації
+		var outline := MeshInstance3D.new()
+		outline.mesh = _mesh.mesh
+		outline.scale = Vector3.ONE * OUTLINE_SCALE
+		var om := outline_material()
+		if _base_scale != Vector3.ONE and om is ShaderMaterial:
+			# збільшена перешкода роздула б обведення разом із собою — свій матеріал із меншим grow
+			var dup := (om as ShaderMaterial).duplicate() as ShaderMaterial
+			var g = dup.get_shader_parameter("grow")   # null — не перевизначено, беремо дефолт шейдера
+			var grow := float(g) if g != null else 0.03
+			dup.set_shader_parameter("grow", grow / maxf(0.01, _base_scale.x))
+			om = dup
+		outline.material_override = om
+		outline.name = "Outline"
+		_mesh.add_child(outline)
+		if tumble and not NO_PLATE_ACTIONS.has(action):
+			_plate = Mats.box(Vector3(0.9, 0.04, 0.9), Color.WHITE)
+			_plate.material_override = plate_material()
+			_plate.position.y = 0.02
+			_plate.name = "Danger"
+			add_child(_plate)
 	else:
-		# невидима «дірка» (річка без колоди) — меш-заглушка, щоб анімації не падали
+		# невидима перешкода — меш-заглушка, щоб анімації не падали
 		_mesh = MeshInstance3D.new()
 		add_child(_mesh)
+
+
+var _plate: MeshInstance3D
+
+
+## Матеріал обведення (один на всі перешкоди): шейдер-оболонка, якщо є; інакше чорний unshaded cull_front.
+static func outline_material() -> Material:
+	if _outline_mat == null:
+		var path := "res://addons/mgp_core/voxel/voxel_outline.gdshader"
+		if ResourceLoader.exists(path):
+			var sm := ShaderMaterial.new()
+			sm.shader = load(path)
+			_outline_mat = sm
+		else:
+			var m := StandardMaterial3D.new()
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.albedo_color = Color(0.08, 0.08, 0.1)
+			m.cull_mode = BaseMaterial3D.CULL_FRONT
+			_outline_mat = m
+	return _outline_mat
+
+
+## Червоно-білі смуги для плитки небезпеки (один матеріал на всі).
+static func plate_material() -> ShaderMaterial:
+	if _plate_mat == null:
+		_plate_mat = ShaderMaterial.new()
+		_plate_mat.shader = load("res://addons/mgp_core/voxel/stripes.gdshader")
+		_plate_mat.set_shader_parameter("color_a", Color("#EF5350"))
+		_plate_mat.set_shader_parameter("color_b", Color("#FFFFFF"))
+		_plate_mat.set_shader_parameter("stripe_width", 0.15)
+	return _plate_mat
 
 
 func aabb() -> AABB:

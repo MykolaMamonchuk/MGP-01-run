@@ -88,6 +88,104 @@ func test_map_positions_inside_screen() -> void:
 	assert_lt(pts[0].x, pts[16].x, "стежинка іде зліва направо")
 
 
+# ---------- 0.7.0: ціни рівнів (GDD v1.3 §3a), стан вузла, написи островів без накладань ----------
+
+func test_prices_present_monotonic_and_first_free() -> void:
+	var prices := []
+	for l in _levels:
+		assert_true(l.has("price"), "рівень %d: є price" % int(l["id"]))
+		prices.append(int(l.get("price", -1)))
+	assert_eq(prices.size(), 17)
+	assert_eq(prices[0], 0, "рівень 1 — безплатний")
+	for i in range(1, prices.size()):
+		assert_gt(prices[i], prices[i - 1], "рівень %d: ціна росте" % (i + 1))
+	assert_eq(prices, [0, 50, 80, 120, 160, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 800], "таблиця цін GDD v1.3 §3a")
+
+
+func test_price_table_is_affordable() -> void:
+	var lm := LevelManager.new()
+	var prices := lm.prices()
+	# перший острів (рівні 1–4) — за один-три пробіги при середньому заробітку 150
+	assert_true(LevelManager.price_table_is_affordable(prices.slice(0, 4), 150), "Лужок: кожен рівень ≤ 3 × 150")
+	# усі 17 рівнів — при середньому заробітку 300 (довші рівні, колесо, завдання)
+	assert_true(LevelManager.price_table_is_affordable(prices, 300), "уся таблиця ≤ 3 × 300")
+	assert_false(LevelManager.price_table_is_affordable([1000], 150), "1000 > 3 × 150")
+	assert_true(LevelManager.price_table_is_affordable([], 1), "порожня таблиця — по кишені")
+	assert_eq(lm.price_of(1), 0)
+	assert_eq(lm.price_of(17), 800)
+	assert_eq(lm.price_of(99), 0, "нема рівня — 0")
+
+
+func test_open_state_cases() -> void:
+	assert_eq(LevelManager.open_state(1, {}, []), "open", "рівень 1 завжди відкритий")
+	assert_eq(LevelManager.open_state(2, {}, []), "locked", "рівень 1 не пройдено — 2 замкнений")
+	assert_eq(LevelManager.open_state(2, {"1": 1}, []), "buyable", "рівень 1 пройдено, 2 не куплено — купується")
+	assert_eq(LevelManager.open_state(2, {"1": 1}, [2]), "open", "куплено й попередній пройдено — відкритий")
+	assert_eq(LevelManager.open_state(2, {"1": 1}, [2.0]), "open", "число зі збереження може бути float")
+	assert_eq(LevelManager.open_state(3, {"1": 3}, [2, 3]), "locked", "рівень 2 не пройдено — 3 замкнений навіть якщо куплений")
+	assert_eq(LevelManager.open_state(3, {"1": 3, "2": 0}, [2]), "locked", "0 зірок — не пройдено")
+
+
+func test_unlocked_open_is_highest_playable() -> void:
+	assert_eq(LevelManager.unlocked_open({}, [], 17), 1)
+	assert_eq(LevelManager.unlocked_open({"1": 2}, [], 17), 1, "пройдено, але не куплено — грати можна лише 1")
+	assert_eq(LevelManager.unlocked_open({"1": 2}, [2], 17), 2)
+	assert_eq(LevelManager.unlocked_open({"1": 2, "2": 1}, [2], 17), 2, "3 не куплено")
+	assert_eq(LevelManager.unlocked_open({"1": 2, "2": 1}, [2, 3], 17), 3)
+	assert_eq(LevelManager.unlocked_open({"1": 1}, [3], 17), 1, "куплений 3 без 2 — не рахується")
+
+
+func test_place_labels_no_overlap_on_17_nodes() -> void:
+	var size := Vector2(1280, 720)
+	var pts := MapScreen.node_positions(17, size)
+	var lm := LevelManager.new()
+	var centers := []
+	for isl in lm.islands():
+		var c := Vector2.ZERO
+		var k := 0
+		for i in range(int(isl["from"]) - 1, int(isl["to"])):
+			c += pts[i]
+			k += 1
+		centers.append(c / float(k))
+	var tops := MapScreen.place_labels(centers, pts, size)
+	assert_eq(tops.size(), 5, "по напису на острів")
+	var rects: Array[Rect2] = []
+	for top in tops:
+		rects.append(Rect2(top, Vector2(MapScreen.LABEL_W, MapScreen.LABEL_H)))
+	for a in range(rects.size()):
+		assert_between(rects[a].position.x, 0.0, size.x - MapScreen.LABEL_W, "напис %d у межах екрана по x" % a)
+		for b in range(a + 1, rects.size()):
+			assert_false(rects[a].intersects(rects[b]), "написи %d і %d не накладаються" % [a, b])
+		for p in pts:
+			var q := Vector2(clampf(p.x, rects[a].position.x, rects[a].end.x), clampf(p.y, rects[a].position.y, rects[a].end.y))
+			assert_gte(q.distance_to(p), MapScreen.NODE_R, "напис %d не лягає на вузол %s" % [a, str(p)])
+
+
+func test_place_labels_shifts_up_when_overlapping() -> void:
+	var size := Vector2(1280, 720)
+	# два острови з однаковим центром — другий напис має піднятись
+	var tops := MapScreen.place_labels([Vector2(640, 400), Vector2(640, 400)], [], size)
+	assert_eq(tops.size(), 2)
+	assert_almost_eq((tops[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT, 0.001)
+	assert_lt((tops[1] as Vector2).y, (tops[0] as Vector2).y, "другий напис вище першого")
+	assert_false(Rect2(tops[0], Vector2(MapScreen.LABEL_W, MapScreen.LABEL_H)).intersects(Rect2(tops[1], Vector2(MapScreen.LABEL_W, MapScreen.LABEL_H))))
+	# вузол прямо під написом — напис піднімається
+	var one := MapScreen.place_labels([Vector2(640, 400)], [Vector2(640, 400.0 - MapScreen.LABEL_LIFT + 10.0)], size)
+	assert_lt((one[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT, "піднято через вузол")
+	# не більше 4 зсувів
+	var stuck := MapScreen.place_labels([Vector2(640, 400)], [Vector2(640, 100), Vector2(640, 140), Vector2(640, 180), Vector2(640, 220), Vector2(640, 260)], size)
+	assert_gte((one[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT - MapScreen.LABEL_STEP * MapScreen.LABEL_TRIES)
+	assert_almost_eq((stuck[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT - MapScreen.LABEL_STEP * MapScreen.LABEL_TRIES, 0.001, "рівно 4 зсуви, далі не пробуємо")
+
+
+func test_smooth_path_keeps_endpoints() -> void:
+	var pts := [Vector2(0, 0), Vector2(100, 50), Vector2(200, 0)]
+	var path := MapScreen.MapCanvas.smooth_path(pts, 4)
+	assert_eq(path.size(), 9, "2 відрізки × 4 + кінець")
+	assert_eq(path[0], pts[0])
+	assert_eq(path[-1], pts[-1])
+
+
 func test_camera_scales_with_lanes() -> void:
 	var base := {"pos": [0.0, 3.0, 5.0], "look": [0.0, 1.0, -4.0], "fov": 60}
 	var c7: Dictionary = RunScript.camera_for_lanes(base, 7)
@@ -100,12 +198,12 @@ func test_camera_scales_with_lanes() -> void:
 
 # ---------- 0.6.0: пляж на піску, камера всередині світу, фініш ----------
 
-func test_beach_is_run_on_sand_with_sea_on_the_side() -> void:
+func test_beach_is_surf_on_sea() -> void:
 	var beach: Dictionary = _worlds["beach"]
-	assert_eq(String(beach["mode"]), "run", "Пляж — біг по піску (Хвиля лишилась у коді на майбутнє)")
-	assert_eq(int(beach.get("sea_side", 0)), -1, "море — декоративне, ліворуч")
+	assert_eq(String(beach["mode"]), "surf", "Пляж — серфінг (v1.3)")
+	assert_true(bool(beach.get("sea", false)), "море на всю ширину, герой на дошці")
 	assert_true(beach.has("water"), "колір моря для водяної площини")
-	assert_true(beach.has("speed_factor"), "speed_factor лишається для режиму Хвиля")
+	assert_true(beach.has("speed_factor"), "множник швидкості режиму Серфінг")
 
 
 func test_world_cameras_are_perspective_and_low() -> void:

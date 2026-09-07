@@ -1,15 +1,21 @@
 ## Крамниця (data/shop.json): капелюшки, окуляри, шарфики, спинка, сліди. Каталог, володіння, покупка за зірочки.
-## Чисті функції (load_all/find/is_owned/try_buy/random_unowned) — для тестів; збереження — у SaveService.child():
-##   "hats_owned": [id, …]         — куплені предмети всіх слотів (історична назва ключа)
-##   "equip": {slot: id, …}        — що одягнуто в кожному слоті
+## GDD v1.3 §5: предмети купуються й одягаються ОКРЕМО ДЛЯ КОЖНОГО ГЕРОЯ.
+## Чисті функції (load_all/find/is_owned/try_buy/random_unowned/migrate_child) — для тестів; збереження — у SaveService.child():
+##   "hero_inventory": {hero_id: [item_id, …]}     — куплене кожним героєм
+##   "hero_equip":     {hero_id: {slot: item_id}}  — що одягнуто на кожному герої
+## Старі спільні ключі "hats_owned" / "equip" / "hat" один раз переносяться поточному герою й видаляються.
+## hero_id "" у будь-якому виклику означає поточного героя (child()["hero"], типово "puf").
 class_name Shop
 extends RefCounted
 
 const PATH := "res://data/shop.json"
 const SLOTS := ["hat", "face", "neck", "back", "trail"]
+const KEY_INV := "hero_inventory"
+const KEY_EQUIP := "hero_equip"
 
 static var _cache: Array = []
-static var _migrated := false
+## Для якої дитини (active_child) міграцію вже зроблено; −1 — ще ні.
+static var _migrated_for := -1
 
 
 static func load_all() -> Array:
@@ -44,7 +50,7 @@ static func none_id(slot: String) -> String:
 	return slot + "_none"
 
 
-## Чи є предмет у дитини: безплатні — завжди.
+## Чи є предмет у списку куплених: безплатні («*_none») — завжди, у всіх героїв.
 static func is_owned(def: Dictionary, owned: Array) -> bool:
 	return int(def.get("price", 0)) <= 0 or owned.has(String(def.get("id", "")))
 
@@ -75,65 +81,148 @@ static func random_unowned(all: Array, owned: Array, rng: RandomNumberGenerator,
 	return pool[rng.randi() % pool.size()]
 
 
+# ---------- міграція (чиста) ----------
+
+## Переносить старі спільні ключі "hats_owned"/"equip"/"hat" герою hero_id і видаляє їх; створює порожні
+## "hero_inventory"/"hero_equip", якщо їх нема. Повертає true, якщо словник змінено.
+static func migrate_child(child: Dictionary, hero_id: String) -> bool:
+	var changed := false
+	if typeof(child.get(KEY_INV)) != TYPE_DICTIONARY:
+		child[KEY_INV] = {}
+		changed = true
+	if typeof(child.get(KEY_EQUIP)) != TYPE_DICTIONARY:
+		child[KEY_EQUIP] = {}
+		changed = true
+	# куплене
+	if child.has("hats_owned"):
+		var old = child["hats_owned"]
+		if typeof(old) == TYPE_ARRAY:
+			var inv: Array = _list(child[KEY_INV], hero_id)
+			for id in old:
+				if not inv.has(String(id)):
+					inv.append(String(id))
+			child[KEY_INV][hero_id] = inv
+		child.erase("hats_owned")
+		changed = true
+	# одягнуте: "equip" має пріоритет над найстарішим "hat"
+	if child.has("equip") or child.has("hat"):
+		var eq := {}
+		if typeof(child.get("equip")) == TYPE_DICTIONARY:
+			eq = (child["equip"] as Dictionary).duplicate()
+		if child.has("hat") and not eq.has("hat"):
+			var old_hat := String(child["hat"])
+			eq["hat"] = none_id("hat") if old_hat == "none" or old_hat == "" else old_hat
+		var cur: Dictionary = _map(child[KEY_EQUIP], hero_id)
+		for s in eq.keys():
+			if not cur.has(s):
+				cur[s] = eq[s]
+		child[KEY_EQUIP][hero_id] = cur
+		child.erase("equip")
+		child.erase("hat")
+		changed = true
+	return changed
+
+
+## Копія списку з словника (або порожній).
+static func _list(d: Dictionary, key: String) -> Array:
+	var v = d.get(key, [])
+	return (v as Array).duplicate() if typeof(v) == TYPE_ARRAY else []
+
+
+## Копія словника з словника (або порожній).
+static func _map(d: Dictionary, key: String) -> Dictionary:
+	var v = d.get(key, {})
+	return (v as Dictionary).duplicate() if typeof(v) == TYPE_DICTIONARY else {}
+
+
 # ---------- збереження ----------
 
-## Старий ключ "hat" → "equip".hat (одноразово за сесію).
+## Поточний герой дитини (кому дістаються покупки за замовчуванням).
+static func current_hero() -> String:
+	return String(SaveService.child().get("hero", "puf"))
+
+
+static func _hero(hero_id: String) -> String:
+	return current_hero() if hero_id == "" else hero_id
+
+
+## Одноразова міграція старих ключів у поточного героя — окремо для кожної дитини (зміна active_child — знову).
 static func _migrate() -> void:
-	if _migrated:
+	var active := int(SaveService.data.get("active_child", 0))
+	if _migrated_for == active:
 		return
-	_migrated = true
-	var child := SaveService.child()
-	if typeof(child.get("equip")) != TYPE_DICTIONARY:
-		var eq := {}
-		if child.has("hat"):
-			var old := String(child["hat"])
-			eq["hat"] = none_id("hat") if old == "none" or old == "" else old
-		child["equip"] = eq
+	_migrated_for = active
+	if migrate_child(SaveService.child(), current_hero()):
 		SaveService.save_game()
 
 
-static func owned() -> Array:
-	var o = SaveService.child().get("hats_owned", [])
-	return o if typeof(o) == TYPE_ARRAY else []
-
-
-static func equip_map() -> Dictionary:
+static func _inventory() -> Dictionary:
 	_migrate()
-	var e = SaveService.child().get("equip", {})
-	return e if typeof(e) == TYPE_DICTIONARY else {}
+	var inv = SaveService.child().get(KEY_INV, {})
+	if typeof(inv) != TYPE_DICTIONARY:
+		inv = {}
+		SaveService.child()[KEY_INV] = inv
+	return inv
 
 
-## Що одягнуто в слоті (за замовчуванням — «нічого»).
-static func equipped(slot: String) -> String:
-	return String(equip_map().get(slot, none_id(slot)))
+static func _equips() -> Dictionary:
+	_migrate()
+	var e = SaveService.child().get(KEY_EQUIP, {})
+	if typeof(e) != TYPE_DICTIONARY:
+		e = {}
+		SaveService.child()[KEY_EQUIP] = e
+	return e
 
 
-static func equip(slot: String, id: String) -> void:
-	var e := equip_map()
+## Куплене героєм (копія списку). "" — поточний герой.
+static func owned(hero_id: String = "") -> Array:
+	return _list(_inventory(), _hero(hero_id))
+
+
+## Чи є предмет у цього героя (безплатні — у всіх).
+static func is_owned_by(def: Dictionary, hero_id: String = "") -> bool:
+	return is_owned(def, owned(hero_id))
+
+
+## Одягнуте героєм за слотами (копія).
+static func equip_map(hero_id: String = "") -> Dictionary:
+	return _map(_equips(), _hero(hero_id))
+
+
+## Що одягнуто в слоті героя (за замовчуванням — «нічого»).
+static func equipped(hero_id: String, slot: String) -> String:
+	return String(equip_map(hero_id).get(slot, none_id(slot)))
+
+
+static func equip(hero_id: String, slot: String, id: String) -> void:
+	var hid := _hero(hero_id)
+	var e := equip_map(hid)
 	e[slot] = id
-	SaveService.child()["equip"] = e
+	_equips()[hid] = e
 	SaveService.save_game()
 
 
-## Купити й зберегти; повертає true при успіху. Зірочки списуються через SaveService.add_stars(-price).
-static func buy(def: Dictionary) -> bool:
-	var r := try_buy(def, SaveService.stars(), owned())
+## Купити герою й зберегти; повертає true при успіху. Зірочки списуються через SaveService.add_stars(-price).
+static func buy(def: Dictionary, hero_id: String = "") -> bool:
+	var hid := _hero(hero_id)
+	var r := try_buy(def, SaveService.stars(), owned(hid))
 	if not bool(r["ok"]):
 		return false
 	var spent: int = SaveService.stars() - int(r["stars_left"])
 	if spent > 0:
 		SaveService.add_stars(-spent)
-	SaveService.child()["hats_owned"] = r["owned"]
+	_inventory()[hid] = r["owned"]
 	SaveService.save_game()
 	return true
 
 
-## Подарувати предмет (колесо станції).
-static func grant(id: String) -> void:
-	var o := owned()
+## Подарувати предмет герою (колесо станції).
+static func grant(id: String, hero_id: String = "") -> void:
+	var hid := _hero(hero_id)
+	var o := owned(hid)
 	if not o.has(id):
 		o.append(id)
-		SaveService.child()["hats_owned"] = o
+		_inventory()[hid] = o
 		SaveService.save_game()
 
 
@@ -150,8 +239,9 @@ static func apply_item(hero: Hero3D, slot: String, def: Dictionary) -> void:
 	hero.set_accessory(slot, String(def.get("voxel", "")))
 
 
-## Одягнути на героя все, що збережено в "equip".
+## Одягнути на героя все, що збережено для НЬОГО (hero.hero_id). Чуже спорядження не чіпає.
 static func apply_to(hero: Hero3D) -> void:
 	var all := load_all()
+	var hid := String(hero.hero_id)
 	for slot in SLOTS:
-		apply_item(hero, String(slot), find(all, equipped(String(slot))))
+		apply_item(hero, String(slot), find(all, equipped(hid, String(slot))))

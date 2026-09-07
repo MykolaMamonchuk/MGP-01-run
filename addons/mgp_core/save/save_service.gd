@@ -29,7 +29,7 @@ func _default_child(child_name: String) -> Dictionary:
 		"feathers": 0,
 		"unlocked_heroes": ["puf"],
 		"hero_stage": {"puf": 1},
-		"current_hero": "puf",
+		"hero": "puf",
 	}
 
 func load_game() -> void:
@@ -62,6 +62,11 @@ func _migrate() -> void:
 			data = d
 			save_game()
 			return
+		# старий ключ "current_hero" → "hero" (значення переносимо, якщо "hero" ще нема)
+		if (c as Dictionary).has("current_hero"):
+			if not (c as Dictionary).has("hero"):
+				c["hero"] = String(c["current_hero"])
+			(c as Dictionary).erase("current_hero")
 	# active_child — індекс у межах масиву
 	data["active_child"] = clampi(int(data.get("active_child", 0)), 0, (children as Array).size() - 1)
 	# settings — словник із дефолтами

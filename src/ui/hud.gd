@@ -1,6 +1,13 @@
-## HUD: зірочки, кнопка батьків, станція, підказка, сон.
+## HUD: зірочки (усього + рівень), серця, швидкість, смужка пікапа, кнопка батьків, станція, підказка, сон.
 ## Будується кодом. Кожен дитячий елемент має намальовану іконку (src/ui/icons.gd), текст — лише другорядний.
 extends CanvasLayer
+
+## Кольори/знаки пікапів для смужки (резерв, якщо в data/pickups.json їх нема).
+const PICKUP_FALLBACK := {"color": "#FFFFFF", "letter": "?"}
+## Пульс лічильника швидкості — на кожному перетині чергових +10 км/год.
+const SPEED_PULSE_STEP := 10
+## Миттєвий пікап (seconds 0): іконка підскакує й ховається через стільки секунд.
+const PICKUP_POP_SEC := 0.8
 
 var stars_label: Label
 var profile_label: Label
@@ -22,6 +29,118 @@ var _quest_label: Label
 var _quest_icon: Control
 var _fork_box: HBoxContainer
 var _fork_cb: Callable
+# v1.3: серця, швидкість, пікап, лічильник рівня
+var _tally := 0
+var _tally_box: HBoxContainer
+var _tally_label: Label
+var _hearts_box: HBoxContainer
+var _hearts: Array[Control] = []
+var _hearts_n := 3
+var _speed_box: HBoxContainer
+var _speed_label: Label
+var _speed_kmh := -1
+var _pickup_box: HBoxContainer
+var _pickup_icon: Control
+var _pickup_bar: Control
+var _pickup_kind := ""
+var _pickup_total := 0.0
+var _pickup_left := 0.0
+var _pickup_pop_tw: Tween
+
+
+## Сердечко HUD: повне (червоне) або порожнє (сірий контур).
+class HeartIcon:
+	extends Control
+
+	var full := true
+	var fill := Color("#FF5252")
+	var empty := Color(0.6, 0.6, 0.6, 0.7)
+
+	func _init(px: float = 44.0) -> void:
+		custom_minimum_size = Vector2(px, px)
+		size = custom_minimum_size
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pivot_offset = size * 0.5
+
+	func set_full(on: bool) -> void:
+		full = on
+		queue_redraw()
+
+	func _draw() -> void:
+		var s := size.x
+		var c := size * 0.5
+		var pts := PackedVector2Array()
+		# сердечко з двох дуг і вістря
+		for i in range(25):
+			var t := float(i) / 24.0 * PI
+			pts.append(c + Vector2(-s * 0.25 + cos(PI - t) * s * 0.25, -s * 0.12 - sin(t) * s * 0.25))
+		for i in range(25):
+			var t := float(i) / 24.0 * PI
+			pts.append(c + Vector2(s * 0.25 + cos(PI - t) * s * 0.25, -s * 0.12 - sin(t) * s * 0.25))
+		pts.append(c + Vector2(0.0, s * 0.42))
+		if full:
+			draw_colored_polygon(pts, fill)
+			draw_polyline(pts + PackedVector2Array([pts[0]]), fill.darkened(0.3), 3.0)
+		else:
+			draw_polyline(pts + PackedVector2Array([pts[0]]), empty, 4.0)
+
+
+## Кругла іконка пікапа: колір + знак.
+class PickupIcon:
+	extends Control
+
+	var color := Color.WHITE
+	var letter := "?"
+
+	func _init(col: Color, l: String, px: float = 56.0) -> void:
+		color = col
+		letter = l
+		custom_minimum_size = Vector2(px, px)
+		size = custom_minimum_size
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pivot_offset = size * 0.5
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r: float = min(size.x, size.y) * 0.46
+		draw_circle(c, r, color)
+		draw_arc(c, r, 0.0, TAU, 48, color.darkened(0.35), 3.0)
+		var f: Font = UIKit.font()
+		if f == null:
+			f = ThemeDB.fallback_font
+		var fs := int(size.y * 0.5)
+		var w := f.get_string_size(letter, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
+		draw_string(f, Vector2(c.x - w * 0.5, c.y + fs * 0.36), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color.WHITE)
+
+
+## Смужка часу пікапа: заповнення зменшується.
+class PickupBar:
+	extends Control
+
+	var ratio := 1.0
+	var color := Color.WHITE
+
+	func _init(col: Color) -> void:
+		color = col
+		custom_minimum_size = Vector2(240, 28)
+		size = custom_minimum_size
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func set_ratio(r: float) -> void:
+		ratio = clampf(r, 0.0, 1.0)
+		queue_redraw()
+
+	func _draw() -> void:
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = Color(0, 0, 0, 0.3)
+		bg.set_corner_radius_all(14)
+		draw_style_box(bg, Rect2(Vector2.ZERO, size))
+		if ratio > 0.0:
+			var fg := StyleBoxFlat.new()
+			fg.bg_color = color
+			fg.set_corner_radius_all(14)
+			draw_style_box(fg, Rect2(Vector2(4, 4), Vector2((size.x - 8.0) * ratio, size.y - 8.0)))
+
 
 func _ready() -> void:
 	# HUD має жити й тоді, коли дерево на паузі (станція, сон, екран батьків).
@@ -43,8 +162,35 @@ func _ready() -> void:
 	stars_label = UIKit.title("0", 48)
 	stars_box.add_child(stars_label)
 
+	# монети цього рівня — ліворуч від загальних зірочок (менша зірочка, число)
+	_tally_box = HBoxContainer.new()
+	_tally_box.position = Vector2(820, 32)
+	_tally_box.add_theme_constant_override("separation", 8)
+	_tally_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_tally_box)
+	_tally_box.add_child(Icons.StarIcon.new(44.0))
+	_tally_label = UIKit.title("0", 40, Color("#FFF8E1"))
+	_tally_box.add_child(_tally_label)
+
+	# швидкість — під зірочками: велике число + маленьке «км/год»
+	_speed_box = HBoxContainer.new()
+	_speed_box.position = Vector2(1000, 96)
+	_speed_box.add_theme_constant_override("separation", 8)
+	_speed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_speed_box)
+	_speed_label = UIKit.title("0", 48)
+	_speed_label.resized.connect(func(): _speed_label.pivot_offset = _speed_label.size * 0.5)
+	_speed_box.add_child(_speed_label)
+	var kmh := UIKit.title("км/год", 20, Color(1, 1, 1, 0.85))
+	kmh.size_flags_vertical = Control.SIZE_SHRINK_END
+	_speed_box.add_child(kmh)
+
 	Events.star_collected.connect(_on_star_collected)
 	Events.checkpoint_reached.connect(_on_checkpoint_reached)
+	Events.hearts_changed.connect(_on_hearts_changed)
+	Events.pickup_started.connect(show_pickup)
+	Events.pickup_ended.connect(_on_pickup_ended)
+	Events.level_restarted.connect(_on_level_restarted)
 
 	profile_label = Label.new()
 	profile_label.position = Vector2(560, 24)
@@ -61,6 +207,34 @@ func _ready() -> void:
 	var parent_icon := Icons.ParentIcon.new(64.0)
 	parent_icon.position = Vector2(16, 16)
 	parents.add_child(parent_icon)
+
+	# серця — під кнопкою батьків
+	_hearts_box = HBoxContainer.new()
+	_hearts_box.position = Vector2(24, 132)
+	_hearts_box.add_theme_constant_override("separation", 6)
+	_hearts_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_hearts_box)
+	_build_hearts(_hearts_n)
+
+	# пікап: іконка + смужка часу, правий нижній кут (ховається, коли нічого не діє)
+	_pickup_box = HBoxContainer.new()
+	_pickup_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_pickup_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_pickup_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_pickup_box.offset_left = -24
+	_pickup_box.offset_right = -24
+	_pickup_box.offset_top = -24
+	_pickup_box.offset_bottom = -24
+	_pickup_box.alignment = BoxContainer.ALIGNMENT_END
+	_pickup_box.add_theme_constant_override("separation", 12)
+	_pickup_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_pickup_box.visible = false
+	_root.add_child(_pickup_box)
+	_pickup_icon = PickupIcon.new(Color(String(PICKUP_FALLBACK["color"])), String(PICKUP_FALLBACK["letter"]))
+	_pickup_box.add_child(_pickup_icon)
+	_pickup_bar = PickupBar.new(Color(String(PICKUP_FALLBACK["color"])))
+	_pickup_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_pickup_box.add_child(_pickup_bar)
 
 	# підказка-жест: велика стрілка + слово, над героєм (замість незрозумілої «лапки»)
 	hint = VBoxContainer.new()
@@ -83,9 +257,9 @@ func _ready() -> void:
 	yawn_panel = _panel(_root, Icons.MoonIcon.new(96.0), "Герой втомлюється…")
 	sleep_panel = _panel(_root, Icons.MoonIcon.new(96.0), "На добраніч!")
 
-	# мінізавдання (від mid): іконка + прогрес, під зірочками
+	# мінізавдання (від mid): іконка + прогрес, під швидкістю
 	_quest_box = HBoxContainer.new()
-	_quest_box.position = Vector2(1000, 96)
+	_quest_box.position = Vector2(1000, 168)
 	_quest_box.add_theme_constant_override("separation", 10)
 	_quest_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_quest_box.visible = false
@@ -139,6 +313,161 @@ func _process(delta: float) -> void:
 		hint.offset_bottom = hint.offset_top
 		if _hint_t > 2.4:
 			hint.visible = false
+	# смужка пікапа тане (лише коли гра йде — на паузі таймер у Run3D теж стоїть)
+	if _pickup_box.visible and _pickup_total > 0.0 and not get_tree().paused:
+		_pickup_left = maxf(0.0, _pickup_left - delta)
+		_pickup_bar.set_ratio(_pickup_left / _pickup_total)
+		if _pickup_left <= 0.0:
+			hide_pickup()
+
+
+# ---------- v1.3: серця, швидкість, монети рівня, пікап ----------
+
+## Ряд сердець заново (n = максимум героя, 3–4).
+func _build_hearts(n: int) -> void:
+	for c in _hearts_box.get_children():
+		c.queue_free()
+	_hearts.clear()
+	for i in range(maxi(1, n)):
+		var h := HeartIcon.new(44.0)
+		_hearts_box.add_child(h)
+		_hearts.append(h)
+	_hearts_n = _hearts.size()
+
+
+## Events.hearts_changed: більше за ряд — це новий максимум (старт рівня), перебудова;
+## інакше — повне/порожнє з підскоком на +1 і трясінням на −1.
+## Новий максимум (інший герой): перебудувати ряд на n сердець.
+func set_max_hearts(n: int) -> void:
+	if n != _hearts.size():
+		_build_hearts(n)
+
+
+func _on_hearts_changed(hearts: int) -> void:
+	if hearts > _hearts.size():
+		_build_hearts(hearts)
+	var prev := 0
+	for h in _hearts:
+		if (h as HeartIcon).full:
+			prev += 1
+	for i in range(_hearts.size()):
+		var h := _hearts[i] as HeartIcon
+		var was := h.full
+		var now := i < hearts
+		h.set_full(now)
+		if now and not was:
+			# підскок
+			h.pivot_offset = h.size * 0.5
+			var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+			tw.tween_property(h, "scale", Vector2(1.4, 1.4), 0.12)
+			tw.tween_property(h, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_ELASTIC)
+		elif was and not now:
+			# сіріє зі стисканням (position у HBox не трясти — контейнер перекладе)
+			h.pivot_offset = h.size * 0.5
+			var tw2 := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+			tw2.tween_property(h, "scale", Vector2(0.7, 0.7), 0.1)
+			tw2.tween_property(h, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK)
+	if hearts < prev and hearts >= 0:
+		# і весь ряд здригається
+		UIKit.shake(_hearts_box)
+
+
+## Монети, зібрані на цьому рівні (Run3D.level_coins).
+func set_tally(n: int) -> void:
+	_tally = maxi(0, n)
+	_tally_label.text = "%d" % _tally
+
+
+## Швидкість у клітинках/с → «км/год» (×10); пульс на кожних нових +10.
+func set_speed(cells: float) -> void:
+	var kmh := int(round(maxf(0.0, cells) * 10.0))
+	if kmh == _speed_kmh:
+		return
+	var crossed := _speed_kmh >= 0 and kmh / SPEED_PULSE_STEP != _speed_kmh / SPEED_PULSE_STEP
+	_speed_kmh = kmh
+	_speed_label.text = "%d" % kmh
+	if crossed and _speed_box.visible:
+		_speed_label.pivot_offset = _speed_label.size * 0.5
+		var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		tw.tween_property(_speed_label, "scale", Vector2(1.3, 1.3), 0.1)
+		tw.tween_property(_speed_label, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_ELASTIC)
+
+
+## Показати пікап: іконка (колір/знак з data/pickups.json) + смужка на seconds. seconds 0 — лише підскок іконки.
+func show_pickup(kind: String, seconds: float) -> void:
+	var def := Pickup3D.def_of(kind)
+	var color := Color(String(def.get("color", String(PICKUP_FALLBACK["color"]))))
+	var letter := String(def.get("letter", String(PICKUP_FALLBACK["letter"])))
+	# миттєвий пікап (сердечко) під час дії тривалого — не ховаємо чужу смужку, лише підскок
+	if seconds <= 0.0 and _pickup_total > 0.0 and _pickup_box.visible and kind != _pickup_kind:
+		if is_instance_valid(_pickup_icon):
+			var tw0 := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+			tw0.tween_property(_pickup_icon, "scale", Vector2(1.3, 1.3), 0.1)
+			tw0.tween_property(_pickup_icon, "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_ELASTIC)
+		return
+	if _pickup_pop_tw:
+		_pickup_pop_tw.kill()
+		_pickup_pop_tw = null
+	var same := kind == _pickup_kind and _pickup_box.visible
+	if not same:
+		if is_instance_valid(_pickup_icon):
+			_pickup_icon.queue_free()
+		_pickup_icon = PickupIcon.new(color, letter)
+		_pickup_box.add_child(_pickup_icon)
+		_pickup_box.move_child(_pickup_icon, 0)
+		(_pickup_bar as PickupBar).color = color
+	_pickup_kind = kind
+	_pickup_box.visible = true
+	_pickup_box.modulate.a = 1.0
+	if seconds <= 0.0:
+		# миттєвий (сердечко): підскок і геть
+		_pickup_total = 0.0
+		_pickup_left = 0.0
+		_pickup_bar.visible = false
+		_pop_pickup_icon()
+		_pickup_pop_tw = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		_pickup_pop_tw.tween_interval(PICKUP_POP_SEC)
+		_pickup_pop_tw.tween_callback(hide_pickup)
+		return
+	_pickup_bar.visible = true
+	if same and seconds <= _pickup_left + 0.05:
+		# той самий ефект, менше часу (інший скінчився) — смужка не стрибає до повної
+		_pickup_left = seconds
+	else:
+		_pickup_total = seconds
+		_pickup_left = seconds
+		_pop_pickup_icon()
+	_pickup_bar.set_ratio(_pickup_left / maxf(0.01, _pickup_total))
+
+
+func _pop_pickup_icon() -> void:
+	if not is_instance_valid(_pickup_icon):
+		return
+	_pickup_icon.pivot_offset = _pickup_icon.size * 0.5
+	_pickup_icon.scale = Vector2(0.3, 0.3)
+	var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tw.tween_property(_pickup_icon, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func hide_pickup() -> void:
+	if _pickup_pop_tw:
+		_pickup_pop_tw.kill()
+		_pickup_pop_tw = null
+	_pickup_kind = ""
+	_pickup_total = 0.0
+	_pickup_left = 0.0
+	_pickup_box.visible = false
+
+
+## Events.pickup_ended: Run3D сам вирішує, що показувати далі (show_pickup/hide_pickup); тут — лише той самий вид.
+func _on_pickup_ended(kind: String) -> void:
+	if kind == _pickup_kind and _pickup_total > 0.0:
+		hide_pickup()
+
+
+func _on_level_restarted(_level: int) -> void:
+	flash("Ще раз!", 1.6, Color("#FF8A65"))
+
 
 func _on_star_collected(_n: int) -> void:
 	call_deferred("_refresh")
@@ -298,9 +627,13 @@ func fork_visible() -> bool:
 ## Меню/герої: ховаємо ігрові елементи, лишаємо зірочки й кнопку батьків.
 func set_gameplay_visible(on: bool) -> void:
 	profile_label.visible = on
+	_hearts_box.visible = on
+	_speed_box.visible = on
+	_tally_box.visible = on
 	if not on:
 		_quest_box.visible = false
 		hint.visible = false
+		hide_pickup()
 
 ## Великий напис по центру з пружиною (відлік «3 2 1 Біжимо!», «Станція!»).
 func flash(text: String, seconds: float = 0.7, color: Color = Color.WHITE) -> void:
@@ -319,20 +652,20 @@ func flash(text: String, seconds: float = 0.7, color: Color = Color.WHITE) -> vo
 	tw.parallel().tween_property(l, "modulate:a", 0.0, 0.2)
 	tw.finished.connect(l.queue_free)
 
-## Зірочка летить з місця збору до лічильника.
+## Зірочка летить з місця збору до лічильника монет рівня.
 func fly_star(from_screen: Vector2) -> void:
 	var s := Icons.StarIcon.new(40.0)
 	s.position = from_screen - Vector2(20, 20)
 	_root.add_child(s)
 	var tw := create_tween()
-	tw.tween_property(s, "position", stars_label.get_global_rect().position - Vector2(50, 0), 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tw.tween_property(s, "position", _tally_label.get_global_rect().position - Vector2(44, 0), 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tw.parallel().tween_property(s, "scale", Vector2(0.6, 0.6), 0.45)
 	tw.finished.connect(func():
 		s.queue_free()
 		_bump_counter())
 
 func _bump_counter() -> void:
-	var box := stars_label.get_parent() as Control
+	var box := _tally_box as Control
 	box.pivot_offset = box.size * 0.5
 	var tw := create_tween()
 	tw.tween_property(box, "scale", Vector2(1.25, 1.25), 0.08)

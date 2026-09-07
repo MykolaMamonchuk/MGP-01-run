@@ -1,9 +1,10 @@
-## Головна сцена (3D). Стани: MENU → MAP → COUNTDOWN → RUN → FINISH → (MAP | наступний рівень) …; HEROES з меню; SLEEP по таймеру.
-## Оркеструє рівні (LevelManager), біом і його режим руху, жести (свайпи/стрілки/джойстик), туторіал,
-## міні-події, мінізавдання, живе небо/сезон, ефекти. Герой стоїть у (0,0,0), світ їде на нього.
+## Головна сцена (3D). Стани: MENU → MAP → COUNTDOWN → RUN → FINISH → (MAP | наступний рівень) …; HEROES з меню;
+## RESTART — серця скінчились, рівень починається знову; SLEEP по таймеру.
+## Оркеструє рівні (LevelManager), біом і його режим руху (v1.3: усі світи біжать), жести (свайпи/стрілки/джойстик),
+## туторіал, міні-події, пікапи, мінізавдання, живе небо/сезон, ефекти. Герой стоїть у (0,0,0), світ їде на нього.
 extends Node3D
 
-enum State { MENU, MAP, HEROES, COUNTDOWN, RUN, FINISH, SLEEP }
+enum State { MENU, MAP, HEROES, COUNTDOWN, RUN, FINISH, RESTART, SLEEP }
 
 const WORLD_SWITCH_SEC := 0.9
 const MENU_SPEED := 1.1
@@ -11,12 +12,15 @@ const STICK_REARM_PX := 26.0
 const TUTORIAL_LEAD_SEC := 1.7
 const TUTORIAL_SLOW := 0.6
 const FINISH_AUTO_NEXT_SEC := 7.0
-## Останні 20% рівня — спринт ×1.15; ворота фінішу з'являються за 6 с до кінця.
+## Швидкість: v = base × level.speed_mult × (1 + 0.35 × прогрес); останні 20% рівня — спринт ×1.15;
+## ворота фінішу з'являються за 6 с до кінця.
+const SPEED_RAMP := 0.35
 const SPRINT_FROM := 0.8
 const SPRINT_MULT := 1.15
 const GATE_BEFORE_SEC := 6.0
-## Темп бігу-боба героя в покрокових режимах (світ лише дрейфує).
-const STEPWISE_BOB := 0.6
+## Пауза «Ще раз!» перед перезапуском рівня.
+const RESTART_SEC := 2.0
+const DEFAULT_FOG := 0.012
 
 @onready var hero: Hero3D = $Hero
 @onready var track: Track = $Track
@@ -68,6 +72,14 @@ var _finish_auto_t := 0.0
 var _pending_finish: Dictionary = {}
 var _sprint_announced := false
 var _gate_spawned := false
+## Зірочки, зібрані на цьому рівні: у SaveService потрапляють лише на фініші (перезапуск їх не зберігає).
+var level_coins := 0
+## Активні пікапи: вид → секунд лишилось; равлик множить швидкість.
+var _effects: Dictionary = {}
+var _pickup_speed := 1.0
+## Множники героя (GDD v1.3 §5, stats.speed / stats.magnet) — виставляються на старті рівня.
+var _hero_speed := 1.0
+var _hero_magnet := 1.0
 
 # туторіал
 var _learned: Dictionary = {}
@@ -177,7 +189,7 @@ func _apply_profile(profile_name: String) -> void:
 	if mode:
 		mode.profile = profile
 		spawner.profile = profile
-		spawner.magnet = float(profile.get("star_magnet", 1.0))
+		spawner.magnet = float(profile.get("star_magnet", 1.0)) * _hero_magnet
 		events_spawner.profile = profile
 	hud.set_profile(profile_name)
 	controls.set_arrows_visible(state == State.RUN and _arrows_on())
@@ -199,16 +211,18 @@ func _apply_hero(id: String) -> void:
 	Shop.apply_to(hero)
 
 
+## v1.3: усі світи — біг. "hop"/"float" (HopMode/FloatMode) застаріли й не створюються; "slide" лишився як код на майбутнє.
 func _make_mode(kind: String) -> ModeBase:
 	match kind:
-		"hop": return HopMode.new()
-		"float": return FloatMode.new()
-		"slide": return SlideMode.new()
+		"surf": return SurfMode.new()
 		"scooter": return ScooterMode.new()
+		"float_run": return FloatRunMode.new()
+		"slide": return SlideMode.new()
 		_: return RunMode.new()
 
 
-func _enter_world(id: String, instant: bool) -> void:
+## rebuild_track false — той самий біом, дорогу не перебудовуємо (лише доріжки, якщо змінились); режим/спавнери — завжди.
+func _enter_world(id: String, instant: bool, rebuild_track: bool = true) -> void:
 	if not worlds.has(id):
 		id = String(worlds.keys()[0])
 	world = worlds[id]
@@ -221,14 +235,19 @@ func _enter_world(id: String, instant: bool) -> void:
 	mode.enter()
 	hero.lane = 0
 	hero.x_target = 0.0
-	# у покрокових режимах герой теж біжить, але повільнішим бобом — світ лише дрейфує
-	hero.run_speed_factor = STEPWISE_BOB if mode.is_stepwise() else 1.0
+	hero.run_speed_factor = 1.0
 	hero.set_running(state != State.MENU)
-	track.rebuild(world, not instant, season, lanes)
+	if rebuild_track:
+		track.rebuild(world, not instant, season, lanes)
+	elif track.lanes != lanes:
+		track.set_lanes(lanes, false)
 	hero.set_lanes(lanes)
 	if state == State.RUN:
 		# зміна біому посеред бігу (дебаг) — камеру переїжджаємо тут; на старті рівня це робить _start_level
 		camera_rig.apply(camera_for_lanes(world.get("camera", {}), lanes), 0.8)
+	# туман світу (Ліс густіший і темніший, Пляж — морська імла)
+	if env.environment:
+		env.environment.fog_density = float(world.get("fog_density", DEFAULT_FOG))
 	_set_sky(clampf(session_t / session_total, 0.0, 1.0))
 	_set_ambient()
 	spawner.configure(profile, world, hero, mode, self)
@@ -291,14 +310,13 @@ func _set_ambient() -> void:
 		_weather = null
 	var kind := String(season.get("particles", ""))
 	if kind == "":
-		match String(world.get("mode", "run")):
-			"run", "scooter": kind = "petals"
-			"hop": kind = "leaves"
-			"slide": kind = "glints"
+		kind = "petals"
 	if world_id == "clouds":
 		kind = "stars"
 	elif world_id == "beach":
-		kind = "glints"   # пляж тепер «біг», але відблиски моря лишаються
+		kind = "glints"   # відблиски моря
+	elif world_id == "forest" and String(season.get("particles", "")) == "":
+		kind = "leaves"
 	if kind != "":
 		_ambient = FX.ambient(ambient_root, kind)
 	if bool(level.get("rain", false)):
@@ -320,6 +338,9 @@ func _enter_menu(instant: bool) -> void:
 	spawner.spawning = false
 	spawner.clear()
 	events_spawner.events_enabled = false
+	_end_all_pickups()
+	hero.stand()
+	hero.set_ground(0.0)
 	hero.set_running(false)
 	hero.visible = true
 	hero.face_camera(true, 0.0 if instant else 0.5)
@@ -384,6 +405,10 @@ func _on_map_closed() -> void:
 
 ## Старт рівня num: біом, доріжки, складність, туторіал → відлік.
 func _start_level(num: int) -> void:
+	if not lm.get_level(num).is_empty() and not lm.is_open(num):
+		# рівень не куплений / попередній не пройдено (GDD v1.3 §3a) — на мапу, там купують за зірочки
+		_open_map()
+		return
 	lm.set_current(num)
 	level_num = num
 	level = lm.get_level(num)
@@ -402,10 +427,28 @@ func _start_level(num: int) -> void:
 	_sprint_announced = false
 	_gate_spawned = false
 	_tutorial_action = ""
+	# v1.3: серця, зірочки рівня, пікапи — з нуля
+	_end_all_pickups()
+	level_coins = 0
+	hud.set_tally(0)
+	hero.stand()
+	hero.set_ground(0.0)
+	# характеристики героя (GDD v1.3 §5): серця й швидкість — тут, магніт — після _enter_world (configure скидає його)
+	var st := HeroSelect.stats_of(heroes, hero.hero_id)
+	hero.max_hearts = int(st.hearts)
+	hud.set_max_hearts(hero.max_hearts)   # ряд сердець під героя (3 або 4)
+	_hero_speed = float(st.speed)
+	_hero_magnet = float(st.magnet)
+	hero.reset_hearts()
+	Events.hearts_changed.emit(hero.hearts)
+	hud.set_speed(0.0)
 	var learned = SaveService.child().get("learned", {})   # батьки могли скинути підказки
 	_learned = learned if typeof(learned) == TYPE_DICTIONARY else {}
 	var wid := String(level.get("world", "meadow"))
-	_enter_world(wid, wid == world_id)
+	# той самий біом і та сама ширина — дорогу не перебудовуємо (без «перескоку» декору)
+	_enter_world(wid, wid == world_id, not (wid == world_id and lanes == track.lanes))
+	spawner.magnet = float(profile.get("star_magnet", 1.0)) * _hero_magnet
+	# TODO(v1.3 §5): st.luck — частота пікапів живе у Spawner3D._schedule_pickup (Pickup3D.per_minute_total), множника ще нема
 	spawner.set_level(level.get("obstacle_types", []), float(level.get("density", 1.0)), lanes, bool(level.get("tutorial", false)))
 	spawner.spawning = false
 	events_spawner.allowed_ids = level.get("events", [])
@@ -477,7 +520,12 @@ func _finish() -> void:
 	hero.set_duck(false)
 	hero.set_running(false)
 	events_spawner.reset()
-	var stars := LevelManager.stars_for(spawner.stars_collected_segment, spawner.stars_spawned_segment, spawner.tumbles_segment)
+	_end_all_pickups()
+	# зірочки рівня стають справжніми лише тут (перезапуск їх не зберігає)
+	SaveService.add_stars(level_coins)
+	level_coins = 0
+	hud.set_tally(0)
+	var stars := LevelManager.stars_for(spawner.stars_collected_segment, spawner.stars_spawned_segment, spawner.hearts_lost_segment)
 	var record := lm.complete(level_num, stars)
 	SaveService.add_stars(20 + 10 * stars)
 	SaveService.child()["checkpoints"] = int(SaveService.child().get("checkpoints", 0)) + 1
@@ -526,6 +574,14 @@ func _on_finish_next() -> void:
 		# фінал: усе пройдено — на мапу для всіх (і малят): будь-який рівень можна грати знову
 		_open_map()
 		return
+	if bool(profile.get("skip_map", false)):
+		# малята мапи не бачать — наступний рівень купується сам, якщо вистачає зірочок
+		if not lm.is_open(next) and lm.can_buy(next) and SaveService.stars() >= lm.price_of(next):
+			lm.buy(next)
+			hud.flash("Новий рівень!", 1.2, Color("#FFD54F"))
+		if not lm.is_open(next):
+			_open_map()
+			return
 	_start_level(next)
 
 
@@ -537,8 +593,8 @@ func _process(delta: float) -> void:
 	match state:
 		State.SLEEP:
 			return
-		State.MENU, State.HEROES, State.MAP, State.COUNTDOWN:
-			# дорога повільно їде під меню (у Стрибках світ теж дрейфує — тому й тут)
+		State.MENU, State.HEROES, State.MAP, State.COUNTDOWN, State.RESTART:
+			# дорога повільно їде під меню / відліком / паузою «Ще раз!»
 			var d := MENU_SPEED * delta
 			track.advance(d)
 			spawner.advance(d)
@@ -558,12 +614,11 @@ func _process(delta: float) -> void:
 	if not _lanes_changed and level.has("lanes_to") and progress >= float(level.get("lanes_at", 0.5)):
 		_lanes_changed = true
 		_change_lanes(LevelManager.lanes_for(level, profile, progress))
-	# складність: профіль × рівень × розгін до фінішу × спринт × сповільнення туторіалу
+	# складність: профіль × рівень × розгін до фінішу (+35%) × спринт × сповільнення туторіалу × равлик
 	if _slow < 1.0:
 		_slow_t -= delta
 		if _slow_t <= 0.0:
 			_slow = 1.0
-	var ramp := float(profile.get("speed_ramp", 0.2))
 	var sprint := 1.0
 	if progress >= SPRINT_FROM:
 		sprint = SPRINT_MULT
@@ -571,9 +626,11 @@ func _process(delta: float) -> void:
 			_sprint_announced = true
 			hud.flash("Фініш близько!", 1.0, Color("#FF8A65"))
 			AudioMgr.voice("finish_soon")
-	speed = base_speed * float(level.get("speed_mult", 1.0)) * (1.0 + ramp * progress) * sprint * _slow
+	speed = base_speed * _hero_speed * float(level.get("speed_mult", 1.0)) * (1.0 + SPEED_RAMP * progress) * sprint * _slow * _pickup_speed
 	mode.speed = speed
 	spawner.set_speed(speed)
+	hud.set_speed(speed)
+	_tick_pickups(delta)
 	# ворота фінішу — за 6 с до кінця, один раз
 	if not _gate_spawned and level_duration - level_t <= GATE_BEFORE_SEC:
 		_gate_spawned = true
@@ -646,6 +703,18 @@ func _debug_key(event: InputEventKey) -> void:
 		Events.quest_completed.emit("debug", 10)
 	elif event.keycode == KEY_W and state == State.RUN:
 		_change_lanes(7 if lanes < 7 else 3)
+	elif event.keycode == KEY_H and state == State.RUN:
+		# дебаг: втратити серце
+		if hero.lose_heart():
+			Events.hearts_changed.emit(hero.hearts)
+			if hero.hearts <= 0:
+				_restart_level()
+	elif event.keycode == KEY_P and state == State.RUN:
+		# дебаг: випадковий пікап негайно
+		var kinds: Array = (Pickup3D.load_all().get("kinds", {}) as Dictionary).keys()
+		if not kinds.is_empty():
+			var k := String(kinds[randi() % kinds.size()])
+			on_pickup(k, Pickup3D.def_of(k))
 
 
 ## Жест від будь-якого джерела (свайп / стрілка / джойстик) — одна точка входу.
@@ -693,7 +762,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_pressed = false
 					hero.pet()
 					return
-				State.COUNTDOWN, State.MAP:
+				State.COUNTDOWN, State.MAP, State.RESTART:
 					_pressed = false
 					return
 			if _joystick_on():
@@ -735,21 +804,124 @@ func _release_assist_duck() -> void:
 		hero.set_duck(false)
 
 
-## Відкат на клітинку після падіння (Стрибки).
-func pushback() -> void:
-	if mode is HopMode:
-		(mode as HopMode).step(-1)
-
-
 ## Падіння героя — тряска камери.
 func on_tumble() -> void:
 	camera_rig.shake(0.1)
 
 
+## Зірочки під час бігу йдуть у лічильник рівня (у SaveService — на фініші); поза бігом (подарунок, колесо) — одразу.
 func _on_star_collected(n: int) -> void:
-	SaveService.add_stars(n)
 	if state == State.RUN:
+		level_coins += n
+		hud.set_tally(level_coins)
 		hud.fly_star(camera_rig.cam.unproject_position(hero.global_position + Vector3(0, 0.8, 0)))
+	else:
+		SaveService.add_stars(n)
+
+
+# ---------- життя: «Ще раз!» ----------
+
+## Серця скінчились: герой сідає, «Ще раз!», через 2 с рівень починається знову; зірочки рівня не зберігаються.
+func _restart_level() -> void:
+	if state != State.RUN:
+		return
+	state = State.RESTART
+	spawner.spawning = false
+	events_spawner.events_enabled = false
+	events_spawner.reset()
+	controls.set_arrows_visible(false)
+	controls.stick_hide()
+	_end_all_pickups()
+	hero.set_duck(false)
+	hero.sit()
+	level_coins = 0
+	hud.set_tally(0)
+	hud.hide_pickup()
+	AudioMgr.voice("again")
+	Events.level_restarted.emit(level_num)   # HUD показує «Ще раз!»
+	Stats.inc("level_restarts")
+	get_tree().create_timer(RESTART_SEC).timeout.connect(func():
+		if state == State.RESTART:
+			hero.stand()
+			_start_level(level_num))
+
+
+# ---------- пікапи ----------
+
+## Spawner3D: герой підібрав пікап. def — опис із data/pickups.json.
+func on_pickup(kind: String, def: Dictionary) -> void:
+	if state != State.RUN:
+		return
+	var sec := float(def.get("seconds", 0.0))
+	match kind:
+		"snail":
+			_pickup_speed = float(def.get("speed_mult", 0.6))
+		"heart":
+			if hero.gain_heart():
+				Events.hearts_changed.emit(hero.hearts)
+		"magnet":
+			spawner.magnet_wide = true
+		"shield":
+			hero.set_shield(true)
+		"jetpack":
+			hero.fly(sec)
+			spawner.spawn_star_arc(Hero3D.FLY_HEIGHT + 0.4, 6, hero.lane)
+		"coin2":
+			spawner.coin_mult = int(def.get("coin_mult", 2))
+	if sec > 0.0:
+		_effects[kind] = sec
+		hud.show_pickup(kind, sec)
+	Events.pickup_started.emit(kind, sec)
+	hud.flash(String(def.get("name_uk", kind)), 0.8, Color(String(def.get("color", "#FFFFFF"))))
+	hero.cheer()
+	AudioMgr.voice("wow")
+
+
+## Spawner3D: щит поглинув удар — ефект закінчується раніше часу.
+func on_shield_used() -> void:
+	_end_pickup("shield")
+
+
+func _tick_pickups(delta: float) -> void:
+	for k in _effects.keys().duplicate():
+		_effects[k] = float(_effects[k]) - delta
+		if float(_effects[k]) <= 0.0:
+			_end_pickup(String(k))
+
+
+func _end_pickup(kind: String) -> void:
+	match kind:
+		"snail": _pickup_speed = 1.0
+		"magnet": spawner.magnet_wide = false
+		"shield": hero.set_shield(false)
+		"jetpack": hero.stop_fly()
+		"coin2": spawner.coin_mult = 1
+	var was_active := _effects.has(kind)
+	_effects.erase(kind)
+	if was_active:
+		Events.pickup_ended.emit(kind)
+	# смужка HUD — для того, що ще діє (найдовшого)
+	if _effects.is_empty():
+		hud.hide_pickup()
+	else:
+		var best := ""
+		var best_t := -1.0
+		for k in _effects.keys():
+			if float(_effects[k]) > best_t:
+				best_t = float(_effects[k])
+				best = String(k)
+		hud.show_pickup(best, best_t)
+
+
+func _end_all_pickups() -> void:
+	for k in _effects.keys().duplicate():
+		_end_pickup(String(k))
+	_pickup_speed = 1.0
+	spawner.magnet_wide = false
+	spawner.coin_mult = 1
+	hero.set_shield(false)
+	hero.stop_fly()
+	hud.hide_pickup()
 
 
 # ---------- туторіал і підказки ----------
@@ -758,7 +930,6 @@ const ACTION_HINT := {
 	"jump": ["up", "Стрибни!", "hint_jump"],
 	"duck": ["down", "Присядь!", "hint_duck"],
 	"side": ["left", "Убік!", "hint_side"],
-	"gap": ["up", "На колоду!", "hint_hop"],
 }
 
 
@@ -767,8 +938,6 @@ func tutorial_obstacle(kind: String, action: String, free_lane: int = 99) -> voi
 	if not ACTION_HINT.has(action) or _learned.has(action):
 		return
 	var eta := mode.seconds_to_hero(-Spawner3D.SPAWN_Z)
-	if mode.is_stepwise():
-		eta = 2.0
 	get_tree().create_timer(maxf(0.1, eta - TUTORIAL_LEAD_SEC), false).timeout.connect(_tutorial_prompt.bind(action, free_lane))
 
 
@@ -796,7 +965,7 @@ func _tutorial_register(kind: String) -> void:
 		return
 	var ok := false
 	match _tutorial_action:
-		"jump", "gap": ok = kind in ["tap", "swipe_up"]
+		"jump": ok = kind in ["tap", "swipe_up"]
 		"duck": ok = kind in ["swipe_down", "hold_start"]
 		"side": ok = kind in ["swipe_left", "swipe_right"]
 	if not ok:
@@ -818,7 +987,6 @@ func _hint(delta: float) -> void:
 	_idle_t += delta
 	if _idle_t > float(profile.get("hint_after_sec", 5)):
 		match mode.mode_id():
-			"hop", "float": hud.show_hint("tap", "Тап — крок!")
 			"slide": hud.show_hint("hold", "Тримай збоку!")
 			_: hud.show_hint("tap", "Тап — стрибок!")
 		AudioMgr.voice("hint_tap")

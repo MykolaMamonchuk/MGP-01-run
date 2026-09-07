@@ -7,11 +7,33 @@ const VALID_ANIMS := ["", "sway", "spin", "bob", "breathe", "bounce", "flap", "p
 
 var _items: Array = []
 var _rng := RandomNumberGenerator.new()
+var _child_backup: Dictionary = {}
 
 
 func before_each() -> void:
 	_items = Shop.load_all()
 	_rng.seed = 3
+	# тести крамниці пишуть у SaveService — зберігаємо профіль дитини й повертаємо після тесту
+	_child_backup = SaveService.child().duplicate(true)
+
+
+func after_each() -> void:
+	var idx := int(SaveService.data["active_child"])
+	SaveService.data["children"][idx] = _child_backup
+	SaveService.save_game()
+
+
+## Чистий профіль для тестів крамниці: без старих ключів, зі зірочками, поточний герой — hero.
+func _fresh_child(hero: String, stars: int) -> Dictionary:
+	var c := SaveService.child()
+	c["hero"] = hero
+	c["stars"] = stars
+	c["hero_inventory"] = {}
+	c["hero_equip"] = {}
+	c.erase("hats_owned")
+	c.erase("equip")
+	c.erase("hat")
+	return c
 
 
 func test_shop_data() -> void:
@@ -73,6 +95,67 @@ func test_random_unowned_by_slot() -> void:
 	assert_eq(Shop.random_unowned(_items, [], _rng, "trail").begins_with("trail_"), true, "слід — зі слота trail")
 	owned.append("crown")
 	assert_eq(Shop.random_unowned(_items, owned, _rng), "", "усе куплено — порожньо")
+
+
+func test_shop_is_per_hero() -> void:
+	var c := _fresh_child("puf", 500)
+	var cap := Shop.find(_items, "cap")
+	assert_true(Shop.buy(cap, "puf"), "Пуф купує кепку")
+	assert_eq(SaveService.stars(), 440, "ціна списана")
+	assert_true(Shop.is_owned_by(cap, "puf"))
+	assert_false(Shop.is_owned_by(cap, "vushko"), "куплене Пуфом не з'являється у Вушка")
+	assert_true(Shop.owned("puf").has("cap"))
+	assert_false(Shop.owned("vushko").has("cap"))
+	assert_true(Shop.is_owned_by(Shop.find(_items, "hat_none"), "vushko"), "безплатне «нічого» — у всіх")
+	# одягання теж окреме
+	Shop.equip("puf", "hat", "cap")
+	assert_eq(Shop.equipped("puf", "hat"), "cap")
+	assert_eq(Shop.equipped("vushko", "hat"), "hat_none", "інший герой — без капелюшка")
+	# подарунок колеса — конкретному герою
+	Shop.grant("crown", "vushko")
+	assert_true(Shop.owned("vushko").has("crown"))
+	assert_false(Shop.owned("puf").has("crown"))
+	# ключі збереження (GDD v1.3 §5)
+	assert_true(c.has("hero_inventory") and c.has("hero_equip"), "нові ключі є")
+	assert_false(c.has("hats_owned") or c.has("equip") or c.has("hat"), "старих спільних ключів нема")
+	assert_eq((c["hero_inventory"] as Dictionary)["puf"], ["cap"])
+	assert_eq((c["hero_inventory"] as Dictionary)["vushko"], ["crown"])
+	assert_eq(((c["hero_equip"] as Dictionary)["puf"] as Dictionary)["hat"], "cap")
+	# без hero_id — поточний герой (child.hero)
+	c["hero"] = "vushko"
+	assert_true(Shop.owned().has("crown"), "Shop.owned() — поточний герой")
+	assert_true(Hats.owned().has("crown"), "Hats.owned() — теж поточний")
+	Hats.equip("crown")
+	assert_eq(Hats.equipped(), "crown")
+	assert_eq(Shop.equipped("vushko", "hat"), "crown")
+	assert_eq(Shop.equipped("puf", "hat"), "cap", "Пуф лишився в кепці")
+	c["stars"] = 10
+	assert_false(Shop.buy(Shop.find(_items, "halo"), "sonia"), "не вистачає — не купує")
+	assert_false(Shop.owned("sonia").has("halo"))
+	assert_eq(SaveService.stars(), 10, "зірочки не списані")
+
+
+func test_migrates_shared_keys_to_current_hero() -> void:
+	var child := {"hero": "khvostyk", "hats_owned": ["cap", "bow"], "equip": {"hat": "cap", "face": "glasses"}, "hat": "bow"}
+	assert_true(Shop.migrate_child(child, "khvostyk"), "були старі ключі — змінено")
+	assert_false(child.has("hats_owned"))
+	assert_false(child.has("equip"))
+	assert_false(child.has("hat"))
+	assert_eq(child["hero_inventory"]["khvostyk"], ["cap", "bow"], "куплене перейшло поточному герою")
+	assert_eq(child["hero_equip"]["khvostyk"]["hat"], "cap", "«equip» важливіший за найстаріший «hat»")
+	assert_eq(child["hero_equip"]["khvostyk"]["face"], "glasses")
+	assert_false((child["hero_inventory"] as Dictionary).has("puf"), "іншим героям нічого не дісталось")
+	assert_false(Shop.migrate_child(child, "khvostyk"), "повторно — нічого не змінюється")
+	# найстаріший формат: лише "hat": "none"
+	var old := {"hat": "none"}
+	assert_true(Shop.migrate_child(old, "puf"))
+	assert_eq(old["hero_equip"]["puf"]["hat"], "hat_none", "none → hat_none")
+	assert_true((old["hero_inventory"] as Dictionary).is_empty())
+	# порожній профіль — лише створюються порожні словники
+	var empty := {}
+	assert_true(Shop.migrate_child(empty, "puf"))
+	assert_true(empty.has("hero_inventory") and empty.has("hero_equip"))
+	assert_false(Shop.migrate_child(empty, "puf"))
 
 
 func test_voxel_icon_front_elevation() -> void:

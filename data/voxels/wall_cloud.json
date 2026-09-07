@@ -1,0 +1,15 @@
+{
+  "_note": "Велика хмара-стіна (Хмаринки, дальній пояс).",
+  "size": 0.22,
+  "palette": {"w": "#FFFFFF", "s": "#E3F2FD", "b": "#BBDEFB"},
+  "layers": [
+    ["..bbbbbb..", ".bbbbbbbb.", "..bbbbbb.."],
+    [".sssssssss", "ssssssssss", ".sssssssss"],
+    ["swwwwwwwws", "wwwwwwwwww", "swwwwwwwws"],
+    ["wwwwwwwwww", "wwwwwwwwww", "wwwwwwwwww"],
+    [".wwwwwwww.", "wwwwwwwwww", ".wwwwwwww."],
+    ["..wwwwww..", ".wwwwwwww.", "..wwwwww.."],
+    ["...wwww...", "..wwwwww..", "...wwww..."],
+    ["....ww....", "...wwww...", "....ww...."]
+  ]
+}

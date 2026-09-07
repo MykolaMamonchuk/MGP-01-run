@@ -1,4 +1,5 @@
-## Базова стратегія руху. Кожен світ має свою: RunMode (Біг), HopMode (Стрибки), SlideMode (Хвиля).
+## Базова стратегія руху. GDD v1.3: усі світи — біг: RunMode (Лужок/Ліс), SurfMode (Пляж), ScooterMode (Місто),
+## FloatRunMode (Хмаринки). HopMode/FloatMode/SlideMode лишились у коді як застарілі.
 ## Спільний контракт: enter/exit, gesture, steer, tick (повертає, на скільки клітинок зсунути світ), assist.
 class_name ModeBase
 extends RefCounted
@@ -21,7 +22,7 @@ func mode_id() -> String:
 	return "base"
 
 
-## Покроковий режим (Стрибки/Невагомість): світ рухається лише на тап, час до перешкоди — у кроках.
+## Покроковий режим — застаріло (v1.3: усі світи біжать). Лишено для сумісності, завжди false у робочих режимах.
 func is_stepwise() -> bool:
 	return false
 

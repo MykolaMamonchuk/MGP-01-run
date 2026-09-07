@@ -16,3 +16,8 @@ signal world_changed(world_id: String)          # Розвилка: обрано
 signal mini_event_started(event_id: String)
 signal mini_event_finished(event_id: String)
 signal quest_completed(quest_id: String, reward: int)
+# v1.3: життя, пікапи, перегравання рівня
+signal hearts_changed(hearts: int)                   # серця героя змінились (втрата/сердечко/скидання)
+signal pickup_started(kind: String, seconds: float)  # підібрано пікап із тривалістю (0 — миттєвий)
+signal pickup_ended(kind: String)                    # дія пікапа закінчилась (час або щит поглинув удар)
+signal level_restarted(level: int)                   # серця скінчились — рівень починається знову

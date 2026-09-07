@@ -26,8 +26,18 @@ var flying := false
 var running := false           # біг-боб увімкнено (Біг/Хвиля/Стрибки), вимкнено в меню
 ## Темп бігу-боба: 1.0 — Біг, 0.6 — покрокові режими (Стрибки/Невагомість), де світ лише дрейфує.
 var run_speed_factor := 1.0
-## Рівень землі під героєм (подіум у каруселі) — тінь лягає на нього.
+## Рівень землі під героєм (подіум у каруселі, платформа другого рівня) — тінь лягає на нього.
 var ground_y := 0.0
+## Життя (GDD v1.3): 3 серця; після удару — невразливість і миготіння.
+var hearts := 3
+var max_hearts := 3
+var invulnerable_t := 0.0
+## Щит (пікап): поглинає один удар — бульбашка навколо героя.
+var shield_on := false
+## Сидить після втрати всіх сердець («Ще раз!») — біг-боб і нахил тіла вимкнені.
+var sitting := false
+## Множник стрибка режиму (невагомість ×0.8), поверх jump_velocity профілю.
+var jump_scale := 1.0
 var hero_id := "puf"
 var feature := "tuft"
 var color := Color("#FFB84D")
@@ -57,9 +67,32 @@ var _tumble_tween: Tween
 var _eye_scale_y := 1.0
 var _duck_blend := 0.0          # 0 — стоїть, 1 — присів (плавний перехід 20/с)
 var _mouth_y := 0.73            # базова висота рота (усмішка піднімає на +0.02)
+var _blink_vis_t := 0.0         # таймер миготіння тіла під час невразливості
+var _shield: MeshInstance3D
+var _shield_popping := false    # бульбашка лопається — set_shield(false) її не ховає раніше часу
 
 
 func _ready() -> void:
+	# бульбашка щита — напівпрозора сфера, видима лише з пікапом
+	_shield = MeshInstance3D.new()
+	var sph := SphereMesh.new()
+	sph.radius = 0.75
+	sph.height = 1.5
+	sph.radial_segments = 24
+	sph.rings = 12
+	_shield.mesh = sph
+	var shm := StandardMaterial3D.new()
+	shm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	shm.albedo_color = Color(0.4, 0.8, 1.0, 0.28)
+	shm.emission_enabled = true
+	shm.emission = Color("#40C4FF")
+	shm.emission_energy_multiplier = 0.6
+	shm.roughness = 0.2
+	_shield.material_override = shm
+	_shield.position.y = 0.62
+	_shield.visible = false
+	add_child(_shield)
+
 	_shadow = MeshInstance3D.new()
 	var cm := CylinderMesh.new()
 	cm.top_radius = 0.32
@@ -331,9 +364,9 @@ func is_airborne() -> bool:
 
 ## Стрибок. scale < 1 — нижчий (підскок на хвилі). Повертає false, якщо стрибнути не можна.
 func jump(k: float = 1.0) -> bool:
-	if is_airborne() or tumbling:
+	if is_airborne() or tumbling or sitting:
 		return false
-	_vy = jump_velocity * k
+	_vy = jump_velocity * k * jump_scale
 	ducking = false
 	_squash(Vector3(0.82, 1.28, 0.82), 0.12)
 	_flap(1.0)
@@ -402,9 +435,9 @@ func tilt(v: float) -> void:
 	_tilt = v
 
 
-## Транспорт: мушля (Хвиля) або самокат (Місто). kind — назва вокселя.
+## Транспорт: дошка (Серфінг), мушля (Хвиля) або самокат (Місто). kind — назва вокселя.
 var _vehicle_kind := "shell"
-## Невагомість (Хмаринки): 0.35 — герой падає повільно.
+## Невагомість (Хмаринки): 0.4 — герой падає повільно.
 var gravity_scale := 1.0
 
 
@@ -412,10 +445,128 @@ func set_vehicle(on: bool, kind: String = "shell") -> void:
 	if on and kind != _vehicle_kind:
 		_vehicle.queue_free()
 		_vehicle = VoxelBuilder.instance(kind)
-		_vehicle.position.y = -0.05 if kind == "shell" else 0.0
+		# дошка/мушля сидять у воді трохи нижче
+		_vehicle.position.y = -0.05 if kind in ["shell", "surfboard"] else 0.0
 		add_child(_vehicle)
 		_vehicle_kind = kind
 	_vehicle.visible = on
+
+
+# ---------- життя, щит, платформа ----------
+
+## Скинути серця на початку рівня.
+func reset_hearts() -> void:
+	hearts = max_hearts
+	invulnerable_t = 0.0
+	_body.visible = true
+
+
+## Втратити серце. Повертає false, якщо герой невразливий (удар не зараховано).
+func lose_heart() -> bool:
+	if invulnerable_t > 0.0:
+		return false
+	hearts = maxi(0, hearts - 1)
+	set_invulnerable(1.5)
+	return true
+
+
+## +1 серце (пікап). false — уже повні.
+func gain_heart() -> bool:
+	if hearts >= max_hearts:
+		return false
+	hearts += 1
+	_squash(Vector3(1.15, 0.85, 1.15), 0.12)
+	FX.hearts(self, Vector3(0, 1.3, 0), 8)
+	return true
+
+
+## Невразливість на seconds: тіло миготить (видиме/невидиме кожні 0,1 с).
+func set_invulnerable(seconds: float) -> void:
+	invulnerable_t = maxf(invulnerable_t, seconds)
+	_blink_vis_t = 0.0
+
+
+## Щит-бульбашка (пікап): один удар поглинається.
+func set_shield(on: bool) -> void:
+	shield_on = on
+	if on:
+		_shield_popping = false
+		_shield.visible = true
+		_shield.scale = Vector3.ONE * 0.1
+		var tw := create_tween()
+		tw.tween_property(_shield, "scale", Vector3.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	elif not _shield_popping:
+		# лопання ще триває — сховає pop_shield у кінці твіну
+		_shield.visible = false
+
+
+## Щит лопнув — бризки й «пшик»; бульбашка ховається в кінці анімації.
+func pop_shield() -> void:
+	shield_on = false
+	_shield_popping = true
+	FX.burst(self, Vector3(0, 0.7, 0), Color("#40C4FF"))
+	var tw := create_tween()
+	tw.tween_property(_shield, "scale", Vector3.ONE * 1.4, 0.12)
+	tw.tween_callback(func():
+		_shield_popping = false
+		# якщо за цей час щит не підібрали знову — ховаємо
+		if not shield_on:
+			_shield.visible = false)
+
+
+## Сісти («Ще раз!»): нахил тіла вперед, очі заплющені на 0,5 с, біг вимкнено.
+func sit() -> void:
+	if _tumble_tween:
+		_tumble_tween.kill()
+		_tumble_tween = null
+	tumbling = false
+	ducking = false
+	sitting = true
+	running = false
+	_body.position.y = 0.0
+	_body.rotation.x = 0.3
+	_body.visible = true
+	invulnerable_t = 0.0
+	_set_eyes_closed(true)
+	get_tree().create_timer(0.5).timeout.connect(func():
+		if sitting and is_instance_valid(self):
+			_set_eyes_closed(false))
+
+
+## Встати після сидіння (новий старт рівня).
+func stand() -> void:
+	sitting = false
+	_body.rotation.x = 0.0
+	_set_eyes_closed(false)
+
+
+## Рівень землі під героєм (платформа другого рівня). Позиція у світі не стрибає:
+## коли земля піднімається — висота стрибка перераховується; невеликий спуск (пандус) — герой тримається поверхні,
+## великий (зійшов із платформи вбік) — падає.
+func set_ground(h: float) -> void:
+	var dy := h - ground_y
+	if absf(dy) < 0.0005:
+		return
+	ground_y = h
+	if dy > 0.0:
+		if _y > 0.02:
+			_y = maxf(0.0, _y - dy)
+			if _y <= 0.0:
+				_vy = 0.0
+				landed.emit()
+				_squash(Vector3(1.15, 0.85, 1.15), 0.09)
+		else:
+			# був на землі, а земля підскочила (зайшов на платформу збоку) — підскок разом із нею
+			_y = 0.0
+			_vy = 0.0
+			if dy > 0.6:
+				_squash(Vector3(0.9, 1.15, 0.9), 0.1)
+	elif dy < -0.5:
+		# зійшов із платформи — падає з висоти
+		if _y <= 0.02:
+			_y = -dy
+			_vy = 0.0
+	# малий спуск (пандус вниз) — лишаємось на поверхні: _y не чіпаємо
 
 
 func set_running(on: bool) -> void:
@@ -457,6 +608,12 @@ func fly(seconds: float) -> void:
 
 func _end_fly() -> void:
 	flying = false
+
+
+## Зупинити політ негайно (ракета скінчилась/скинута): герой падає з поточної висоти.
+func stop_fly() -> void:
+	flying = false
+	_vy = 0.0
 
 
 func wave_bump() -> void:
@@ -540,10 +697,10 @@ func set_locked_look(locked: bool) -> void:
 	_face.visible = false
 
 
-## Габарит для перевірки зіткнень (світові координати; герой завжди в z = 0).
+## Габарит для перевірки зіткнень (світові координати; герой завжди в z = 0). На платформі — вище за землю.
 func hit_box() -> AABB:
 	var h := 0.5 if ducking else 1.1
-	return AABB(Vector3(position.x - 0.28, _y, -0.28), Vector3(0.56, h, 0.56))
+	return AABB(Vector3(position.x - 0.28, ground_y + _y, -0.28), Vector3(0.56, h, 0.56))
 
 
 # ---------- анімація ----------
@@ -614,6 +771,19 @@ func _process(delta: float) -> void:
 	if feature == "cloud":
 		bob = 0.12 + sin(_t * 2.2) * 0.06
 	position.y = ground_y + _y + bob + (wave_offset if _vehicle.visible else 0.0)
+	# невразливість: тіло миготить кожні 0,1 с
+	if invulnerable_t > 0.0:
+		invulnerable_t -= delta
+		_blink_vis_t += delta
+		if _blink_vis_t >= 0.1:
+			_blink_vis_t = 0.0
+			_body.visible = not _body.visible
+		if invulnerable_t <= 0.0:
+			_body.visible = true
+	# щит дихає
+	if shield_on and _shield.visible:
+		var sp := 1.0 + sin(_t * 5.0) * 0.04
+		_shield.scale = Vector3(sp, sp, sp)
 	# тінь лишається на землі (або подіумі) й меншає в польоті
 	_shadow.position.y = -(position.y - ground_y) + 0.015
 	var k := clampf((position.y - ground_y) / 2.5, 0.0, 1.0)
@@ -680,8 +850,8 @@ func _process(delta: float) -> void:
 		_parts[0].rotation.y = sin(_t * 6.0) * 0.5
 	elif feature == "antenna" and _parts.size() > 0:
 		_parts[0].rotation.z = sin(_t * 3.0) * 0.18
-	# біг-боб / дихання / присід — на тілі, щоб не ламати перекид
-	if not tumbling:
+	# біг-боб / дихання / присід — на тілі, щоб не ламати перекид; сидить — тіло не чіпаємо
+	if not tumbling and not sitting:
 		var target_scale := Vector3.ONE
 		var body_y := 0.0
 		var lean_x := 0.0
@@ -706,7 +876,7 @@ func _process(delta: float) -> void:
 		_body.position.y = lerpf(_body.position.y, body_y, minf(1.0, delta * 16.0))
 		_body.rotation.x = lerpf(_body.rotation.x, lean_x, minf(1.0, delta * 6.0))
 	# у спокої (меню/станція) інколи озирається
-	if not running and not tumbling:
+	if not running and not tumbling and not sitting:
 		_look_t += delta
 		if _look_t > 3.5:
 			_look_t = randf_range(-2.0, 0.0)

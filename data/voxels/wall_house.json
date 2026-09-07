@@ -1,0 +1,16 @@
+{
+  "_note": "Будиночок 6×8×5 з вікнами (Місто-парк, дальній пояс). Дах — червона черепиця.",
+  "size": 0.3,
+  "palette": {"w": "#FFF3E0", "k": "#FFCC80", "g": "#81D4FA", "d": "#8D6E63", "r": "#E57373", "b": "#C62828"},
+  "layers": [
+    ["kkkkkk", "kkkkkk", "kkkkkk", "kkkkkk", "kkkkkk"],
+    ["wwddww", "w....w", "w....w", "w....w", "wwwwww"],
+    ["wgddgw", "w....w", "g....g", "w....w", "wgwwgw"],
+    ["wwwwww", "w....w", "w....w", "w....w", "wwwwww"],
+    ["wgwwgw", "w....w", "g....g", "w....w", "wgwwgw"],
+    ["wwwwww", "w....w", "w....w", "w....w", "wwwwww"],
+    ["rrrrrr", "rrrrrr", "rrrrrr", "rrrrrr", "rrrrrr"],
+    [".bbbb.", ".rrrr.", ".rrrr.", ".rrrr.", ".bbbb."],
+    ["..bb..", "..rr..", "..rr..", "..rr..", "..bb.."]
+  ]
+}

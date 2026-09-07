@@ -27,17 +27,21 @@ func test_events_data_shape() -> void:
 
 
 func test_pick_respects_mode() -> void:
-	for i in 30:
-		var e := EventSpawner.pick(_events, "mid", "hop", _rng)
-		if e.is_empty():
-			continue
-		assert_true((e["modes"] as Array).has("hop"), "у Стрибках лише події для hop: %s" % e["id"])
+	for m in ["surf", "scooter"]:
+		var picked := 0
+		for i in 30:
+			var e := EventSpawner.pick(_events, "mid", m, _rng)
+			if e.is_empty():
+				continue
+			picked += 1
+			assert_true((e["modes"] as Array).has(m), "у режимі %s лише події для нього: %s" % [m, e["id"]])
+		assert_gt(picked, 0, "для режиму %s є події" % m)
 
 
 func test_pick_skips_zero_weight_and_todo() -> void:
 	for i in 40:
-		var e := EventSpawner.pick(_events, "young", "hop", _rng)
-		assert_false(e.get("id", "") == "bridge", "«міст падає» не для young і не реалізовано")
+		var e := EventSpawner.pick(_events, "young", "run", _rng)
+		assert_false(e.get("id", "") == "bridge", "«міст падає» (вага 0 для young) не випадає")
 	for i in 40:
 		var e := EventSpawner.pick(_events, "older", "run", _rng)
 		assert_false(e.get("id", "") == "dragonfly", "бабка (вага 0 для older) не випадає")

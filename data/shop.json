@@ -1,5 +1,5 @@
 {
-  "_note": "Крамниця (GDD §7): slot — hat/face/neck/back/trail; voxel — файл у data/voxels ('' — нічого або слід); price — зірочки (0 = безплатно, рівно один такий на слот); y/spin — лише для капелюшків; color — колір сліду (trail). Купується лише за зірочки; приміряти можна безплатно.",
+  "_note": "Крамниця (GDD §7): slot — hat/face/neck/back/trail; voxel — файл у data/voxels ('' — нічого або слід); price — зірочки (0 = безплатно, рівно один такий на слот); y/spin — лише для капелюшків; color — колір сліду (trail). Купується лише за зірочки; приміряти можна безплатно. Купівля й одягання — окремо для кожного героя (GDD v1.3 §5): save hero_inventory{hero: [id]}, hero_equip{hero: {slot: id}}; '*_none' є у всіх.",
   "items": [
     {"id": "hat_none",   "name_uk": "Без капелюшка", "slot": "hat", "voxel": "",              "price": 0,   "y": 0.0},
     {"id": "bow",        "name_uk": "Бантик",        "slot": "hat", "voxel": "hat_bow",       "price": 50,  "y": 0.0},

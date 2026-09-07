@@ -1,5 +1,7 @@
 ## Дорога: пул рядів по 1 клітинці (3 доріжки + узбіччя + декор). Ряди їдуть на героя (+Z) і переставляються вперед.
 ## Зміна світу — перефарбування рядів з «перебудовою кубиками» (стаггер по z).
+## Занурення (GDD v1.3 §7): стіни світу з даних — walls_near (кожен ряд, впритул до дороги), walls_far (далі, більші),
+## canopy (крона над дорогою кожен 3-й ряд), sea (море на всю ширину, дорога невидима).
 class_name Track
 extends Node3D
 
@@ -7,6 +9,10 @@ const ROWS := 44
 const BEHIND := 5.0          # позаду камери — ряд переставляється вперед
 const LANES_W := 3.2         # ширина для 3 доріжок (базовий меш; масштабується під N)
 const SIDE_W := 8.0
+## Море на всю видиму ширину.
+const SEA_W := 60.0
+const CANOPY_Y := 3.2
+const CANOPY_SCALE := 2.5
 
 var world: Dictionary = {}
 var lanes := 3
@@ -19,6 +25,8 @@ var _hills: Array[MeshInstance3D] = []
 var _clouds: Array[Node3D] = []
 ## Декоративне море збоку дороги (Пляж): -1 — ліворуч, 1 — праворуч, 0 — нема (world "sea_side").
 var _sea_side := 0
+## Море на всю ширину (world "sea": true) — дорога під героєм невидима, герой на дошці.
+var _sea := false
 
 
 func _ready() -> void:
@@ -38,6 +46,7 @@ func _ready() -> void:
 		decor.name = "Decor"
 		row.add_child(decor)
 		row.position.z = BEHIND - float(i)
+		row.set_meta("i", i)   # індекс ряду — для крони кожен 3-й ряд
 		add_child(row)
 		_rows.append(row)
 	# далекий план: пагорби по боках і хмарки, що пливуть
@@ -88,8 +97,10 @@ var season: Dictionary = {}
 func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: int = -1) -> void:
 	world = w.duplicate()
 	season = s
-	var is_water := String(w.get("mode", "run")) == "slide"
-	# море збоку (Пляж) — узбіччя з того боку стає смужкою піску, тому знаємо це до розкладки рядів
+	# море на всю ширину (Серфінг): дорога невидима, герой на дошці; старий режим Хвиля — теж вода під дорогою
+	_sea = bool(w.get("sea", false))
+	var is_water := _sea or String(w.get("mode", "run")) == "slide"
+	# море збоку (Пляж на піску) — узбіччя з того боку стає смужкою піску, тому знаємо це до розкладки рядів
 	_sea_side = 0 if is_water else int(w.get("sea_side", 0))
 	# ширина відома одразу — декор кладемо один раз під неї (і перекладаємо узбіччя під море/без моря)
 	if n_lanes > 0:
@@ -107,13 +118,14 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	if _water.visible:
 		var wc := Color(String(w.get("water", "#4FC3F7")))
 		_water_mat.set_shader_parameter("color", wc)
-		var light := Color(String(w.get("ground_dark", "#29B6F6"))) if is_water else wc
+		var light := wc if _sea or not is_water else Color(String(w.get("ground_dark", "#29B6F6")))
 		_water_mat.set_shader_parameter("color_light", light.lightened(0.35))
 	_layout_water()
-	# пагорби у колір далекого плану світу
+	# пагорби у колір далекого плану світу; на морі їх не видно
 	var far_mat := Mats.solid(Color(String(world.get("far", world.get("side", "#6DB35E")))).lightened(0.15))
 	for h in _hills:
 		h.material_override = far_mat
+		h.visible = not _sea
 	for i in range(_rows.size()):
 		var row := _rows[i]
 		_paint(row, i, is_water)
@@ -133,12 +145,18 @@ func _paint(row: Node3D, i: int, is_water: bool) -> void:
 	var gd := Color(String(world.get("ground_dark", "#5FA553")))
 	center.material_override = Mats.solid(g if i % 2 == 0 else gd)
 	var side := Mats.solid(Color(String(world.get("side", "#6DB35E"))))
-	(row.get_node("SideL") as MeshInstance3D).material_override = side
-	(row.get_node("SideR") as MeshInstance3D).material_override = side
+	var l := row.get_node("SideL") as MeshInstance3D
+	var r := row.get_node("SideR") as MeshInstance3D
+	l.material_override = side
+	r.material_override = side
+	# на морі узбіч нема — довкола лише вода
+	l.visible = not _sea
+	r.visible = not _sea
 
 
-## Узбіччя: ближній пояс — дрібне (квіти, гриби), дальній — велике (дерева, пальми), живність — зайчики.
-## З боку моря (Пляж) узбіччя — вода, декор туди не кладемо.
+## Узбіччя: стіни світу (walls_near впритул, walls_far далі й більші), ближній пояс — дрібне (квіти, гриби),
+## дальній — велике (дерева, пальми), живність — зайчики; крона над дорогою кожен 3-й ряд.
+## З боку моря (Пляж на піску) узбіччя — вода, декор туди не кладемо. На морі (sea) — лише буї/скелі у воді й гребені хвиль.
 func _decorate(row: Node3D) -> void:
 	var decor := row.get_node("Decor")
 	for c in decor.get_children():
@@ -147,10 +165,28 @@ func _decorate(row: Node3D) -> void:
 	var big: Array = world.get("decor_big", [])
 	var critters: Array = world.get("critters", [])
 	var colors: Array = world.get("decor_colors", [])
+	var walls_near: Array = world.get("walls_near", [])
+	var walls_far: Array = world.get("walls_far", [])
+	var far_scale: Array = world.get("walls_far_scale", [1.4, 2.0])
 	var edge := road_width() * 0.5
 	for side in [-1.0, 1.0]:
 		if _sea_side != 0 and signf(float(side)) == signf(float(_sea_side)):
 			continue
+		# стіна далека — кожен ряд, більша (буї/скелі у воді на морі)
+		if not walls_far.is_empty():
+			var wf := _place(decor, String(walls_far[randi() % walls_far.size()]), {}, side * (edge + randf_range(3.0, 5.0)))
+			wf.scale = Vector3.ONE * randf_range(float(far_scale[0]), float(far_scale[1]))
+			if _sea:
+				wf.position.y = -0.05
+		if _sea:
+			# гребені хвиль із піною — плавають довкола траси
+			if randf() < 0.3:
+				var crest := _place(decor, "wave_crest", {}, side * (edge + randf_range(0.8, 6.0)))
+				crest.position.y = 0.0
+			continue
+		# стіна близька — кожен ряд, впритул до дороги
+		if not walls_near.is_empty():
+			_place(decor, String(walls_near[randi() % walls_near.size()]), {}, side * (edge + randf_range(0.6, 1.4)))
 		# дрібне — часто
 		if not kinds.is_empty() and randf() < 0.9:
 			var kind := String(kinds[randi() % kinds.size()])
@@ -167,14 +203,29 @@ func _decorate(row: Node3D) -> void:
 			cr.position = Vector3(side * (edge + randf_range(1.0, 3.0)), 0.0, randf_range(-0.4, 0.4))
 			decor.add_child(cr)
 			cr.setup(String(critters[randi() % critters.size()]))
+	# крона над дорогою — кожен 3-й ряд
+	var canopy = world.get("canopy", false)
+	var canopy_voxel := ""
+	if typeof(canopy) == TYPE_STRING:
+		canopy_voxel = String(canopy)
+	elif typeof(canopy) == TYPE_BOOL and bool(canopy):
+		canopy_voxel = "canopy_leaves"
+	if canopy_voxel != "" and int(row.get_meta("i", 0)) % 3 == 0:
+		var c := Critter3D.new()
+		c.position = Vector3(randf_range(-1.0, 1.0), CANOPY_Y, randf_range(-0.3, 0.3))
+		c.rotation.y = randf() * TAU
+		c.scale = Vector3.ONE * CANOPY_SCALE
+		decor.add_child(c)
+		c.setup(canopy_voxel)
 
 
-func _place(parent: Node3D, kind: String, override: Dictionary, x: float) -> void:
+func _place(parent: Node3D, kind: String, override: Dictionary, x: float) -> Critter3D:
 	var cr := Critter3D.new()
 	cr.position = Vector3(x, 0.0, randf_range(-0.4, 0.4))
 	cr.rotation.y = randf() * TAU
 	parent.add_child(cr)
 	cr.setup(kind, override)
+	return cr
 
 
 ## Пташка перелітає дорогу час від часу.
@@ -244,12 +295,19 @@ func _layout_water() -> void:
 	if _water == null:
 		return
 	var w := road_width()
-	if _sea_side != 0:
+	if _sea:
+		# море на всю видиму ширину, трохи нижче дороги (дошка сидить у воді)
+		_water.scale.x = SEA_W / (LANES_W + 0.4)
+		_water.position.x = 0.0
+		_water.position.y = -0.05
+	elif _sea_side != 0:
 		_water.scale.x = SIDE_W / (LANES_W + 0.4)
 		_water.position.x = float(_sea_side) * (w * 0.5 + SIDE_W * 0.5 + 1.0)
+		_water.position.y = 0.02
 	else:
 		_water.scale.x = w / LANES_W
 		_water.position.x = 0.0
+		_water.position.y = 0.02
 
 
 ## Зсунути дорогу на dist клітинок (може бути відʼємним — відкат у Стрибках).

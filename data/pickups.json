@@ -1,0 +1,17 @@
+{
+  "_note": "Пікапи-помічники (GDD v1.3 §4). kinds: voxel — модель, seconds — тривалість ефекту (0 = миттєвий), color — колір сяйва/іконки HUD, letter — знак на іконці. per_minute — скільки пікапів на хвилину для профілю (ваги вибору = ті ж числа). snail_fast_boost — множник ваги равлика, коли швидкість > 1.5 × базової профілю.",
+  "kinds": {
+    "snail":   {"name_uk": "Равлик",   "voxel": "snail",   "seconds": 5,  "color": "#8BC34A", "letter": "Р", "speed_mult": 0.6},
+    "heart":   {"name_uk": "Сердечко", "voxel": "heart",   "seconds": 0,  "color": "#FF5252", "letter": "С"},
+    "magnet":  {"name_uk": "Магніт",   "voxel": "magnet",  "seconds": 10, "color": "#E040FB", "letter": "М", "radius_lanes": 3},
+    "shield":  {"name_uk": "Щит",      "voxel": "shield",  "seconds": 15, "color": "#40C4FF", "letter": "Щ"},
+    "jetpack": {"name_uk": "Ракета",   "voxel": "jetpack", "seconds": 4,  "color": "#FF9800", "letter": "Ж"},
+    "coin2":   {"name_uk": "Подвійні", "voxel": "coin2",   "seconds": 10, "color": "#FFD54F", "letter": "×2", "coin_mult": 2}
+  },
+  "per_minute": {
+    "young": {"snail": 1.2, "heart": 1.2, "magnet": 1.0, "shield": 1.0, "jetpack": 0.6, "coin2": 0.6},
+    "mid":   {"snail": 0.8, "heart": 0.8, "magnet": 0.8, "shield": 0.7, "jetpack": 0.5, "coin2": 0.7},
+    "older": {"snail": 0.5, "heart": 0.6, "magnet": 0.6, "shield": 0.5, "jetpack": 0.5, "coin2": 0.8}
+  },
+  "snail_fast_boost": 2.5
+}

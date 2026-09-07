@@ -1,0 +1,13 @@
+{
+  "_note": "Живопліт — стіна біля дороги (ближній пояс).",
+  "size": 0.14,
+  "palette": {"g": "#4CAF50", "d": "#388E3C", "l": "#81C784", "p": "#F06292"},
+  "layers": [
+    ["dddddddd", "dddddddd", "dddddddd"],
+    ["gggggggg", "gggggggg", "gggggggg"],
+    ["glgggglg", "gggggggg", "gglggggg"],
+    ["gggpgggg", "gggggggg", "ggggggpg"],
+    ["lgggggll", "gggggggg", "glgggggg"],
+    [".gggggg.", ".gggggg.", ".gggggg."]
+  ]
+}

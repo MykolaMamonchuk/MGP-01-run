@@ -401,6 +401,83 @@ class GearIcon:
 		draw_circle(c, r * 0.42, Color("#607D8B"))
 
 
+## Характеристика героя (GDD v1.3 §5): "hearts" — серце, "magnet" — U-магніт (червоно-синій),
+## "speed" — блискавка, "luck" — чотирикутна зірка. Без тексту.
+class StatIcon:
+	extends Control
+
+	var kind := "hearts"
+	var edge := Color("#3E2723")
+
+	func _init(k: String, px: float = 36.0) -> void:
+		kind = k
+		custom_minimum_size = Vector2(px, px)
+		size = custom_minimum_size
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var u: float = min(size.x, size.y) / 36.0
+		match kind:
+			"magnet":
+				# дужка U: ліва ніжка червона, права синя, сірі наконечники
+				var c := Vector2(18, 16) * u
+				var r := 10.0 * u
+				var w := 7.0 * u
+				draw_arc(c, r, PI, PI * 1.5, 12, Color("#EF5350"), w)
+				draw_arc(c, r, PI * 1.5, TAU, 12, Color("#42A5F5"), w)
+				draw_line(c + Vector2(-r, 0), c + Vector2(-r, 12) * u, Color("#EF5350"), w)
+				draw_line(c + Vector2(r, 0), c + Vector2(r, 12) * u, Color("#42A5F5"), w)
+				draw_rect(Rect2(c + Vector2(-r - w * 0.5, 9.0 * u), Vector2(w, 4.0 * u)), Color("#B0BEC5"))
+				draw_rect(Rect2(c + Vector2(r - w * 0.5, 9.0 * u), Vector2(w, 4.0 * u)), Color("#B0BEC5"))
+			"speed":
+				var pts := PackedVector2Array([
+					Vector2(21, 2) * u, Vector2(9, 20) * u, Vector2(17, 20) * u,
+					Vector2(14, 34) * u, Vector2(27, 14) * u, Vector2(19, 14) * u])
+				draw_colored_polygon(pts, Color("#FFD54F"))
+				draw_polyline(pts + PackedVector2Array([pts[0]]), edge, 2.5 * u)
+			"luck":
+				var c := Vector2(18, 18) * u
+				var pts := PackedVector2Array()
+				for i in 8:
+					var rr := (16.0 if i % 2 == 0 else 5.5) * u
+					var a := -PI / 2.0 + i * PI / 4.0
+					pts.append(c + Vector2(cos(a), sin(a)) * rr)
+				draw_colored_polygon(pts, Color("#CE93D8"))
+				draw_polyline(pts + PackedVector2Array([pts[0]]), edge, 2.5 * u)
+			_:
+				# серце: два кола і трикутник
+				var col := Color("#EF5350")
+				draw_circle(Vector2(12, 13) * u, 8.0 * u, col)
+				draw_circle(Vector2(24, 13) * u, 8.0 * u, col)
+				draw_colored_polygon(PackedVector2Array([Vector2(4.5, 16) * u, Vector2(31.5, 16) * u, Vector2(18, 32) * u]), col)
+				draw_circle(Vector2(10, 10) * u, 2.5 * u, Color(1, 1, 1, 0.7))
+
+
+## Ряд із 1–4 крапок (заповнені = значення) — сила характеристики без цифр.
+class StatDots:
+	extends Control
+
+	var count := 1
+	var total := 4
+	var fill := Color("#FFF8E1")
+	var empty := Color(1, 1, 1, 0.25)
+
+	func _init(n: int, px: float = 14.0, max_n: int = 4) -> void:
+		count = clampi(n, 0, max_n)
+		total = max_n
+		custom_minimum_size = Vector2(px * float(total) + px * 0.5 * float(total - 1), px)
+		size = custom_minimum_size
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var d: float = size.x / (float(total) + 0.5 * float(total - 1))
+		var r := d * 0.5
+		for i in total:
+			var c := Vector2(r + i * d * 1.5, size.y * 0.5)
+			draw_circle(c, r * 0.9, fill if i < count else empty)
+			draw_arc(c, r * 0.9, 0.0, TAU, 20, Color("#3E2723"), 1.5)
+
+
 ## Мінізавдання: зірка / прапорець / іскра — залежно від типу.
 class QuestIcon:
 	extends Control
