@@ -1,13 +1,22 @@
-## Головна сцена (3D). Стани: MENU → (HEROES) → COUNTDOWN → RUN ⇄ STATION (Розвилка) → … → SLEEP.
-## Оркеструє профіль, світ і його режим руху, жести, міні-події, мінізавдання, живе небо/сезон, ефекти.
-## Герой стоїть у (0,0,0), світ їде на нього.
+## Головна сцена (3D). Стани: MENU → MAP → COUNTDOWN → RUN → FINISH → (MAP | наступний рівень) …; HEROES з меню; SLEEP по таймеру.
+## Оркеструє рівні (LevelManager), біом і його режим руху, жести (свайпи/стрілки/джойстик), туторіал,
+## міні-події, мінізавдання, живе небо/сезон, ефекти. Герой стоїть у (0,0,0), світ їде на нього.
 extends Node3D
 
-enum State { MENU, HEROES, COUNTDOWN, RUN, STATION, SLEEP }
+enum State { MENU, MAP, HEROES, COUNTDOWN, RUN, FINISH, SLEEP }
 
 const WORLD_SWITCH_SEC := 0.9
-const FORK_AUTO_PICK_SEC := 10.0
 const MENU_SPEED := 1.1
+const STICK_REARM_PX := 26.0
+const TUTORIAL_LEAD_SEC := 1.7
+const TUTORIAL_SLOW := 0.6
+const FINISH_AUTO_NEXT_SEC := 7.0
+## Останні 20% рівня — спринт ×1.15; ворота фінішу з'являються за 6 с до кінця.
+const SPRINT_FROM := 0.8
+const SPRINT_MULT := 1.15
+const GATE_BEFORE_SEC := 6.0
+## Темп бігу-боба героя в покрокових режимах (світ лише дрейфує).
+const STEPWISE_BOB := 0.6
 
 @onready var hero: Hero3D = $Hero
 @onready var track: Track = $Track
@@ -20,6 +29,9 @@ const MENU_SPEED := 1.1
 @onready var events_spawner: EventSpawner = $EventSpawner
 @onready var menu: MenuLayer = $Menu
 @onready var hero_select: HeroSelect = $HeroSelect
+@onready var map_screen: MapScreen = $Map
+@onready var controls: ControlsLayer = $Controls
+@onready var wheel: WheelLayer = $Wheel
 @onready var ambient_root: Node3D = $Ambient
 
 var state: State = State.MENU
@@ -31,22 +43,36 @@ var world_id := ""
 var mode: ModeBase
 var season: Dictionary = {}
 var heroes: Dictionary = {}
+var lm := LevelManager.new()
+var level: Dictionary = {}
+var level_num := 1
+var lanes := 3
 
 var base_speed := 4.0
 var speed := 4.0
-var run_time := 0.0
+var level_t := 0.0
+var level_duration := 90.0
 var session_t := 0.0
 var session_total := 600.0
-var checkpoint_t := 0.0
-var checkpoint_seconds := 90.0
-var checkpoint_index := 0
 var switching := false
 var quests := Quests.new()
 
-var _sky_mat: ProceduralSkyMaterial
 var _ambient: GPUParticles3D
+var _weather: GPUParticles3D
 var _fireflies: GPUParticles3D
 var _countdown_tw: Tween
+var _lanes_changed := false
+var _slow := 1.0
+var _slow_t := 0.0
+var _finish_auto_t := 0.0
+var _pending_finish: Dictionary = {}
+var _sprint_announced := false
+var _gate_spawned := false
+
+# туторіал
+var _learned: Dictionary = {}
+var _tutorial_action := ""
+var _tutorial_count: Dictionary = {}
 
 # жести одного пальця
 var _pressed := false
@@ -54,19 +80,20 @@ var _press_time := -1.0
 var _press_pos := Vector2.ZERO
 var _cur_pos := Vector2.ZERO
 var _swiped := false
+var _stick_used := false     # після першого відхилення джойстика відпускання/утримання вже не тап/присід
 var _holding := false
 var _idle_t := 0.0
-var _fork_idle := 0.0
 
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
 	profiles = AgeAdapt.load_profiles()
-	checkpoint_seconds = float(profiles.get("checkpoint_seconds", 90))
 	worlds = load_worlds()
 	heroes = HeroSelect.load_heroes()
 	season = Seasons.current()
+	var l = SaveService.child().get("learned", {})
+	_learned = l if typeof(l) == TYPE_DICTIONARY else {}
 	_setup_sky()
 
 	Events.profile_changed.connect(_apply_profile)
@@ -77,16 +104,22 @@ func _ready() -> void:
 	hero.landed.connect(func(): AudioMgr.sfx("land"))
 	menu.play_pressed.connect(_on_play)
 	menu.heroes_pressed.connect(_on_heroes)
+	menu.map_pressed.connect(_on_menu_map)
+	menu.settings_pressed.connect(func():
+		if state == State.MENU:
+			hud._request_parents())
 	hero_select.chosen.connect(_on_hero_chosen)
 	hero_select.closed.connect(_on_heroes_closed)
+	map_screen.level_chosen.connect(_start_level)
+	map_screen.closed.connect(_on_map_closed)
+	controls.action.connect(_on_control_action)
+	wheel.finished.connect(_on_wheel_finished)
 
 	_apply_profile(AgeAdapt.current)
 	_apply_hero(String(SaveService.child().get("hero", "puf")))
-	var start := String(SaveService.child().get("last_world", "meadow"))
-	var allowed: Array = profile.get("worlds", ["meadow"])
-	if not allowed.has(start) or not worlds.has(start):
-		start = String(allowed[0]) if not allowed.is_empty() and worlds.has(allowed[0]) else String(worlds.keys()[0])
-	_enter_world(start, true)
+	level_num = lm.current()
+	level = lm.get_level(level_num)
+	_enter_world(String(level.get("world", "meadow")), true)
 	_enter_menu(true)
 
 
@@ -109,7 +142,7 @@ static func load_worlds() -> Dictionary:
 	return out
 
 
-## Чиста функція: двері Розвилки для профілю.
+## Чиста функція (сумісність із тестами): двері вибору світу.
 static func fork_ids(allowed: Array, current: String, n: int, rng: RandomNumberGenerator) -> Array:
 	var others := allowed.filter(func(w): return String(w) != current)
 	for i in range(others.size() - 1, 0, -1):
@@ -125,6 +158,17 @@ static func fork_ids(allowed: Array, current: String, n: int, rng: RandomNumberG
 	return out
 
 
+## Камера під ширину дороги: 7 доріжок — вище й далі, ортографічна — ширша.
+static func camera_for_lanes(preset: Dictionary, n_lanes: int) -> Dictionary:
+	var k := 1.0 + float(n_lanes - 3) * 0.16
+	var out := preset.duplicate(true)
+	var p: Array = out.get("pos", [0.0, 3.4, 5.6])
+	out["pos"] = [float(p[0]) * k, float(p[1]) * k, float(p[2]) * k]
+	if bool(out.get("ortho", false)):
+		out["size"] = float(out.get("size", 9.0)) * k
+	return out
+
+
 func _apply_profile(profile_name: String) -> void:
 	profile = profiles.get(profile_name, profiles.get("young", {}))
 	base_speed = float(profile.get("speed", 4.0))
@@ -136,6 +180,15 @@ func _apply_profile(profile_name: String) -> void:
 		spawner.magnet = float(profile.get("star_magnet", 1.0))
 		events_spawner.profile = profile
 	hud.set_profile(profile_name)
+	controls.set_arrows_visible(state == State.RUN and _arrows_on())
+
+
+func _arrows_on() -> bool:
+	return bool(SaveService.setting("arrows", AgeAdapt.current == "young"))
+
+
+func _joystick_on() -> bool:
+	return bool(SaveService.setting("joystick", true))
 
 
 func _apply_hero(id: String) -> void:
@@ -143,16 +196,21 @@ func _apply_hero(id: String) -> void:
 		id = "puf"
 	var h: Dictionary = heroes.get(id, {})
 	hero.set_hero(id, String(h.get("color", "#FFB84D")), String(h.get("feature", "tuft")))
+	Shop.apply_to(hero)
 
 
 func _make_mode(kind: String) -> ModeBase:
 	match kind:
 		"hop": return HopMode.new()
+		"float": return FloatMode.new()
 		"slide": return SlideMode.new()
+		"scooter": return ScooterMode.new()
 		_: return RunMode.new()
 
 
 func _enter_world(id: String, instant: bool) -> void:
+	if not worlds.has(id):
+		id = String(worlds.keys()[0])
 	world = worlds[id]
 	world_id = id
 	if mode:
@@ -163,21 +221,20 @@ func _enter_world(id: String, instant: bool) -> void:
 	mode.enter()
 	hero.lane = 0
 	hero.x_target = 0.0
-	hero.set_running(mode.mode_id() != "hop")
-	track.rebuild(world, not instant, season)
-	if state == State.RUN or state == State.COUNTDOWN or instant:
-		camera_rig.apply(world.get("camera", {}), 0.0 if instant else 0.8)
+	# у покрокових режимах герой теж біжить, але повільнішим бобом — світ лише дрейфує
+	hero.run_speed_factor = STEPWISE_BOB if mode.is_stepwise() else 1.0
+	hero.set_running(state != State.MENU)
+	track.rebuild(world, not instant, season, lanes)
+	hero.set_lanes(lanes)
+	if state == State.RUN:
+		# зміна біому посеред бігу (дебаг) — камеру переїжджаємо тут; на старті рівня це робить _start_level
+		camera_rig.apply(camera_for_lanes(world.get("camera", {}), lanes), 0.8)
 	_set_sky(clampf(session_t / session_total, 0.0, 1.0))
 	_set_ambient()
 	spawner.configure(profile, world, hero, mode, self)
 	events_spawner.configure(self, hero, spawner, actors, profile, mode.mode_id())
-	quests.start_segment(AgeAdapt.current)
-	hud.set_quest(quests.icon_kind(), 0, quests.target())
 	hud.set_world(String(world.get("name_uk", id)))
 	AudioMgr.music(String(world.get("music", "")))
-	if not instant:
-		AudioMgr.voice("world_%s" % id)
-	SaveService.child()["last_world"] = id
 	Events.world_changed.emit(id)
 
 
@@ -187,37 +244,40 @@ func _setup_sky() -> void:
 	if env.environment == null:
 		env.environment = Environment.new()
 	var e := env.environment
-	e.background_mode = Environment.BG_SKY
-	_sky_mat = ProceduralSkyMaterial.new()
-	_sky_mat.sun_angle_max = 30.0
-	_sky_mat.sun_curve = 0.15
-	var sky := Sky.new()
-	sky.sky_material = _sky_mat
-	e.sky = sky
+	# суцільний колір неба (надійно на Mobile) + м'який туман: далекий план тане, стає затишно
+	e.background_mode = Environment.BG_COLOR
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_energy = 0.75
+	e.ambient_light_energy = 0.8
+	e.fog_enabled = true
+	e.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+	e.fog_density = 0.012
+	e.fog_sky_affect = 0.0
+	e.fog_aerial_perspective = 0.4
 
 
-## Живе небо: день → вечір протягом сесії (t 0..1); сезон підфарбовує.
+## Живе небо: день → вечір протягом сесії (t 0..1); сезон і фішка рівня (ніч/вечір) підфарбовують.
 func _set_sky(t: float) -> void:
 	var day := Color(String(world.get("sky", "#9BDDFF")))
 	var evening := Color(String(world.get("sky_evening", "#F7B58A")))
 	if not season.is_empty():
 		day = day * Color(String(season.get("sky_tint", "#FFFFFF")))
+	if bool(level.get("evening", false)):
+		t = maxf(t, 0.8)
 	var c := day.lerp(evening, t)
-	if _sky_mat:
-		_sky_mat.sky_top_color = c.darkened(0.15).lerp(Color("#5C6BC0"), t * 0.35)
-		_sky_mat.sky_horizon_color = c.lightened(0.25)
-		_sky_mat.ground_bottom_color = c.darkened(0.4)
-		_sky_mat.ground_horizon_color = c.lightened(0.15)
+	var energy := lerpf(1.15, 0.7, t)
+	if bool(level.get("night", false)):
+		c = c.darkened(0.55).lerp(Color("#283593"), 0.5)
+		energy = 0.45
 	if env.environment:
+		env.environment.background_color = c
 		env.environment.ambient_light_color = c.lightened(0.35)
-	sun.light_energy = lerpf(1.15, 0.7, t)
+		env.environment.fog_light_color = c.lightened(0.2)
+	sun.light_energy = energy
 	sun.light_color = Color.WHITE.lerp(Color("#FFC59A"), t)
-	# світлячки надвечір
-	if t > 0.6 and _fireflies == null:
+	var want_fireflies := t > 0.6 or bool(level.get("night", false))
+	if want_fireflies and _fireflies == null:
 		_fireflies = FX.ambient(ambient_root, "fireflies")
-	elif t <= 0.6 and _fireflies != null:
+	elif not want_fireflies and _fireflies != null:
 		_fireflies.queue_free()
 		_fireflies = null
 
@@ -226,14 +286,23 @@ func _set_ambient() -> void:
 	if _ambient:
 		_ambient.queue_free()
 		_ambient = null
+	if _weather:
+		_weather.queue_free()
+		_weather = null
 	var kind := String(season.get("particles", ""))
 	if kind == "":
 		match String(world.get("mode", "run")):
-			"run": kind = "petals"
+			"run", "scooter": kind = "petals"
 			"hop": kind = "leaves"
 			"slide": kind = "glints"
+	if world_id == "clouds":
+		kind = "stars"
+	elif world_id == "beach":
+		kind = "glints"   # пляж тепер «біг», але відблиски моря лишаються
 	if kind != "":
 		_ambient = FX.ambient(ambient_root, kind)
+	if bool(level.get("rain", false)):
+		_weather = FX.ambient(ambient_root, "rain")
 
 
 # ---------- стани ----------
@@ -244,9 +313,13 @@ func _enter_menu(instant: bool) -> void:
 	if _countdown_tw:
 		_countdown_tw.kill()
 		_countdown_tw = null
+	hud.hide_finish()
 	hud.hide_station()
+	controls.set_arrows_visible(false)
+	controls.stick_hide()
 	spawner.spawning = false
 	spawner.clear()
+	events_spawner.events_enabled = false
 	hero.set_running(false)
 	hero.visible = true
 	hero.face_camera(true, 0.0 if instant else 0.5)
@@ -256,21 +329,102 @@ func _enter_menu(instant: bool) -> void:
 	AudioMgr.music("menu")
 	get_tree().create_timer(0.6).timeout.connect(func():
 		if state == State.MENU:
-			hero.wave_hello())
+			hero.wave_hello()
+			_daily_gift())
+
+
+## Подарунок дня: +30 зірочок при першому запуску за день, без таймерів «повернись» (GDD §7).
+func _daily_gift() -> void:
+	var today := Time.get_date_string_from_system()
+	if String(SaveService.child().get("last_gift_day", "")) == today:
+		return
+	SaveService.child()["last_gift_day"] = today
+	Events.star_collected.emit(30)
+	SaveService.save_game()
+	hud.flash("+30 подарунок дня!", 1.8, Color("#FFD54F"))
+	FX.confetti(self, Vector3(0, 1.2, 0), 70)
+	hero.cheer()
+	AudioMgr.sfx("confetti")
+	AudioMgr.voice("gift")
 
 
 func _on_play() -> void:
 	if state != State.MENU:
 		return
-	state = State.COUNTDOWN
 	menu.hide_menu()
+	if bool(profile.get("skip_map", false)):
+		_start_level(lm.current())
+	else:
+		_open_map()
+
+
+## Кнопка «Мапа» в меню.
+func _on_menu_map() -> void:
+	if state != State.MENU:
+		return
+	menu.hide_menu()
+	_open_map()
+
+
+func _open_map() -> void:
+	state = State.MAP
+	get_tree().paused = false
+	hud.hide_finish()
+	hud.set_gameplay_visible(false)
+	controls.set_arrows_visible(false)
+	spawner.spawning = false
+	events_spawner.events_enabled = false
+	map_screen.open(lm, worlds, hero.color)
+
+
+func _on_map_closed() -> void:
+	if state == State.MAP:
+		_enter_menu(false)
+
+
+## Старт рівня num: біом, доріжки, складність, туторіал → відлік.
+func _start_level(num: int) -> void:
+	lm.set_current(num)
+	level_num = num
+	level = lm.get_level(num)
+	if level.is_empty():
+		level = lm.get_level(1)
+		level_num = 1
+	state = State.COUNTDOWN
+	get_tree().paused = false
+	hud.hide_finish()
 	hud.set_gameplay_visible(true)
-	camera_rig.apply(world.get("camera", {}), 0.8)
+	lanes = LevelManager.lanes_for(level, profile, 0.0)
+	_lanes_changed = false
+	level_t = 0.0
+	level_duration = float(level.get("duration_sec", 90))
+	_slow = 1.0
+	_sprint_announced = false
+	_gate_spawned = false
+	_tutorial_action = ""
+	var learned = SaveService.child().get("learned", {})   # батьки могли скинути підказки
+	_learned = learned if typeof(learned) == TYPE_DICTIONARY else {}
+	var wid := String(level.get("world", "meadow"))
+	_enter_world(wid, wid == world_id)
+	spawner.set_level(level.get("obstacle_types", []), float(level.get("density", 1.0)), lanes, bool(level.get("tutorial", false)))
+	spawner.spawning = false
+	events_spawner.allowed_ids = level.get("events", [])
+	events_spawner.events_enabled = false
+	quests.start_segment(AgeAdapt.current)
+	hud.set_quest(quests.icon_kind(), 0, quests.target())
+	hud.set_world("%d · %s" % [level_num, String(level.get("name_uk", ""))])
+	camera_rig.apply(camera_for_lanes(world.get("camera", {}), lanes), 0.8)
+	hero.visible = true
 	hero.cheer()
-	# розвертається спиною до камери і починає бігти на місці
 	hero.face_camera(false, 0.6)
-	get_tree().create_timer(0.6).timeout.connect(func(): hero.set_running(true))
+	get_tree().create_timer(0.6).timeout.connect(func():
+		if state == State.COUNTDOWN or state == State.RUN:
+			hero.set_running(true))
+	AudioMgr.voice("level_%d" % level_num)
+	if _countdown_tw:
+		_countdown_tw.kill()
 	_countdown_tw = create_tween()
+	_countdown_tw.tween_interval(0.5)
 	for i in range(3):
 		_countdown_tw.tween_callback(hud.flash.bind(str(3 - i), 0.7, Color("#FFF176")))
 		_countdown_tw.tween_callback(AudioMgr.sfx.bind("count"))
@@ -283,11 +437,13 @@ func _start_run() -> void:
 	hud.flash("Біжимо!", 0.9, Color("#69F0AE"))
 	AudioMgr.voice("go")
 	spawner.spawning = true
-	checkpoint_t = 0.0
+	events_spawner.events_enabled = true
+	controls.set_arrows_visible(_arrows_on())
 	_idle_t = 0.0
-	var minutes := float(SaveService.setting("session_minutes", 10))
-	session_total = maxf(60.0, minutes * 60.0)
-	SessionTimer.start(minutes)
+	if not SessionTimer.running:
+		var minutes := float(SaveService.setting("session_minutes", 10))
+		session_total = maxf(60.0, minutes * 60.0)
+		SessionTimer.start(minutes)
 	AudioMgr.music(String(world.get("music", "")))
 
 
@@ -307,7 +463,70 @@ func _on_hero_chosen(id: String) -> void:
 
 func _on_heroes_closed() -> void:
 	if state == State.HEROES:
+		Shop.apply_to(hero)   # аксесуари могли одягнути без вибору героя
 		_enter_menu(false)
+
+
+# ---------- фініш рівня ----------
+
+func _finish() -> void:
+	state = State.FINISH
+	get_tree().paused = true
+	controls.set_arrows_visible(false)
+	controls.stick_hide()
+	hero.set_duck(false)
+	hero.set_running(false)
+	events_spawner.reset()
+	var stars := LevelManager.stars_for(spawner.stars_collected_segment, spawner.stars_spawned_segment, spawner.tumbles_segment)
+	var record := lm.complete(level_num, stars)
+	SaveService.add_stars(20 + 10 * stars)
+	SaveService.child()["checkpoints"] = int(SaveService.child().get("checkpoints", 0)) + 1
+	SaveService.save_game()
+	Stats.inc("levels_finished")
+	Stats.inc("level_%d_stars_%d" % [level_num, stars])
+	Stats.flush()
+	AudioMgr.sfx("station")
+	AudioMgr.voice("level_done" if stars < 3 else "three_stars")
+	FX.confetti(self, Vector3(0, 1.2, 0), 60 + 30 * stars)
+	Events.checkpoint_reached.emit(level_num)   # AgeAdapt приймає рішення між рівнями
+	_finish_auto_t = -20.0   # авто-«Далі» лише після колеса
+	if record and stars == 3:
+		hud.flash("Три зірочки!", 1.4, Color("#FFD54F"))
+	# колесо станції → потім панель із зірками
+	_pending_finish = {"stars": stars}
+	get_tree().create_timer(1.2).timeout.connect(func():
+		if state == State.FINISH:
+			wheel.spin())
+
+
+func _on_wheel_finished(reward: Dictionary) -> void:
+	if state != State.FINISH:
+		return
+	var stars_won := int(reward.get("stars", 0))
+	var hat := String(reward.get("hat", ""))
+	if stars_won > 0:
+		Events.star_collected.emit(stars_won)
+	if hat != "":
+		Hats.grant(hat)
+		Hats.equip(hat)
+		Shop.apply_to(hero)
+		FX.confetti(self, Vector3(0, 1.2, 0), 60)
+	SaveService.save_game()
+	_finish_auto_t = 0.0
+	hud.show_finish(level_num, int(_pending_finish.get("stars", 1)), _on_finish_next, _open_map, not bool(profile.get("skip_map", false)))
+
+
+func _on_finish_next() -> void:
+	if state != State.FINISH:
+		return
+	get_tree().paused = false
+	hud.hide_finish()
+	var next := mini(level_num + 1, lm.count())
+	if level_num >= lm.count():
+		# фінал: усе пройдено — на мапу для всіх (і малят): будь-який рівень можна грати знову
+		_open_map()
+		return
+	_start_level(next)
 
 
 # ---------- цикл ----------
@@ -318,29 +537,48 @@ func _process(delta: float) -> void:
 	match state:
 		State.SLEEP:
 			return
-		State.MENU, State.HEROES, State.COUNTDOWN:
-			# дорога повільно їде під меню — сцена жива
-			var d := MENU_SPEED * delta if mode.mode_id() != "hop" else 0.0
-			if d > 0.0:
-				track.advance(d)
-				spawner.advance(d)
+		State.MENU, State.HEROES, State.MAP, State.COUNTDOWN:
+			# дорога повільно їде під меню (у Стрибках світ теж дрейфує — тому й тут)
+			var d := MENU_SPEED * delta
+			track.advance(d)
+			spawner.advance(d)
 			return
-		State.STATION:
-			_fork_idle += delta
-			if _fork_idle > FORK_AUTO_PICK_SEC and hud.fork_visible():
-				var opts := _fork_options()
-				_on_fork_chosen(String(opts[randi() % opts.size()]["id"]))
+		State.FINISH:
+			# малюк не тисне «Далі» — гра йде далі сама
+			_finish_auto_t += delta
+			if _finish_auto_t > FINISH_AUTO_NEXT_SEC and bool(profile.get("skip_map", false)):
+				_on_finish_next()
 			return
 	if switching:
 		return
-	run_time += delta
+	level_t += delta
 	session_t += delta
-	checkpoint_t += delta
+	var progress := clampf(level_t / level_duration, 0.0, 1.0)
+	# розширення дороги посеред рівня — «фішка»
+	if not _lanes_changed and level.has("lanes_to") and progress >= float(level.get("lanes_at", 0.5)):
+		_lanes_changed = true
+		_change_lanes(LevelManager.lanes_for(level, profile, progress))
+	# складність: профіль × рівень × розгін до фінішу × спринт × сповільнення туторіалу
+	if _slow < 1.0:
+		_slow_t -= delta
+		if _slow_t <= 0.0:
+			_slow = 1.0
 	var ramp := float(profile.get("speed_ramp", 0.2))
-	speed = base_speed * (1.0 + ramp * clampf(checkpoint_t / 60.0, 0.0, 1.0))
+	var sprint := 1.0
+	if progress >= SPRINT_FROM:
+		sprint = SPRINT_MULT
+		if not _sprint_announced:
+			_sprint_announced = true
+			hud.flash("Фініш близько!", 1.0, Color("#FF8A65"))
+			AudioMgr.voice("finish_soon")
+	speed = base_speed * float(level.get("speed_mult", 1.0)) * (1.0 + ramp * progress) * sprint * _slow
 	mode.speed = speed
 	spawner.set_speed(speed)
-	if _pressed and Gestures.hold_started(_held_sec(), _swiped, _holding):
+	# ворота фінішу — за 6 с до кінця, один раз
+	if not _gate_spawned and level_duration - level_t <= GATE_BEFORE_SEC:
+		_gate_spawned = true
+		spawner.spawn_finish_gate()
+	if _pressed and Gestures.hold_started(_held_sec(), _swiped or _stick_used, _holding):
 		_holding = true
 		mode.gesture("hold_start", _cur_pos)
 	mode.steer(_pressed and not _swiped, _cur_pos)
@@ -353,8 +591,21 @@ func _process(delta: float) -> void:
 	_hint(delta)
 	_quest_tick()
 	_set_sky(clampf(session_t / session_total, 0.0, 1.0))
-	if checkpoint_t >= checkpoint_seconds:
-		_station()
+	if level_t >= level_duration:
+		_finish()
+
+
+func _change_lanes(n: int) -> void:
+	if n == lanes:
+		return
+	var wider := n > lanes
+	lanes = n
+	track.set_lanes(n, true)
+	hero.set_lanes(n)
+	spawner.lanes = n
+	camera_rig.apply(camera_for_lanes(world.get("camera", {}), n), 0.9)
+	hud.flash("Ширше!" if wider else "Вужче!", 1.0, Color("#80DEEA"))
+	AudioMgr.voice("wider")
 
 
 func _held_sec() -> float:
@@ -370,23 +621,45 @@ func _hero_screen_hit(pos: Vector2) -> bool:
 	return sp.distance_to(pos) < 130.0
 
 
-## Дебаг (лише в редакторі/debug-збірці): 1/2/3 — світ, S — станція зараз, F — веселка, D — друг, Q — завдання виконано.
+# ---------- керування ----------
+
+## Дебаг (лише debug-збірка): 1..5 — біом на льоту, L — наступний рівень, S — фініш зараз, F — веселка, D — друг, Q — завдання, M — мапа.
 func _debug_key(event: InputEventKey) -> void:
 	if not OS.is_debug_build() or not event.pressed or event.echo:
 		return
-	var world_keys := {KEY_1: "meadow", KEY_2: "forest", KEY_3: "beach"}
+	var world_keys := {KEY_1: "meadow", KEY_2: "forest", KEY_3: "beach", KEY_4: "city", KEY_5: "clouds"}
 	if world_keys.has(event.keycode) and state == State.RUN and worlds.has(world_keys[event.keycode]):
 		switching = true
 		_enter_world(String(world_keys[event.keycode]), false)
 		get_tree().create_timer(WORLD_SWITCH_SEC).timeout.connect(func(): switching = false)
 	elif event.keycode == KEY_S and state == State.RUN:
-		_station()
+		_finish()
+	elif event.keycode == KEY_L and state == State.RUN:
+		_start_level(mini(level_num + 1, lm.count()))
+	elif event.keycode == KEY_M and state == State.RUN:
+		_open_map()
 	elif event.keycode == KEY_F and state == State.RUN:
 		events_spawner.force("rainbow")
 	elif event.keycode == KEY_D and state == State.RUN:
 		events_spawner.force("friend")
 	elif event.keycode == KEY_Q and state == State.RUN:
 		Events.quest_completed.emit("debug", 10)
+	elif event.keycode == KEY_W and state == State.RUN:
+		_change_lanes(7 if lanes < 7 else 3)
+
+
+## Жест від будь-якого джерела (свайп / стрілка / джойстик) — одна точка входу.
+func _gesture(kind: String, pos: Vector2 = Vector2.ZERO) -> void:
+	if state != State.RUN or switching:
+		return
+	mode.gesture(kind, pos)
+	_idle_t = 0.0
+	Events.gameplay_input.emit()
+	_tutorial_register(kind)
+
+
+func _on_control_action(kind: String) -> void:
+	_gesture(kind, Vector2.ZERO)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -402,47 +675,59 @@ func _unhandled_input(event: InputEvent) -> void:
 			_press_pos = event.position
 			_cur_pos = event.position
 			_swiped = false
+			_stick_used = false
 			_holding = false
 			_idle_t = 0.0
 			Events.player_input.emit()
 			match state:
 				State.MENU:
+					_pressed = false
 					if _hero_screen_hit(event.position):
 						hero.pet()
 					return
 				State.HEROES:
+					_pressed = false
 					hero_select.tap(event.position)
 					return
-				State.STATION:
+				State.FINISH:
+					_pressed = false
 					hero.pet()
 					return
-				State.COUNTDOWN:
+				State.COUNTDOWN, State.MAP:
+					_pressed = false
 					return
-			Events.gameplay_input.emit()
+			if _joystick_on():
+				controls.stick_show(event.position)
 		else:
-			var g := Gestures.on_release(_held_sec(), _swiped)
+			var g := Gestures.on_release(_held_sec(), _swiped or _stick_used)
 			_pressed = false
 			_press_time = -1.0
 			_holding = false
-			if g != "" and state == State.RUN and not switching:
-				mode.gesture(g, event.position)
-	elif event is InputEventScreenDrag and _pressed and not _swiped:
+			controls.stick_hide()
+			if g != "":
+				_gesture(g, event.position)
+	elif event is InputEventScreenDrag and _pressed:
 		_cur_pos = event.position
+		var off := _cur_pos - _press_pos
+		if _joystick_on() and state == State.RUN:
+			controls.stick_update(off)
+		if _swiped:
+			# джойстик: повернув палець до центру — можна відхиляти ще раз
+			if off.length() < STICK_REARM_PX:
+				_swiped = false
+				_press_time = Time.get_ticks_msec()
+			return
 		var d := Gestures.swipe_dir(_press_pos, _cur_pos)
 		if d != "":
 			_swiped = true
+			_stick_used = true
 			if state == State.HEROES:
-				if d == "swipe_left":
-					hero_select.move(1)
-				elif d == "swipe_right":
-					hero_select.move(-1)
+				hero_select.move(1 if d == "swipe_left" else (-1 if d == "swipe_right" else 0))
 				return
 			if _holding:
 				_holding = false
 				mode.gesture("hold_end", _cur_pos)
-			if state == State.RUN and not switching:
-				mode.gesture(d, _cur_pos)
-				Events.gameplay_input.emit()
+			_gesture(d, _cur_pos)
 
 
 func _release_assist_duck() -> void:
@@ -467,12 +752,75 @@ func _on_star_collected(n: int) -> void:
 		hud.fly_star(camera_rig.cam.unproject_position(hero.global_position + Vector3(0, 0.8, 0)))
 
 
+# ---------- туторіал і підказки ----------
+
+const ACTION_HINT := {
+	"jump": ["up", "Стрибни!", "hint_jump"],
+	"duck": ["down", "Присядь!", "hint_duck"],
+	"side": ["left", "Убік!", "hint_side"],
+	"gap": ["up", "На колоду!", "hint_hop"],
+}
+
+
+## Spawner повідомляє про перший спавн типу перешкоди на рівні з туторіалом.
+func tutorial_obstacle(kind: String, action: String, free_lane: int = 99) -> void:
+	if not ACTION_HINT.has(action) or _learned.has(action):
+		return
+	var eta := mode.seconds_to_hero(-Spawner3D.SPAWN_Z)
+	if mode.is_stepwise():
+		eta = 2.0
+	get_tree().create_timer(maxf(0.1, eta - TUTORIAL_LEAD_SEC), false).timeout.connect(_tutorial_prompt.bind(action, free_lane))
+
+
+func _tutorial_prompt(action: String, free_lane: int = 99) -> void:
+	if state != State.RUN or _learned.has(action):
+		return
+	_tutorial_action = action
+	var h: Array = ACTION_HINT[action]
+	var gesture_kind := String(h[0])
+	# «убік» — у бік вільної доріжки (якщо відома), інакше до центру
+	if action == "side":
+		if free_lane != 99 and free_lane != hero.lane:
+			gesture_kind = "left" if free_lane < hero.lane else "right"
+		else:
+			gesture_kind = "left" if hero.lane > 0 else "right"
+	hud.show_hint(gesture_kind, String(h[1]))
+	AudioMgr.voice(String(h[2]))
+	_slow = TUTORIAL_SLOW
+	_slow_t = 2.0
+
+
+## Дитина зробила дію сама: після 2 разів підказка для цієї дії більше не показується.
+func _tutorial_register(kind: String) -> void:
+	if _tutorial_action == "":
+		return
+	var ok := false
+	match _tutorial_action:
+		"jump", "gap": ok = kind in ["tap", "swipe_up"]
+		"duck": ok = kind in ["swipe_down", "hold_start"]
+		"side": ok = kind in ["swipe_left", "swipe_right"]
+	if not ok:
+		return
+	_tutorial_count[_tutorial_action] = int(_tutorial_count.get(_tutorial_action, 0)) + 1
+	if int(_tutorial_count[_tutorial_action]) >= 2:
+		_learned[_tutorial_action] = true
+		SaveService.child()["learned"] = _learned
+		hero.cheer()
+		AudioMgr.voice("praise")
+	_tutorial_action = ""
+	_slow = 1.0
+
+
+## Підказка через N секунд бездіяльності — жест поточного режиму.
 func _hint(delta: float) -> void:
 	if not mode.wants_hint():
 		return
 	_idle_t += delta
 	if _idle_t > float(profile.get("hint_after_sec", 5)):
-		hud.show_hint()
+		match mode.mode_id():
+			"hop", "float": hud.show_hint("tap", "Тап — крок!")
+			"slide": hud.show_hint("hold", "Тримай збоку!")
+			_: hud.show_hint("tap", "Тап — стрибок!")
 		AudioMgr.voice("hint_tap")
 		_idle_t = 0.0
 
@@ -494,63 +842,14 @@ func _on_quest_completed(_id: String, reward: int) -> void:
 	AudioMgr.voice("praise")
 
 
-# ---------- станція, Розвилка ----------
-
-func _station() -> void:
-	state = State.STATION
-	get_tree().paused = true
-	checkpoint_t = 0.0
-	checkpoint_index += 1
-	_fork_idle = 0.0
-	hero.set_duck(false)
-	hero.set_running(false)
-	events_spawner.reset()
-	SaveService.add_stars(20)
-	SaveService.child()["checkpoints"] = int(SaveService.child().get("checkpoints", 0)) + 1
-	SaveService.save_game()
-	Stats.inc("checkpoints")
-	Stats.flush()
-	AudioMgr.sfx("station")
-	AudioMgr.voice("station")
-	# дерево на паузі — конфеті вішаємо на Run3D (ALWAYS), герой стоїть у (0,0,0)
-	FX.confetti(self, Vector3(0, 1.2, 0), 80)
-	hud.show_station(checkpoint_index)
-	Events.checkpoint_reached.emit(checkpoint_index)
-	hud.show_fork(_fork_options(), _on_fork_chosen)
-
-
-func _fork_options() -> Array:
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	var allowed: Array = profile.get("worlds", ["meadow"]).filter(func(w): return worlds.has(w))
-	var ids := fork_ids(allowed, world_id, int(profile.get("fork_options", 2)), rng)
-	var out := []
-	for id in ids:
-		var w: Dictionary = worlds[id]
-		out.append({"id": id, "name_uk": w.get("name_uk", id), "accent": w.get("accent", "#F06292")})
-	return out
-
-
-func _on_fork_chosen(id: String) -> void:
-	if state != State.STATION:
-		return
-	state = State.RUN
-	get_tree().paused = false
-	hud.hide_station()
-	Stats.inc("fork_%s" % id)
-	switching = true
-	_enter_world(id, false)
-	get_tree().create_timer(WORLD_SWITCH_SEC).timeout.connect(func(): switching = false)
-
-
-## Сумісність із HUD (_run_is_busy шукає цей метод і поля paused_at_station/sleeping).
+## Сумісність із HUD (_run_is_busy).
 func _leave_station() -> void:
 	pass
 
 
 var paused_at_station: bool:
 	get:
-		return state == State.STATION
+		return state == State.FINISH
 
 var sleeping: bool:
 	get:
@@ -570,10 +869,13 @@ func _on_session_warning(seconds_left: int) -> void:
 
 
 func _on_session_finished() -> void:
-	if state == State.MENU or state == State.HEROES:
+	if state == State.MENU or state == State.HEROES or state == State.MAP:
 		return
 	state = State.SLEEP
 	get_tree().paused = true
+	hud.hide_finish()
+	controls.set_arrows_visible(false)
+	controls.stick_hide()
 	hero.set_duck(false)
 	hero.set_running(false)
 	SaveService.save_game()

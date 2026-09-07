@@ -27,6 +27,7 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 	auto_assist = assist
 	moves = bool(def.get("moves", false))
 	move_speed = float(def.get("move_speed", 0.0))
+	anim = String(def.get("anim", ""))
 	var b: Array = def.get("box", [0.7, 0.7, 0.7])
 	box = Vector3(float(b[0]), float(b[1]), float(b[2]))
 	position.x = float(lane) * Hero3D.LANE_W
@@ -36,6 +37,8 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 	if with_mesh:
 		_mesh = VoxelBuilder.instance(String(def.get("voxel", kind)))
 		_mesh.position.y = y
+		_base_scale = Vector3.ONE * float(def.get("scale", 1.0))
+		_mesh.scale = _base_scale
 		add_child(_mesh)
 	else:
 		# невидима «дірка» (річка без колоди) — меш-заглушка, щоб анімації не падали
@@ -50,17 +53,73 @@ func aabb() -> AABB:
 	)
 
 
+## Межа руху для перебігаючих (їжачок) — уся ширина дороги, виставляє Spawner3D.
+var range_x := 1.6
+## Вільна доріжка групи (для «убік» авто-допомоги/підказки). 99 — невідомо.
+var free_lane := 99
+
+
+## Куди відступати від цієї перешкоди: до вільної доріжки, якщо відома, інакше до центру.
+func side_dir(hero_lane: int) -> int:
+	if free_lane != 99 and free_lane != hero_lane:
+		return signi(free_lane - hero_lane)
+	return -1 if lane >= 0 else 1
+
+
+## Анімація з даних: sway (гойдається), spin (крутиться), bob (пливе вгору-вниз), breathe (дихає),
+## bounce (стрибає, як м'яч), flap (махає), pulse (пульсує, як медуза), drip (крапає), wobble (хитається).
+var anim := ""
+var _t := randf() * TAU
+var _drip_t := 0.0
+var _base_scale := Vector3.ONE
+
+
 func tick(delta: float) -> void:
+	_t += delta
 	if moves:
 		position.x += _dir * move_speed * delta
-		if absf(position.x) > 1.6:
+		if absf(position.x) > range_x:
 			_dir = -signf(position.x)
-			position.x = clampf(position.x, -1.6, 1.6)
+			position.x = clampf(position.x, -range_x, range_x)
 			_mesh.rotation.y = 0.0 if _dir > 0 else PI
+		# лапки «біжать»
+		_mesh.position.y = _box_y + absf(sin(_t * 14.0)) * 0.05
+	match anim:
+		"sway":
+			_mesh.rotation.z = sin(_t * 1.8) * 0.08
+		"spin":
+			_mesh.rotation.y += delta * 1.5
+		"bob":
+			_mesh.position.y = _box_y + sin(_t * 2.2) * 0.12
+		"breathe":
+			var s := 1.0 + sin(_t * 2.0) * 0.04
+			_mesh.scale = _base_scale * Vector3(s, 1.0 / s, s)
+		"bounce":
+			_mesh.position.y = _box_y + absf(sin(_t * 4.0)) * 0.5
+			var k := 1.0 - absf(cos(_t * 4.0)) * 0.15
+			_mesh.scale = _base_scale * Vector3(1.0 + (1.0 - k), k, 1.0 + (1.0 - k))
+		"flap":
+			_mesh.rotation.x = sin(_t * 9.0) * 0.25
+			_mesh.position.y = _box_y + sin(_t * 3.0) * 0.1
+		"pulse":
+			var p := 1.0 + sin(_t * 3.5) * 0.12
+			_mesh.scale = _base_scale * Vector3(p, 2.0 - p, p)
+			_mesh.position.y = _box_y + sin(_t * 1.5) * 0.08
+		"wobble":
+			_mesh.rotation.x = sin(_t * 2.5) * 0.06
+			_mesh.rotation.z = cos(_t * 2.1) * 0.06
+		"drip":
+			_mesh.position.y = _box_y + sin(_t * 1.5) * 0.06
+			_drip_t += delta
+			if _drip_t > 0.7 and is_inside_tree():
+				_drip_t = 0.0
+				FX.splash(get_parent(), position + Vector3(0, 0.1, 0), Color("#90CAF9"))
+		_:
+			pass
 
 
 ## Реакція на зіткнення без перекиду (калюжа/кущ): маленький «пшик».
 func splash() -> void:
 	var tw := create_tween()
-	tw.tween_property(_mesh, "scale", Vector3(1.3, 0.6, 1.3), 0.1)
-	tw.tween_property(_mesh, "scale", Vector3.ONE, 0.25).set_trans(Tween.TRANS_ELASTIC)
+	tw.tween_property(_mesh, "scale", _base_scale * Vector3(1.3, 0.6, 1.3), 0.1)
+	tw.tween_property(_mesh, "scale", _base_scale, 0.25).set_trans(Tween.TRANS_ELASTIC)

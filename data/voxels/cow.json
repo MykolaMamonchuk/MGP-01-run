@@ -1,0 +1,12 @@
+{
+  "_note": "Корова спить поперек доріжки — обійти (side). Голова ліворуч (x=0).",
+  "size": 0.12,
+  "palette": {"w": "#FAFAFA", "k": "#37474F", "p": "#F8BBD0", "e": "#222222"},
+  "layers": [
+    ["wwwwww", "wwwwww", "wwwwww"],
+    ["wwkkww", "wwwwww", "wkkwww"],
+    ["pwwwww", "wwwkkw", "wwwwww"],
+    ["ewwwkw", "wwwwww", "ewwwww"],
+    ["www...", "wwww..", "www..."]
+  ]
+}

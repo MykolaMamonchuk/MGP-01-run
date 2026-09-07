@@ -86,6 +86,10 @@ static func _press_anim(c: Control, to: float) -> void:
 ## Пружна поява (з нуля).
 static func pop_in(c: Control, delay: float = 0.0) -> void:
 	c.pivot_offset = c.size * 0.5
+	# розмір може стати відомим пізніше — тримаємо центр (один конект на контрол)
+	if not c.has_meta("pivot_follow"):
+		c.set_meta("pivot_follow", true)
+		c.resized.connect(func(): c.pivot_offset = c.size * 0.5)
 	c.scale = Vector2.ZERO
 	var tw := c.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_interval(delay)

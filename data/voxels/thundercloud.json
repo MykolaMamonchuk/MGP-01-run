@@ -1,0 +1,11 @@
+{
+  "_note": "Грім-хмарка низько над доріжкою — присід (duck). Мʼякий спалах — wobble.",
+  "size": 0.14,
+  "palette": {"g": "#607D8B", "d": "#455A64", "y": "#FFEE58"},
+  "layers": [
+    ["..y...", "...y..", "......"],
+    [".dddd.", "dddddd", ".dddd."],
+    ["dggggd", "gggggg", "dggggd"],
+    [".gggg.", "gggggg", ".gggg."]
+  ]
+}

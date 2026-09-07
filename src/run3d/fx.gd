@@ -145,6 +145,45 @@ static func sparkles(parent: Node, radius: float = 0.5, amount: int = 12) -> GPU
 	return p
 
 
+## Сердечка (погладили / радість): рожеві ромбики летять угору з легким розльотом.
+static func hearts(parent: Node, pos: Vector3, amount: int = 6) -> void:
+	var p := _make(amount, 1.0, true, 0.14, Color("#FF80AB"))
+	var pm := p.process_material as ParticleProcessMaterial
+	pm.direction = Vector3(0, 1, 0)
+	pm.spread = 25.0
+	pm.initial_velocity_min = 0.6
+	pm.initial_velocity_max = 1.2
+	pm.gravity = Vector3(0, 1.2, 0)
+	# квадратик під 45° читається як сердечко-ромбик
+	pm.angle_min = 45.0
+	pm.angle_max = 45.0
+	pm.scale_min = 0.7
+	pm.scale_max = 1.2
+	pm.color_initial_ramp = _ramp(["#FF80AB", "#F8BBD0"])
+	p.position = pos
+	parent.add_child(p)
+	_auto_free(p)
+
+
+## Слід за героєм (аксесуар «слід»): постійні іскри заданого кольору; повертає емітер — власник його прибирає.
+static func trail(parent: Node, color: Color, amount: int = 16) -> GPUParticles3D:
+	var p := _make(amount, 0.8, false, 0.07, color)
+	var pm := p.process_material as ParticleProcessMaterial
+	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
+	pm.emission_sphere_radius = 0.15
+	pm.direction = Vector3(0, 0.3, 1)
+	pm.spread = 25.0
+	pm.initial_velocity_min = 0.8
+	pm.initial_velocity_max = 1.6
+	pm.gravity = Vector3(0, -0.5, 0)
+	pm.scale_min = 0.4
+	pm.scale_max = 1.0
+	pm.color_initial_ramp = _ramp(["#FFFFFF", color.to_html(false), color.darkened(0.2).to_html(false)])
+	p.emitting = true
+	parent.add_child(p)
+	return p
+
+
 ## Атмосфера світу/сезону: "petals" (Лужок), "leaves" (Ліс), "glints" (Пляж), "snow" (зима), "fireflies" (вечір).
 static func ambient(parent: Node, kind: String) -> GPUParticles3D:
 	var color := Color.WHITE
@@ -178,6 +217,18 @@ static func ambient(parent: Node, kind: String) -> GPUParticles3D:
 			amount = 30
 			lifetime = 4.0
 			gravity = Vector3.ZERO
+		"rain":
+			ramp = ["#B3E5FC", "#E1F5FE"]
+			size = 0.05
+			amount = 200
+			lifetime = 1.4
+			gravity = Vector3(0.3, -9.0, 0)
+		"stars":
+			ramp = ["#FFFFFF", "#FFF59D", "#B39DDB"]
+			size = 0.06
+			amount = 80
+			lifetime = 6.0
+			gravity = Vector3(0, -0.15, 0)
 	var p := _make(amount, lifetime, false, size, color)
 	var pm := p.process_material as ParticleProcessMaterial
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX

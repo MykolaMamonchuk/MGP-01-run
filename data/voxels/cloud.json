@@ -1,0 +1,10 @@
+{
+  "size": 0.14,
+  "palette": {"w": "#FFFFFF", "s": "#E3F2FD"},
+  "layers": [
+    [".ssss.", "ssssss", "ssssss", ".ssss."],
+    ["swwwws", "wwwwww", "wwwwww", "swwwws"],
+    [".wwww.", "wwwwww", "wwwwww", ".wwww."],
+    ["..ww..", ".wwww.", ".www..", "..w..."]
+  ]
+}

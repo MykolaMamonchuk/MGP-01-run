@@ -1,8 +1,8 @@
 ## Перевіряє data/profiles.json через AgeAdapt.load_profiles().
 extends GutTest
 
-const VALID_OBSTACLES := ["stump", "branch", "puddle", "bush", "tree", "river", "hedgehog", "rock", "crab"]
-const VALID_WORLDS := ["meadow", "forest", "beach"]
+const VALID_OBSTACLES := ["stump", "branch", "puddle", "bush", "tree", "river", "hedgehog", "rock", "crab", "bench", "lamp", "cloud"]
+const VALID_WORLDS := ["meadow", "forest", "beach", "city", "clouds"]
 const AGE_KEYS := ["young", "mid", "older"]
 
 var _profiles: Dictionary
@@ -63,10 +63,11 @@ func test_each_profile_shape() -> void:
 		assert_between(int(fork), 1, 3, "%s: fork_options у [1,3]" % key)
 
 
-func test_young_has_no_forest() -> void:
-	# GDD §2: Ліс (Стрибки) — від mid
-	assert_false((_profiles["young"]["worlds"] as Array).has("forest"), "young не має Лісу")
-	assert_true((_profiles["mid"]["worlds"] as Array).has("forest"), "mid має Ліс")
+func test_young_is_capped_and_skips_map() -> void:
+	# GDD v1.2 §2: young грає рівні послідовно, але не ширше 5 доріжок і без мапи
+	assert_eq(int(_profiles["young"].get("max_lanes", 99)), 5, "young — не ширше 5 доріжок")
+	assert_true(bool(_profiles["young"].get("skip_map", false)), "young — одразу рівень")
+	assert_false(_profiles["older"].has("max_lanes"), "older — без обмеження")
 
 
 func test_speed_increases_with_age() -> void:

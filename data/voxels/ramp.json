@@ -1,0 +1,13 @@
+{
+  "_note": "Трамплін: наїхав — довгий політ (action boost).",
+  "size": 0.12,
+  "palette": {"y": "#FFCA28", "k": "#37474F", "w": "#FFFFFF"},
+  "layers": [
+    ["kkkkkk", "kkkkkk", "kkkkkk", "kkkkkk", "kkkkkk", "kkkkkk"],
+    ["......", "yyyyyy", "yyyyyy", "yyyyyy", "yyyyyy", "yyyyyy"],
+    ["......", "......", "ywwwwy", "yyyyyy", "yyyyyy", "yyyyyy"],
+    ["......", "......", "......", "yyyyyy", "yyyyyy", "yyyyyy"],
+    ["......", "......", "......", "......", "ywwwwy", "yyyyyy"],
+    ["......", "......", "......", "......", "......", "yyyyyy"]
+  ]
+}

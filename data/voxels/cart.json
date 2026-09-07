@@ -1,0 +1,15 @@
+{
+  "_note": "Візок з морозивом — обійти.",
+  "size": 0.12,
+  "palette": {"w": "#FFFFFF", "p": "#F48FB1", "b": "#42A5F5", "k": "#37474F", "y": "#FFEE58"},
+  "layers": [
+    ["k....k", "......", "k....k"],
+    ["wwwwww", "wwwwww", "wwwwww"],
+    ["wwbwww", "wwwwww", "wwwbww"],
+    ["wwwwww", "wwwwww", "wwwwww"],
+    ["..k...", "..k...", "......"],
+    ["..k...", "..k...", "......"],
+    ["pppppp", "pppppp", "pppppp"],
+    [".pypp.", ".pppy.", ".pppp."]
+  ]
+}

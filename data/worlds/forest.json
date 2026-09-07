@@ -10,13 +10,22 @@
   "far": "#5E8F62",
   "water": "#4FC3F7",
   "accent": "#8D6E63",
-  "decor": ["tree", "flower"],
+  "decor": ["mushroom", "flower", "bush"],
+  "decor_big": ["tree", "tree", "stump", "logpile", "mossrock"],
+  "critters": ["bunny", "hedgehog"],
+  "birds": ["bird"],
   "decor_colors": ["#FFF176", "#F06292", "#FFFFFF"],
   "music": "forest",
-  "camera": {"pos": [3.2, 6.0, 6.2], "look": [0.0, 0.0, -1.5], "ortho": true, "size": 9.5},
+  "camera": {"pos": [0.0, 3.6, 4.6], "look": [0.0, 0.4, -3.0], "fov": 62, "ortho": false},
   "obstacles": {
-    "tree":     {"voxel": "tree",     "action": "side", "tumble": true, "y": 0.0, "box": [0.8, 1.2, 0.8]},
-    "river":    {"voxel": "log",      "action": "gap",  "tumble": true, "y": 0.0, "box": [1.0, 0.3, 1.0]},
-    "hedgehog": {"voxel": "hedgehog", "action": "side", "tumble": true, "y": 0.0, "box": [0.6, 0.5, 0.5], "moves": true, "move_speed": 1.2}
+    "tree":       {"voxel": "tree",       "action": "side", "tumble": true, "y": 0.0,  "box": [0.8, 1.2, 0.8],  "anim": "sway"},
+    "river":      {"voxel": "log",        "action": "gap",  "tumble": true, "y": 0.0,  "box": [1.0, 0.3, 1.0]},
+    "hedgehog":   {"voxel": "hedgehog",   "action": "side", "tumble": true, "y": 0.0,  "box": [0.6, 0.5, 0.5],  "moves": true, "move_speed": 1.2},
+    "mossrock":   {"voxel": "mossrock",   "action": "jump", "tumble": true, "y": 0.0,  "box": [0.7, 0.45, 0.6], "anim": "breathe"},
+    "web":        {"voxel": "web",        "action": "duck", "tumble": true, "y": 0.95, "box": [1.0, 0.5, 0.3],  "anim": "sway"},
+    "owl_branch": {"voxel": "owl_branch", "action": "duck", "tumble": true, "y": 1.0,  "box": [1.1, 0.7, 0.3],  "anim": "wobble"},
+    "logpile":    {"voxel": "logpile",    "action": "jump", "tumble": true, "y": 0.0,  "box": [0.7, 0.55, 0.5]},
+    "fox":        {"voxel": "fox",        "action": "side", "tumble": true, "y": 0.0,  "box": [0.7, 0.5, 0.4],  "moves": true, "move_speed": 2.0},
+    "bigshroom":  {"voxel": "mushroom",   "action": "side", "tumble": true, "y": 0.0,  "box": [0.7, 0.9, 0.7],  "scale": 2.2, "anim": "breathe"}
   }
 }

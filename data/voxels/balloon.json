@@ -1,0 +1,13 @@
+{
+  "size": 0.12,
+  "palette": {"p": "#F06292", "l": "#F8BBD0", "b": "#8D6E63", "s": "#BCAAA4"},
+  "layers": [
+    [".bbb.", "bbbbb", ".bbb."],
+    ["s...s", ".....", "s...s"],
+    ["s...s", ".....", "s...s"],
+    [".ppp.", "ppppp", ".ppp."],
+    ["ppppp", "plppp", "ppppp"],
+    ["ppppp", "ppppp", "ppppp"],
+    [".ppp.", "ppppp", ".ppp."]
+  ]
+}

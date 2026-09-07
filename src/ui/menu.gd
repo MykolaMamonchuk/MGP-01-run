@@ -1,9 +1,12 @@
-## Головне меню поверх живої 3D-сцени: заголовок-хвиля, «Біжимо!», «Герої». Батьки — кнопка HUD (лишається).
+## Головне меню поверх живої 3D-сцени: заголовок-хвиля, «Біжимо!», «Герої», «Мапа», шестірня «Налаштування».
+## Батьки — кнопка HUD (лишається); шестірня веде туди ж через батьківський бар'єр.
 class_name MenuLayer
 extends CanvasLayer
 
 signal play_pressed
 signal heroes_pressed
+signal map_pressed
+signal settings_pressed
 
 const TITLE := "Біжи-біжи"
 const LETTER_COLORS := ["#FF7043", "#FFCA28", "#66BB6A", "#42A5F5", "#AB47BC", "#EC407A", "#26C6DA", "#FFA726", "#8D6E63"]
@@ -14,6 +17,9 @@ var _subtitle: Label
 var _buttons: VBoxContainer
 var _play: Button
 var _heroes: Button
+var _map: Button
+var _settings: Button
+var _row: HBoxContainer
 var _hint: Label
 
 
@@ -67,10 +73,40 @@ func _ready() -> void:
 	_play = UIKit.button("Біжимо!", Color("#66BB6A"), Vector2(420, 150), 62)
 	_play.pressed.connect(func(): AudioMgr.sfx("ui_play"); play_pressed.emit())
 	_buttons.add_child(_play)
-	_heroes = UIKit.button("Герої", Color("#FFA726"), Vector2(300, 104), 42)
+	# рядок «Герої» + «Мапа»
+	_row = HBoxContainer.new()
+	_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_row.add_theme_constant_override("separation", 20)
+	_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_buttons.add_child(_row)
+	_heroes = UIKit.button("Герої", Color("#FFA726"), Vector2(280, 104), 42)
 	_heroes.pressed.connect(func(): AudioMgr.sfx("ui_tap"); heroes_pressed.emit())
-	_heroes.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_buttons.add_child(_heroes)
+	_row.add_child(_heroes)
+	_map = UIKit.button("Мапа", Color("#42A5F5"), Vector2(280, 104), 42)
+	_map.pressed.connect(func(): AudioMgr.sfx("ui_tap"); map_pressed.emit())
+	var glyph := Icons.MapGlyph.new(56.0)
+	glyph.position = Vector2(22, 24)
+	_map.add_child(glyph)
+	_row.add_child(_map)
+
+	# шестірня «Налаштування» — кругла сіра, праворуч угорі під зірочками
+	_settings = UIKit.button("", Color("#90A4AE"), Vector2(88, 88), 20)
+	_settings.tooltip_text = "Налаштування"
+	for st in ["normal", "hover", "pressed"]:
+		var sb := _settings.get_theme_stylebox(st)
+		if sb is StyleBoxFlat:
+			(sb as StyleBoxFlat).set_corner_radius_all(44)
+	_settings.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_settings.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_settings.offset_left = -30
+	_settings.offset_right = -30
+	_settings.offset_top = 100
+	_settings.offset_bottom = 100
+	_settings.pressed.connect(func(): AudioMgr.sfx("ui_tap"); settings_pressed.emit())
+	var gear := Icons.GearIcon.new(60.0)
+	gear.position = Vector2(14, 14)
+	_settings.add_child(gear)
+	_root.add_child(_settings)
 
 	_hint = UIKit.title("торкнись героя — він зрадіє", 24, Color("#FFF8E1"))
 	_hint.set_anchors_preset(Control.PRESET_CENTER_LEFT)
@@ -99,9 +135,9 @@ func show_menu() -> void:
 	visible = true
 	for tw in _letter_tweens:
 		tw.play()
-	_play.disabled = false
-	_heroes.disabled = false
-	for c in [_title_box, _subtitle, _play, _heroes, _hint]:
+	for b in [_play, _heroes, _map, _settings]:
+		b.disabled = false
+	for c in [_title_box, _subtitle, _play, _heroes, _map, _settings, _hint]:
 		c.visible = true
 	# розміри контролів відомі після кадру розкладки
 	call_deferred("_pop_all")
@@ -110,14 +146,16 @@ func show_menu() -> void:
 func _pop_all() -> void:
 	UIKit.pop_in(_play, 0.15)
 	UIKit.pop_in(_heroes, 0.3)
+	UIKit.pop_in(_map, 0.36)
+	UIKit.pop_in(_settings, 0.5)
 	UIKit.pop_in(_subtitle, 0.05)
 	UIKit.pop_in(_hint, 0.45)
 
 
 func hide_menu() -> void:
-	_play.disabled = true
-	_heroes.disabled = true
-	for c in [_play, _heroes, _subtitle, _hint]:
+	for b in [_play, _heroes, _map, _settings]:
+		b.disabled = true
+	for c in [_play, _heroes, _map, _settings, _subtitle, _hint]:
 		UIKit.pop_out(c)
 	var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_property(_title_box, "modulate:a", 0.0, 0.3)

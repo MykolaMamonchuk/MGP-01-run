@@ -5,10 +5,11 @@ extends Node3D
 
 const ROWS := 44
 const BEHIND := 5.0          # позаду камери — ряд переставляється вперед
-const LANES_W := 3.2
-const SIDE_W := 6.0
+const LANES_W := 3.2         # ширина для 3 доріжок (базовий меш; масштабується під N)
+const SIDE_W := 8.0
 
 var world: Dictionary = {}
+var lanes := 3
 var _rows: Array[Node3D] = []
 var _water: MeshInstance3D
 var _water_mat: ShaderMaterial
@@ -16,6 +17,8 @@ var _scroll := 0.0
 var _far: Node3D
 var _hills: Array[MeshInstance3D] = []
 var _clouds: Array[Node3D] = []
+## Декоративне море збоку дороги (Пляж): -1 — ліворуч, 1 — праворуч, 0 — нема (world "sea_side").
+var _sea_side := 0
 
 
 func _ready() -> void:
@@ -82,9 +85,16 @@ func _ready() -> void:
 var season: Dictionary = {}
 
 
-func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}) -> void:
+func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: int = -1) -> void:
 	world = w.duplicate()
 	season = s
+	var is_water := String(w.get("mode", "run")) == "slide"
+	# море збоку (Пляж) — узбіччя з того боку стає смужкою піску, тому знаємо це до розкладки рядів
+	_sea_side = 0 if is_water else int(w.get("sea_side", 0))
+	# ширина відома одразу — декор кладемо один раз під неї (і перекладаємо узбіччя під море/без моря)
+	if n_lanes > 0:
+		lanes = clampi(n_lanes, 3, 7)
+	set_lanes(lanes, false)
 	# сезон: підфарбовує землю й міняє квіти (сніг/осінь), нічого не додає до мешів
 	if not s.is_empty():
 		var tint := Color(String(s.get("ground_tint", "#FFFFFF")))
@@ -93,11 +103,13 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}) -> void:
 		var dc: Array = s.get("decor_colors", [])
 		if not dc.is_empty():
 			world["decor_colors"] = dc
-	var is_water := String(w.get("mode", "run")) == "slide"
-	_water.visible = is_water
-	if is_water:
-		_water_mat.set_shader_parameter("color", Color(String(w.get("water", "#4FC3F7"))))
-		_water_mat.set_shader_parameter("color_light", Color(String(w.get("ground_dark", "#29B6F6"))).lightened(0.35))
+	_water.visible = is_water or _sea_side != 0
+	if _water.visible:
+		var wc := Color(String(w.get("water", "#4FC3F7")))
+		_water_mat.set_shader_parameter("color", wc)
+		var light := Color(String(w.get("ground_dark", "#29B6F6"))) if is_water else wc
+		_water_mat.set_shader_parameter("color_light", light.lightened(0.35))
+	_layout_water()
 	# пагорби у колір далекого плану світу
 	var far_mat := Mats.solid(Color(String(world.get("far", world.get("side", "#6DB35E")))).lightened(0.15))
 	for h in _hills:
@@ -125,25 +137,119 @@ func _paint(row: Node3D, i: int, is_water: bool) -> void:
 	(row.get_node("SideR") as MeshInstance3D).material_override = side
 
 
+## Узбіччя: ближній пояс — дрібне (квіти, гриби), дальній — велике (дерева, пальми), живність — зайчики.
+## З боку моря (Пляж) узбіччя — вода, декор туди не кладемо.
 func _decorate(row: Node3D) -> void:
 	var decor := row.get_node("Decor")
 	for c in decor.get_children():
 		c.queue_free()
 	var kinds: Array = world.get("decor", [])
-	if kinds.is_empty():
-		return
+	var big: Array = world.get("decor_big", [])
+	var critters: Array = world.get("critters", [])
+	var colors: Array = world.get("decor_colors", [])
+	var edge := road_width() * 0.5
 	for side in [-1.0, 1.0]:
-		if randf() > 0.7:
+		if _sea_side != 0 and signf(float(side)) == signf(float(_sea_side)):
 			continue
-		var kind := String(kinds[randi() % kinds.size()])
-		var colors: Array = world.get("decor_colors", [])
-		var override := {}
-		if kind == "flower" and not colors.is_empty():
-			override = {"p": String(colors[randi() % colors.size()])}
-		var mi := VoxelBuilder.instance(kind, override)
-		mi.position = Vector3(side * randf_range(2.0, 4.2), 0.0, randf_range(-0.4, 0.4))
-		mi.rotation.y = randf() * TAU
-		decor.add_child(mi)
+		# дрібне — часто
+		if not kinds.is_empty() and randf() < 0.9:
+			var kind := String(kinds[randi() % kinds.size()])
+			var override := {}
+			if kind == "flower" and not colors.is_empty():
+				override = {"p": String(colors[randi() % colors.size()])}
+			_place(decor, kind, override, side * (edge + randf_range(0.5, 2.6)))
+		# велике — рідше, далі
+		if not big.is_empty() and randf() < 0.35:
+			_place(decor, String(big[randi() % big.size()]), {}, side * (edge + randf_range(2.8, 5.5)))
+		# живність — зрідка
+		if not critters.is_empty() and randf() < 0.12:
+			var cr := Critter3D.new()
+			cr.position = Vector3(side * (edge + randf_range(1.0, 3.0)), 0.0, randf_range(-0.4, 0.4))
+			decor.add_child(cr)
+			cr.setup(String(critters[randi() % critters.size()]))
+
+
+func _place(parent: Node3D, kind: String, override: Dictionary, x: float) -> void:
+	var cr := Critter3D.new()
+	cr.position = Vector3(x, 0.0, randf_range(-0.4, 0.4))
+	cr.rotation.y = randf() * TAU
+	parent.add_child(cr)
+	cr.setup(kind, override)
+
+
+## Пташка перелітає дорогу час від часу.
+func _spawn_bird() -> void:
+	var birds: Array = world.get("birds", [])
+	if birds.is_empty():
+		return
+	var b := Critter3D.new()
+	_far.add_child(b)
+	b.setup(String(birds[randi() % birds.size()]))
+	var from_left := b._dir > 0
+	b.position = Vector3(-13.0 if from_left else 13.0, randf_range(2.5, 4.5), randf_range(-14.0, -4.0))
+
+
+var _bird_t := 5.0
+
+
+func _process(delta: float) -> void:
+	_bird_t -= delta
+	if _bird_t < 0.0:
+		_bird_t = randf_range(6.0, 14.0)
+		_spawn_bird()
+
+
+## Поточна ширина дороги в метрах.
+func road_width() -> float:
+	return float(lanes) * Hero3D.LANE_W + 0.2
+
+
+## Звузити/розширити дорогу: центр масштабується по x, узбіччя відʼїжджають; кубики «перебудовуються».
+func set_lanes(n: int, animate: bool = true) -> void:
+	lanes = clampi(n, 3, 7)
+	var w := road_width()
+	var sx := w / LANES_W
+	var side_x := w * 0.5 + SIDE_W * 0.5
+	# з боку моря узбіччя — вузька смужка піску (1 м), далі вода
+	var beach_x := w * 0.5 + 0.5
+	var beach_sx := 1.0 / SIDE_W
+	var i := 0
+	for row in _rows:
+		var center := row.get_node("Center") as Node3D
+		var l := row.get_node("SideL") as Node3D
+		var r := row.get_node("SideR") as Node3D
+		var lx := -beach_x if _sea_side < 0 else -side_x
+		var rx := beach_x if _sea_side > 0 else side_x
+		l.scale.x = beach_sx if _sea_side < 0 else 1.0
+		r.scale.x = beach_sx if _sea_side > 0 else 1.0
+		if animate:
+			_decorate(row)   # декор перекладається під нову ширину (при rebuild його кладе сам rebuild)
+			var tw := create_tween()
+			tw.tween_interval(0.012 * float(i))
+			tw.tween_property(center, "scale:x", sx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(l, "position:x", lx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_property(r, "position:x", rx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		else:
+			center.scale.x = sx
+			l.position.x = lx
+			r.position.x = rx
+		i += 1
+	_layout_water()
+	if animate:
+		AudioMgr.sfx("rebuild")
+
+
+## Вода: під дорогою (Хвиля) або збоку від неї (Пляж, sea_side) — ширина SIDE_W, за смужкою піску.
+func _layout_water() -> void:
+	if _water == null:
+		return
+	var w := road_width()
+	if _sea_side != 0:
+		_water.scale.x = SIDE_W / (LANES_W + 0.4)
+		_water.position.x = float(_sea_side) * (w * 0.5 + SIDE_W * 0.5 + 1.0)
+	else:
+		_water.scale.x = w / LANES_W
+		_water.position.x = 0.0
 
 
 ## Зсунути дорогу на dist клітинок (може бути відʼємним — відкат у Стрибках).

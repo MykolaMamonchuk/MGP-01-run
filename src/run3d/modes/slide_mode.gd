@@ -3,7 +3,6 @@ class_name SlideMode
 extends ModeBase
 
 const STEER_SPEED := 2.6     # м/с уздовж x
-const X_LIMIT := 1.3
 
 var _steer := 0
 var _t := 0.0
@@ -35,6 +34,13 @@ func gesture(kind: String, _pos: Vector2) -> void:
 			hero.nudge_x(-1.0)
 		"swipe_right":
 			hero.nudge_x(1.0)
+		"swipe_down":
+			# пригнутись під балкою пірсу / сіткою (утримання тут — кермо, тому лише свайп)
+			hero.set_duck(true)
+			AudioMgr.sfx("slide")
+			run.get_tree().create_timer(0.7).timeout.connect(Callable(run, "_release_assist_duck"))
+		"hold_end":
+			hero.set_duck(false)
 
 
 func steer(pressed: bool, pos: Vector2) -> void:
@@ -47,7 +53,7 @@ func steer(pressed: bool, pos: Vector2) -> void:
 func tick(delta: float) -> float:
 	_t += delta
 	if _steer != 0:
-		hero.x_target = clampf(hero.x_target + float(_steer) * STEER_SPEED * delta, -X_LIMIT, X_LIMIT)
+		hero.x_target = clampf(hero.x_target + float(_steer) * STEER_SPEED * delta, -hero.x_limit(), hero.x_limit())
 		hero.tilt(float(_steer) * -0.35)
 	else:
 		hero.tilt(0.0)
@@ -62,7 +68,10 @@ func assist_distance() -> float:
 
 func assist(o: Obstacle3D) -> void:
 	match o.action:
+		"duck":
+			hero.set_duck(true)
+			run.get_tree().create_timer(0.7).timeout.connect(Callable(run, "_release_assist_duck"))
 		"side":
-			hero.x_target = clampf(hero.x_target + (-1.0 if o.position.x >= hero.position.x else 1.0), -X_LIMIT, X_LIMIT)
+			hero.x_target = clampf(hero.x_target + (-1.0 if o.position.x >= hero.position.x else 1.0), -hero.x_limit(), hero.x_limit())
 		"jump":
 			hero.jump(0.85)

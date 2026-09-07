@@ -1,0 +1,11 @@
+{
+  "size": 0.12,
+  "palette": {"y": "#FFCA28", "o": "#FFA000", "k": "#3E2723"},
+  "layers": [
+    ["......", ".oooo.", ".oooo.", "......"],
+    [".yyyy.", "yyyyyy", "yyyyyy", ".yyyy."],
+    [".oooo.", "oooooo", "ookkoo", ".oooo."],
+    [".yyyy.", "yyyyyy", "yyyyyy", ".yyyy."],
+    ["..oo..", ".oooo.", ".oooo.", "..oo.."]
+  ]
+}

@@ -25,8 +25,13 @@ func gesture(kind: String, _pos: Vector2) -> void:
 			hero.change_lane(-1)
 		"swipe_right":
 			hero.change_lane(1)
-		"swipe_down", "hold_start":
+		"hold_start":
 			hero.set_duck(true)
+		"swipe_down":
+			# короткий підкат: присід на 0,7 с і встати самому
+			hero.set_duck(true)
+			AudioMgr.sfx("slide")
+			run.get_tree().create_timer(0.7).timeout.connect(Callable(run, "_release_assist_duck"))
 		"hold_end":
 			hero.set_duck(false)
 
@@ -43,4 +48,4 @@ func assist(o: Obstacle3D) -> void:
 		"jump":
 			hero.jump()
 		"side":
-			hero.change_lane(-1 if o.lane >= 0 else 1)
+			hero.change_lane(o.side_dir(hero.lane))

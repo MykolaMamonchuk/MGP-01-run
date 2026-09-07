@@ -21,6 +21,11 @@ func mode_id() -> String:
 	return "base"
 
 
+## Покроковий режим (Стрибки/Невагомість): світ рухається лише на тап, час до перешкоди — у кроках.
+func is_stepwise() -> bool:
+	return false
+
+
 func enter() -> void:
 	pass
 

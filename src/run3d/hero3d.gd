@@ -23,7 +23,9 @@ var jump_velocity := 7.5
 var tumbling := false
 var ducking := false
 var flying := false
-var running := false           # біг-боб увімкнено (Біг/Хвиля), вимкнено в меню/Стрибках
+var running := false           # біг-боб увімкнено (Біг/Хвиля/Стрибки), вимкнено в меню
+## Темп бігу-боба: 1.0 — Біг, 0.6 — покрокові режими (Стрибки/Невагомість), де світ лише дрейфує.
+var run_speed_factor := 1.0
 ## Рівень землі під героєм (подіум у каруселі) — тінь лягає на нього.
 var ground_y := 0.0
 var hero_id := "puf"
@@ -53,6 +55,8 @@ var _vehicle: MeshInstance3D
 var _sparkles: GPUParticles3D
 var _tumble_tween: Tween
 var _eye_scale_y := 1.0
+var _duck_blend := 0.0          # 0 — стоїть, 1 — присів (плавний перехід 20/с)
+var _mouth_y := 0.73            # базова висота рота (усмішка піднімає на +0.02)
 
 
 func _ready() -> void:
@@ -105,6 +109,112 @@ func set_hero(id: String, color_hex: String, feat: String = "tuft") -> void:
 	_build_feature()
 	_body.scale = Vector3.ONE
 	_body.rotation = Vector3.ZERO
+	_duck_blend = 0.0
+	# аксесуари жили на старому тілі — одягаємо знову (set_accessory сам прибирає старий вузол)
+	var snapshot := _slot_voxels.duplicate()
+	var opts_snapshot := _slot_opts.duplicate()
+	for slot in snapshot.keys():
+		var o: Dictionary = opts_snapshot.get(slot, {})
+		set_accessory(String(slot), String(snapshot[slot]), o)
+	if not _slots.has("hat"):
+		_hat = null
+		_hat_spin = false
+
+
+# ---------- капелюшок і аксесуари ----------
+
+var hat_id := "none"
+var _hat: Node3D
+var _hat_spin := false
+## Слоти аксесуарів: "hat", "face", "neck", "back", "trail" → один вузол на слот.
+var _slots: Dictionary = {}
+var _slot_voxels: Dictionary = {}
+var _slot_opts: Dictionary = {}
+## Чи в цієї риси є чубчик, який ховається під капелюшком.
+const NO_TUFT_FEATURES := ["ears", "tail", "antenna", "stripes", "sparkle", "cloud", "sleepy"]
+
+
+## Одягнути капелюшок із data/hats.json (id "none" — зняти). Кріпиться до маківки, махає разом із рисою.
+func set_hat(id: String) -> void:
+	hat_id = id
+	var def := Hats.find(Hats.load_all(), id)
+	var voxel := String(def.get("voxel", ""))
+	if def.is_empty() or voxel == "":
+		set_accessory("hat", "")
+		return
+	set_accessory("hat", voxel, {"y": float(def.get("y", 0.0)), "spin": bool(def.get("spin", false))})
+
+
+## Аксесуар у слот. voxel — назва з data/voxels ("" — зняти). opts:
+##   hat:   {"y": float, "spin": bool}
+##   trail: {"color": "#hex"} — слід-іскри за героєм (voxel не потрібен; без color — зняти)
+## Слоти: "hat" (маківка), "face" (окуляри), "neck" (шарфик, гойдається), "back" (крильця/рюкзачок, махають), "trail".
+func set_accessory(slot: String, voxel: String, opts: Dictionary = {}) -> void:
+	_remove_slot(slot)
+	if slot == "trail":
+		var col := String(opts.get("color", ""))
+		if col == "":
+			return
+		# слід — дитина self, а не тіла, щоб сквош/присід його не тягнули
+		var tr := FX.trail(self, Color(col))
+		tr.position = Vector3(0.0, 0.3, 0.3)
+		_slots[slot] = tr
+		_slot_voxels[slot] = voxel
+		_slot_opts[slot] = opts
+		return
+	if voxel == "":
+		return
+	var node := Node3D.new()
+	node.name = "Acc_%s" % slot
+	node.add_child(VoxelBuilder.instance(voxel))
+	match slot:
+		"hat":
+			node.position = Vector3(0.0, HEAD_TOP - 0.02 + float(opts.get("y", 0.0)), 0.0)
+		"face":
+			node.position = Vector3(0.0, 0.93, FACE_Z - 0.03)
+		"neck":
+			node.position = Vector3(0.0, 0.62, 0.0)
+		"back":
+			node.position = Vector3(0.0, 0.75, 0.38)
+		_:
+			node.position = Vector3(0.0, 0.62, 0.0)
+	_body.add_child(node)
+	_slots[slot] = node
+	_slot_voxels[slot] = voxel
+	_slot_opts[slot] = opts
+	if slot == "hat":
+		_hat = node
+		_hat_spin = bool(opts.get("spin", false))
+		# чубчик під капелюшком ховаємо (чубчик — у всіх, хто без іншої риси)
+		if not feature in NO_TUFT_FEATURES:
+			for p in _parts:
+				p.visible = false
+		_parts.append(_hat)
+		_squash(Vector3(1.1, 0.9, 1.1), 0.12)
+	else:
+		_squash(Vector3(1.06, 0.94, 1.06), 0.1)
+
+
+## Зняти все (капелюшок теж).
+func clear_accessories() -> void:
+	for slot in _slots.keys().duplicate():
+		set_accessory(String(slot), "")
+	hat_id = "none"
+
+
+func _remove_slot(slot: String) -> void:
+	var node = _slots.get(slot)
+	if node != null and is_instance_valid(node):
+		if node == _hat:
+			_parts.erase(_hat)
+			_hat = null
+			_hat_spin = false
+			for p in _parts:
+				p.visible = true
+		node.queue_free()
+	_slots.erase(slot)
+	_slot_voxels.erase(slot)
+	_slot_opts.erase(slot)
 
 
 ## Ніжки й лапки — окремі коробки з шарніром угорі: махають на бігу, видно і ззаду.
@@ -233,13 +343,37 @@ func jump(k: float = 1.0) -> bool:
 ## Короткий підскок у режимі Стрибки.
 func hop() -> void:
 	if _y < 0.15:
-		_vy = HOP_VELOCITY
+		# у присіді крок нижчий — щоб пролізти під павутинкою
+		_vy = HOP_VELOCITY * (0.7 if ducking else 1.0)
 		_squash(Vector3(0.9, 1.15, 0.9), 0.1)
 		_flap(0.6)
 
 
+## Кількість доріжок на дорозі (3/5/7) — з рівня.
+var lanes := 3
+
+
+func max_lane() -> int:
+	return (lanes - 1) / 2
+
+
+func x_limit() -> float:
+	return float(max_lane()) * LANE_W + 0.3
+
+
+## Дорога звузилась/розширилась: герой лишається на найближчій доріжці.
+func set_lanes(n: int) -> void:
+	lanes = clampi(n, 3, 7)
+	if lanes % 2 == 0:
+		lanes += 1
+	lane = clampi(lane, -max_lane(), max_lane())
+	x_target = clampf(x_target, -x_limit(), x_limit())
+	if not free_x:
+		x_target = float(lane) * LANE_W
+
+
 func change_lane(dir: int) -> bool:
-	var next := clampi(lane + dir, -1, 1)
+	var next := clampi(lane + dir, -max_lane(), max_lane())
 	if next == lane:
 		return false
 	lane = next
@@ -248,23 +382,39 @@ func change_lane(dir: int) -> bool:
 
 
 func snap_to_lane() -> void:
-	lane = clampi(int(round(x_target / LANE_W)), -1, 1)
+	lane = clampi(int(round(x_target / LANE_W)), -max_lane(), max_lane())
 	x_target = float(lane) * LANE_W
 
 
 func nudge_x(d: float) -> void:
-	x_target = clampf(x_target + d * 0.8, -X_FREE_LIMIT, X_FREE_LIMIT)
+	x_target = clampf(x_target + d * 0.8, -x_limit(), x_limit())
 
 
 func set_duck(on: bool) -> void:
-	ducking = on and not tumbling
+	var next := on and not tumbling
+	# присів — хмаринка пилу під ногами
+	if next and not ducking:
+		FX.dust(self, Vector3(0, 0.03, 0))
+	ducking = next
 
 
 func tilt(v: float) -> void:
 	_tilt = v
 
 
-func set_vehicle(on: bool) -> void:
+## Транспорт: мушля (Хвиля) або самокат (Місто). kind — назва вокселя.
+var _vehicle_kind := "shell"
+## Невагомість (Хмаринки): 0.35 — герой падає повільно.
+var gravity_scale := 1.0
+
+
+func set_vehicle(on: bool, kind: String = "shell") -> void:
+	if on and kind != _vehicle_kind:
+		_vehicle.queue_free()
+		_vehicle = VoxelBuilder.instance(kind)
+		_vehicle.position.y = -0.05 if kind == "shell" else 0.0
+		add_child(_vehicle)
+		_vehicle_kind = kind
 	_vehicle.visible = on
 
 
@@ -315,19 +465,25 @@ func wave_bump() -> void:
 		_flap(1.0)
 
 
-## Погладили: сквош, очі-щілинки від задоволення, широкий рот.
+## Погладили: підскок, сквош, очі-щілинки від задоволення, усмішка, сердечка.
 func pet() -> void:
+	if not is_airborne() and not tumbling:
+		_vy = 3.5
 	_squash(Vector3(1.2, 0.8, 1.2), 0.15)
 	_happy(0.7)
+	_flap(0.8)
+	FX.hearts(self, Vector3(0, 1.3, 0))
 	AudioMgr.sfx("giggle")
 
 
-## Радість (зірочки, станція): підскок і усмішка.
+## Радість (зірочки, станція): підскок, сквош, усмішка, сердечка.
 func cheer() -> void:
-	if not is_airborne():
+	if not is_airborne() and not tumbling:
 		_vy = 3.5
+	_squash(Vector3(1.15, 0.85, 1.15), 0.12)
 	_happy(0.6)
 	_flap(1.0)
+	FX.hearts(self, Vector3(0, 1.3, 0))
 
 
 ## Привітання: махає лапкою, підморгує, підскакує (меню, поява в каруселі).
@@ -406,17 +562,28 @@ func _flap(strength: float) -> void:
 		# хвіст і антенка гойдаються по z/y у _process — їм махаємо по x, щоб не перетирати
 		var axis := "rotation:x" if feature in ["tail", "antenna"] else "rotation:z"
 		var side := -1.0 if i == 0 else 1.0
-		var base := -side * 0.22 if feature == "ears" else 0.0
+		var base := -side * 0.22 if feature == "ears" and p != _hat else 0.0
 		tw.tween_property(p, axis, base + side * 0.6 * strength, 0.12)
 		tw.tween_property(p, axis, base, 0.4).set_trans(Tween.TRANS_ELASTIC)
+	# крильця/рюкзачок на спині махають разом
+	var back = _slots.get("back")
+	if back != null and is_instance_valid(back):
+		var tw_back := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+		tw_back.tween_property(back, "rotation:x", -0.5 * strength, 0.12)
+		tw_back.tween_property(back, "rotation:x", 0.0, 0.4).set_trans(Tween.TRANS_ELASTIC)
 
 
+## Щасливе обличчя: очі-щілинки (замружився від задоволення) і широка усмішка, піднята вгору — не сумна.
 func _happy(seconds: float) -> void:
 	_set_eyes_closed(true)
-	_mouth.scale = Vector3(1.6, 2.2, 1.0)
+	_mouth.scale = Vector3(1.8, 2.5, 1.0)
+	_mouth.position.y = _mouth_y + 0.02
 	get_tree().create_timer(seconds).timeout.connect(func():
+		if not is_instance_valid(_mouth):
+			return
 		_set_eyes_closed(false)
-		_mouth.scale = Vector3.ONE)
+		_mouth.scale = Vector3.ONE
+		_mouth.position.y = _mouth_y)
 
 
 func _set_eyes_closed(closed: bool) -> void:
@@ -433,7 +600,7 @@ func _process(delta: float) -> void:
 	if flying:
 		_y = lerpf(_y, FLY_HEIGHT + sin(_t * 4.0) * 0.15, minf(1.0, delta * 4.0))
 	else:
-		_vy -= GRAVITY * delta
+		_vy -= GRAVITY * gravity_scale * delta
 		_y += _vy * delta
 		if _y <= 0.0:
 			_y = 0.0
@@ -472,12 +639,18 @@ func _process(delta: float) -> void:
 			_yawn_t = 0.0
 			_mouth.scale = Vector3(1.2, 3.5, 1.0)
 			get_tree().create_timer(0.7).timeout.connect(func(): _mouth.scale = Vector3.ONE)
-	# ніжки й лапки: біг — махають навхрест; політ — розкинуті; спокій — трохи гойдаються
+	# присід: плавний перехід 20/с (тіло, ніжки, лапки)
+	_duck_blend = lerpf(_duck_blend, 1.0 if ducking else 0.0, minf(1.0, delta * 20.0))
+	var run_f := 11.0 * run_speed_factor   # частота бігу-боба
+	# ніжки й лапки: біг — махають навхрест; політ — розкинуті; присід — зігнуті й розкинуті; спокій — трохи гойдаються
 	if not tumbling:
 		var swing := 0.0
 		var arm_swing := 0.0
-		if running and not is_airborne():
-			swing = sin(_t * 11.0) * 0.9
+		if ducking:
+			swing = 1.2
+			arm_swing = 0.2
+		elif running and not is_airborne():
+			swing = sin(_t * run_f) * 0.9
 			arm_swing = -swing * 0.8
 		elif is_airborne():
 			swing = 0.5
@@ -487,10 +660,21 @@ func _process(delta: float) -> void:
 			arm_swing = sin(_t * 1.5 + 1.0) * 0.1
 		for i in range(_legs.size()):
 			var s := 1.0 if i == 0 else -1.0
-			_legs[i].rotation.x = lerpf(_legs[i].rotation.x, swing * s if running else swing, minf(1.0, delta * 18.0))
+			_legs[i].rotation.x = lerpf(_legs[i].rotation.x, swing * s if running and not ducking else swing, minf(1.0, delta * 18.0))
 		for i in range(_arms.size()):
 			var s := 1.0 if i == 0 else -1.0
-			_arms[i].rotation.x = lerpf(_arms[i].rotation.x, arm_swing * s if running and not is_airborne() else arm_swing, minf(1.0, delta * 14.0))
+			_arms[i].rotation.x = lerpf(_arms[i].rotation.x, arm_swing * s if running and not is_airborne() and not ducking else arm_swing, minf(1.0, delta * 14.0))
+			# у присіді лапки розкинуті вбоки (±1.3); поза присідом не чіпаємо z — ним махає wave_hello
+			if _duck_blend > 0.01:
+				var side := -1.0 if i == 0 else 1.0
+				_arms[i].rotation.z = side * lerpf(0.15, 1.3, _duck_blend)
+	# шарфик гойдається
+	var neck = _slots.get("neck")
+	if neck != null and is_instance_valid(neck):
+		neck.rotation.z = sin(_t * 3.0) * 0.12
+		neck.rotation.x = sin(_t * 2.3 + 1.0) * 0.06
+	if _hat_spin and is_instance_valid(_hat):
+		_hat.rotation.y += delta * 7.0
 	# хвіст махає, антенка гойдається
 	if feature == "tail" and _parts.size() > 0 and not tumbling:
 		_parts[0].rotation.y = sin(_t * 6.0) * 0.5
@@ -501,17 +685,24 @@ func _process(delta: float) -> void:
 		var target_scale := Vector3.ONE
 		var body_y := 0.0
 		var lean_x := 0.0
+		var rate := 14.0
 		if ducking:
-			target_scale = Vector3(1.15, 0.55, 1.15)
+			# присід помітний: широкий і низький, трохи осідає
+			target_scale = Vector3(1.35, 0.42, 1.35)
+			body_y = -0.05
+			rate = 20.0
 		elif running and not is_airborne():
-			body_y = absf(sin(_t * 11.0)) * 0.06
+			body_y = absf(sin(_t * run_f)) * 0.06 * run_speed_factor
 			lean_x = -0.08
-			target_scale = Vector3(1.0, 1.0 + sin(_t * 22.0) * 0.03, 1.0)
+			target_scale = Vector3(1.0, 1.0 + sin(_t * run_f * 2.0) * 0.03, 1.0)
 		else:
 			var breath := sin(_t * 4.0) * 0.025
 			target_scale = Vector3(1.0 + breath, 1.0 - breath, 1.0 + breath)
-		if _body.scale.distance_to(target_scale) < 0.3:
-			_body.scale = _body.scale.lerp(target_scale, minf(1.0, delta * 14.0))
+		if _duck_blend > 0.01:
+			rate = 20.0
+		# після присіду відстань до цілі велика — пускаємо лерп і тоді (сквош-твін не заважає: він короткий)
+		if _body.scale.distance_to(target_scale) < 0.3 or _duck_blend > 0.01:
+			_body.scale = _body.scale.lerp(target_scale, minf(1.0, delta * rate))
 		_body.position.y = lerpf(_body.position.y, body_y, minf(1.0, delta * 16.0))
 		_body.rotation.x = lerpf(_body.rotation.x, lean_x, minf(1.0, delta * 6.0))
 	# у спокої (меню/станція) інколи озирається

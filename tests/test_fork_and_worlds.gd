@@ -2,8 +2,8 @@
 extends GutTest
 
 const RunScript := preload("res://src/run3d/run3d.gd")
-const VALID_MODES := ["run", "hop", "slide"]
-const VALID_ACTIONS := ["jump", "duck", "any", "side", "gap"]
+const VALID_MODES := ["run", "hop", "slide", "scooter", "float"]
+const VALID_ACTIONS := ["jump", "duck", "any", "side", "gap", "boost", "rail", "wind"]
 
 var _rng := RandomNumberGenerator.new()
 
@@ -44,7 +44,7 @@ func test_fork_is_deterministic_with_seed() -> void:
 
 func test_worlds_load_and_have_required_fields() -> void:
 	var worlds: Dictionary = RunScript.load_worlds()
-	assert_eq(worlds.size(), 3, "три світи на запуску")
+	assert_eq(worlds.size(), 5, "п'ять біомів на запуску (GDD v1.2 §3a)")
 	for id in worlds.keys():
 		var w: Dictionary = worlds[id]
 		assert_true(VALID_MODES.has(w.get("mode", "")), "%s: mode один із run/hop/slide" % id)
@@ -60,10 +60,14 @@ func test_worlds_load_and_have_required_fields() -> void:
 			assert_eq(box.size(), 3, "%s/%s: box — 3 числа" % [id, k])
 
 
-func test_each_mode_has_exactly_one_world() -> void:
+func test_all_three_base_modes_present() -> void:
 	var worlds: Dictionary = RunScript.load_worlds()
 	var modes := []
 	for id in worlds.keys():
 		modes.append(worlds[id]["mode"])
-	modes.sort()
-	assert_eq(modes, ["hop", "run", "slide"], "GDD §6: 3 світи = 3 механіки")
+	# 0.6.0: Пляж став бігом по піску; Хвиля (slide) лишилась як код на майбутнє
+	for m in ["run", "hop", "scooter", "float"]:
+		assert_true(modes.has(m), "є біом з механікою %s" % m)
+	assert_false(modes.has("slide"), "Хвиля поки не використовується жодним біомом")
+	var slide := SlideMode.new()
+	assert_eq(slide.mode_id(), "slide", "код Хвилі на місці")

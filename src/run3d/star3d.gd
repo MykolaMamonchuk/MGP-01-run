@@ -19,9 +19,10 @@ func tick(delta: float, hero: Node3D, magnet: float) -> bool:
 	_mesh.position.y = sin(_t * 3.0) * 0.06
 	var hero_pos := Vector3(hero.position.x, hero.position.y + 0.5, 0.0)
 	var d := position.distance_to(hero_pos)
-	if d < magnet * 0.9:
+	# магніт тягне лише зі СВОЄЇ доріжки (|dx| < половини доріжки), але з більшої відстані по z/y
+	if absf(position.x - hero_pos.x) < 0.55 and d < magnet * 1.2:
 		position = position.lerp(hero_pos, minf(1.0, delta * 10.0))
-	return d < 0.55
+	return d < 0.5 and absf(position.x - hero_pos.x) < 0.55
 
 
 func collect() -> void:

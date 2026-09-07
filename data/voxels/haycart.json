@@ -1,0 +1,12 @@
+{
+  "size": 0.12,
+  "palette": {"b": "#8D6E63", "h": "#FFD54F", "d": "#F9A825", "k": "#3E2723"},
+  "layers": [
+    ["k....k", "......", "k....k"],
+    ["kbbbbk", "bbbbbb", "kbbbbk"],
+    ["bbbbbb", "bbbbbb", "bbbbbb"],
+    [".hhhh.", "hhhhhh", ".hhhh."],
+    [".hdhh.", "hhhdhh", ".hhhh."],
+    ["..hh..", ".hhhh.", "..hh.."]
+  ]
+}

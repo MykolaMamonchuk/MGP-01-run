@@ -14,6 +14,9 @@ var _root: Control
 var _hint_t := 0.0
 var _sleep_button: Button
 var _parents_panel: Control
+var _hint_arrow: Control
+var _hint_label: Label
+var _finish_panel: Control
 var _quest_box: HBoxContainer
 var _quest_label: Label
 var _quest_icon: Control
@@ -59,10 +62,22 @@ func _ready() -> void:
 	parent_icon.position = Vector2(16, 16)
 	parents.add_child(parent_icon)
 
-	hint = Icons.HandIcon.new(96.0)
-	hint.position = Vector2(300, 300)
+	# підказка-жест: велика стрілка + слово, над героєм (замість незрозумілої «лапки»)
+	hint = VBoxContainer.new()
+	hint.alignment = BoxContainer.ALIGNMENT_CENTER
+	hint.set_anchors_preset(Control.PRESET_CENTER)
+	hint.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	hint.grow_vertical = Control.GROW_DIRECTION_BOTH
+	hint.offset_top = -120
+	hint.offset_bottom = -120
+	hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	hint.visible = false
 	_root.add_child(hint)
+	_hint_arrow = Icons.GestureIcon.new("tap", 120.0)
+	_hint_arrow.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	hint.add_child(_hint_arrow)
+	_hint_label = UIKit.title("Тапни!", 44, Color("#FFF176"))
+	hint.add_child(_hint_label)
 
 	station_panel = _panel(_root, Icons.StationIcon.new(96.0), "Станція!\nКуди далі?")
 	yawn_panel = _panel(_root, Icons.MoonIcon.new(96.0), "Герой втомлюється…")
@@ -120,8 +135,9 @@ func _panel_label(p: Control) -> Label:
 func _process(delta: float) -> void:
 	if hint.visible:
 		_hint_t += delta
-		hint.position.y = 300 + sin(_hint_t * 6.0) * 20.0
-		if _hint_t > 2.5:
+		hint.offset_top = -120 + sin(_hint_t * 6.0) * 16.0
+		hint.offset_bottom = hint.offset_top
+		if _hint_t > 2.4:
 			hint.visible = false
 
 func _on_star_collected(_n: int) -> void:
@@ -147,9 +163,78 @@ func set_world(world_name: String) -> void:
 func _refresh_caption() -> void:
 	profile_label.text = "%s · профіль: %s" % [_world_name, _profile_name]
 
-func show_hint() -> void:
+## Підказка-жест: kind — "tap" | "left" | "right" | "up" | "down" | "hold"; text — коротке слово.
+func show_hint(kind: String = "tap", text: String = "Тапни!") -> void:
 	_hint_t = 0.0
+	if _hint_arrow:
+		_hint_arrow.queue_free()
+	_hint_arrow = Icons.GestureIcon.new(kind, 120.0)
+	_hint_arrow.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	hint.add_child(_hint_arrow)
+	hint.move_child(_hint_arrow, 0)
+	_hint_label.text = text
 	hint.visible = true
+
+
+## Фініш рівня: «Ура!», зірки 1–3 з пружиною, «Далі» / «Мапа».
+func show_finish(level_num: int, stars: int, on_next: Callable, on_map: Callable, show_map_button: bool = true) -> void:
+	hide_finish()
+	var p := PanelContainer.new()
+	ParentGate._center(p, Vector2(760, 440))
+	p.process_mode = Node.PROCESS_MODE_ALWAYS
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color("#FFF8E1")
+	style.set_corner_radius_all(36)
+	style.set_content_margin_all(28)
+	style.shadow_size = 16
+	style.shadow_color = Color(0, 0, 0, 0.25)
+	p.add_theme_stylebox_override("panel", style)
+	add_child(p)
+	_finish_panel = p
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 18)
+	p.add_child(v)
+	v.add_child(UIKit.title("Ура! Рівень %d" % level_num, 60, Color("#FF7043")))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 20)
+	v.add_child(row)
+	for i in range(3):
+		var s := Icons.StarIcon.new(110.0)
+		if i >= stars:
+			s.modulate = Color(0.75, 0.75, 0.75, 0.6)
+		row.add_child(s)
+		if i < stars:
+			s.pivot_offset = s.size * 0.5
+			s.scale = Vector2.ZERO
+			var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+			tw.tween_interval(0.35 + 0.3 * i)
+			tw.tween_callback(func(): AudioMgr.sfx("star_big", 1.0 + 0.15 * i))
+			tw.tween_property(s, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 28)
+	v.add_child(buttons)
+	if show_map_button:
+		var m := UIKit.button("Мапа", Color("#42A5F5"), Vector2(220, 100), 40)
+		m.pressed.connect(func(): AudioMgr.sfx("ui_tap"); on_map.call())
+		buttons.add_child(m)
+	var nxt := UIKit.button("Далі!", Color("#66BB6A"), Vector2(300, 110), 48)
+	nxt.pressed.connect(func(): AudioMgr.sfx("ui_play"); on_next.call())
+	buttons.add_child(nxt)
+	call_deferred("_pop_finish")
+
+
+func _pop_finish() -> void:
+	if is_instance_valid(_finish_panel):
+		UIKit.pop_in(_finish_panel)
+
+
+func hide_finish() -> void:
+	if is_instance_valid(_finish_panel):
+		_finish_panel.queue_free()
+	_finish_panel = null
 
 func show_yawn() -> void:
 	yawn_panel.visible = true
@@ -225,6 +310,7 @@ func flash(text: String, seconds: float = 0.7, color: Color = Color.WHITE) -> vo
 	l.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_root.add_child(l)
 	l.pivot_offset = l.size * 0.5
+	l.resized.connect(func(): l.pivot_offset = l.size * 0.5)
 	l.scale = Vector2.ZERO
 	var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_property(l, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -388,6 +474,37 @@ func _open_parents() -> void:
 		b.add_theme_font_size_override("font_size", 24)
 		b.pressed.connect(_set_session_minutes.bind(int(m)))
 		row.add_child(b)
+	# керування: стрілки / джойстик / скинути підказки
+	var ctl := HBoxContainer.new()
+	ctl.add_theme_constant_override("separation", 12)
+	v.add_child(ctl)
+	var arrows_on := bool(s.setting("arrows", AgeAdapt.current == "young"))
+	var joy_on := bool(s.setting("joystick", true))
+	var b_arrows := Button.new()
+	b_arrows.text = "Стрілки: %s" % ("увімк" if arrows_on else "вимк")
+	b_arrows.custom_minimum_size = Vector2(220, 64)
+	b_arrows.add_theme_font_size_override("font_size", 22)
+	b_arrows.pressed.connect(func():
+		s.set_setting("arrows", not bool(s.setting("arrows", AgeAdapt.current == "young")))
+		b_arrows.text = "Стрілки: %s" % ("увімк" if bool(s.setting("arrows", true)) else "вимк"))
+	ctl.add_child(b_arrows)
+	var b_joy := Button.new()
+	b_joy.text = "Джойстик: %s" % ("увімк" if joy_on else "вимк")
+	b_joy.custom_minimum_size = Vector2(220, 64)
+	b_joy.add_theme_font_size_override("font_size", 22)
+	b_joy.pressed.connect(func():
+		s.set_setting("joystick", not bool(s.setting("joystick", true)))
+		b_joy.text = "Джойстик: %s" % ("увімк" if bool(s.setting("joystick", true)) else "вимк"))
+	ctl.add_child(b_joy)
+	var b_tut := Button.new()
+	b_tut.text = "Скинути підказки"
+	b_tut.custom_minimum_size = Vector2(240, 64)
+	b_tut.add_theme_font_size_override("font_size", 22)
+	b_tut.pressed.connect(func():
+		s.child()["learned"] = {}
+		s.save_game()
+		b_tut.text = "Скинуто ✓")
+	ctl.add_child(b_tut)
 	var buy := Button.new()
 	buy.text = "Купити «Повну гру» (4,99 $)"
 	buy.custom_minimum_size = Vector2(400, 80)

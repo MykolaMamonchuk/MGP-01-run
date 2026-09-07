@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://src/run3d/run3d.gd" id="1"]
 [ext_resource type="Script" path="res://src/run3d/hero3d.gd" id="2"]
@@ -9,6 +9,9 @@
 [ext_resource type="Script" path="res://src/ui/hud.gd" id="7"]
 [ext_resource type="Script" path="res://src/ui/menu.gd" id="8"]
 [ext_resource type="Script" path="res://src/run3d/hero_select.gd" id="9"]
+[ext_resource type="Script" path="res://src/ui/map_screen.gd" id="10"]
+[ext_resource type="Script" path="res://src/ui/controls.gd" id="11"]
+[ext_resource type="Script" path="res://src/ui/wheel.gd" id="12"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -69,3 +72,12 @@ script = ExtResource("7")
 
 [node name="Menu" type="CanvasLayer" parent="."]
 script = ExtResource("8")
+
+[node name="Map" type="CanvasLayer" parent="."]
+script = ExtResource("10")
+
+[node name="Controls" type="CanvasLayer" parent="."]
+script = ExtResource("11")
+
+[node name="Wheel" type="CanvasLayer" parent="."]
+script = ExtResource("12")

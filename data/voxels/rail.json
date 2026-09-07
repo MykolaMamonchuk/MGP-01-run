@@ -1,0 +1,10 @@
+{
+  "_note": "Рейка для ковзання (action rail): проїхав — іскри й зірочки.",
+  "size": 0.12,
+  "palette": {"m": "#90A4AE", "d": "#546E7A"},
+  "layers": [
+    ["d..d..d..d", "d..d..d..d"],
+    ["d..d..d..d", "d..d..d..d"],
+    ["mmmmmmmmmm", "mmmmmmmmmm"]
+  ]
+}

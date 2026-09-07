@@ -36,7 +36,8 @@ func _process(delta: float) -> void:
 	if _delay > 0.3:
 		_delay = 0.0
 		var side := 1.0 if hero.position.x <= 0.0 else -1.0
-		_target_x = clampf(hero.position.x + side, -1.0, 1.0)
+		var lim := float(hero.max_lane()) * Hero3D.LANE_W
+		_target_x = clampf(hero.position.x + side, -lim, lim)
 	position.x = lerpf(position.x, _target_x, minf(1.0, delta * 8.0))
 	if _leaving:
 		position.z -= delta * 6.0

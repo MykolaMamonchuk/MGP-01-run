@@ -24,7 +24,7 @@ func _process(delta: float) -> void:
 	_drop_t += delta
 	if _switch_t > 2.0:
 		_switch_t = 0.0
-		_lane = clampi(_lane + (1 if randf() < 0.5 else -1), -1, 1)
+		_lane = clampi(_lane + (1 if randf() < 0.5 else -1), -spawner.max_lane(), spawner.max_lane())
 	position.x = lerpf(position.x, float(_lane) * Hero3D.LANE_W, minf(1.0, delta * 3.0))
 	position.y = 1.4 + sin(_t * 8.0) * 0.1
 	# бабка стоїть на місці відносно героя, а світ їде — зірочки лишаються позаду неї

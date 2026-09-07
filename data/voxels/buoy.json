@@ -1,0 +1,11 @@
+{
+  "size": 0.12,
+  "palette": {"r": "#EF5350", "w": "#FFFFFF", "k": "#37474F", "y": "#FFEE58"},
+  "layers": [
+    [".rrr.", "rrrrr", "rrrrr", "rrrrr", ".rrr."],
+    [".www.", "wwwww", "wwwww", "wwwww", ".www."],
+    [".rrr.", "rrrrr", "rrrrr", "rrrrr", ".rrr."],
+    ["..k..", ".kkk.", ".kkk.", ".kkk.", "..k.."],
+    ["..y..", "..y..", ".....", ".....", "....."]
+  ]
+}

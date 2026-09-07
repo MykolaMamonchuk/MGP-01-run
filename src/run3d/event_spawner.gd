@@ -9,6 +9,9 @@ var actors: Node3D           # друг, бабка — не рухаються 
 var profile: Dictionary = {}
 var mode_id := "run"
 var events_seen_segment := 0
+## Обмеження рівня: які події дозволені (порожньо — всі для режиму). Порожній масив у рівні = подій нема.
+var allowed_ids: Array = []
+var events_enabled := true
 
 var _events: Array = []
 var _next := 25.0
@@ -64,14 +67,16 @@ static func pick(events: Array, profile_name: String, mode: String, rng: RandomN
 
 
 func tick(delta: float) -> void:
-	if _active != "":
+	if _active != "" or not events_enabled:
 		return
 	_next -= delta
 	if _next > 0.0:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	var e := pick(_events, AgeAdapt.current, mode_id, rng)
+	# рівень задає список подій; порожній список = подій на рівні нема (туторіал)
+	var pool := _events.filter(func(ev): return allowed_ids.has(String(ev.get("id", ""))))
+	var e := pick(pool, AgeAdapt.current, mode_id, rng)
 	_schedule()
 	if e.is_empty():
 		return
@@ -98,7 +103,7 @@ func _start(e: Dictionary) -> void:
 		"rainbow":
 			# портал на випадковій доріжці; політ — лише якщо дитина пробігла крізь нього (Spawner3D.check)
 			var arc := Rainbow3D.new()
-			arc.lane = randi_range(-1, 1)
+			arc.lane = spawner.random_lane()
 			arc.position = Vector3(float(arc.lane) * Hero3D.LANE_W, 0.0, -9.0)
 			spawner.add_child(arc)
 			AudioMgr.sfx("rainbow")
