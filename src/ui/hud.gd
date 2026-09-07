@@ -1,9 +1,9 @@
 ## HUD: зірочки (усього + рівень), серця, швидкість, смужка пікапа, кнопка батьків, станція, підказка, сон.
-## Будується кодом. Кожен дитячий елемент має намальовану іконку (src/ui/icons.gd), текст — лише другорядний.
+## Будується кодом. Кожен дитячий елемент має намальовану іконку (src/ui/components/icons.gd), текст — лише другорядний.
 extends CanvasLayer
 
-## Кольори/знаки пікапів для смужки (резерв, якщо в data/pickups.json їх нема).
-const PICKUP_FALLBACK := {"color": "#FFFFFF", "letter": "?"}
+## Знак пікапа, якщо в data/pickups.json його нема (колір — Palette.PICKUP_DEFAULT).
+const PICKUP_FALLBACK_LETTER := "?"
 ## Пульс лічильника швидкості — на кожному перетині чергових +10 км/год.
 const SPEED_PULSE_STEP := 10
 ## Миттєвий пікап (seconds 0): іконка підскакує й ховається через стільки секунд.
@@ -48,100 +48,6 @@ var _pickup_left := 0.0
 var _pickup_pop_tw: Tween
 
 
-## Сердечко HUD: повне (червоне) або порожнє (сірий контур).
-class HeartIcon:
-	extends Control
-
-	var full := true
-	var fill := Color("#FF5252")
-	var empty := Color(0.6, 0.6, 0.6, 0.7)
-
-	func _init(px: float = 44.0) -> void:
-		custom_minimum_size = Vector2(px, px)
-		size = custom_minimum_size
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pivot_offset = size * 0.5
-
-	func set_full(on: bool) -> void:
-		full = on
-		queue_redraw()
-
-	func _draw() -> void:
-		var s := size.x
-		var c := size * 0.5
-		var pts := PackedVector2Array()
-		# сердечко з двох дуг і вістря
-		for i in range(25):
-			var t := float(i) / 24.0 * PI
-			pts.append(c + Vector2(-s * 0.25 + cos(PI - t) * s * 0.25, -s * 0.12 - sin(t) * s * 0.25))
-		for i in range(25):
-			var t := float(i) / 24.0 * PI
-			pts.append(c + Vector2(s * 0.25 + cos(PI - t) * s * 0.25, -s * 0.12 - sin(t) * s * 0.25))
-		pts.append(c + Vector2(0.0, s * 0.42))
-		if full:
-			draw_colored_polygon(pts, fill)
-			draw_polyline(pts + PackedVector2Array([pts[0]]), fill.darkened(0.3), 3.0)
-		else:
-			draw_polyline(pts + PackedVector2Array([pts[0]]), empty, 4.0)
-
-
-## Кругла іконка пікапа: колір + знак.
-class PickupIcon:
-	extends Control
-
-	var color := Color.WHITE
-	var letter := "?"
-
-	func _init(col: Color, l: String, px: float = 56.0) -> void:
-		color = col
-		letter = l
-		custom_minimum_size = Vector2(px, px)
-		size = custom_minimum_size
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		pivot_offset = size * 0.5
-
-	func _draw() -> void:
-		var c := size * 0.5
-		var r: float = min(size.x, size.y) * 0.46
-		draw_circle(c, r, color)
-		draw_arc(c, r, 0.0, TAU, 48, color.darkened(0.35), 3.0)
-		var f: Font = UIKit.font()
-		if f == null:
-			f = ThemeDB.fallback_font
-		var fs := int(size.y * 0.5)
-		var w := f.get_string_size(letter, HORIZONTAL_ALIGNMENT_CENTER, -1, fs).x
-		draw_string(f, Vector2(c.x - w * 0.5, c.y + fs * 0.36), letter, HORIZONTAL_ALIGNMENT_LEFT, -1, fs, Color.WHITE)
-
-
-## Смужка часу пікапа: заповнення зменшується.
-class PickupBar:
-	extends Control
-
-	var ratio := 1.0
-	var color := Color.WHITE
-
-	func _init(col: Color) -> void:
-		color = col
-		custom_minimum_size = Vector2(240, 28)
-		size = custom_minimum_size
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-
-	func set_ratio(r: float) -> void:
-		ratio = clampf(r, 0.0, 1.0)
-		queue_redraw()
-
-	func _draw() -> void:
-		var bg := StyleBoxFlat.new()
-		bg.bg_color = Color(0, 0, 0, 0.3)
-		bg.set_corner_radius_all(14)
-		draw_style_box(bg, Rect2(Vector2.ZERO, size))
-		if ratio > 0.0:
-			var fg := StyleBoxFlat.new()
-			fg.bg_color = color
-			fg.set_corner_radius_all(14)
-			draw_style_box(fg, Rect2(Vector2(4, 4), Vector2((size.x - 8.0) * ratio, size.y - 8.0)))
-
-
 func _ready() -> void:
 	# HUD має жити й тоді, коли дерево на паузі (станція, сон, екран батьків).
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -169,7 +75,7 @@ func _ready() -> void:
 	_tally_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_tally_box)
 	_tally_box.add_child(Icons.StarIcon.new(44.0))
-	_tally_label = UIKit.title("0", 40, Color("#FFF8E1"))
+	_tally_label = UIKit.title("0", 40, Palette.TEXT_LIGHT)
 	_tally_box.add_child(_tally_label)
 
 	# швидкість — під зірочками: велике число + маленьке «км/год»
@@ -230,9 +136,9 @@ func _ready() -> void:
 	_pickup_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pickup_box.visible = false
 	_root.add_child(_pickup_box)
-	_pickup_icon = PickupIcon.new(Color(String(PICKUP_FALLBACK["color"])), String(PICKUP_FALLBACK["letter"]))
+	_pickup_icon = PickupIcon.new(Palette.PICKUP_DEFAULT, PICKUP_FALLBACK_LETTER)
 	_pickup_box.add_child(_pickup_icon)
-	_pickup_bar = PickupBar.new(Color(String(PICKUP_FALLBACK["color"])))
+	_pickup_bar = PickupBar.new(Palette.PICKUP_DEFAULT)
 	_pickup_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_pickup_box.add_child(_pickup_bar)
 
@@ -250,7 +156,7 @@ func _ready() -> void:
 	_hint_arrow = Icons.GestureIcon.new("tap", 120.0)
 	_hint_arrow.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	hint.add_child(_hint_arrow)
-	_hint_label = UIKit.title("Тапни!", 44, Color("#FFF176"))
+	_hint_label = UIKit.title("Тапни!", 44, Palette.TEXT_HINT)
 	hint.add_child(_hint_label)
 
 	station_panel = _panel(_root, Icons.StationIcon.new(96.0), "Станція!\nКуди далі?")
@@ -396,8 +302,8 @@ func set_speed(cells: float) -> void:
 ## Показати пікап: іконка (колір/знак з data/pickups.json) + смужка на seconds. seconds 0 — лише підскок іконки.
 func show_pickup(kind: String, seconds: float) -> void:
 	var def := Pickup3D.def_of(kind)
-	var color := Color(String(def.get("color", String(PICKUP_FALLBACK["color"]))))
-	var letter := String(def.get("letter", String(PICKUP_FALLBACK["letter"])))
+	var color := Palette.of(def.get("color"), Palette.PICKUP_DEFAULT)
+	var letter := String(def.get("letter", PICKUP_FALLBACK_LETTER))
 	# миттєвий пікап (сердечко) під час дії тривалого — не ховаємо чужу смужку, лише підскок
 	if seconds <= 0.0 and _pickup_total > 0.0 and _pickup_box.visible and kind != _pickup_kind:
 		if is_instance_valid(_pickup_icon):
@@ -466,7 +372,7 @@ func _on_pickup_ended(kind: String) -> void:
 
 
 func _on_level_restarted(_level: int) -> void:
-	flash("Ще раз!", 1.6, Color("#FF8A65"))
+	flash("Ще раз!", 1.6, Palette.FLASH_RETRY)
 
 
 func _on_star_collected(_n: int) -> void:
@@ -512,11 +418,11 @@ func show_finish(level_num: int, stars: int, on_next: Callable, on_map: Callable
 	ParentGate._center(p, Vector2(760, 440))
 	p.process_mode = Node.PROCESS_MODE_ALWAYS
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color("#FFF8E1")
+	style.bg_color = Palette.PANEL
 	style.set_corner_radius_all(36)
 	style.set_content_margin_all(28)
 	style.shadow_size = 16
-	style.shadow_color = Color(0, 0, 0, 0.25)
+	style.shadow_color = Palette.SHADOW
 	p.add_theme_stylebox_override("panel", style)
 	add_child(p)
 	_finish_panel = p
@@ -524,7 +430,7 @@ func show_finish(level_num: int, stars: int, on_next: Callable, on_map: Callable
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	v.add_theme_constant_override("separation", 18)
 	p.add_child(v)
-	v.add_child(UIKit.title("Ура! Рівень %d" % level_num, 60, Color("#FF7043")))
+	v.add_child(UIKit.title("Ура! Рівень %d" % level_num, 60, Palette.LEVEL_DONE))
 	var row := HBoxContainer.new()
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_theme_constant_override("separation", 20)
@@ -546,10 +452,10 @@ func show_finish(level_num: int, stars: int, on_next: Callable, on_map: Callable
 	buttons.add_theme_constant_override("separation", 28)
 	v.add_child(buttons)
 	if show_map_button:
-		var m := UIKit.button("Мапа", Color("#42A5F5"), Vector2(220, 100), 40)
+		var m := UIKit.button("Мапа", Palette.BTN_NAV, Vector2(220, 100), 40)
 		m.pressed.connect(func(): AudioMgr.sfx("ui_tap"); on_map.call())
 		buttons.add_child(m)
-	var nxt := UIKit.button("Далі!", Color("#66BB6A"), Vector2(300, 110), 48)
+	var nxt := UIKit.button("Далі!", Palette.BTN_PRIMARY, Vector2(300, 110), 48)
 	nxt.pressed.connect(func(): AudioMgr.sfx("ui_play"); on_next.call())
 	buttons.add_child(nxt)
 	call_deferred("_pop_finish")
@@ -591,7 +497,7 @@ func show_fork(options: Array, cb: Callable) -> void:
 		c.queue_free()
 	for opt in options:
 		var id := String(opt.get("id", "meadow"))
-		var b := UIKit.button("", Color(String(opt.get("accent", "#F06292"))).lightened(0.15), Vector2(250, 270))
+		var b := UIKit.button("", Palette.of(opt.get("accent"), Palette.WORLD_ACCENT).lightened(0.15), Vector2(250, 270))
 		b.pressed.connect(_on_fork_pressed.bind(id))
 		var v := VBoxContainer.new()
 		v.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -636,7 +542,7 @@ func set_gameplay_visible(on: bool) -> void:
 		hide_pickup()
 
 ## Великий напис по центру з пружиною (відлік «3 2 1 Біжимо!», «Станція!»).
-func flash(text: String, seconds: float = 0.7, color: Color = Color.WHITE) -> void:
+func flash(text: String, seconds: float = 0.7, color: Color = Palette.WHITE) -> void:
 	var l := UIKit.title(text, 140, color)
 	l.set_anchors_preset(Control.PRESET_CENTER)
 	l.grow_horizontal = Control.GROW_DIRECTION_BOTH

@@ -427,7 +427,7 @@ func check(delta: float) -> void:
 			var p := c as Pickup3D
 			if not p.collected and absf(p.position.z) < 2.0 and p.tick(delta, hero):
 				p.collect()
-				FX.burst(self, p.position, Color(String(p.def.get("color", "#FFFFFF"))))
+				FX.burst(self, p.position, Palette.of(p.def.get("color"), Palette.PICKUP_DEFAULT))
 				AudioMgr.sfx("pickup")
 				if run.has_method("on_pickup"):
 					run.call("on_pickup", p.kind, p.def)
@@ -447,7 +447,7 @@ func _resolve(o: Obstacle3D) -> void:
 			return
 		"rail":
 			# рейка: іскри й бонус
-			FX.burst(self, Vector3(hero.position.x, 0.3, 0.0), Color("#FFF176"))
+			FX.burst(self, Vector3(hero.position.x, 0.3, 0.0), Palette.HERO_GLOW)
 			Events.star_collected.emit(3 * coin_mult)
 			stars_collected_segment += 3
 			stars_spawned_segment += 3   # бонус не ламає відсоток зібраного
@@ -464,7 +464,7 @@ func _resolve(o: Obstacle3D) -> void:
 			return
 	if o.action == "any" or not o.tumble:
 		o.splash()
-		FX.splash(self, Vector3(hero.position.x, 0.1, 0.0), Color("#90CAF9") if o.kind == "puddle" else Color("#A5D6A7"))
+		FX.splash(self, Vector3(hero.position.x, 0.1, 0.0), Palette.SPLASH_WATER if o.kind == "puddle" else Palette.SPLASH_GRASS)
 		AudioMgr.sfx("splash")
 		return
 	if hero.tumbling or hero.flying or hero.invulnerable_t > 0.0:

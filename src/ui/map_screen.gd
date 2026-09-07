@@ -25,7 +25,7 @@ var _back: Button
 var _title: Label
 var _lm: LevelManager
 var _worlds: Dictionary = {}
-var _hero_color := Color("#FFB84D")
+var _hero_color := Palette.HERO_DEFAULT
 var _acc := 0.0
 ## Купівля триває (салют → стрибок героя → старт): другий тап ігноруємо.
 var _busy := false
@@ -58,9 +58,9 @@ class MapCanvas:
 
 	func _init() -> void:
 		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		_sb_stone = _rounded(Color("#FFF3D6"), 6)
-		_sb_edge = _rounded(Color("#8D6E63"), 8)
-		_sb_ahead = _rounded(Color(0.75, 0.7, 0.68, 0.55), 6)
+		_sb_stone = _rounded(Palette.MAP_STONE, 6)
+		_sb_edge = _rounded(Palette.MAP_ISLAND_EDGE, 8)
+		_sb_ahead = _rounded(Palette.MAP_NODE_AHEAD, 6)
 
 	static func _rounded(col: Color, r: int) -> StyleBoxFlat:
 		var sb := StyleBoxFlat.new()
@@ -110,7 +110,7 @@ class MapCanvas:
 
 	# --- море: блокові хвилі рядами ---
 	func _sea() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), Color("#6EC1F5"))
+		draw_rect(Rect2(Vector2.ZERO, size), Palette.MAP_SEA)
 		var rows := int(size.y / 40.0) + 1
 		for r in range(rows):
 			var y := 20.0 + r * 40.0
@@ -141,7 +141,7 @@ class MapCanvas:
 	func _island(isl: Dictionary, r: Rect2) -> void:
 		var col: Color = isl["color"]
 		# три яруси по 8 px: пісок → світла трава → трава; під кожним — темний «обрив» на 8 px
-		var tiers := [[r, Color("#F5E6B8")], [r.grow(-8.0), col.lightened(0.28)], [r.grow(-16.0), col]]
+		var tiers := [[r, Palette.MAP_ISLAND_SAND], [r.grow(-8.0), col.lightened(0.28)], [r.grow(-16.0), col]]
 		for tier in tiers:
 			var rr: Rect2 = tier[0]
 			var c: Color = tier[1]
@@ -206,7 +206,7 @@ class MapCanvas:
 			var label := String(islands[i]["name"])
 			var base := top + Vector2(0, MapScreen.LABEL_H - 8.0)
 			draw_string(f, base + Vector2(1, 2), label, HORIZONTAL_ALIGNMENT_CENTER, int(MapScreen.LABEL_W), 28, Color(0, 0, 0, 0.25))
-			draw_string(f, base, label, HORIZONTAL_ALIGNMENT_CENTER, int(MapScreen.LABEL_W), 28, Color("#3E2723"))
+			draw_string(f, base, label, HORIZONTAL_ALIGNMENT_CENTER, int(MapScreen.LABEL_W), 28, Palette.MAP_LABEL)
 
 	# --- стежка з камінців ---
 	func _road() -> void:
@@ -321,7 +321,7 @@ func _ready() -> void:
 	_title.offset_top = 24
 	_title.offset_bottom = 24
 	_root.add_child(_title)
-	_back = UIKit.button("‹ Назад", Color("#8D6E63"), Vector2(200, 80), 30)
+	_back = UIKit.button("‹ Назад", Palette.BTN_BACK, Vector2(200, 80), 30)
 	_back.position = Vector2(140, 32)
 	_back.pressed.connect(func(): AudioMgr.sfx("ui_tap"); close())
 	_root.add_child(_back)
@@ -338,69 +338,6 @@ func _process(delta: float) -> void:
 		_canvas.t += _acc
 		_acc = 0.0
 		_canvas.queue_redraw()
-
-
-class HeroMarker:
-	extends Control
-	var color := Color("#FFB84D")
-	var t := 0.0
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		size = Vector2(80, 90)
-		pivot_offset = Vector2(40, 90)
-	func _process(delta: float) -> void:
-		if not is_visible_in_tree():
-			return
-		t += delta
-		scale = Vector2(1.0 + sin(t * 4.0) * 0.04, 1.0 - sin(t * 4.0) * 0.04)
-		queue_redraw()
-	func _draw() -> void:
-		var c := Vector2(40, 40)
-		draw_circle(c + Vector2(0, 48), 14.0, Color(0, 0, 0, 0.2))
-		draw_rect(Rect2(Vector2(22, 8), Vector2(36, 42)), color)
-		draw_rect(Rect2(Vector2(26, 50), Vector2(10, 14)), color.darkened(0.2))
-		draw_rect(Rect2(Vector2(44, 50), Vector2(10, 14)), color.darkened(0.2))
-		for x in [31.0, 49.0]:
-			draw_circle(Vector2(x, 26), 5.0, Color.WHITE)
-			draw_circle(Vector2(x + 1, 27), 2.6, Color("#222831"))
-		draw_rect(Rect2(Vector2(35, 36), Vector2(10, 3)), Color("#5D4037"))
-
-
-## Плашка «★ ціна» під купованим вузлом.
-class PriceBadge:
-	extends Control
-	var price := 0
-	func _init(p: int) -> void:
-		price = p
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		size = Vector2(92, 32)
-		pivot_offset = size * 0.5
-	func _draw() -> void:
-		draw_rect(Rect2(Vector2.ZERO, size), Color(0.24, 0.15, 0.14, 0.92))
-		draw_rect(Rect2(Vector2(0, size.y - 4.0), Vector2(size.x, 4.0)), Color(0, 0, 0, 0.35))
-		# зірочка
-		var c := Vector2(17, 16)
-		var pts := PackedVector2Array()
-		for i in 10:
-			var rr := 11.0 if i % 2 == 0 else 4.8
-			var a := -PI / 2.0 + i * PI / 5.0
-			pts.append(c + Vector2(cos(a), sin(a)) * rr)
-		draw_colored_polygon(pts, Color("#FFD54F"))
-		var f: Font = UIKit.font()
-		if f == null:
-			f = ThemeDB.fallback_font
-		draw_string(f, Vector2(32, 24), str(price), HORIZONTAL_ALIGNMENT_LEFT, 58, 22, Color.WHITE)
-
-
-class LockIcon:
-	extends Control
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		size = Vector2(28, 32)
-	func _draw() -> void:
-		draw_rect(Rect2(Vector2(2, 14), Vector2(24, 18)), Color("#FFF8E1"))
-		draw_arc(Vector2(14, 14), 8.0, PI, TAU, 12, Color("#FFF8E1"), 4.0, true)
-		draw_circle(Vector2(14, 23), 3.5, Color("#616161"))
 
 
 func open(lm: LevelManager, worlds: Dictionary, hero_color: Color) -> void:
@@ -434,17 +371,17 @@ func _build(pop_num: int = 0) -> void:
 		var w: Dictionary = _worlds.get(isl["world"], {})
 		_canvas.islands.append({
 			"world": String(isl["world"]), "from": isl["from"], "to": isl["to"],
-			"color": Color(String(w.get("side", "#7CC46B"))), "accent": Color(String(w.get("accent", "#F06292"))),
+			"color": Palette.of(w.get("side"), Palette.WORLD_SIDE), "accent": Palette.of(w.get("accent"), Palette.WORLD_ACCENT),
 			"name": String(w.get("name_uk", isl["world"]))})
 	_canvas.queue_redraw()
 	for i in range(n):
 		var num := i + 1
 		var lvl := _lm.get_level(num)
 		var w: Dictionary = _worlds.get(String(lvl.get("world", "")), {})
-		var accent := Color(String(w.get("accent", "#F06292")))
+		var accent := Palette.of(w.get("accent"), Palette.WORLD_ACCENT)
 		var stars := _lm.stars_of(num)
 		var st := _lm.open_state_of(num)
-		var col := accent if st != "locked" else Color("#9E9E9E")
+		var col := accent if st != "locked" else Palette.LOCKED
 		var b := UIKit.button(str(num) if st == "open" else "", col, Vector2(NODE_R * 2, NODE_R * 2), 36)
 		for sname in ["normal", "hover", "pressed"]:
 			var sb := b.get_theme_stylebox(sname)
@@ -540,10 +477,10 @@ func _flash_badge(badge: Control) -> void:
 		return
 	var tw := badge.create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_property(badge, "scale", Vector2.ONE * 1.35, 0.12).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.parallel().tween_property(badge, "modulate", Color("#FF8A80"), 0.12)
+	tw.parallel().tween_property(badge, "modulate", Palette.MAP_BADGE_FLASH, 0.12)
 	tw.tween_interval(0.25)
 	tw.tween_property(badge, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_SINE)
-	tw.parallel().tween_property(badge, "modulate", Color.WHITE, 0.2)
+	tw.parallel().tween_property(badge, "modulate", Palette.WHITE, 0.2)
 
 
 ## Салют зірочок із точки: 10 зірок розлітаються й тануть.

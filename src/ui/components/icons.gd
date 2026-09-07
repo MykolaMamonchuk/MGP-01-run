@@ -12,8 +12,8 @@ const SIZE_BIG := Vector2(96, 96)
 class StarIcon:
 	extends Control
 
-	var fill := Color("#FFD54F")
-	var edge := Color("#F9A825")
+	var fill := Palette.STAR
+	var edge := Palette.STAR_EDGE
 
 	func _init(px: float = 56.0) -> void:
 		custom_minimum_size = Vector2(px, px)
@@ -37,8 +37,8 @@ class StarIcon:
 class ParentIcon:
 	extends Control
 
-	var adult := Color("#5C6BC0")
-	var kid := Color("#FF8A65")
+	var adult := Palette.ICON_ADULT
+	var kid := Palette.ICON_KID
 
 	func _init(px: float = 64.0) -> void:
 		custom_minimum_size = Vector2(px, px)
@@ -59,8 +59,8 @@ class ParentIcon:
 class HandIcon:
 	extends Control
 
-	var fill := Color("#FFFFFF")
-	var edge := Color("#37474F")
+	var fill := Palette.ICON_HAND
+	var edge := Palette.ICON_HAND_EDGE
 
 	func _init(px: float = 96.0) -> void:
 		custom_minimum_size = Vector2(px, px)
@@ -84,8 +84,8 @@ class HandIcon:
 class MoonIcon:
 	extends Control
 
-	var fill := Color("#FFF3C4")
-	var back := Color(0.05, 0.05, 0.2, 1.0)
+	var fill := Palette.ICON_MOON
+	var back := Palette.ICON_MOON_BACK
 
 	func _init(px: float = 96.0) -> void:
 		custom_minimum_size = Vector2(px, px)
@@ -102,8 +102,8 @@ class MoonIcon:
 class StationIcon:
 	extends Control
 
-	var sign_color := Color("#4FC3F7")
-	var pole_color := Color("#8D6E63")
+	var sign_color := Palette.ICON_SIGN
+	var pole_color := Palette.ICON_POLE
 
 	func _init(px: float = 96.0) -> void:
 		custom_minimum_size = Vector2(px, px)
@@ -117,7 +117,7 @@ class StationIcon:
 		draw_rect(r, sign_color)
 		draw_circle(Vector2(14, 30) * u, 20.0 * u, sign_color)
 		draw_circle(Vector2(82, 30) * u, 20.0 * u, sign_color)
-		draw_circle(Vector2(48, 30) * u, 9.0 * u, Color("#FFFFFF"))
+		draw_circle(Vector2(48, 30) * u, 9.0 * u, Palette.ICON_SIGN_DOT)
 
 
 ## Двері Розвилки: піктограма світу. meadow — горбок і квітка; forest — дерево; beach — хвиля і сонце.
@@ -136,25 +136,25 @@ class WorldIcon:
 		var u: float = min(size.x, size.y) / 120.0
 		match world_id:
 			"forest":
-				draw_rect(Rect2(Vector2(52, 70) * u, Vector2(16, 40) * u), Color("#795548"))
-				draw_circle(Vector2(60, 50) * u, 34.0 * u, Color("#2E7D32"))
-				draw_circle(Vector2(44, 62) * u, 22.0 * u, Color("#43A047"))
-				draw_circle(Vector2(78, 60) * u, 22.0 * u, Color("#43A047"))
+				draw_rect(Rect2(Vector2(52, 70) * u, Vector2(16, 40) * u), Palette.ICON_TREE_TRUNK)
+				draw_circle(Vector2(60, 50) * u, 34.0 * u, Palette.ICON_TREE_CROWN)
+				draw_circle(Vector2(44, 62) * u, 22.0 * u, Palette.ICON_TREE_LEAF)
+				draw_circle(Vector2(78, 60) * u, 22.0 * u, Palette.ICON_TREE_LEAF)
 			"beach":
-				draw_circle(Vector2(86, 34) * u, 18.0 * u, Color("#FFEE58"))
+				draw_circle(Vector2(86, 34) * u, 18.0 * u, Palette.ICON_SUN)
 				var pts := PackedVector2Array()
 				for i in 25:
 					var x := 8.0 + i * 4.3
 					pts.append(Vector2(x, 78.0 + sin(i * 0.55) * 8.0) * u)
-				draw_polyline(pts, Color("#29B6F6"), 10.0 * u)
-				draw_rect(Rect2(Vector2(8, 92) * u, Vector2(104, 20) * u), Color("#FFE0A3"))
+				draw_polyline(pts, Palette.ICON_WAVE, 10.0 * u)
+				draw_rect(Rect2(Vector2(8, 92) * u, Vector2(104, 20) * u), Palette.ICON_BEACH)
 			_:
-				draw_circle(Vector2(60, 110) * u, 60.0 * u, Color("#7CC46B"))
-				draw_rect(Rect2(Vector2(58, 40) * u, Vector2(4, 30) * u), Color("#388E3C"))
+				draw_circle(Vector2(60, 110) * u, 60.0 * u, Palette.ICON_MEADOW)
+				draw_rect(Rect2(Vector2(58, 40) * u, Vector2(4, 30) * u), Palette.ICON_STEM)
 				for i in 6:
 					var a := i * PI / 3.0
-					draw_circle(Vector2(60, 36) * u + Vector2(cos(a), sin(a)) * 12.0 * u, 8.0 * u, Color("#F06292"))
-				draw_circle(Vector2(60, 36) * u, 7.0 * u, Color("#FFF176"))
+					draw_circle(Vector2(60, 36) * u + Vector2(cos(a), sin(a)) * 12.0 * u, 8.0 * u, Palette.ICON_PETAL)
+				draw_circle(Vector2(60, 36) * u, 7.0 * u, Palette.ICON_FLOWER_EYE)
 
 
 ## Жест-підказка: "tap" — пальчик з кільцями; "left/right/up/down" — товста стрілка; "hold" — пальчик і дужка.
@@ -177,8 +177,8 @@ class GestureIcon:
 	func _draw() -> void:
 		var u: float = min(size.x, size.y) / 120.0
 		var c := size * 0.5
-		var col := Color("#FFF176")
-		var edge := Color("#3E2723")
+		var col := Palette.ICON_GESTURE
+		var edge := Palette.ICON_EDGE
 		match kind:
 			"left", "right", "up", "down":
 				var dir := Vector2.LEFT
@@ -197,7 +197,7 @@ class GestureIcon:
 				draw_polyline(pts + PackedVector2Array([pts[0]]), edge, 5.0 * u)
 			"hold":
 				_finger(c, u, col, edge, 0.0)
-				draw_arc(c + Vector2(0, -10) * u, 46.0 * u, -PI * 0.5, -PI * 0.5 + TAU * fmod(_t * 0.5, 1.0), 40, Color("#66BB6A"), 8.0 * u)
+				draw_arc(c + Vector2(0, -10) * u, 46.0 * u, -PI * 0.5, -PI * 0.5 + TAU * fmod(_t * 0.5, 1.0), 40, Palette.PROGRESS, 8.0 * u)
 			_:
 				var press := absf(sin(_t * 5.0))
 				_finger(c, u, col, edge, press * 10.0 * u)
@@ -224,9 +224,9 @@ class VoxelIcon:
 	static var _defs: Dictionary = {}     # назва → розібраний опис (кеш)
 
 	var voxel := ""
-	var color := Color(0, 0, 0, 0)
+	var color := Palette.CLEAR
 
-	func _init(voxel_name: String, px: float, col: Color = Color(0, 0, 0, 0)) -> void:
+	func _init(voxel_name: String, px: float, col: Color = Palette.CLEAR) -> void:
 		voxel = voxel_name
 		color = col
 		custom_minimum_size = Vector2(px, px)
@@ -264,8 +264,8 @@ class VoxelIcon:
 				_sparkle(c + Vector2(0.05, -0.2) * px, px * 0.24, color)
 				_sparkle(c + Vector2(0.3, 0.22) * px, px * 0.12, color.lightened(0.3))
 			else:
-				draw_arc(c, px * 0.3, 0.0, TAU, 32, Color("#B0BEC5"), px * 0.07)
-				draw_line(c + Vector2(-0.2, 0.2) * px, c + Vector2(0.2, -0.2) * px, Color("#B0BEC5"), px * 0.07)
+				draw_arc(c, px * 0.3, 0.0, TAU, 32, Palette.ICON_MISSING, px * 0.07)
+				draw_line(c + Vector2(-0.2, 0.2) * px, c + Vector2(0.2, -0.2) * px, Palette.ICON_MISSING, px * 0.07)
 			return
 		var rects := front_elevation(def_for(voxel))
 		if rects.is_empty():
@@ -297,8 +297,8 @@ class SlotIcon:
 	extends Control
 
 	var slot := "hat"
-	var fill := Color.WHITE
-	var edge := Color("#3E2723")
+	var fill := Palette.WHITE
+	var edge := Palette.ICON_EDGE
 
 	func _init(s: String, px: float = 64.0) -> void:
 		slot = s
@@ -311,7 +311,7 @@ class SlotIcon:
 		match slot:
 			"face":
 				for cx in [20.0, 44.0]:
-					draw_circle(Vector2(cx, 34) * u, 11.0 * u, Color("#B3E5FC"))
+					draw_circle(Vector2(cx, 34) * u, 11.0 * u, Palette.ICON_GLASS)
 					draw_arc(Vector2(cx, 34) * u, 11.0 * u, 0.0, TAU, 24, edge, 4.0 * u)
 				draw_line(Vector2(31, 34) * u, Vector2(33, 34) * u, edge, 4.0 * u)
 				draw_line(Vector2(6, 30) * u, Vector2(10, 34) * u, edge, 4.0 * u)
@@ -321,9 +321,9 @@ class SlotIcon:
 				for i in 13:
 					var a := PI + PI * float(i) / 12.0
 					pts.append(Vector2(32, 26) * u + Vector2(cos(a), sin(a) * 0.6) * 22.0 * u)
-				draw_polyline(pts, Color("#EF5350"), 11.0 * u)
-				draw_rect(Rect2(Vector2(36, 26) * u, Vector2(11, 30) * u), Color("#EF5350"))
-				draw_rect(Rect2(Vector2(36, 50) * u, Vector2(11, 6) * u), Color("#C62828"))
+				draw_polyline(pts, Palette.ICON_SCARF, 11.0 * u)
+				draw_rect(Rect2(Vector2(36, 26) * u, Vector2(11, 30) * u), Palette.ICON_SCARF)
+				draw_rect(Rect2(Vector2(36, 50) * u, Vector2(11, 6) * u), Palette.ICON_SCARF_KNOT)
 			"back":
 				for s in [-1.0, 1.0]:
 					var pts := PackedVector2Array([
@@ -340,12 +340,12 @@ class SlotIcon:
 						var rr := r if k % 2 == 0 else r * 0.4
 						var a := -PI / 2.0 + k * PI / 4.0
 						pts.append(p + Vector2(cos(a), sin(a)) * rr)
-					draw_colored_polygon(pts, Color("#FFD54F"))
+					draw_colored_polygon(pts, Palette.STAR)
 			_:
 				# капелюх: криси + тулія
 				draw_rect(Rect2(Vector2(8, 40) * u, Vector2(48, 8) * u), edge)
 				draw_rect(Rect2(Vector2(18, 14) * u, Vector2(28, 28) * u), fill)
-				draw_rect(Rect2(Vector2(18, 34) * u, Vector2(28, 6) * u), Color("#EF5350"))
+				draw_rect(Rect2(Vector2(18, 34) * u, Vector2(28, 6) * u), Palette.ICON_HAT_BAND)
 				draw_rect(Rect2(Vector2(18, 14) * u, Vector2(28, 28) * u), edge, false, 3.0 * u)
 
 
@@ -360,7 +360,7 @@ class MapGlyph:
 
 	func _draw() -> void:
 		var u: float = min(size.x, size.y) / 56.0
-		var paper := Color("#FFF8E1")
+		var paper := Palette.ICON_PAPER
 		for i in 3:
 			var x0 := (6.0 + i * 15.0) * u
 			var dy := (4.0 if i == 1 else 0.0) * u
@@ -368,19 +368,19 @@ class MapGlyph:
 				Vector2(x0, 10.0 * u + dy), Vector2(x0 + 15.0 * u, 10.0 * u - dy),
 				Vector2(x0 + 15.0 * u, 46.0 * u - dy), Vector2(x0, 46.0 * u + dy)])
 			draw_colored_polygon(pts, paper if i != 1 else paper.darkened(0.08))
-		draw_circle(Vector2(16, 34) * u, 5.0 * u, Color("#66BB6A"))
-		draw_circle(Vector2(40, 20) * u, 5.0 * u, Color("#EF5350"))
+		draw_circle(Vector2(16, 34) * u, 5.0 * u, Palette.ICON_MAP_START)
+		draw_circle(Vector2(40, 20) * u, 5.0 * u, Palette.ICON_MAP_END)
 		var a := Vector2(16, 34) * u
 		var b := Vector2(40, 20) * u
 		for k in range(0, 6, 2):
-			draw_line(a.lerp(b, k / 6.0), a.lerp(b, (k + 1) / 6.0), Color("#8D6E63"), 3.0 * u)
+			draw_line(a.lerp(b, k / 6.0), a.lerp(b, (k + 1) / 6.0), Palette.ICON_MAP_PATH, 3.0 * u)
 
 
 ## Шестірня «Налаштування»: коло з зубцями і дірочкою.
 class GearIcon:
 	extends Control
 
-	var fill := Color("#ECEFF1")
+	var fill := Palette.ICON_METAL
 
 	func _init(px: float = 56.0) -> void:
 		custom_minimum_size = Vector2(px, px)
@@ -398,7 +398,7 @@ class GearIcon:
 			var p1 := c + d * r * 1.3
 			draw_colored_polygon(PackedVector2Array([p0 + n, p1 + n * 0.7, p1 - n * 0.7, p0 - n]), fill)
 		draw_circle(c, r, fill)
-		draw_circle(c, r * 0.42, Color("#607D8B"))
+		draw_circle(c, r * 0.42, Palette.ICON_METAL_HOLE)
 
 
 ## Характеристика героя (GDD v1.3 §5): "hearts" — серце, "magnet" — U-магніт (червоно-синій),
@@ -407,7 +407,7 @@ class StatIcon:
 	extends Control
 
 	var kind := "hearts"
-	var edge := Color("#3E2723")
+	var edge := Palette.ICON_EDGE
 
 	func _init(k: String, px: float = 36.0) -> void:
 		kind = k
@@ -423,17 +423,17 @@ class StatIcon:
 				var c := Vector2(18, 16) * u
 				var r := 10.0 * u
 				var w := 7.0 * u
-				draw_arc(c, r, PI, PI * 1.5, 12, Color("#EF5350"), w)
-				draw_arc(c, r, PI * 1.5, TAU, 12, Color("#42A5F5"), w)
-				draw_line(c + Vector2(-r, 0), c + Vector2(-r, 12) * u, Color("#EF5350"), w)
-				draw_line(c + Vector2(r, 0), c + Vector2(r, 12) * u, Color("#42A5F5"), w)
-				draw_rect(Rect2(c + Vector2(-r - w * 0.5, 9.0 * u), Vector2(w, 4.0 * u)), Color("#B0BEC5"))
-				draw_rect(Rect2(c + Vector2(r - w * 0.5, 9.0 * u), Vector2(w, 4.0 * u)), Color("#B0BEC5"))
+				draw_arc(c, r, PI, PI * 1.5, 12, Palette.STAT_MAGNET_N, w)
+				draw_arc(c, r, PI * 1.5, TAU, 12, Palette.STAT_MAGNET_S, w)
+				draw_line(c + Vector2(-r, 0), c + Vector2(-r, 12) * u, Palette.STAT_MAGNET_N, w)
+				draw_line(c + Vector2(r, 0), c + Vector2(r, 12) * u, Palette.STAT_MAGNET_S, w)
+				draw_rect(Rect2(c + Vector2(-r - w * 0.5, 9.0 * u), Vector2(w, 4.0 * u)), Palette.STAT_MAGNET_TIP)
+				draw_rect(Rect2(c + Vector2(r - w * 0.5, 9.0 * u), Vector2(w, 4.0 * u)), Palette.STAT_MAGNET_TIP)
 			"speed":
 				var pts := PackedVector2Array([
 					Vector2(21, 2) * u, Vector2(9, 20) * u, Vector2(17, 20) * u,
 					Vector2(14, 34) * u, Vector2(27, 14) * u, Vector2(19, 14) * u])
-				draw_colored_polygon(pts, Color("#FFD54F"))
+				draw_colored_polygon(pts, Palette.STAT_SPEED)
 				draw_polyline(pts + PackedVector2Array([pts[0]]), edge, 2.5 * u)
 			"luck":
 				var c := Vector2(18, 18) * u
@@ -442,11 +442,11 @@ class StatIcon:
 					var rr := (16.0 if i % 2 == 0 else 5.5) * u
 					var a := -PI / 2.0 + i * PI / 4.0
 					pts.append(c + Vector2(cos(a), sin(a)) * rr)
-				draw_colored_polygon(pts, Color("#CE93D8"))
+				draw_colored_polygon(pts, Palette.STAT_LUCK)
 				draw_polyline(pts + PackedVector2Array([pts[0]]), edge, 2.5 * u)
 			_:
 				# серце: два кола і трикутник
-				var col := Color("#EF5350")
+				var col := Palette.STAT_HEART
 				draw_circle(Vector2(12, 13) * u, 8.0 * u, col)
 				draw_circle(Vector2(24, 13) * u, 8.0 * u, col)
 				draw_colored_polygon(PackedVector2Array([Vector2(4.5, 16) * u, Vector2(31.5, 16) * u, Vector2(18, 32) * u]), col)
@@ -459,8 +459,8 @@ class StatDots:
 
 	var count := 1
 	var total := 4
-	var fill := Color("#FFF8E1")
-	var empty := Color(1, 1, 1, 0.25)
+	var fill := Palette.ICON_PAPER
+	var empty := Palette.STAT_DOT_EMPTY
 
 	func _init(n: int, px: float = 14.0, max_n: int = 4) -> void:
 		count = clampi(n, 0, max_n)
@@ -475,7 +475,7 @@ class StatDots:
 		for i in total:
 			var c := Vector2(r + i * d * 1.5, size.y * 0.5)
 			draw_circle(c, r * 0.9, fill if i < count else empty)
-			draw_arc(c, r * 0.9, 0.0, TAU, 20, Color("#3E2723"), 1.5)
+			draw_arc(c, r * 0.9, 0.0, TAU, 20, Palette.ICON_EDGE, 1.5)
 
 
 ## Мінізавдання: зірка / прапорець / іскра — залежно від типу.
@@ -494,13 +494,13 @@ class QuestIcon:
 		var u: float = min(size.x, size.y) / 40.0
 		match kind:
 			"passed":
-				draw_rect(Rect2(Vector2(8, 4) * u, Vector2(4, 32) * u), Color("#8D6E63"))
-				draw_colored_polygon(PackedVector2Array([Vector2(12, 4) * u, Vector2(34, 12) * u, Vector2(12, 20) * u]), Color("#EF5350"))
+				draw_rect(Rect2(Vector2(8, 4) * u, Vector2(4, 32) * u), Palette.ICON_POLE)
+				draw_colored_polygon(PackedVector2Array([Vector2(12, 4) * u, Vector2(34, 12) * u, Vector2(12, 20) * u]), Palette.ICON_FLAG)
 			"events":
 				for i in 4:
 					var a := i * PI / 2.0
-					draw_line(Vector2(20, 20) * u, Vector2(20, 20) * u + Vector2(cos(a), sin(a)) * 16.0 * u, Color("#26C6DA"), 4.0 * u)
-				draw_circle(Vector2(20, 20) * u, 6.0 * u, Color("#FFFFFF"))
+					draw_line(Vector2(20, 20) * u, Vector2(20, 20) * u + Vector2(cos(a), sin(a)) * 16.0 * u, Palette.ICON_EVENT, 4.0 * u)
+				draw_circle(Vector2(20, 20) * u, 6.0 * u, Palette.ICON_EVENT_CORE)
 			_:
 				var c := Vector2(20, 20) * u
 				var pts := PackedVector2Array()
@@ -508,4 +508,4 @@ class QuestIcon:
 					var r := (17.0 if i % 2 == 0 else 7.0) * u
 					var a := -PI / 2.0 + i * PI / 5.0
 					pts.append(c + Vector2(cos(a), sin(a)) * r)
-				draw_colored_polygon(pts, Color("#FFD54F"))
+				draw_colored_polygon(pts, Palette.STAR)

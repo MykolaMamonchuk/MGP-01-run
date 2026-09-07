@@ -1,7 +1,7 @@
 ## Вибір героя: 3D-карусель пухнастиків на дорозі + UI (ім'я, характеристики, як відкрити, стрілки, «Обрати»)
 ## + крамниця (5 вкладок-слотів, предмети картинками, приміряти безплатно, купити за зірочки).
 ## Крамниця — ПО-ГЕРОЯМ (GDD v1.3 §5): стрічка показує куплене/одягнуте героєм у центрі; купівля — йому.
-## Стрічка предметів — ручна: HBox у Control з clip_contents, стрілки ‹ › листають сторінками, свайп тягне.
+## Стрічка предметів — компонент ItemStrip (src/ui/components): гортання, сторінки й свайп живуть там.
 ## Свайпи каруселі приходять із Run3D (move), тап по героєві — погладити.
 class_name HeroSelect
 extends Node3D
@@ -12,8 +12,6 @@ signal closed
 const SPACING := 1.7
 const ROW_Z := -2.3
 const PODIUM_H := 0.18
-const STRIP_VIEW := Vector2(900, 150)   # 900 + дві стрілки вміщуються у 1280
-const DRAG_THRESHOLD := 12.0
 const STAT_KINDS := ["hearts", "magnet", "speed", "luck"]
 
 var heroes: Dictionary = {}
@@ -31,28 +29,17 @@ var _choose: Button
 var _left: Button
 var _right: Button
 var _back: Button
-var _lock_icons: Array[Control] = []
 var _camera: Camera3D
 # крамниця
 var _shop_btn: Button
 var _shop_box: VBoxContainer
 var _tabs: HBoxContainer
-var _strip_row: HBoxContainer
-var _view: Control             # вікно стрічки (обрізає)
-var _strip: HBoxContainer      # сама стрічка, рухається по x
-var _strip_left: Button
-var _strip_right: Button
-var _strip_tween: Tween
+var _strip: ItemStrip          # стрічка предметів слота (гортання — усередині компонента)
 var _buy_btn: Button
 var _buy_label: Label
 var _items: Array = []
 var _slot := "hat"
 var _preview_id := ""      # приміряний, але ще не куплений (лише на герої в центрі)
-# свайп стрічки
-var _drag_active := false
-var _drag_moved := false
-var _drag_origin := 0.0
-var _drag_start_x := 0.0
 
 
 func _ready() -> void:
@@ -67,7 +54,7 @@ func _ready() -> void:
 		var h: Dictionary = heroes[id]
 		var p := Hero3D.new()
 		_row.add_child(p)
-		p.set_hero(id, String(h.get("color", "#FFB84D")), String(h.get("feature", "tuft")))
+		p.set_hero(id, Palette.of(h.get("color"), Palette.HERO_DEFAULT), String(h.get("feature", "tuft")))
 		p.position.x = float(i) * SPACING
 		p.x_target = p.position.x   # інакше _process героя стягне всіх у x = 0
 		p.position.y = PODIUM_H
@@ -75,7 +62,7 @@ func _ready() -> void:
 		p.rotation.y = PI          # обличчям до камери
 		_previews.append(p)
 		# подіум стоїть НА землі (не врізається — інакше z-fighting «блимає»)
-		var podium := Mats.box(Vector3(1.1, PODIUM_H, 1.1), Color(String(h.get("color", "#FFB84D"))).lightened(0.35))
+		var podium := Mats.box(Vector3(1.1, PODIUM_H, 1.1), Palette.of(h.get("color"), Palette.HERO_DEFAULT).lightened(0.35))
 		podium.position = Vector3(float(i) * SPACING, PODIUM_H * 0.5 + 0.005, 0.0)
 		_row.add_child(podium)
 	_build_ui()
@@ -152,18 +139,6 @@ func current_stats() -> Dictionary:
 	return stats_of(heroes, String(ids[index]))
 
 
-## Чиста функція: x стрічки в межах вікна. Вміщується — по центру; ні — від (view_w − content_w) до 0.
-static func clamp_strip_x(x: float, content_w: float, view_w: float) -> float:
-	if content_w <= view_w:
-		return (view_w - content_w) * 0.5
-	return clampf(x, view_w - content_w, 0.0)
-
-
-## Чиста функція: x після перелистування на одну сторінку (dir −1/+1 — вліво/вправо по вмісту).
-static func strip_page_x(x: float, dir: int, content_w: float, view_w: float) -> float:
-	return clamp_strip_x(x - float(dir) * view_w, content_w, view_w)
-
-
 func _unlocked(id: String) -> bool:
 	return is_unlocked(heroes[id], SaveService.stars(), int(SaveService.child().get("checkpoints", 0)), Purchase.is_full_game())
 
@@ -206,17 +181,17 @@ func _build_ui() -> void:
 	_unlock_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_unlock_box)
 	_unlock_box.add_child(Icons.StarIcon.new(44.0))
-	_unlock_label = UIKit.title("", 34, Color("#FFF8E1"))
+	_unlock_label = UIKit.title("", 34, Palette.TEXT_LIGHT)
 	_unlock_box.add_child(_unlock_label)
 
-	_left = UIKit.button("‹", Color("#42A5F5"), Vector2(110, 110), 64)
+	_left = UIKit.button("‹", Palette.BTN_NAV, Vector2(110, 110), 64)
 	_left.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 	_left.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_left.offset_left = 30
 	_left.offset_right = 30
 	_left.pressed.connect(func(): move(-1))
 	root.add_child(_left)
-	_right = UIKit.button("›", Color("#42A5F5"), Vector2(110, 110), 64)
+	_right = UIKit.button("›", Palette.BTN_NAV, Vector2(110, 110), 64)
 	_right.set_anchors_preset(Control.PRESET_CENTER_RIGHT)
 	_right.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_right.grow_horizontal = Control.GROW_DIRECTION_BEGIN
@@ -225,7 +200,7 @@ func _build_ui() -> void:
 	_right.pressed.connect(func(): move(1))
 	root.add_child(_right)
 
-	_choose = UIKit.button("Обрати", Color("#66BB6A"), Vector2(340, 120), 48)
+	_choose = UIKit.button("Обрати", Palette.BTN_PRIMARY, Vector2(340, 120), 48)
 	_choose.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_choose.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_choose.grow_vertical = Control.GROW_DIRECTION_BEGIN
@@ -235,7 +210,7 @@ func _build_ui() -> void:
 	root.add_child(_choose)
 
 	# крамниця: кнопка-перемикач (праворуч угорі) і панель унизу замість «Обрати»
-	_shop_btn = UIKit.button("Крамниця", Color("#AB47BC"), Vector2(260, 84), 30)
+	_shop_btn = UIKit.button("Крамниця", Palette.BTN_SHOP, Vector2(260, 84), 30)
 	_shop_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	_shop_btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_shop_btn.offset_left = -30
@@ -264,7 +239,7 @@ func _build_ui() -> void:
 	_shop_box.add_child(_tabs)
 	for s in Shop.SLOTS:
 		var slot := String(s)
-		var tab := UIKit.button("", Color("#42A5F5"), Vector2(88, 88), 20)
+		var tab := UIKit.button("", Palette.BTN_NAV, Vector2(88, 88), 20)
 		tab.tooltip_text = _slot_name(slot)
 		var ic := Icons.SlotIcon.new(slot, 60.0)
 		ic.position = Vector2(14, 12)
@@ -272,36 +247,11 @@ func _build_ui() -> void:
 		tab.pressed.connect(_select_slot.bind(slot))
 		_tabs.add_child(tab)
 
-	# ряд стрічки: ‹ [вікно стрічки] ›
-	_strip_row = HBoxContainer.new()
-	_strip_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_strip_row.add_theme_constant_override("separation", 14)
-	_strip_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	_shop_box.add_child(_strip_row)
-	_strip_left = UIKit.button("‹", Color("#42A5F5"), Vector2(96, 96), 56)
-	_strip_left.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_strip_left.pressed.connect(_page_strip.bind(-1))
-	_strip_row.add_child(_strip_left)
-	_view = Control.new()
-	_view.custom_minimum_size = STRIP_VIEW
-	_view.clip_contents = true
-	_view.mouse_filter = Control.MOUSE_FILTER_STOP
-	_view.gui_input.connect(_on_strip_input)
-	_view.resized.connect(_layout_strip.bind(false))
-	_strip_row.add_child(_view)
-	_strip = HBoxContainer.new()
-	_strip.alignment = BoxContainer.ALIGNMENT_BEGIN
-	_strip.add_theme_constant_override("separation", 10)
-	_strip.mouse_filter = Control.MOUSE_FILTER_PASS
-	_strip.minimum_size_changed.connect(_layout_strip.bind(false))   # розмір змінився — лишаємось у межах
-	_view.add_child(_strip)
-	_strip_right = UIKit.button("›", Color("#42A5F5"), Vector2(96, 96), 56)
-	_strip_right.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_strip_right.pressed.connect(_page_strip.bind(1))
-	_strip_row.add_child(_strip_right)
+	_strip = ItemStrip.new()
+	_shop_box.add_child(_strip)
 
 	# «Купити N★»: велика кнопка з зірочкою і числом, без слів
-	_buy_btn = UIKit.button("", Color("#FFA726"), Vector2(300, 96), 34)
+	_buy_btn = UIKit.button("", Palette.BTN_HEROES, Vector2(300, 96), 34)
 	_buy_btn.tooltip_text = "Купити за зірочки"
 	_buy_btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_buy_btn.grow_horizontal = Control.GROW_DIRECTION_BOTH
@@ -325,7 +275,7 @@ func _build_ui() -> void:
 	buy_row.add_child(_buy_label)
 	root.add_child(_buy_btn)
 
-	_back = UIKit.button("‹ Назад", Color("#8D6E63"), Vector2(200, 80), 30)
+	_back = UIKit.button("‹ Назад", Palette.BTN_BACK, Vector2(200, 80), 30)
 	_back.position = Vector2(140, 32)   # праворуч від кнопки батьків у HUD
 	_back.pressed.connect(func(): AudioMgr.sfx("ui_tap"); close())
 	root.add_child(_back)
@@ -395,7 +345,7 @@ func _refresh(instant: bool) -> void:
 	# зірочка — лише коли ціна в зірочках
 	(_unlock_box.get_child(0) as Control).visible = hint.is_valid_int()
 	_choose.text = "Обрати" if unlocked else "Ще не відкрито"
-	_choose.modulate = Color.WHITE if unlocked else Color(1, 1, 1, 0.75)
+	_choose.modulate = Palette.WHITE if unlocked else Color(1, 1, 1, 0.75)
 	_left.visible = index > 0
 	_right.visible = index < ids.size() - 1
 	for i in range(_previews.size()):
@@ -494,35 +444,33 @@ func _select_slot(slot: String) -> void:
 	var i := 0
 	for t in _tabs.get_children():
 		var active := String(Shop.SLOTS[i]) == slot
-		(t as Control).modulate = Color.WHITE if active else Color(0.8, 0.8, 0.8, 0.85)
-		_frame(t as Button, Color("#FFF8E1") if active else Color(0, 0, 0, 0))
+		(t as Control).modulate = Palette.WHITE if active else Color(0.8, 0.8, 0.8, 0.85)
+		UIKit.frame(t as Button, Palette.TAB_ACTIVE if active else Palette.CLEAR)
 		i += 1
 	_rebuild_strip()
 
 
 ## Стрічка предметів слота для героя в центрі: картинка + ціна (є — без ціни; одягнуто — зелена рамка). Без назв.
-func _rebuild_strip() -> void:
-	_kill_strip_tween()
-	for c in _strip.get_children():
-		_strip.remove_child(c)   # одразу з контейнера, інакше кадр подвійної стрічки
-		c.queue_free()
+## reset — стати на початок стрічки; false — лишитись там, де були (після купівлі/одягання).
+func _rebuild_strip(reset: bool = true) -> void:
+	var cards: Array[Control] = []
 	var hid := _shop_hero()
 	var owned := Shop.owned(hid)
 	var current := Shop.equipped(hid, _slot)
 	for it in Shop.by_slot(_items, _slot):
 		var id := String(it["id"])
 		var is_owned := Shop.is_owned(it, owned)
-		var b := UIKit.button("", Color("#FFF8E1"), Vector2(124, 132), 20)
+		var b := UIKit.button("", Palette.PANEL, Vector2(124, 132), 20)
 		b.tooltip_text = String(it.get("name_uk", id))
 		b.mouse_filter = Control.MOUSE_FILTER_PASS   # свайп по кнопці доходить до стрічки
-		_frame(b, Color("#66BB6A") if id == current else (Color("#90CAF9") if is_owned else Color("#CFD8DC")))
+		UIKit.frame(b, Palette.ITEM_EQUIPPED if id == current else (Palette.ITEM_OWNED if is_owned else Palette.ITEM_PLAIN))
 		var col := VBoxContainer.new()
 		col.alignment = BoxContainer.ALIGNMENT_CENTER
 		col.set_anchors_preset(Control.PRESET_FULL_RECT)
 		col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		col.add_theme_constant_override("separation", 4)
 		b.add_child(col)
-		var pic := Icons.VoxelIcon.new(String(it.get("voxel", "")), 72.0, Color(String(it.get("color", "#00000000"))))
+		var pic := Icons.VoxelIcon.new(String(it.get("voxel", "")), 72.0, Palette.of(it.get("color"), Palette.CLEAR))
 		pic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		col.add_child(pic)
 		var row := HBoxContainer.new()
@@ -537,160 +485,17 @@ func _rebuild_strip() -> void:
 		elif id == current:
 			row.add_child(CheckIcon.new(26.0))
 		b.pressed.connect(_on_item_tap.bind(id))
-		_strip.add_child(b)
-	_layout_strip(true)
+		cards.append(b)
+	_strip.set_cards(cards, reset)
 
 
-# ---------- стрічка: розкладка, сторінки, свайп ----------
-
-func _content_w() -> float:
-	return _strip.get_combined_minimum_size().x
-
-
-func _view_w() -> float:
-	return _view.size.x if _view.size.x > 0.0 else STRIP_VIEW.x
-
-
-## Розмір стрічки = мінімальний; x — у межах; стрілки лише коли не вміщується.
-func _layout_strip(reset: bool = false) -> void:
-	var cw := _content_w()
-	var vw := _view_w()
-	var vh: float = _view.size.y if _view.size.y > 0.0 else STRIP_VIEW.y
-	_strip.size = Vector2(cw, vh)
-	_strip.position.y = 0.0
-	var x := 0.0 if reset else _strip.position.x
-	_strip.position.x = clamp_strip_x(x, cw, vw)
-	_update_strip_arrows()
-
-
-func _update_strip_arrows() -> void:
-	var cw := _content_w()
-	var vw := _view_w()
-	var fits := cw <= vw + 0.5
-	_strip_left.visible = not fits
-	_strip_right.visible = not fits
-	if fits:
-		return
-	var x := _strip.position.x
-	_strip_left.modulate = Color(1, 1, 1, 1.0 if x < -0.5 else 0.45)
-	_strip_right.modulate = Color(1, 1, 1, 1.0 if x > vw - cw + 0.5 else 0.45)
-
-
-func _kill_strip_tween() -> void:
-	if _strip_tween != null and _strip_tween.is_valid():
-		_strip_tween.kill()
-	_strip_tween = null
-
-
-## Плавно доїхати до x і оновити стрілки.
-func _glide_strip(to_x: float, dur: float = 0.3) -> void:
-	_kill_strip_tween()
-	_strip_tween = create_tween()
-	_strip_tween.tween_property(_strip, "position:x", to_x, dur).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
-	_strip_tween.step_finished.connect(func(_i): _update_strip_arrows())
-	_strip_tween.finished.connect(_update_strip_arrows)
-
-
-## Стрілки ‹ ›: на сторінку (ширину вікна) з обмеженням країв.
-func _page_strip(dir: int) -> void:
-	AudioMgr.sfx("ui_tap")
-	var target := strip_page_x(_strip.position.x, dir, _content_w(), _view_w())
-	if is_equal_approx(target, _strip.position.x):
-		UIKit.shake(_strip_left if dir < 0 else _strip_right)
-		return
-	_glide_strip(target)
-
-
-## Свайп по стрічці: тягнемо за пальцем (без інерції), відпустили — доїжджаємо до краю. Тап (< 12 px) лишається кнопці.
-func _on_strip_input(ev: InputEvent) -> void:
-	var pressed_down := false
-	var released := false
-	var pos_x := 0.0
-	var is_motion := false
-	var touch := ev as InputEventScreenTouch
-	var mb := ev as InputEventMouseButton
-	var sdrag := ev as InputEventScreenDrag
-	var mm := ev as InputEventMouseMotion
-	if touch != null:
-		pressed_down = touch.pressed
-		released = not touch.pressed
-		pos_x = touch.position.x
-	elif mb != null and mb.button_index == MOUSE_BUTTON_LEFT:
-		pressed_down = mb.pressed
-		released = not mb.pressed
-		pos_x = mb.position.x
-	elif sdrag != null:
-		is_motion = true
-		pos_x = sdrag.position.x
-	elif mm != null and (mm.button_mask & MOUSE_BUTTON_MASK_LEFT) != 0:
-		is_motion = true
-		pos_x = mm.position.x
-	else:
-		return
-	if pressed_down:
-		_drag_active = true
-		_drag_moved = false
-		_drag_origin = pos_x
-		_drag_start_x = _strip.position.x
-		return
-	if released:
-		var was_drag := _drag_moved
-		_drag_active = false
-		if was_drag:
-			_glide_strip(clamp_strip_x(_strip.position.x, _content_w(), _view_w()), 0.25)
-			_view.accept_event()
-		# _drag_moved скидаємо наступного кадру: кнопка під пальцем обробляє відпускання раніше за нас або пізніше
-		call_deferred("_reset_drag_moved")
-		return
-	if is_motion and _drag_active:
-		var dx := pos_x - _drag_origin
-		if not _drag_moved and absf(dx) > DRAG_THRESHOLD:
-			_drag_moved = true
-			_kill_strip_tween()
-		if _drag_moved:
-			var raw := _drag_start_x + dx
-			var clamped := clamp_strip_x(raw, _content_w(), _view_w())
-			_strip.position.x = clamped + (raw - clamped) * 0.3   # «гумовий» край
-			_update_strip_arrows()
-			_view.accept_event()
-
-
-func _reset_drag_moved() -> void:
-	_drag_moved = false
-
-
-## Рамка кнопки предмета (зелена — одягнуто).
-static func _frame(b: Button, col: Color) -> void:
-	for st in ["normal", "hover", "pressed"]:
-		var sb := b.get_theme_stylebox(st)
-		if sb is StyleBoxFlat:
-			var s := (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
-			s.set_border_width_all(6)
-			s.border_color = col
-			b.add_theme_stylebox_override(st, s)
-
-
-## Галочка «одягнуто».
-class CheckIcon:
-	extends Control
-	func _init(px: float = 26.0) -> void:
-		custom_minimum_size = Vector2(px, px)
-		size = custom_minimum_size
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-	func _draw() -> void:
-		var u: float = min(size.x, size.y) / 26.0
-		draw_polyline(PackedVector2Array([Vector2(4, 14) * u, Vector2(10, 21) * u, Vector2(23, 5) * u]), Color("#66BB6A"), 5.0 * u)
-
-
+## Пружна поява карток після відкриття крамниці / зміни вкладки.
 func _pop_items() -> void:
-	var i := 0
-	for b in _strip.get_children():
-		UIKit.pop_in(b, 0.04 * i)
-		i += 1
+	_strip.pop_in_cards()
 
 
 func _on_item_tap(id: String) -> void:
-	if _drag_moved:
+	if _strip.drag_moved():
 		return   # це був свайп стрічки, не тап
 	var def := Shop.find(_items, id)
 	if def.is_empty():
@@ -704,10 +509,7 @@ func _on_item_tap(id: String) -> void:
 		_preview_id = ""
 		_buy_btn.visible = false
 		AudioMgr.sfx("ui_play")
-		var keep_x := _strip.position.x
-		_rebuild_strip()   # нове «одягнуто»
-		_strip.position.x = clamp_strip_x(keep_x, _content_w(), _view_w())
-		_update_strip_arrows()
+		_rebuild_strip(false)   # нове «одягнуто», місце в стрічці не втрачаємо
 	else:
 		_preview_id = id
 		_buy_label.text = str(int(def.get("price", 0)))
@@ -729,10 +531,7 @@ func _on_buy() -> void:
 		AudioMgr.voice("new_hat")
 		_preview_id = ""
 		_buy_btn.visible = false
-		var keep_x := _strip.position.x
-		_rebuild_strip()
-		_strip.position.x = clamp_strip_x(keep_x, _content_w(), _view_w())
-		_update_strip_arrows()
+		_rebuild_strip(false)
 	else:
 		UIKit.shake(_buy_btn)
 		AudioMgr.sfx("locked")

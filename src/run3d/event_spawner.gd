@@ -110,7 +110,7 @@ func _start(e: Dictionary) -> void:
 		"friend":
 			var fr := Friend3D.new()
 			actors.add_child(fr)
-			fr.setup(hero, "#8ED1FC", dur)
+			fr.setup(hero, Palette.FRIEND_DEFAULT, dur)
 		"dragonfly":
 			var d := Dragonfly3D.new()
 			actors.add_child(d)

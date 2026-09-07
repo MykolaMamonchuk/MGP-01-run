@@ -108,21 +108,21 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	set_lanes(lanes, false)
 	# сезон: підфарбовує землю й міняє квіти (сніг/осінь), нічого не додає до мешів
 	if not s.is_empty():
-		var tint := Color(String(s.get("ground_tint", "#FFFFFF")))
+		var tint := Palette.of(s.get("ground_tint"), Palette.GROUND_TINT_NONE)
 		for key in ["ground", "ground_dark", "side"]:
-			world[key] = (Color(String(world.get(key, "#7CC46B"))) * tint).to_html(false)
+			world[key] = (Palette.of(world.get(key), Palette.WORLD_GROUND) * tint).to_html(false)
 		var dc: Array = s.get("decor_colors", [])
 		if not dc.is_empty():
 			world["decor_colors"] = dc
 	_water.visible = is_water or _sea_side != 0
 	if _water.visible:
-		var wc := Color(String(w.get("water", "#4FC3F7")))
+		var wc := Palette.of(w.get("water"), Palette.WORLD_WATER)
 		_water_mat.set_shader_parameter("color", wc)
-		var light := wc if _sea or not is_water else Color(String(w.get("ground_dark", "#29B6F6")))
+		var light := wc if _sea or not is_water else Palette.of(w.get("ground_dark"), Palette.WORLD_WATER_DARK)
 		_water_mat.set_shader_parameter("color_light", light.lightened(0.35))
 	_layout_water()
 	# пагорби у колір далекого плану світу; на морі їх не видно
-	var far_mat := Mats.solid(Color(String(world.get("far", world.get("side", "#6DB35E")))).lightened(0.15))
+	var far_mat := Mats.solid(Palette.of(world.get("far", world.get("side")), Palette.WORLD_SIDE).lightened(0.15))
 	for h in _hills:
 		h.material_override = far_mat
 		h.visible = not _sea
@@ -141,10 +141,10 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 func _paint(row: Node3D, i: int, is_water: bool) -> void:
 	var center := row.get_node("Center") as MeshInstance3D
 	center.visible = not is_water
-	var g := Color(String(world.get("ground", "#7CC46B")))
-	var gd := Color(String(world.get("ground_dark", "#5FA553")))
+	var g := Palette.of(world.get("ground"), Palette.WORLD_GROUND)
+	var gd := Palette.of(world.get("ground_dark"), Palette.WORLD_GROUND_DARK)
 	center.material_override = Mats.solid(g if i % 2 == 0 else gd)
-	var side := Mats.solid(Color(String(world.get("side", "#6DB35E"))))
+	var side := Mats.solid(Palette.of(world.get("side"), Palette.WORLD_SIDE))
 	var l := row.get_node("SideL") as MeshInstance3D
 	var r := row.get_node("SideR") as MeshInstance3D
 	l.material_override = side

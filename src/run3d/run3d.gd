@@ -207,7 +207,7 @@ func _apply_hero(id: String) -> void:
 	if not heroes.has(id):
 		id = "puf"
 	var h: Dictionary = heroes.get(id, {})
-	hero.set_hero(id, String(h.get("color", "#FFB84D")), String(h.get("feature", "tuft")))
+	hero.set_hero(id, Palette.of(h.get("color"), Palette.HERO_DEFAULT), String(h.get("feature", "tuft")))
 	Shop.apply_to(hero)
 
 
@@ -276,23 +276,23 @@ func _setup_sky() -> void:
 
 ## Живе небо: день → вечір протягом сесії (t 0..1); сезон і фішка рівня (ніч/вечір) підфарбовують.
 func _set_sky(t: float) -> void:
-	var day := Color(String(world.get("sky", "#9BDDFF")))
-	var evening := Color(String(world.get("sky_evening", "#F7B58A")))
+	var day := Palette.of(world.get("sky"), Palette.SKY_DAY)
+	var evening := Palette.of(world.get("sky_evening"), Palette.SKY_EVENING)
 	if not season.is_empty():
-		day = day * Color(String(season.get("sky_tint", "#FFFFFF")))
+		day = day * Palette.of(season.get("sky_tint"), Palette.GROUND_TINT_NONE)
 	if bool(level.get("evening", false)):
 		t = maxf(t, 0.8)
 	var c := day.lerp(evening, t)
 	var energy := lerpf(1.15, 0.7, t)
 	if bool(level.get("night", false)):
-		c = c.darkened(0.55).lerp(Color("#283593"), 0.5)
+		c = c.darkened(0.55).lerp(Palette.SKY_NIGHT, 0.5)
 		energy = 0.45
 	if env.environment:
 		env.environment.background_color = c
 		env.environment.ambient_light_color = c.lightened(0.35)
 		env.environment.fog_light_color = c.lightened(0.2)
 	sun.light_energy = energy
-	sun.light_color = Color.WHITE.lerp(Color("#FFC59A"), t)
+	sun.light_color = Palette.WHITE.lerp(Palette.SUN_EVENING, t)
 	var want_fireflies := t > 0.6 or bool(level.get("night", false))
 	if want_fireflies and _fireflies == null:
 		_fireflies = FX.ambient(ambient_root, "fireflies")
@@ -362,7 +362,7 @@ func _daily_gift() -> void:
 	SaveService.child()["last_gift_day"] = today
 	Events.star_collected.emit(30)
 	SaveService.save_game()
-	hud.flash("+30 подарунок дня!", 1.8, Color("#FFD54F"))
+	hud.flash("+30 подарунок дня!", 1.8, Palette.FLASH_REWARD)
 	FX.confetti(self, Vector3(0, 1.2, 0), 70)
 	hero.cheer()
 	AudioMgr.sfx("confetti")
@@ -469,7 +469,7 @@ func _start_level(num: int) -> void:
 	_countdown_tw = create_tween()
 	_countdown_tw.tween_interval(0.5)
 	for i in range(3):
-		_countdown_tw.tween_callback(hud.flash.bind(str(3 - i), 0.7, Color("#FFF176")))
+		_countdown_tw.tween_callback(hud.flash.bind(str(3 - i), 0.7, Palette.FLASH_COUNT))
 		_countdown_tw.tween_callback(AudioMgr.sfx.bind("count"))
 		_countdown_tw.tween_interval(0.7)
 	_countdown_tw.tween_callback(_start_run)
@@ -477,7 +477,7 @@ func _start_level(num: int) -> void:
 
 func _start_run() -> void:
 	state = State.RUN
-	hud.flash("Біжимо!", 0.9, Color("#69F0AE"))
+	hud.flash("Біжимо!", 0.9, Palette.FLASH_GO)
 	AudioMgr.voice("go")
 	spawner.spawning = true
 	events_spawner.events_enabled = true
@@ -539,7 +539,7 @@ func _finish() -> void:
 	Events.checkpoint_reached.emit(level_num)   # AgeAdapt приймає рішення між рівнями
 	_finish_auto_t = -20.0   # авто-«Далі» лише після колеса
 	if record and stars == 3:
-		hud.flash("Три зірочки!", 1.4, Color("#FFD54F"))
+		hud.flash("Три зірочки!", 1.4, Palette.FLASH_REWARD)
 	# колесо станції → потім панель із зірками
 	_pending_finish = {"stars": stars}
 	get_tree().create_timer(1.2).timeout.connect(func():
@@ -578,7 +578,7 @@ func _on_finish_next() -> void:
 		# малята мапи не бачать — наступний рівень купується сам, якщо вистачає зірочок
 		if not lm.is_open(next) and lm.can_buy(next) and SaveService.stars() >= lm.price_of(next):
 			lm.buy(next)
-			hud.flash("Новий рівень!", 1.2, Color("#FFD54F"))
+			hud.flash("Новий рівень!", 1.2, Palette.FLASH_REWARD)
 		if not lm.is_open(next):
 			_open_map()
 			return
@@ -624,7 +624,7 @@ func _process(delta: float) -> void:
 		sprint = SPRINT_MULT
 		if not _sprint_announced:
 			_sprint_announced = true
-			hud.flash("Фініш близько!", 1.0, Color("#FF8A65"))
+			hud.flash("Фініш близько!", 1.0, Palette.FLASH_RETRY)
 			AudioMgr.voice("finish_soon")
 	speed = base_speed * _hero_speed * float(level.get("speed_mult", 1.0)) * (1.0 + SPEED_RAMP * progress) * sprint * _slow * _pickup_speed
 	mode.speed = speed
@@ -661,7 +661,7 @@ func _change_lanes(n: int) -> void:
 	hero.set_lanes(n)
 	spawner.lanes = n
 	camera_rig.apply(camera_for_lanes(world.get("camera", {}), n), 0.9)
-	hud.flash("Ширше!" if wider else "Вужче!", 1.0, Color("#80DEEA"))
+	hud.flash("Ширше!" if wider else "Вужче!", 1.0, Palette.FLASH_WIDTH)
 	AudioMgr.voice("wider")
 
 
@@ -872,7 +872,7 @@ func on_pickup(kind: String, def: Dictionary) -> void:
 		_effects[kind] = sec
 		hud.show_pickup(kind, sec)
 	Events.pickup_started.emit(kind, sec)
-	hud.flash(String(def.get("name_uk", kind)), 0.8, Color(String(def.get("color", "#FFFFFF"))))
+	hud.flash(String(def.get("name_uk", kind)), 0.8, Palette.of(def.get("color"), Palette.PICKUP_DEFAULT))
 	hero.cheer()
 	AudioMgr.voice("wow")
 

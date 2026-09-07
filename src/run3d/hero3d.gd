@@ -40,7 +40,7 @@ var sitting := false
 var jump_scale := 1.0
 var hero_id := "puf"
 var feature := "tuft"
-var color := Color("#FFB84D")
+var color := Palette.HERO_DEFAULT
 
 var _vy := 0.0
 var _y := 0.0
@@ -85,7 +85,7 @@ func _ready() -> void:
 	shm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	shm.albedo_color = Color(0.4, 0.8, 1.0, 0.28)
 	shm.emission_enabled = true
-	shm.emission = Color("#40C4FF")
+	shm.emission = Palette.HERO_SHIELD
 	shm.emission_energy_multiplier = 0.6
 	shm.roughness = 0.2
 	_shield.material_override = shm
@@ -114,14 +114,14 @@ func _ready() -> void:
 	_body = Node3D.new()
 	_body.name = "Body"
 	add_child(_body)
-	set_hero(hero_id, color.to_html(false), feature)
+	set_hero(hero_id, color, feature)
 
 
 ## Перебудувати героя: тіло з палітрою + обличчя + риса.
-func set_hero(id: String, color_hex: String, feat: String = "tuft") -> void:
+func set_hero(id: String, hero_color: Color, feat: String = "tuft") -> void:
 	hero_id = id
 	feature = feat
-	color = Color(color_hex)
+	color = hero_color
 	for c in _body.get_children():
 		c.queue_free()
 	_eyes.clear()
@@ -131,7 +131,7 @@ func set_hero(id: String, color_hex: String, feat: String = "tuft") -> void:
 	_arms.clear()
 	_sparkles = null
 
-	_mesh = VoxelBuilder.instance("hero_puf", {"o": color_hex, "d": color.darkened(0.22).to_html(false)})
+	_mesh = VoxelBuilder.instance("hero_puf", {"o": color.to_html(false), "d": color.darkened(0.22).to_html(false)})
 	_mesh.name = "Mesh"
 	_body.add_child(_mesh)
 	if feature == "cloud":
@@ -279,7 +279,7 @@ func _build_face() -> void:
 	_face.name = "Face"
 	_body.add_child(_face)
 	var eye_white := Color.WHITE
-	var pupil := Color("#222831")
+	var pupil := Palette.HERO_EYE
 	for side in [-1.0, 1.0]:
 		var eye := Node3D.new()
 		eye.position = Vector3(side * 0.15, 0.93, FACE_Z)
@@ -289,8 +289,8 @@ func _build_face() -> void:
 		_box(Vector3(0.03, 0.03, 0.01), Color.WHITE, Vector3(0.025, 0.03, -0.017), p)  # блик
 		_eyes.append(eye)
 		_pupils.append(p)
-		_box(Vector3(0.1, 0.07, 0.02), Color("#FF8A80"), Vector3(side * 0.27, 0.78, FACE_Z), _face)
-	_mouth = _box(Vector3(0.14, 0.035, 0.02), Color("#5D4037"), Vector3(0.0, 0.73, FACE_Z), _face)
+		_box(Vector3(0.1, 0.07, 0.02), Palette.HERO_CHEEK, Vector3(side * 0.27, 0.78, FACE_Z), _face)
+	_mouth = _box(Vector3(0.14, 0.035, 0.02), Palette.HERO_MOUTH, Vector3(0.0, 0.73, FACE_Z), _face)
 	_eye_scale_y = 0.55 if feature == "sleepy" else 1.0
 	for e in _eyes:
 		e.scale.y = _eye_scale_y
@@ -328,15 +328,15 @@ func _build_feature() -> void:
 			sph.height = 0.18
 			bulb.mesh = sph
 			var bm := StandardMaterial3D.new()
-			bm.albedo_color = Color("#FFF176")
+			bm.albedo_color = Palette.HERO_GLOW
 			bm.emission_enabled = true
-			bm.emission = Color("#FFF176")
+			bm.emission = Palette.HERO_GLOW
 			bm.emission_energy_multiplier = 2.0
 			bulb.material_override = bm
 			bulb.position.y = 0.4
 			ant.add_child(bulb)
 			var glow := OmniLight3D.new()
-			glow.light_color = Color("#FFF176")
+			glow.light_color = Palette.HERO_GLOW
 			glow.light_energy = 0.6
 			glow.omni_range = 1.5
 			glow.position.y = 0.4
@@ -504,7 +504,7 @@ func set_shield(on: bool) -> void:
 func pop_shield() -> void:
 	shield_on = false
 	_shield_popping = true
-	FX.burst(self, Vector3(0, 0.7, 0), Color("#40C4FF"))
+	FX.burst(self, Vector3(0, 0.7, 0), Palette.HERO_SHIELD)
 	var tw := create_tween()
 	tw.tween_property(_shield, "scale", Vector3.ONE * 1.4, 0.12)
 	tw.tween_callback(func():
@@ -692,7 +692,7 @@ func set_locked_look(locked: bool) -> void:
 	if m is ShaderMaterial:
 		var d := (m as ShaderMaterial).duplicate() as ShaderMaterial
 		d.set_shader_parameter("tint_strength", 0.7)
-		d.set_shader_parameter("tint", Color("#9E9E9E"))
+		d.set_shader_parameter("tint", Palette.HERO_GHOST)
 		_mesh.material_override = d
 	_face.visible = false
 

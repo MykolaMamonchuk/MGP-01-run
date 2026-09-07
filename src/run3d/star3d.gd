@@ -22,7 +22,7 @@ static func glow_material() -> StandardMaterial3D:
 		m.vertex_color_use_as_albedo = true
 		m.roughness = 0.6
 		m.emission_enabled = true
-		m.emission = Color("#FFD54F")
+		m.emission = Palette.STAR
 		m.emission_energy_multiplier = 0.9
 		_glow_mat = m
 	return _glow_mat
