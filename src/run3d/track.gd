@@ -472,7 +472,5 @@ func advance(dist: float) -> void:
 		if c.position.z > BEHIND + 6.0:
 			c.position.z -= 46.0
 			c.position.x = randf_range(-12.0, 12.0)
-	# ряди щойно поїхали (і, можливо, перевклалися) — переносимо це в пачки одразу,
-	# щоб декор не відставав від дороги на кадр
-	_sync_road()
-	_sync_decor(0.0)
+	# синхронізацію в пачки робить _process (батько Run3D обробляється раніше за Track — той самий кадр);
+	# тут не дублюємо: подвійний _sync_* = ~900 зайвих set_instance_transform на кадр

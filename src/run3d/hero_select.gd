@@ -309,6 +309,9 @@ func open(camera: Camera3D, current_id: String) -> void:
 
 func close() -> void:
 	visible = false
+	if not _built:
+		closed.emit()
+		return
 	_ui.visible = false
 	# приміряне, але не куплене — знімаємо; кожному герою — його власне
 	_revert_try_on()
@@ -317,6 +320,8 @@ func close() -> void:
 
 
 func move(dir: int) -> void:
+	if not _built:
+		return   # карусель будується лише при open()
 	var next := clampi(index + dir, 0, ids.size() - 1)
 	if next == index:
 		# край каруселі — легкий відскок
