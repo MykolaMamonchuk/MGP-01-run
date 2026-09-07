@@ -78,6 +78,10 @@ CI (`.github/workflows/ci.yml`) запускає ці ж тести на кож�
 
   **Кольори.** Літерала `"#RRGGBB"` у коді бути не повинно — беріть роль із `Palette` (`Palette.BTN_PRIMARY`, `Palette.STAR`, `Palette.WORLD_GROUND`). Кольори з `data/*.json` читайте через `Palette.of(значення, ЗАПАСНИЙ_ТОКЕН)`. Це стереже `tests/test_palette.gd`.
 - `tests/` — тести GUT.
+- `tools/perf/` — замірник продуктивності (`godot res://tools/perf/perf.tscn`), не частина гри.
+- `docs/` — документація: [CHANGELOG](docs/CHANGELOG.md), [задачі](docs/TASKS.md), [збірка](docs/EXPORT.md),
+  а також дві серії датованих заходів — [оптимізація](docs/optimisation/) і [код-рев'ю](docs/review/).
+  Конвенція серій (ID знахідок, чеклисти, статуси) — у [docs/README.md](docs/README.md).
 
 ## Гілки та коміти
 
