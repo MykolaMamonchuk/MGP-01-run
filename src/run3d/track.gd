@@ -1,4 +1,8 @@
 ## Дорога: пул рядів по 1 клітинці (3 доріжки + узбіччя + декор). Ряди їдуть на героя (+Z) і переставляються вперед.
+## Полотно дороги — чотири MultiMesh на всю трасу (центр парних рядів, центр непарних, ліве узбіччя, праве)
+## замість 132 окремих вузлів: 4 draw calls замість 132 (docs/optimisation OPT-01).
+## Ряд лишається вузлом, але тримає лише декор; його z, scale.y і значення з _row_* — джерело правди,
+## яке _sync_road() щокадру переносить у буфери MultiMesh.
 ## Зміна світу — перефарбування рядів з «перебудовою кубиками» (стаггер по z).
 ## Занурення (GDD v1.3 §7): стіни світу з даних — walls_near (кожен ряд, впритул до дороги), walls_far (далі, більші),
 ## canopy (крона над дорогою кожен 3-й ряд), sea (море на всю ширину, дорога невидима).
@@ -16,7 +20,17 @@ const CANOPY_SCALE := 2.5
 
 var world: Dictionary = {}
 var lanes := 3
+## Вузли рядів — тепер лише тримачі декору (полотно малює MultiMesh).
 var _rows: Array[Node3D] = []
+## Полотно: [парні ряди, непарні] і [ліве узбіччя, праве].
+var _mm_center: Array[MultiMeshInstance3D] = []
+var _mm_side: Array[MultiMeshInstance3D] = []
+## Стан рядів, який анімується: масштаб центру по x і x узбіч (стаггер при зміні ширини).
+var _row_sx := PackedFloat32Array()
+var _row_lx := PackedFloat32Array()
+var _row_rx := PackedFloat32Array()
+## Масштаб узбіч по x: [ліве, праве]. Смужка піску з боку моря — спільна для всіх рядів, без стаггера.
+var _side_sx := [1.0, 1.0]
 var _water: MeshInstance3D
 var _water_mat: ShaderMaterial
 var _scroll := 0.0
@@ -30,25 +44,34 @@ var _sea := false
 
 
 func _ready() -> void:
+	var center_mesh := BoxMesh.new()
+	center_mesh.size = Vector3(LANES_W, 0.4, 1.0)
+	var side_mesh := BoxMesh.new()
+	side_mesh.size = Vector3(SIDE_W, 0.4, 1.0)
+	# центр смугастий: парні ряди одного кольору, непарні іншого — тому два MultiMesh
+	_mm_center = [_make_canvas(center_mesh, (ROWS + 1) / 2), _make_canvas(center_mesh, ROWS / 2)]
+	_mm_side = [_make_canvas(side_mesh, ROWS), _make_canvas(side_mesh, ROWS)]
+	_mm_center[0].material_override = Mats.solid(Palette.WORLD_GROUND)
+	_mm_center[1].material_override = Mats.solid(Palette.WORLD_GROUND_DARK)
+	var side_mat := Mats.solid(Palette.WORLD_SIDE)
+	_mm_side[0].material_override = side_mat
+	_mm_side[1].material_override = side_mat
+
+	_row_sx.resize(ROWS)
+	_row_lx.resize(ROWS)
+	_row_rx.resize(ROWS)
+	var side_x := LANES_W * 0.5 + SIDE_W * 0.5
 	for i in range(ROWS):
 		var row := Node3D.new()
 		row.name = "Row%d" % i
-		var center := Mats.box(Vector3(LANES_W, 0.4, 1.0), Color.GRAY)
-		center.name = "Center"
-		center.position.y = -0.2
-		row.add_child(center)
-		for side in [-1.0, 1.0]:
-			var s := Mats.box(Vector3(SIDE_W, 0.4, 1.0), Color.DARK_GRAY)
-			s.name = "SideL" if side < 0 else "SideR"
-			s.position = Vector3(side * (LANES_W * 0.5 + SIDE_W * 0.5), -0.2, 0.0)
-			row.add_child(s)
-		var decor := Node3D.new()
-		decor.name = "Decor"
-		row.add_child(decor)
 		row.position.z = BEHIND - float(i)
 		row.set_meta("i", i)   # індекс ряду — для крони кожен 3-й ряд
 		add_child(row)
 		_rows.append(row)
+		_row_sx[i] = 1.0
+		_row_lx[i] = -side_x
+		_row_rx[i] = side_x
+	_sync_road()
 	# далекий план: пагорби по боках і хмарки, що пливуть
 	_far = Node3D.new()
 	_far.name = "Far"
@@ -91,6 +114,38 @@ func _ready() -> void:
 	add_child(_water)
 
 
+## Один шар полотна. AABB задаємо руками на всю трасу: інакше рушій перераховував би її
+## щокадру по всіх інстансах, а на краю екрана дорога могла б зникнути через відсікання.
+func _make_canvas(mesh: Mesh, count: int) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = count
+	var box := AABB(Vector3(-SEA_W * 0.5, -2.0, BEHIND - float(ROWS) - 2.0), Vector3(SEA_W, 6.0, float(ROWS) + 8.0))
+	mm.custom_aabb = box
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = mm
+	mi.custom_aabb = box
+	add_child(mi)
+	return mi
+
+
+## Переносить стан рядів у буфери MultiMesh. Кілька сотень записів на кадр — дешевше,
+## ніж рухати 132 вузли, кожен з яких тягне за собою перерахунок AABB і відсікання.
+func _sync_road() -> void:
+	for i in range(_rows.size()):
+		var row := _rows[i]
+		var sy: float = row.scale.y            # «перебудова кубиками» при зміні світу
+		var z: float = row.position.z
+		var y := -0.2 * sy                     # локальний y полотна, помножений на масштаб ряду
+		(_mm_center[i % 2].multimesh as MultiMesh).set_instance_transform(i / 2,
+			Transform3D(Basis.from_scale(Vector3(_row_sx[i], sy, 1.0)), Vector3(0.0, y, z)))
+		(_mm_side[0].multimesh as MultiMesh).set_instance_transform(i,
+			Transform3D(Basis.from_scale(Vector3(float(_side_sx[0]), sy, 1.0)), Vector3(_row_lx[i], y, z)))
+		(_mm_side[1].multimesh as MultiMesh).set_instance_transform(i,
+			Transform3D(Basis.from_scale(Vector3(float(_side_sx[1]), sy, 1.0)), Vector3(_row_rx[i], y, z)))
+
+
 var season: Dictionary = {}
 
 
@@ -126,9 +181,9 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	for h in _hills:
 		h.material_override = far_mat
 		h.visible = not _sea
+	_paint_road(is_water)
 	for i in range(_rows.size()):
 		var row := _rows[i]
-		_paint(row, i, is_water)
 		_decorate(row)
 		if animate:
 			row.scale.y = 0.01
@@ -138,27 +193,25 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	AudioMgr.sfx("rebuild")
 
 
-func _paint(row: Node3D, i: int, is_water: bool) -> void:
-	var center := row.get_node("Center") as MeshInstance3D
-	center.visible = not is_water
-	var g := Palette.of(world.get("ground"), Palette.WORLD_GROUND)
-	var gd := Palette.of(world.get("ground_dark"), Palette.WORLD_GROUND_DARK)
-	center.material_override = Mats.solid(g if i % 2 == 0 else gd)
+## Кольори полотна: центр смугастий (парні/непарні ряди), узбіччя одноколірне.
+## Видимість тепер на рівні шару: на воді нема центру, на морі нема й узбіч.
+func _paint_road(is_water: bool) -> void:
+	_mm_center[0].material_override = Mats.solid(Palette.of(world.get("ground"), Palette.WORLD_GROUND))
+	_mm_center[1].material_override = Mats.solid(Palette.of(world.get("ground_dark"), Palette.WORLD_GROUND_DARK))
 	var side := Mats.solid(Palette.of(world.get("side"), Palette.WORLD_SIDE))
-	var l := row.get_node("SideL") as MeshInstance3D
-	var r := row.get_node("SideR") as MeshInstance3D
-	l.material_override = side
-	r.material_override = side
-	# на морі узбіч нема — довкола лише вода
-	l.visible = not _sea
-	r.visible = not _sea
+	_mm_side[0].material_override = side
+	_mm_side[1].material_override = side
+	for mi in _mm_center:
+		mi.visible = not is_water
+	for mi in _mm_side:
+		mi.visible = not _sea
 
 
 ## Узбіччя: стіни світу (walls_near впритул, walls_far далі й більші), ближній пояс — дрібне (квіти, гриби),
 ## дальній — велике (дерева, пальми), живність — зайчики; крона над дорогою кожен 3-й ряд.
 ## З боку моря (Пляж на піску) узбіччя — вода, декор туди не кладемо. На морі (sea) — лише буї/скелі у воді й гребені хвиль.
 func _decorate(row: Node3D) -> void:
-	var decor := row.get_node("Decor")
+	var decor := row          # ряд тримає лише декор, окремий вузол під нього вже не потрібен
 	for c in decor.get_children():
 		c.queue_free()
 	var kinds: Array = world.get("decor", [])
@@ -244,6 +297,8 @@ var _bird_t := 5.0
 
 
 func _process(delta: float) -> void:
+	# полотно синхронізуємо і тут: під час анімацій перебудови advance() не викликають
+	_sync_road()
 	_bird_t -= delta
 	if _bird_t < 0.0:
 		_bird_t = randf_range(6.0, 14.0)
@@ -264,30 +319,39 @@ func set_lanes(n: int, animate: bool = true) -> void:
 	# з боку моря узбіччя — вузька смужка піску (1 м), далі вода
 	var beach_x := w * 0.5 + 0.5
 	var beach_sx := 1.0 / SIDE_W
-	var i := 0
-	for row in _rows:
-		var center := row.get_node("Center") as Node3D
-		var l := row.get_node("SideL") as Node3D
-		var r := row.get_node("SideR") as Node3D
-		var lx := -beach_x if _sea_side < 0 else -side_x
-		var rx := beach_x if _sea_side > 0 else side_x
-		l.scale.x = beach_sx if _sea_side < 0 else 1.0
-		r.scale.x = beach_sx if _sea_side > 0 else 1.0
+	_side_sx[0] = beach_sx if _sea_side < 0 else 1.0
+	_side_sx[1] = beach_sx if _sea_side > 0 else 1.0
+	var lx := -beach_x if _sea_side < 0 else -side_x
+	var rx := beach_x if _sea_side > 0 else side_x
+	for i in range(_rows.size()):
 		if animate:
-			_decorate(row)   # декор перекладається під нову ширину (при rebuild його кладе сам rebuild)
+			_decorate(_rows[i])   # декор перекладається під нову ширину (при rebuild його кладе сам rebuild)
 			var tw := create_tween()
 			tw.tween_interval(0.012 * float(i))
-			tw.tween_property(center, "scale:x", sx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-			tw.parallel().tween_property(l, "position:x", lx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-			tw.parallel().tween_property(r, "position:x", rx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.tween_method(_set_row_sx.bind(i), _row_sx[i], sx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_method(_set_row_lx.bind(i), _row_lx[i], lx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tw.parallel().tween_method(_set_row_rx.bind(i), _row_rx[i], rx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		else:
-			center.scale.x = sx
-			l.position.x = lx
-			r.position.x = rx
-		i += 1
+			_row_sx[i] = sx
+			_row_lx[i] = lx
+			_row_rx[i] = rx
+	_sync_road()
 	_layout_water()
 	if animate:
 		AudioMgr.sfx("rebuild")
+
+
+# Цілі для tween_method: анімуємо числа ряду, бо вузлів-мешів більше нема.
+func _set_row_sx(v: float, i: int) -> void:
+	_row_sx[i] = v
+
+
+func _set_row_lx(v: float, i: int) -> void:
+	_row_lx[i] = v
+
+
+func _set_row_rx(v: float, i: int) -> void:
+	_row_rx[i] = v
 
 
 ## Вода: під дорогою (Хвиля) або збоку від неї (Пляж, sea_side) — ширина SIDE_W, за смужкою піску.
@@ -333,3 +397,4 @@ func advance(dist: float) -> void:
 		if c.position.z > BEHIND + 6.0:
 			c.position.z -= 46.0
 			c.position.x = randf_range(-12.0, 12.0)
+	_sync_road()
