@@ -68,3 +68,4 @@ SHOT_TAG=after  godot --fixed-fps 60 res://tools/shots/shots.tscn
 | 2026-09-07 | `f6613a1` (після) | 558 | 654 | 1 311 | 142.3 MB |
 | 2026-09-07 | `163ded0` — [OPT-01](2026-09-07-render-budget.md#opt-01) дорога в MultiMesh | **445** | 522 | 1 139 | 142.2 MB |
 | 2026-09-08 | `1e8e943` — [OPT-02](2026-09-07-render-budget.md#opt-02) декор у MultiMesh | **183** | 229 | 566 | 140.2 MB |
+| 2026-09-08 | `PLACEHOLDER` — [OPT-04](2026-09-07-render-budget.md#opt-04) лінива карусель героїв | 183 | **74** | **295** | **136.2 MB** |

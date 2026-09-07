@@ -19,10 +19,27 @@ func after_each() -> void:
 	_hs = null
 
 
-func test_scene_builds_hero_select_with_strip() -> void:
+func test_carousel_is_not_built_until_opened() -> void:
+	# важку карусель (8 героїв із подіумами) не будуємо на старті гри — OPT-04
 	assert_not_null(_hs, "HeroSelect у сцені")
+	assert_eq(_hs.get_child_count(), 0, "до відкриття карусель не займає нічого")
+	assert_eq(_hs.ids.size(), 8, "але список героїв уже прочитано — він потрібен геймплею")
+	assert_null(_hs._strip, "UI крамниці теж чекає на перше відкриття")
+
+
+func test_opening_builds_carousel_once() -> void:
+	_hs.open(null, "puf")
+	await wait_process_frames(4)
+	assert_eq(_hs._previews.size(), 8, "усі герої на місці")
 	assert_not_null(_hs._strip, "стрічка предметів зібралася разом із UI")
 	assert_true(_hs._strip.fits(), "порожня стрічка вміщується")
+	var children := _hs.get_child_count()
+	_hs.close()
+	await wait_process_frames(2)
+	_hs.open(null, "puf")
+	await wait_process_frames(2)
+	assert_eq(_hs.get_child_count(), children, "друге відкриття не будує карусель наново")
+	assert_eq(_hs._previews.size(), 8)
 
 
 func test_shop_fills_strip_for_every_slot() -> void:

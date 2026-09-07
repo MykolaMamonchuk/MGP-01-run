@@ -40,21 +40,32 @@ var _buy_label: Label
 var _items: Array = []
 var _slot := "hat"
 var _preview_id := ""      # приміряний, але ще не куплений (лише на герої в центрі)
+## Карусель і її UI будуються при першому відкритті — див. _build().
+var _built := false
 
 
 func _ready() -> void:
 	visible = false
 	heroes = load_heroes()
 	ids = order_ids(heroes)
+
+
+## Карусель важка (8 героїв із подіумами — близько 150 мешів і 250 вузлів), а відкривають її
+## далеко не щоразу. Тому будуємо при першому open(), а не на старті гри (docs/optimisation OPT-04).
+func _build() -> void:
+	if _built:
+		return
+	_built = true
 	_row = Node3D.new()
 	_row.position.z = ROW_Z
 	add_child(_row)
 	for i in range(ids.size()):
 		var id := String(ids[i])
 		var h: Dictionary = heroes[id]
+		var color := Palette.of(h.get("color"), Palette.HERO_DEFAULT)
 		var p := Hero3D.new()
 		_row.add_child(p)
-		p.set_hero(id, Palette.of(h.get("color"), Palette.HERO_DEFAULT), String(h.get("feature", "tuft")))
+		p.set_hero(id, color, String(h.get("feature", "tuft")))
 		p.position.x = float(i) * SPACING
 		p.x_target = p.position.x   # інакше _process героя стягне всіх у x = 0
 		p.position.y = PODIUM_H
@@ -62,7 +73,7 @@ func _ready() -> void:
 		p.rotation.y = PI          # обличчям до камери
 		_previews.append(p)
 		# подіум стоїть НА землі (не врізається — інакше z-fighting «блимає»)
-		var podium := Mats.box(Vector3(1.1, PODIUM_H, 1.1), Palette.of(h.get("color"), Palette.HERO_DEFAULT).lightened(0.35))
+		var podium := Mats.box(Vector3(1.1, PODIUM_H, 1.1), color.lightened(0.35))
 		podium.position = Vector3(float(i) * SPACING, PODIUM_H * 0.5 + 0.005, 0.0)
 		_row.add_child(podium)
 	_build_ui()
@@ -282,6 +293,7 @@ func _build_ui() -> void:
 
 
 func open(camera: Camera3D, current_id: String) -> void:
+	_build()
 	_camera = camera
 	visible = true
 	_ui.visible = true
