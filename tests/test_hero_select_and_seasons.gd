@@ -81,19 +81,19 @@ func test_stat_dots() -> void:
 
 func test_strip_clamp_and_paging() -> void:
 	# вміщується — по центру
-	assert_eq(HeroSelect.clamp_strip_x(-300.0, 500.0, 1100.0), 300.0)
-	assert_eq(HeroSelect.clamp_strip_x(0.0, 1100.0, 1100.0), 0.0)
+	assert_eq(ItemStrip.clamp_x(-300.0, 500.0, 1100.0), 300.0)
+	assert_eq(ItemStrip.clamp_x(0.0, 1100.0, 1100.0), 0.0)
 	# не вміщується — від (view − content) до 0
-	assert_eq(HeroSelect.clamp_strip_x(50.0, 2000.0, 1100.0), 0.0, "правіше початку не буває")
-	assert_eq(HeroSelect.clamp_strip_x(-999.0, 2000.0, 1100.0), -900.0, "лівіше кінця не буває")
-	assert_eq(HeroSelect.clamp_strip_x(-300.0, 2000.0, 1100.0), -300.0, "усередині — як є")
+	assert_eq(ItemStrip.clamp_x(50.0, 2000.0, 1100.0), 0.0, "правіше початку не буває")
+	assert_eq(ItemStrip.clamp_x(-999.0, 2000.0, 1100.0), -900.0, "лівіше кінця не буває")
+	assert_eq(ItemStrip.clamp_x(-300.0, 2000.0, 1100.0), -300.0, "усередині — як є")
 	# сторінки: на ширину вікна
-	assert_eq(HeroSelect.strip_page_x(0.0, 1, 3000.0, 1100.0), -1100.0)
-	assert_eq(HeroSelect.strip_page_x(-1100.0, 1, 3000.0, 1100.0), -1900.0, "остання сторінка обрізається до краю")
-	assert_eq(HeroSelect.strip_page_x(-1900.0, 1, 3000.0, 1100.0), -1900.0, "далі нікуди")
-	assert_eq(HeroSelect.strip_page_x(-1900.0, -1, 3000.0, 1100.0), -800.0)
-	assert_eq(HeroSelect.strip_page_x(-800.0, -1, 3000.0, 1100.0), 0.0)
-	assert_eq(HeroSelect.strip_page_x(0.0, 1, 500.0, 1100.0), 300.0, "усе вміщується — стоїть по центру")
+	assert_eq(ItemStrip.page_x(0.0, 1, 3000.0, 1100.0), -1100.0)
+	assert_eq(ItemStrip.page_x(-1100.0, 1, 3000.0, 1100.0), -1900.0, "остання сторінка обрізається до краю")
+	assert_eq(ItemStrip.page_x(-1900.0, 1, 3000.0, 1100.0), -1900.0, "далі нікуди")
+	assert_eq(ItemStrip.page_x(-1900.0, -1, 3000.0, 1100.0), -800.0)
+	assert_eq(ItemStrip.page_x(-800.0, -1, 3000.0, 1100.0), 0.0)
+	assert_eq(ItemStrip.page_x(0.0, 1, 500.0, 1100.0), 300.0, "усе вміщується — стоїть по центру")
 
 
 func test_seasons_cover_all_months() -> void:

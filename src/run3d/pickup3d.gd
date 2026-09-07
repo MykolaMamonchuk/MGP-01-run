@@ -75,7 +75,7 @@ static func per_minute_total(data: Dictionary, profile_name: String) -> float:
 func setup(k: String) -> void:
 	kind = k
 	def = def_of(k)
-	var color := Color(String(def.get("color", "#FFFFFF")))
+	var color := Palette.of(def.get("color"), Palette.PICKUP_DEFAULT)
 	_mesh = VoxelBuilder.instance(String(def.get("voxel", k)))
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true

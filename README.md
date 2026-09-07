@@ -71,8 +71,17 @@ CI (`.github/workflows/ci.yml`) запускає ці ж тести на кож�
   - `shop.json` — крамниця: предмети за слотами (hat/face/neck/back/trail), ціни в зірочках, воксель або колір сліду;
   - `voxels/*.json` — воксельні моделі (шари знизу вгору, символи = палітра).
 - `src/run3d/` — геймплей: `run3d.gd` (стани MENU/HEROES/COUNTDOWN/RUN/STATION/SLEEP, жести, Розвилка), `hero3d.gd` (герой: частини, міміка, тінь), `hero_select.gd` (карусель героїв + крамниця), `shop.gd` (каталог/покупка/одягання, `hats.gd` — обгортка для капелюшків), `track.gd`, `spawner3d.gd` (перешкоди/зірочки/зіткнення без фізики), `event_spawner.gd`, `rainbow3d.gd`, `fx.gd` (частинки), `seasons.gd`, `camera_rig.gd`, `modes/` (run / hop / slide), `gestures.gd`.
-- `src/ui/` — інтерфейс: `hud.gd`, `menu.gd`, `map_screen.gd` (мапа з островами, хвилями й хмаринками), `wheel.gd`, `ui_kit.gd` (кнопки/пружини/шрифт), `icons.gd` (іконки малюються кодом; `VoxelIcon` — картинка предмета з вокселя).
+- `src/ui/` — інтерфейс, три шари:
+  - **екрани** — `hud.gd`, `menu.gd`, `map_screen.gd` (мапа з островами, хвилями й хмаринками), `wheel.gd`, `controls.gd`; вони компонують готові віджети, а не малюють самі;
+  - `theme/` — вигляд: `palette.gd` (**єдине джерело кольорів**: шкала → ролі → набори) і `ui_kit.gd` (кнопки, заголовки, пружини, шрифт);
+  - `components/` — самостійні віджети: `item_strip.gd` (стрічка предметів із гортанням), `heart_icon.gd`, `pickup_icon.gd`, `pickup_bar.gd`, `check_icon.gd`, `hero_marker.gd`, `price_badge.gd`, `lock_icon.gd`, `stick_view.gd` і `icons.gd` (бібліотека намальованих іконок; `VoxelIcon` — картинка предмета з вокселя).
+
+  **Кольори.** Літерала `"#RRGGBB"` у коді бути не повинно — беріть роль із `Palette` (`Palette.BTN_PRIMARY`, `Palette.STAR`, `Palette.WORLD_GROUND`). Кольори з `data/*.json` читайте через `Palette.of(значення, ЗАПАСНИЙ_ТОКЕН)`. Це стереже `tests/test_palette.gd`.
 - `tests/` — тести GUT.
+- `tools/perf/` — замірник продуктивності (`godot res://tools/perf/perf.tscn`), не частина гри.
+- `docs/` — документація: [CHANGELOG](docs/CHANGELOG.md), [задачі](docs/TASKS.md), [збірка](docs/EXPORT.md),
+  а також дві серії датованих заходів — [оптимізація](docs/optimisation/) і [код-рев'ю](docs/review/).
+  Конвенція серій (ID знахідок, чеклисти, статуси) — у [docs/README.md](docs/README.md).
 
 ## Гілки та коміти
 

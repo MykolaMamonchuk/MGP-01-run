@@ -1,5 +1,5 @@
 ## Дитячий UI-кіт: великі округлі кнопки з тінню, пружні появи, шрифт (якщо є файл).
-## Використання: UIKit.button("Грати", Color("#66BB6A"), Vector2(360, 130), 48)
+## Використання: UIKit.button("Грати", Palette.BTN_PRIMARY, Vector2(360, 130), 48)
 class_name UIKit
 extends RefCounted
 
@@ -14,7 +14,7 @@ static func font() -> Font:
 	return _font
 
 
-static func label(text: String, size: int, color: Color = Color("#263238")) -> Label:
+static func label(text: String, size: int, color: Color = Palette.TEXT) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_font_size_override("font_size", size)
@@ -29,11 +29,11 @@ static func label(text: String, size: int, color: Color = Color("#263238")) -> L
 
 
 ## Заголовок з обведенням і тінню — читається на будь-якому тлі.
-static func title(text: String, size: int, color: Color = Color.WHITE) -> Label:
+static func title(text: String, size: int, color: Color = Palette.TEXT_TITLE) -> Label:
 	var l := label(text, size, color)
-	l.add_theme_color_override("font_outline_color", Color("#3E2723"))
+	l.add_theme_color_override("font_outline_color", Palette.TEXT_OUTLINE)
 	l.add_theme_constant_override("outline_size", int(size * 0.14))
-	l.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.35))
+	l.add_theme_color_override("font_shadow_color", Palette.TEXT_SHADOW)
 	l.add_theme_constant_override("shadow_offset_y", int(size * 0.08))
 	return l
 
@@ -43,7 +43,7 @@ static func _style(bg: Color, radius: int, shadow: int) -> StyleBoxFlat:
 	s.bg_color = bg
 	s.set_corner_radius_all(radius)
 	s.set_content_margin_all(16)
-	s.shadow_color = Color(0, 0, 0, 0.25)
+	s.shadow_color = Palette.SHADOW
 	s.shadow_size = shadow
 	s.shadow_offset = Vector2(0, shadow * 0.6)
 	s.border_width_bottom = 6
@@ -57,9 +57,9 @@ static func button(text: String, bg: Color, min_size: Vector2, font_size: int = 
 	b.custom_minimum_size = min_size
 	b.focus_mode = Control.FOCUS_NONE
 	b.add_theme_font_size_override("font_size", font_size)
-	b.add_theme_color_override("font_color", Color.WHITE)
-	b.add_theme_color_override("font_pressed_color", Color.WHITE)
-	b.add_theme_color_override("font_hover_color", Color.WHITE)
+	b.add_theme_color_override("font_color", Palette.WHITE)
+	b.add_theme_color_override("font_pressed_color", Palette.WHITE)
+	b.add_theme_color_override("font_hover_color", Palette.WHITE)
 	b.add_theme_color_override("font_outline_color", bg.darkened(0.45))
 	b.add_theme_constant_override("outline_size", int(font_size * 0.12))
 	var f := font()
@@ -76,6 +76,18 @@ static func button(text: String, bg: Color, min_size: Vector2, font_size: int = 
 	b.button_down.connect(func(): _press_anim(b, 0.94))
 	b.button_up.connect(func(): _press_anim(b, 1.0))
 	return b
+
+
+## Кольорова рамка навколо кнопки (стан «одягнуто», «активна вкладка»).
+## Прозорий колір знімає рамку візуально, не чіпаючи інші стилі.
+static func frame(b: Button, col: Color) -> void:
+	for st in ["normal", "hover", "pressed"]:
+		var sb := b.get_theme_stylebox(st)
+		if sb is StyleBoxFlat:
+			var s := (sb as StyleBoxFlat).duplicate() as StyleBoxFlat
+			s.set_border_width_all(6)
+			s.border_color = col
+			b.add_theme_stylebox_override(st, s)
 
 
 static func _press_anim(c: Control, to: float) -> void:

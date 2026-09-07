@@ -101,8 +101,8 @@ static func plate_material() -> ShaderMaterial:
 	if _plate_mat == null:
 		_plate_mat = ShaderMaterial.new()
 		_plate_mat.shader = load("res://addons/mgp_core/voxel/stripes.gdshader")
-		_plate_mat.set_shader_parameter("color_a", Color("#EF5350"))
-		_plate_mat.set_shader_parameter("color_b", Color("#FFFFFF"))
+		_plate_mat.set_shader_parameter("color_a", Palette.OBSTACLE_STRIPE)
+		_plate_mat.set_shader_parameter("color_b", Palette.OBSTACLE_STRIPE_ALT)
 		_plate_mat.set_shader_parameter("stripe_width", 0.15)
 	return _plate_mat
 
@@ -174,7 +174,7 @@ func tick(delta: float) -> void:
 			_drip_t += delta
 			if _drip_t > 0.7 and is_inside_tree():
 				_drip_t = 0.0
-				FX.splash(get_parent(), position + Vector3(0, 0.1, 0), Color("#90CAF9"))
+				FX.splash(get_parent(), position + Vector3(0, 0.1, 0), Palette.SPLASH_WATER)
 		_:
 			pass
 

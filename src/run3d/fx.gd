@@ -40,7 +40,7 @@ static func _ramp(colors: Array) -> GradientTexture1D:
 	var cols := PackedColorArray()
 	for i in range(colors.size()):
 		offs.append(float(i) / float(maxi(1, colors.size() - 1)))
-		cols.append(Color(String(colors[i])))
+		cols.append(colors[i] as Color)
 	g.offsets = offs
 	g.colors = cols
 	var t := GradientTexture1D.new()
@@ -54,7 +54,7 @@ static func _auto_free(p: GPUParticles3D) -> void:
 
 
 ## Вибух зірочки при зборі.
-static func burst(parent: Node, pos: Vector3, color: Color = Color("#FFD54F")) -> void:
+static func burst(parent: Node, pos: Vector3, color: Color = Palette.STAR) -> void:
 	var p := _make(14, 0.5, true, 0.1, color)
 	var pm := p.process_material as ParticleProcessMaterial
 	pm.direction = Vector3(0, 1, 0)
@@ -64,7 +64,7 @@ static func burst(parent: Node, pos: Vector3, color: Color = Color("#FFD54F")) -
 	pm.gravity = Vector3(0, -4, 0)
 	pm.scale_min = 0.6
 	pm.scale_max = 1.3
-	pm.color_initial_ramp = _ramp(["#FFFFFF", color.to_html(false), "#FFB300"])
+	pm.color_initial_ramp = _ramp([Palette.WHITE, color, Palette.AMBER_DEEP])
 	p.position = pos
 	parent.add_child(p)
 	_auto_free(p)
@@ -90,7 +90,7 @@ static func dust(parent: Node, pos: Vector3) -> void:
 
 ## Конфеті (станція, завдання, ріст).
 static func confetti(parent: Node, pos: Vector3, amount: int = 80) -> void:
-	var p := _make(amount, 2.4, true, 0.12, Color.WHITE)
+	var p := _make(amount, 2.4, true, 0.12, Palette.WHITE)
 	var pm := p.process_material as ParticleProcessMaterial
 	pm.direction = Vector3(0, 1, 0)
 	pm.spread = 180.0
@@ -103,14 +103,14 @@ static func confetti(parent: Node, pos: Vector3, amount: int = 80) -> void:
 	pm.scale_max = 1.2
 	pm.damping_min = 0.5
 	pm.damping_max = 1.5
-	pm.color_initial_ramp = _ramp(["#FF5252", "#FFD740", "#69F0AE", "#40C4FF", "#E040FB", "#FF9E80"])
+	pm.color_initial_ramp = _ramp(Palette.RAMP_CONFETTI)
 	p.position = pos
 	parent.add_child(p)
 	_auto_free(p)
 
 
 ## Бризки води (калюжа, Хвиля).
-static func splash(parent: Node, pos: Vector3, color: Color = Color("#90CAF9")) -> void:
+static func splash(parent: Node, pos: Vector3, color: Color = Palette.SPLASH_WATER) -> void:
 	var p := _make(16, 0.6, true, 0.09, color)
 	var pm := p.process_material as ParticleProcessMaterial
 	pm.direction = Vector3(0, 1, 0)
@@ -127,7 +127,7 @@ static func splash(parent: Node, pos: Vector3, color: Color = Color("#90CAF9")) 
 
 ## Постійні іскри навколо героя (Іскринка) або антенки.
 static func sparkles(parent: Node, radius: float = 0.5, amount: int = 12) -> GPUParticles3D:
-	var p := _make(amount, 1.0, false, 0.06, Color("#FFF59D"))
+	var p := _make(amount, 1.0, false, 0.06, Palette.LEMON_PALE)
 	var pm := p.process_material as ParticleProcessMaterial
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_SPHERE
 	pm.emission_sphere_radius = radius
@@ -138,7 +138,7 @@ static func sparkles(parent: Node, radius: float = 0.5, amount: int = 12) -> GPU
 	pm.gravity = Vector3.ZERO
 	pm.scale_min = 0.4
 	pm.scale_max = 1.0
-	pm.color_initial_ramp = _ramp(["#FFFFFF", "#FFF59D", "#FFD54F"])
+	pm.color_initial_ramp = _ramp(Palette.RAMP_SPARKLE)
 	p.position.y = 0.7
 	p.emitting = true
 	parent.add_child(p)
@@ -147,7 +147,7 @@ static func sparkles(parent: Node, radius: float = 0.5, amount: int = 12) -> GPU
 
 ## Сердечка (погладили / радість): рожеві ромбики летять угору з легким розльотом.
 static func hearts(parent: Node, pos: Vector3, amount: int = 6) -> void:
-	var p := _make(amount, 1.0, true, 0.14, Color("#FF80AB"))
+	var p := _make(amount, 1.0, true, 0.14, Palette.PINK_BRIGHT)
 	var pm := p.process_material as ParticleProcessMaterial
 	pm.direction = Vector3(0, 1, 0)
 	pm.spread = 25.0
@@ -159,7 +159,7 @@ static func hearts(parent: Node, pos: Vector3, amount: int = 6) -> void:
 	pm.angle_max = 45.0
 	pm.scale_min = 0.7
 	pm.scale_max = 1.2
-	pm.color_initial_ramp = _ramp(["#FF80AB", "#F8BBD0"])
+	pm.color_initial_ramp = _ramp(Palette.RAMP_HEARTS)
 	p.position = pos
 	parent.add_child(p)
 	_auto_free(p)
@@ -178,7 +178,7 @@ static func trail(parent: Node, color: Color, amount: int = 16) -> GPUParticles3
 	pm.gravity = Vector3(0, -0.5, 0)
 	pm.scale_min = 0.4
 	pm.scale_max = 1.0
-	pm.color_initial_ramp = _ramp(["#FFFFFF", color.to_html(false), color.darkened(0.2).to_html(false)])
+	pm.color_initial_ramp = _ramp([Palette.WHITE, color, color.darkened(0.2)])
 	p.emitting = true
 	parent.add_child(p)
 	return p
@@ -186,49 +186,43 @@ static func trail(parent: Node, color: Color, amount: int = 16) -> GPUParticles3
 
 ## Атмосфера світу/сезону: "petals" (Лужок), "leaves" (Ліс), "glints" (Пляж), "snow" (зима), "fireflies" (вечір).
 static func ambient(parent: Node, kind: String) -> GPUParticles3D:
-	var color := Color.WHITE
+	var color := Palette.WHITE
 	var size := 0.1
 	var gravity := Vector3(0, -0.4, 0)
-	var ramp: Array = []
+	# кольори — Palette.RAMP_AMBIENT[kind]; тут лише «фізика» кожного виду
 	var amount := 60
 	var lifetime := 9.0
 	match kind:
 		"petals":
-			ramp = ["#F8BBD0", "#FFFFFF", "#F06292"]
 			gravity = Vector3(0.4, -0.35, 0)
 		"leaves":
-			ramp = ["#FF8F00", "#D84315", "#FDD835"]
 			size = 0.13
 			gravity = Vector3(0.6, -0.5, 0)
 		"snow":
-			ramp = ["#FFFFFF", "#E3F2FD"]
 			size = 0.08
 			amount = 120
 			gravity = Vector3(0.2, -0.7, 0)
 		"glints":
-			ramp = ["#FFFFFF", "#B3E5FC"]
 			size = 0.06
 			amount = 40
 			lifetime = 1.6
 			gravity = Vector3.ZERO
 		"fireflies":
-			ramp = ["#FFF59D", "#C6FF00"]
 			size = 0.07
 			amount = 30
 			lifetime = 4.0
 			gravity = Vector3.ZERO
 		"rain":
-			ramp = ["#B3E5FC", "#E1F5FE"]
 			size = 0.05
 			amount = 200
 			lifetime = 1.4
 			gravity = Vector3(0.3, -9.0, 0)
 		"stars":
-			ramp = ["#FFFFFF", "#FFF59D", "#B39DDB"]
 			size = 0.06
 			amount = 80
 			lifetime = 6.0
 			gravity = Vector3(0, -0.15, 0)
+	var ramp: Array = Palette.RAMP_AMBIENT.get(kind, [])
 	var p := _make(amount, lifetime, false, size, color)
 	var pm := p.process_material as ParticleProcessMaterial
 	pm.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX

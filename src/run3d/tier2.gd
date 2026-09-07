@@ -7,9 +7,9 @@ extends Node3D
 
 const H := 1.2
 const RAMP := 2.0
-const PLATFORM_COLOR := Color("#A1887F")
-const EDGE_COLOR := Color("#8D6E63")
-const RAIL_COLOR := Color("#FFD54F")
+const PLATFORM_COLOR := Palette.TIER2_PLATFORM
+const EDGE_COLOR := Palette.TIER2_EDGE
+const RAIL_COLOR := Palette.TIER2_RAIL
 
 var lanes_used: Array = []
 var length := 12.0

@@ -25,6 +25,10 @@ const FACES := [
 	{"n": Vector3(0, 0, -1), "v": [Vector3(0, 0, 0), Vector3(1, 0, 0), Vector3(1, 1, 0), Vector3(0, 1, 0)]},
 ]
 
+## Колір «моделі нема» — навмисно помітний.
+## Модуль автономний (не знає про гру), тому колір тут, а не в Palette.
+const MISSING_COLOR := "#FF4FA3"
+
 static var _cache: Dictionary = {}
 static var _material: Material
 static var _material_alpha: ShaderMaterial
@@ -150,4 +154,4 @@ static func instance(name: String, palette_override: Dictionary = {}) -> MeshIns
 
 ## Рожевий кубик, якщо файл не знайдено — видно одразу, гра не падає.
 static func _fallback() -> ArrayMesh:
-	return build({"size": 0.5, "palette": {"p": "#FF4FA3"}, "layers": [["p"]]})
+	return build({"size": 0.5, "palette": {"p": MISSING_COLOR}, "layers": [["p"]]})
