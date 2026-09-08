@@ -534,8 +534,11 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	_far_filler = _filter_voxels(["tree_round", "pine_3"])
 	# шари під усі види пропсів створюємо одразу: вибір випадковий, і без цього другий rebuild
 	# того ж світу «знаходив» нові види й плодив шари посеред гри
-	for v in _props_side + _buildings_far + _far_filler:
+	var lm_kinds: Array = world.get("landmarks", []) if typeof(world.get("landmarks")) == TYPE_ARRAY else []
+	for v in _props_side + _buildings_far + _far_filler + lm_kinds:
 		_decor_layer(String(v), {})
+	if not _canal_sides.is_empty() and _bridges_every > 0 and _voxel_exists("bridge_plank"):
+		_decor_layer("bridge_plank", {})
 	_far_left = _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])
 	_far_side = -1.0 if _rng.randf() < 0.5 else 1.0
 	_layout_canal()
