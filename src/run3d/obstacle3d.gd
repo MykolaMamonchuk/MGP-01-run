@@ -2,17 +2,26 @@
 ## action: "jump" (перестрибнути), "duck" (присісти), "any" (можна пробігти — бризки), "side" (обійти),
 ## "boost" (трамплін), "rail" (рейка-бонус), "wind" (зносить убік).
 ## Читабельність (GDD v1.3 §8): чорне обведення (вивернута оболонка) і смугаста «небезпечна» плитка під тими, що збивають.
+## Мова перешкод (GDD v1.4 §3): силует із data/obstacle_shapes.json (поле "shape" у світі) додає маркер —
+## червоно-білі смуги зверху («перестрибни»), жовто-чорні смуги на верхній балці («пригнись»),
+## великий білий X на передній грані («сюди не можна»). Перешкода може вимкнути маркер полем "marker": "none".
 class_name Obstacle3D
 extends Node3D
 
 ## Дії без плитки: не збивають або є бонусом.
 const NO_PLATE_ACTIONS := ["any", "boost", "rail", "wind"]
 const OUTLINE_SCALE := 1.04
+const SHAPES_PATH := "res://data/obstacle_shapes.json"
 
 static var _outline_mat: Material
 static var _plate_mat: ShaderMaterial
+static var _stripe_mats: Dictionary = {}
+static var _shapes: Dictionary = {}
+static var _shapes_loaded := false
 
 var kind := ""
+var shape := ""
+var marker := "none"
 var action := "any"
 var tumble := true
 var lane := 0
@@ -30,6 +39,9 @@ var _box_y := 0.0
 
 func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = true) -> void:
 	kind = k
+	shape = String(def.get("shape", ""))
+	# маркер: свій у перешкоди, інакше — типовий для силуету
+	marker = String(def.get("marker", shape_def(shape).get("marker", "none")))
 	action = String(def.get("action", "any"))
 	tumble = bool(def.get("tumble", true))
 	lane = l
@@ -64,6 +76,7 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		outline.material_override = om
 		outline.name = "Outline"
 		_mesh.add_child(outline)
+		_add_marker()
 		if tumble and not NO_PLATE_ACTIONS.has(action):
 			_plate = Mats.box(Vector3(0.9, 0.04, 0.9), Color.WHITE)
 			_plate.material_override = plate_material()
@@ -77,6 +90,67 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 
 
 var _plate: MeshInstance3D
+
+
+## Каталог силуетів (data/obstacle_shapes.json) — читається один раз на запуск.
+static func shapes() -> Dictionary:
+	if not _shapes_loaded:
+		_shapes_loaded = true
+		var f := FileAccess.open(SHAPES_PATH, FileAccess.READ)
+		if f != null:
+			var parsed = JSON.parse_string(f.get_as_text())
+			if typeof(parsed) == TYPE_DICTIONARY and typeof(parsed.get("shapes", null)) == TYPE_DICTIONARY:
+				_shapes = (parsed as Dictionary)["shapes"] as Dictionary
+	return _shapes
+
+
+## Опис силуету (порожній словник, якщо силует не заданий/невідомий).
+static func shape_def(id: String) -> Dictionary:
+	var v = shapes().get(id, {})
+	return v if typeof(v) == TYPE_DICTIONARY else {}
+
+
+## Смугастий матеріал маркера: пара кольорів на смуги (кеш — один на пару).
+static func stripe_material(a: Color, b: Color, width: float = 0.12) -> ShaderMaterial:
+	var key := "%s|%s|%.3f" % [a.to_html(false), b.to_html(false), width]
+	if not _stripe_mats.has(key):
+		var m := ShaderMaterial.new()
+		m.shader = load("res://addons/mgp_core/voxel/stripes.gdshader")
+		m.set_shader_parameter("color_a", a)
+		m.set_shader_parameter("color_b", b)
+		m.set_shader_parameter("stripe_width", width)
+		_stripe_mats[key] = m
+	return _stripe_mats[key] as ShaderMaterial
+
+
+## Маркер силуету: смуги зверху / на балці або білий X на передній грані.
+func _add_marker() -> void:
+	match marker:
+		"stripes_red":
+			# «перестрибни»: червоно-біла стрічка по верху перешкоди
+			var top := Mats.box(Vector3(box.x * 0.92, 0.06, box.z * 0.8), Palette.WHITE)
+			top.material_override = stripe_material(Palette.OBSTACLE_STRIPE, Palette.OBSTACLE_STRIPE_ALT)
+			top.position.y = _box_y + box.y + 0.03
+			top.name = "MarkJump"
+			add_child(top)
+		"stripes_yellow":
+			# «пригнись»: жовто-чорна стрічка на верхній балці
+			var beam := Mats.box(Vector3(box.x * 0.98, 0.07, box.z * 0.9), Palette.WHITE)
+			beam.material_override = stripe_material(Palette.AMBER, Palette.INK)
+			beam.position.y = _box_y + box.y + 0.04
+			beam.name = "MarkDuck"
+			add_child(beam)
+		"x_white":
+			# «сюди не можна»: дві білі перекладини хрестом на передній грані
+			var length := sqrt(box.x * box.x + box.y * box.y) * 0.92
+			for s in [1.0, -1.0]:
+				var bar := Mats.box(Vector3(0.07, length, 0.04), Palette.WHITE)
+				bar.position = Vector3(0.0, _box_y + box.y * 0.5, -box.z * 0.5 - 0.03)
+				bar.rotation.z = s * atan2(box.x, box.y)
+				bar.name = "MarkX%s" % ("A" if s > 0.0 else "B")
+				add_child(bar)
+		_:
+			pass
 
 
 ## Матеріал обведення (один на всі перешкоди): шейдер-оболонка, якщо є; інакше чорний unshaded cull_front.

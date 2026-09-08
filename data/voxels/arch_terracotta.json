@@ -1,0 +1,18 @@
+{
+  "_note": "Теракотова арка над дорогою (арт-біблія): ширина 3,2 м = дорога на 3 доріжки, висота 2,2 м. Track масштабує під поточну ширину.",
+  "size": 0.2,
+  "palette": {"t": "#C9784F", "m": "#A55B3A", "d": "#7A4128", "g": "#7CC46B"},
+  "layers": [
+    ["ddd..........ddd", "ddd..........ddd"],
+    ["ddd..........ddd", "ddd..........ddd"],
+    ["ttt..........ttt", "ttt..........ttt"],
+    ["mmm..........mmm", "mmm..........mmm"],
+    ["ttt..........ttt", "ttt..........ttt"],
+    ["mmm..........mmm", "mmm..........mmm"],
+    ["ttt..........ttt", "ttt..........ttt"],
+    ["tttt........tttt", "tttt........tttt"],
+    ["ttttt......ttttt", "ttttt......ttttt"],
+    ["tttttt....tttttt", "tttttt....tttttt"],
+    ["gggggggggggggggg", "gggggggggggggggg"]
+  ]
+}

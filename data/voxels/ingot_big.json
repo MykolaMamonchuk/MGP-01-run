@@ -1,0 +1,10 @@
+{
+  "_note": "Великий злиток «+100» (GDD v1.4 §3): той самий силует, більший, з білими блискітками.",
+  "size": 0.16,
+  "palette": {"o": "#FFB300", "y": "#FFD54F", "w": "#FFFFFF"},
+  "layers": [
+    ["ooooo", "ooooo", "ooooo"],
+    ["oyyyo", "yyyyy", "oyyyo"],
+    [".ywy.", "ywywy", ".ywy."]
+  ]
+}

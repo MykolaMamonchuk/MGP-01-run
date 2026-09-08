@@ -1,9 +1,19 @@
-## HUD: зірочки (усього + рівень), серця, швидкість, смужка пікапа, кнопка батьків, станція, підказка, сон.
+## HUD-мінімум (GDD v1.4 §10, реф. §6): ліворуч угорі — злиток і монети рівня, під ним серця;
+## по центру — великий лаймовий ×N і маленька швидкість; праворуч — кругла пауза.
+## Загальні зірочки під час бігу не показуються (вони живуть у меню/діорамі/героях).
+## Знизу по центру — смужка пікапа; ліворуч під серцями — мінізавдання; знизу ліворуч — кнопка батьків.
 ## Будується кодом. Кожен дитячий елемент має намальовану іконку (src/ui/components/icons.gd), текст — лише другорядний.
 extends CanvasLayer
 
+## Пауза: гру ставить/знімає Run3D, HUD лише повідомляє.
+signal pause_pressed()
+signal resume_pressed()
+signal menu_pressed()
+
 ## Знак пікапа, якщо в data/pickups.json його нема (колір — Palette.PICKUP_DEFAULT).
 const PICKUP_FALLBACK_LETTER := "?"
+## Воксель злитка для іконки монет рівня.
+const INGOT_VOXEL := "ingot"
 ## Пульс лічильника швидкості — на кожному перетині чергових +10 км/год.
 const SPEED_PULSE_STEP := 10
 ## Миттєвий пікап (seconds 0): іконка підскакує й ховається через стільки секунд.
@@ -46,6 +56,33 @@ var _pickup_kind := ""
 var _pickup_total := 0.0
 var _pickup_left := 0.0
 var _pickup_pop_tw: Tween
+# v1.4: множник, пауза, загальні зірочки як окремий блок
+var _stars_box: HBoxContainer
+var _mult := 1
+var _mult_label: Label
+var _pause_btn: Button
+var _pause_panel: Control
+var _tally_tw: Tween
+
+
+## Кругла сіра кнопка паузи: коло з двома білими рисками.
+class PauseGlyph:
+	extends Control
+
+	func _init(px: float = 88.0) -> void:
+		custom_minimum_size = Vector2(px, px)
+		size = custom_minimum_size
+		mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	func _draw() -> void:
+		var c := size * 0.5
+		var r: float = min(size.x, size.y) * 0.46
+		draw_circle(c, r, Palette.BTN_SETTINGS)
+		draw_arc(c, r, 0.0, TAU, 32, Palette.ICON_EDGE, r * 0.1)
+		var w := r * 0.22
+		var h := r * 0.9
+		draw_rect(Rect2(c + Vector2(-w * 2.0, -h * 0.5), Vector2(w, h)), Palette.WHITE)
+		draw_rect(Rect2(c + Vector2(w, -h * 0.5), Vector2(w, h)), Palette.WHITE)
 
 
 func _ready() -> void:
@@ -59,53 +96,81 @@ func _ready() -> void:
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
 
-	var stars_box := HBoxContainer.new()
-	stars_box.position = Vector2(1000, 24)
-	stars_box.add_theme_constant_override("separation", 10)
-	stars_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(stars_box)
-	stars_box.add_child(Icons.StarIcon.new(56.0))
+	# загальні зірочки — лише поза бігом (меню, герої, фініш); у RUN ховаються
+	_stars_box = HBoxContainer.new()
+	_stars_box.position = Vector2(1000, 24)
+	_stars_box.add_theme_constant_override("separation", 10)
+	_stars_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_stars_box)
+	_stars_box.add_child(Icons.StarIcon.new(56.0))
 	stars_label = UIKit.title("0", 48)
-	stars_box.add_child(stars_label)
+	_stars_box.add_child(stars_label)
 
-	# монети цього рівня — ліворуч від загальних зірочок (менша зірочка, число)
+	# ліворуч угорі: злиток + монети цього рівня
 	_tally_box = HBoxContainer.new()
-	_tally_box.position = Vector2(820, 32)
-	_tally_box.add_theme_constant_override("separation", 8)
+	_tally_box.position = Vector2(28, 20)
+	_tally_box.add_theme_constant_override("separation", 10)
 	_tally_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_tally_box)
-	_tally_box.add_child(Icons.StarIcon.new(44.0))
-	_tally_label = UIKit.title("0", 40, Palette.TEXT_LIGHT)
+	_tally_box.add_child(Icons.VoxelIcon.new(INGOT_VOXEL, 56.0))
+	_tally_label = UIKit.title("0", 48, Palette.STAR)
 	_tally_box.add_child(_tally_label)
 
-	# швидкість — під зірочками: велике число + маленьке «км/год»
+	# по центру вгорі: великий лаймовий множник, під ним маленька швидкість
+	var center_box := VBoxContainer.new()
+	center_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	center_box.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	center_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	center_box.grow_vertical = Control.GROW_DIRECTION_END
+	center_box.offset_top = 12
+	center_box.offset_bottom = 12
+	center_box.add_theme_constant_override("separation", 0)
+	center_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(center_box)
+	_mult_label = UIKit.title("×1", 72, Palette.LIME)
+	_mult_label.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_mult_label.resized.connect(func(): _mult_label.pivot_offset = _mult_label.size * 0.5)
+	center_box.add_child(_mult_label)
 	_speed_box = HBoxContainer.new()
-	_speed_box.position = Vector2(1000, 96)
-	_speed_box.add_theme_constant_override("separation", 8)
+	_speed_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	_speed_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_speed_box.add_theme_constant_override("separation", 6)
 	_speed_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(_speed_box)
-	_speed_label = UIKit.title("0", 48)
+	center_box.add_child(_speed_box)
+	_speed_label = UIKit.title("0", 20)
 	_speed_label.resized.connect(func(): _speed_label.pivot_offset = _speed_label.size * 0.5)
 	_speed_box.add_child(_speed_label)
-	var kmh := UIKit.title("км/год", 20, Color(1, 1, 1, 0.85))
-	kmh.size_flags_vertical = Control.SIZE_SHRINK_END
+	var kmh := UIKit.title("км/год", 20, Palette.TEXT_LIGHT)
 	_speed_box.add_child(kmh)
+
+	# праворуч угорі: кругла пауза
+	_pause_btn = Button.new()
+	_pause_btn.position = Vector2(1164, 24)
+	_pause_btn.custom_minimum_size = Vector2(88, 88)
+	_pause_btn.size = _pause_btn.custom_minimum_size
+	_pause_btn.focus_mode = Control.FOCUS_NONE
+	_pause_btn.tooltip_text = "Пауза"
+	for st in ["normal", "hover", "pressed", "focus"]:
+		_pause_btn.add_theme_stylebox_override(st, StyleBoxEmpty.new())
+	_pause_btn.pressed.connect(_on_pause_button)
+	_root.add_child(_pause_btn)
+	_pause_btn.add_child(PauseGlyph.new(88.0))
 
 	Events.star_collected.connect(_on_star_collected)
 	Events.checkpoint_reached.connect(_on_checkpoint_reached)
 	Events.hearts_changed.connect(_on_hearts_changed)
 	Events.pickup_started.connect(show_pickup)
 	Events.pickup_ended.connect(_on_pickup_ended)
-	Events.level_restarted.connect(_on_level_restarted)
 
 	profile_label = Label.new()
-	profile_label.position = Vector2(560, 24)
-	profile_label.add_theme_font_size_override("font_size", 20)
+	profile_label.position = Vector2(440, 686)
+	profile_label.add_theme_font_size_override("font_size", 18)
 	profile_label.modulate.a = 0.5
 	_root.add_child(profile_label)
 
+	# кнопка батьків переїхала вниз ліворуч — угорі ліворуч тепер злиток і серця
 	var parents := Button.new()
-	parents.position = Vector2(24, 24)
+	parents.position = Vector2(24, 600)
 	parents.custom_minimum_size = Vector2(96, 96)
 	parents.tooltip_text = "Для батьків"
 	parents.pressed.connect(_request_parents)
@@ -114,24 +179,24 @@ func _ready() -> void:
 	parent_icon.position = Vector2(16, 16)
 	parents.add_child(parent_icon)
 
-	# серця — під кнопкою батьків
+	# серця — під лічильником злитків
 	_hearts_box = HBoxContainer.new()
-	_hearts_box.position = Vector2(24, 132)
+	_hearts_box.position = Vector2(32, 92)
 	_hearts_box.add_theme_constant_override("separation", 6)
 	_hearts_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_hearts_box)
 	_build_hearts(_hearts_n)
 
-	# пікап: іконка + смужка часу, правий нижній кут (ховається, коли нічого не діє)
+	# пікап: іконка + смужка часу, знизу по центру (ховається, коли нічого не діє)
 	_pickup_box = HBoxContainer.new()
-	_pickup_box.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	_pickup_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_pickup_box.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_pickup_box.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_pickup_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_pickup_box.offset_left = -24
-	_pickup_box.offset_right = -24
+	_pickup_box.offset_left = 0
+	_pickup_box.offset_right = 0
 	_pickup_box.offset_top = -24
 	_pickup_box.offset_bottom = -24
-	_pickup_box.alignment = BoxContainer.ALIGNMENT_END
+	_pickup_box.alignment = BoxContainer.ALIGNMENT_CENTER
 	_pickup_box.add_theme_constant_override("separation", 12)
 	_pickup_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_pickup_box.visible = false
@@ -163,15 +228,15 @@ func _ready() -> void:
 	yawn_panel = _panel(_root, Icons.MoonIcon.new(96.0), "Герой втомлюється…")
 	sleep_panel = _panel(_root, Icons.MoonIcon.new(96.0), "На добраніч!")
 
-	# мінізавдання (від mid): іконка + прогрес, під швидкістю
+	# мінізавдання (від mid): маленька коробочка під серцями
 	_quest_box = HBoxContainer.new()
-	_quest_box.position = Vector2(1000, 168)
-	_quest_box.add_theme_constant_override("separation", 10)
+	_quest_box.position = Vector2(32, 148)
+	_quest_box.add_theme_constant_override("separation", 8)
 	_quest_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_quest_box.visible = false
 	_root.add_child(_quest_box)
 	_quest_label = Label.new()
-	_quest_label.add_theme_font_size_override("font_size", 28)
+	_quest_label.add_theme_font_size_override("font_size", 22)
 	_quest_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_quest_box.add_child(_quest_label)
 
@@ -284,6 +349,117 @@ func set_tally(n: int) -> void:
 	_tally_label.text = "%d" % _tally
 
 
+## Лічильник злитків плавно з'їжджає до to (сорока вкрала) — seconds секунд, з трясінням.
+func tween_tally(to: int, seconds: float = 1.0) -> void:
+	if _tally_tw:
+		_tally_tw.kill()
+	var from := float(_tally)
+	var target := float(maxi(0, to))
+	_tally_tw = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_tally_tw.tween_method(_set_tally_f, from, target, maxf(0.05, seconds))
+	UIKit.shake(_tally_box)
+
+
+func _set_tally_f(v: float) -> void:
+	set_tally(int(round(v)))
+
+
+## Великий лаймовий множник ×N у центрі (GDD v1.4 §10); змінився — пульсує.
+func set_multiplier(n: int) -> void:
+	var v := maxi(1, n)
+	if v == _mult:
+		return
+	_mult = v
+	_mult_label.text = "×%d" % v
+	_mult_label.pivot_offset = _mult_label.size * 0.5
+	var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tw.tween_property(_mult_label, "scale", Vector2(1.35, 1.35), 0.1)
+	tw.tween_property(_mult_label, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_ELASTIC)
+
+
+func multiplier() -> int:
+	return _mult
+
+
+## Спливаючий напис біля героя («+100×3» на великому злитку). screen_pos — екранні координати.
+func pop_text(screen_pos: Vector2, text: String) -> void:
+	var l := UIKit.title(text, 56, Palette.LIME)
+	l.position = screen_pos - Vector2(120.0, 40.0)
+	l.size = Vector2(240.0, 80.0)
+	_root.add_child(l)
+	l.pivot_offset = l.size * 0.5
+	l.scale = Vector2(0.4, 0.4)
+	var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	tw.tween_property(l, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.parallel().tween_property(l, "position:y", l.position.y - 90.0, 0.9)
+	tw.tween_property(l, "modulate:a", 0.0, 0.3)
+	tw.finished.connect(l.queue_free)
+
+
+# ---------- пауза (GDD v1.4 §10) ----------
+
+func _on_pause_button() -> void:
+	AudioMgr.sfx("ui_tap")
+	pause_pressed.emit()
+
+
+## Панель «Пауза» з кнопками «Далі» і «Меню». Гру ставить на паузу Run3D.
+func show_pause() -> void:
+	hide_pause()
+	var dim := ColorRect.new()
+	dim.name = "PauseDim"
+	dim.color = Palette.SHADOW
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.process_mode = Node.PROCESS_MODE_ALWAYS
+	add_child(dim)
+	var p := PanelContainer.new()
+	ParentGate._center(p, Vector2(560, 340))
+	p.process_mode = Node.PROCESS_MODE_ALWAYS
+	var style := StyleBoxFlat.new()
+	style.bg_color = Palette.PANEL
+	style.set_corner_radius_all(36)
+	style.set_content_margin_all(28)
+	style.shadow_size = 16
+	style.shadow_color = Palette.SHADOW
+	p.add_theme_stylebox_override("panel", style)
+	add_child(p)
+	_pause_panel = p
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", 24)
+	p.add_child(v)
+	v.add_child(UIKit.title("Пауза", 64, Palette.LEVEL_DONE))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 28)
+	v.add_child(row)
+	var m := UIKit.button("Меню", Palette.BTN_NAV, Vector2(220, 100), 40)
+	m.pressed.connect(func(): AudioMgr.sfx("ui_tap"); menu_pressed.emit())
+	row.add_child(m)
+	var go := UIKit.button("Далі", Palette.BTN_PRIMARY, Vector2(260, 110), 46)
+	go.pressed.connect(func(): AudioMgr.sfx("ui_play"); resume_pressed.emit())
+	row.add_child(go)
+	call_deferred("_pop_pause")
+
+
+func _pop_pause() -> void:
+	if is_instance_valid(_pause_panel):
+		UIKit.pop_in(_pause_panel)
+
+
+func hide_pause() -> void:
+	if is_instance_valid(_pause_panel):
+		_pause_panel.queue_free()
+	_pause_panel = null
+	if has_node("PauseDim"):
+		get_node("PauseDim").queue_free()
+
+
+func pause_visible() -> bool:
+	return is_instance_valid(_pause_panel)
+
+
 ## Швидкість у клітинках/с → «км/год» (×10); пульс на кожних нових +10.
 func set_speed(cells: float) -> void:
 	var kmh := int(round(maxf(0.0, cells) * 10.0))
@@ -369,10 +545,6 @@ func hide_pickup() -> void:
 func _on_pickup_ended(kind: String) -> void:
 	if kind == _pickup_kind and _pickup_total > 0.0:
 		hide_pickup()
-
-
-func _on_level_restarted(_level: int) -> void:
-	flash("Ще раз!", 1.6, Palette.FLASH_RETRY)
 
 
 func _on_star_collected(_n: int) -> void:
@@ -530,16 +702,21 @@ func hide_fork() -> void:
 func fork_visible() -> bool:
 	return _fork_box.visible
 
-## Меню/герої: ховаємо ігрові елементи, лишаємо зірочки й кнопку батьків.
+## Меню/герої/діорама: ховаємо ігрові елементи, показуємо загальні зірочки й кнопку батьків.
+## У бігу — навпаки: загальний лічильник зірочок зникає (GDD v1.4 §10, HUD-мінімум).
 func set_gameplay_visible(on: bool) -> void:
 	profile_label.visible = on
 	_hearts_box.visible = on
 	_speed_box.visible = on
 	_tally_box.visible = on
+	_mult_label.visible = on
+	_pause_btn.visible = on
+	_stars_box.visible = not on
 	if not on:
 		_quest_box.visible = false
 		hint.visible = false
 		hide_pickup()
+		hide_pause()
 
 ## Великий напис по центру з пружиною (відлік «3 2 1 Біжимо!», «Станція!»).
 func flash(text: String, seconds: float = 0.7, color: Color = Palette.WHITE) -> void:
@@ -585,7 +762,7 @@ func set_quest(kind: String, value: int, target: int) -> void:
 	if _quest_icon == null or _quest_icon.get("kind") != kind:
 		if _quest_icon:
 			_quest_icon.queue_free()
-		_quest_icon = Icons.QuestIcon.new(kind, 40.0)
+		_quest_icon = Icons.QuestIcon.new(kind, 32.0)
 		_quest_box.add_child(_quest_icon)
 		_quest_box.move_child(_quest_icon, 0)
 	_quest_label.text = "%d / %d" % [value, target]
@@ -634,7 +811,7 @@ func _run_is_busy() -> bool:
 	var r := _run()
 	if r == null:
 		return false
-	return bool(r.get("paused_at_station")) or bool(r.get("sleeping"))
+	return bool(r.get("paused_at_station")) or bool(r.get("sleeping")) or bool(r.get("paused_by_button"))
 
 func _request_parents() -> void:
 	# поки бар'єр відкритий, гра стоїть (інакше герой біжить за затемненням)

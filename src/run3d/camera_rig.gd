@@ -26,8 +26,9 @@ func shake(strength: float = 0.12) -> void:
 
 
 func apply(preset: Dictionary, duration: float = 0.0) -> void:
-	var p: Array = preset.get("pos", [0.0, 3.4, 5.6])
-	var l: Array = preset.get("look", [0.0, 0.9, -4.0])
+	# запасний пресет — той самий «низько й близько», що й у світах (GDD v1.4 §3: герой ≈ 1/4 висоти екрана)
+	var p: Array = preset.get("pos", [0.0, 1.9, 3.2])
+	var l: Array = preset.get("look", [0.0, 0.8, -4.0])
 	var pos := Vector3(float(p[0]), float(p[1]), float(p[2]))
 	var look := Vector3(float(l[0]), float(l[1]), float(l[2]))
 	var ortho := bool(preset.get("ortho", false))

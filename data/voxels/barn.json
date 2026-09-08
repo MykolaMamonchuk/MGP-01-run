@@ -1,0 +1,15 @@
+{
+  "_note": "Сарай: теракотові стіни з кремовими воротами, високий цегляний дах.",
+  "size": 0.16,
+  "palette": {"t": "#C9784F", "m": "#A55B3A", "d": "#7A4128", "c": "#FFF3E0"},
+  "layers": [
+    ["ddddddd", "ddddddd", "ddddddd", "ddddddd", "ddddddd"],
+    ["ttccctt", "t.....t", "t.....t", "t.....t", "ttttttt"],
+    ["ttccctt", "t.....t", "t.....t", "t.....t", "ttttttt"],
+    ["ttttttt", "t.....t", "t.....t", "t.....t", "ttttttt"],
+    ["mmmmmmm", "mmmmmmm", "mmmmmmm", "mmmmmmm", "mmmmmmm"],
+    [".mmmmm.", ".mmmmm.", ".mmmmm.", ".mmmmm.", ".mmmmm."],
+    ["..mmm..", "..mmm..", "..mmm..", "..mmm..", "..mmm.."],
+    ["...d...", "...d...", "...d...", "...d...", "...d..."]
+  ]
+}

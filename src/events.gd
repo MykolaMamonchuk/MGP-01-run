@@ -20,4 +20,7 @@ signal quest_completed(quest_id: String, reward: int)
 signal hearts_changed(hearts: int)                   # серця героя змінились (втрата/сердечко/скидання)
 signal pickup_started(kind: String, seconds: float)  # підібрано пікап із тривалістю (0 — миттєвий)
 signal pickup_ended(kind: String)                    # дія пікапа закінчилась (час або щит поглинув удар)
-signal level_restarted(level: int)                   # серця скінчились — рівень починається знову
+signal level_restarted(level: int)                   # ЗАСТАРІЛО (v1.4): рівень більше не перезапускається, сигнал лишився для сумісності
+# v1.4: гра без програшу — сорока краде злитки замість перезапуску
+signal coins_stolen(amount: int)                     # сорока забрала стільки злитків рівня
+signal multiplier_changed(mult: int)                 # змінився множник злитків

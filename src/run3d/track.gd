@@ -9,6 +9,10 @@
 ## Зміна світу — перефарбування рядів з «перебудовою кубиками» (стаггер по z).
 ## Занурення (GDD v1.3 §7): стіни світу з даних — walls_near (кожен ряд, впритул до дороги), walls_far (далі, більші),
 ## canopy (крона над дорогою кожен 3-й ряд), sea (море на всю ширину, дорога невидима).
+## Плато (GDD v1.4 §3, арт-біблія): дорога лежить на верху блокового плато — під узбіччями три шари
+## теракотової «цегли» (нижні темніші й вужчі, разом ≈ 1,2 м), під ними пласка бірюзова вода з обох боків.
+## Між доріжками — тонкі темні шви, щоб плити читались окремо. Орієнтири (landmarks): арка/вежа/ворота
+## кожні 28–30 рядів — точка сходу завжди зайнята.
 class_name Track
 extends Node3D
 
@@ -22,6 +26,21 @@ const CANOPY_Y := 3.2
 const CANOPY_SCALE := 2.5
 ## Один предмет декору: x, y, z (у межах ряду), поворот навколо y, масштаб, фаза «дихання».
 const DECOR_STRIDE := 6
+## Обрив плато: три шари «цегли» по 0,4 м під узбіччями (разом 1,2 м).
+const CLIFF_LAYERS := 3
+const CLIFF_STEP := 0.4
+const CLIFF_BOTTOM := -0.4 - CLIFF_STEP * float(CLIFF_LAYERS)
+## Шви між доріжками: тонкі темні бруски на межах плит (максимум — для 7 доріжок).
+const SEAM_W := 0.04
+const MAX_SEAMS := 6
+## Орієнтир (арка/вежа/ворота) — раз на стільки рядів; ≤ 30, щоб він завжди був у полі зору.
+const LANDMARK_MIN := 28
+const LANDMARK_MAX := 30
+## Ширина, під яку намальовані арки (3 доріжки); Track масштабує їх під поточну дорогу.
+const ARCH_BASE_W := 3.2
+## Ближній пояс стін — впритул до дороги (GDD v1.4 §3 «Стіни впритул»).
+const NEAR_MIN := 0.4
+const NEAR_MAX := 0.8
 
 var world: Dictionary = {}
 var lanes := 3
@@ -30,6 +49,16 @@ var _rows: Array[Node3D] = []
 ## Полотно: [парні ряди, непарні] і [ліве узбіччя, праве].
 var _mm_center: Array[MultiMeshInstance3D] = []
 var _mm_side: Array[MultiMeshInstance3D] = []
+## Обрив плато: шар «цегли» на кожен рівень (по 2 інстанси на ряд — ліворуч і праворуч).
+var _mm_cliff: Array[MultiMeshInstance3D] = []
+## Шви між доріжками: MAX_SEAMS інстансів на ряд (зайві — з нульовим масштабом).
+var _mm_seam: MultiMeshInstance3D
+## Вода внизу з обох боків плато (окрема від «моря» _water).
+var _side_water: Array[MeshInstance3D] = []
+## Пул ближніх стін світу: walls_near + добудовані в діорамі будівлі дитини.
+var _near_pool: Array = []
+## Скільки рядів лишилось до наступного орієнтира.
+var _landmark_left := 10
 ## Стан рядів, який анімується: масштаб центру по x і x узбіч (стаггер при зміні ширини).
 var _row_sx := PackedFloat32Array()
 var _row_lx := PackedFloat32Array()
@@ -69,6 +98,15 @@ func _ready() -> void:
 	var side_mat := Mats.solid(Palette.WORLD_SIDE)
 	_mm_side[0].material_override = side_mat
 	_mm_side[1].material_override = side_mat
+	# обрив плато: шар «цегли» на кожен рівень, по інстансу на бік ряду
+	var cliff_mesh := BoxMesh.new()
+	cliff_mesh.size = Vector3(SIDE_W, CLIFF_STEP, 1.0)
+	for k in range(CLIFF_LAYERS):
+		_mm_cliff.append(_make_canvas(cliff_mesh, ROWS * 2))
+	# шви між доріжками
+	var seam_mesh := BoxMesh.new()
+	seam_mesh.size = Vector3(SEAM_W, 0.44, 1.0)
+	_mm_seam = _make_canvas(seam_mesh, ROWS * MAX_SEAMS)
 
 	_row_sx.resize(ROWS)
 	_row_lx.resize(ROWS)
@@ -129,6 +167,18 @@ func _ready() -> void:
 	_water.position = Vector3(0.0, 0.02, BEHIND - ROWS * 0.5)
 	_water.visible = false
 	add_child(_water)
+	# вода під плато: дві пласкі бірюзові площини обабіч дороги (арт-біблія)
+	for i in range(2):
+		var sw := MeshInstance3D.new()
+		var spm := PlaneMesh.new()
+		spm.size = Vector2(SEA_W * 0.5, float(ROWS) + 8.0)
+		sw.mesh = spm
+		sw.name = "SideWater%d" % i
+		sw.position = Vector3(0.0, CLIFF_BOTTOM - 0.05, BEHIND - ROWS * 0.5)
+		sw.material_override = Mats.solid(Palette.CYAN)
+		sw.visible = false
+		add_child(sw)
+		_side_water.append(sw)
 
 
 ## Один шар полотна. AABB задаємо руками на всю трасу: інакше рушій перераховував би її
@@ -161,12 +211,13 @@ func _decor_layer(kind: String, override: Dictionary) -> int:
 
 
 ## Записати предмет у пачку ряду. z, поворот і фаза — випадкові, як було в кожного Critter3D.
-func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float) -> void:
+## yaw ≥ 0 — фіксований поворот (орієнтири-арки мають дивитись на камеру, а не крутитись).
+func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0) -> void:
 	ids.append(_decor_layer(kind, override))
 	data.append(x)
 	data.append(y)
-	data.append(randf_range(-0.4, 0.4))
-	data.append(randf() * TAU)
+	data.append(randf_range(-0.4, 0.4) if yaw < 0.0 else 0.0)
+	data.append(randf() * TAU if yaw < 0.0 else yaw)
 	data.append(s)
 	# фазу зсуваємо на поточний час, щоб у мить появи вона була такою ж, як у старого Critter3D
 	data.append(randf() * 10.0 - _decor_t)
@@ -218,6 +269,8 @@ func _sync_decor(delta: float) -> void:
 ## Переносить стан рядів у буфери MultiMesh. Кілька сотень записів на кадр — дешевше,
 ## ніж рухати 132 вузли, кожен з яких тягне за собою перерахунок AABB і відсікання.
 func _sync_road() -> void:
+	var seams := seam_xs()
+	var seam_mm := _mm_seam.multimesh as MultiMesh
 	for i in range(_rows.size()):
 		var row := _rows[i]
 		var sy: float = row.scale.y            # «перебудова кубиками» при зміні світу
@@ -229,6 +282,30 @@ func _sync_road() -> void:
 			Transform3D(Basis.from_scale(Vector3(float(_side_sx[0]), sy, 1.0)), Vector3(_row_lx[i], y, z)))
 		(_mm_side[1].multimesh as MultiMesh).set_instance_transform(i,
 			Transform3D(Basis.from_scale(Vector3(float(_side_sx[1]), sy, 1.0)), Vector3(_row_rx[i], y, z)))
+		# обрив плато: кожен наступний шар «цегли» нижчий і трохи вужчий — східці, як в арт-біблії
+		for k in range(CLIFF_LAYERS):
+			var cy := (-0.4 - CLIFF_STEP * (float(k) + 0.5)) * sy
+			var inset := 1.0 - 0.1 * float(k + 1)
+			var cmm := _mm_cliff[k].multimesh as MultiMesh
+			cmm.set_instance_transform(i * 2,
+				Transform3D(Basis.from_scale(Vector3(float(_side_sx[0]) * inset, sy, 1.0)), Vector3(_row_lx[i], cy, z)))
+			cmm.set_instance_transform(i * 2 + 1,
+				Transform3D(Basis.from_scale(Vector3(float(_side_sx[1]) * inset, sy, 1.0)), Vector3(_row_rx[i], cy, z)))
+		# шви між плитами доріжок; зайві інстанси ховаємо нульовим масштабом
+		for k in range(MAX_SEAMS):
+			var t := Transform3D(Basis.from_scale(Vector3.ZERO), Vector3.ZERO)
+			if k < seams.size():
+				t = Transform3D(Basis.from_scale(Vector3(1.0, sy, 1.0)), Vector3(seams[k], y, z))
+			seam_mm.set_instance_transform(i * MAX_SEAMS + k, t)
+
+
+## X-координати швів між доріжками (їх lanes − 1). Чиста функція — зручно для тестів.
+func seam_xs() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	var m := (lanes - 1) / 2
+	for l in range(-m, m):
+		out.append((float(l) + 0.5) * Hero3D.LANE_W)
+	return out
 
 
 var season: Dictionary = {}
@@ -261,6 +338,10 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 		var light := wc if _sea or not is_water else Palette.of(w.get("ground_dark"), Palette.WORLD_WATER_DARK)
 		_water_mat.set_shader_parameter("color_light", light.lightened(0.35))
 	_layout_water()
+	# ближні стіни: список світу + будівлі, добудовані дитиною в діорамі
+	_near_pool = _near_wall_pool()
+	# перший орієнтир — уже в дальній половині траси, щоб точка сходу не була порожня
+	_landmark_left = randi_range(6, 12)
 	# пагорби у колір далекого плану світу; на морі їх не видно
 	var far_mat := Mats.solid(Palette.of(world.get("far", world.get("side")), Palette.WORLD_SIDE).lightened(0.15))
 	for h in _hills:
@@ -290,6 +371,22 @@ func _paint_road(is_water: bool) -> void:
 		mi.visible = not is_water
 	for mi in _mm_side:
 		mi.visible = not _sea
+	# обрив плато: три теракотові шари, кожен нижчий — темніший (штучне AO з арт-біблії)
+	var cliff: Array = world.get("cliff", [])
+	var fallbacks: Array[Color] = [Palette.CORAL_DEEP, Palette.EMBER, Palette.WOOD_DARK]
+	for k in range(CLIFF_LAYERS):
+		var raw = cliff[k] if k < cliff.size() else null
+		_mm_cliff[k].material_override = Mats.solid(Palette.of(raw, fallbacks[k]))
+		_mm_cliff[k].visible = not _sea and not is_water
+	# шов між доріжками — темніша версія кольору землі, якщо світ не задав свій
+	var seam_c := Palette.of(world.get("seam"), Palette.of(world.get("ground_dark"), Palette.WORLD_GROUND_DARK).darkened(0.35))
+	_mm_seam.material_override = Mats.solid(seam_c)
+	_mm_seam.visible = not is_water and not _sea
+	# бірюзова вода внизу — з обох боків плато
+	var low_water := Mats.solid(Palette.of(world.get("cliff_water"), Palette.CYAN))
+	for sw in _side_water:
+		sw.material_override = low_water
+		sw.visible = not _sea and not is_water
 
 
 ## Узбіччя: стіни світу (walls_near впритул, walls_far далі й більші), ближній пояс — дрібне (квіти, гриби),
@@ -305,7 +402,7 @@ func _decorate(row: Node3D) -> void:
 	var big: Array = world.get("decor_big", [])
 	var critters: Array = world.get("critters", [])
 	var colors: Array = world.get("decor_colors", [])
-	var walls_near: Array = world.get("walls_near", [])
+	var walls_near: Array = _near_pool
 	var walls_far: Array = world.get("walls_far", [])
 	var far_scale: Array = world.get("walls_far_scale", [1.4, 2.0])
 	var edge := road_width() * 0.5
@@ -323,9 +420,11 @@ func _decorate(row: Node3D) -> void:
 			if randf() < 0.3:
 				_add_decor(ids, data, "wave_crest", {}, side * (edge + randf_range(0.8, 6.0)), 0.0, 1.0)
 			continue
-		# стіна близька — кожен ряд, впритул до дороги
+		# стіна близька — КОЖЕН ряд, впритул до дороги (0,4–0,8 м), висоти чергуються: суцільний пояс без дірок
 		if not walls_near.is_empty():
-			_add_decor(ids, data, String(walls_near[randi() % walls_near.size()]), {}, side * (edge + randf_range(0.6, 1.4)), 0.0, 1.0)
+			var tall := (i + (1 if side > 0.0 else 0)) % 2 == 0
+			_add_decor(ids, data, String(walls_near[randi() % walls_near.size()]), {},
+				side * (edge + randf_range(NEAR_MIN, NEAR_MAX)), 0.0, 1.25 if tall else 0.85)
 		# дрібне — часто
 		if not kinds.is_empty() and randf() < 0.9:
 			var kind := String(kinds[randi() % kinds.size()])
@@ -351,8 +450,35 @@ func _decorate(row: Node3D) -> void:
 		canopy_voxel = "canopy_leaves"
 	if canopy_voxel != "" and i % 3 == 0:
 		_add_decor(ids, data, canopy_voxel, {}, randf_range(-1.0, 1.0), CANOPY_Y, CANOPY_SCALE)
+	# орієнтир на точці сходу: арка на всю дорогу або вежа/ворота збоку — раз на 28–30 рядів
+	var landmarks: Array = world.get("landmarks", [])
+	if not landmarks.is_empty():
+		_landmark_left -= 1
+		if _landmark_left <= 0:
+			_landmark_left = randi_range(LANDMARK_MIN, LANDMARK_MAX)
+			var lk := String(landmarks[randi() % landmarks.size()])
+			if lk.contains("arch"):
+				_add_decor(ids, data, lk, {}, 0.0, 0.0, road_width() / ARCH_BASE_W, 0.0)
+			else:
+				var s := -1.0 if randf() < 0.5 else 1.0
+				_add_decor(ids, data, lk, {}, s * (edge + 1.2), 0.0, 1.2, 0.0 if s > 0.0 else PI)
 	_decor_ids[i] = ids
 	_decor_data[i] = data
+
+
+## Ближні стіни світу + будівлі, які дитина добудувала в діорамі
+## (контракт з агентом діорами: SaveService.child()["buildings"][world_id] — масив імен вокселів).
+func _near_wall_pool() -> Array:
+	var pool: Array = (world.get("walls_near", []) as Array).duplicate()
+	var child: Dictionary = SaveService.child() if SaveService != null else {}
+	var saved = child.get("buildings", {})
+	if typeof(saved) == TYPE_DICTIONARY:
+		var mine = (saved as Dictionary).get(String(world.get("id", "")), [])
+		if typeof(mine) == TYPE_ARRAY:
+			for v in (mine as Array):
+				if typeof(v) == TYPE_STRING and not pool.has(v):
+					pool.append(v)
+	return pool
 
 
 ## Пташка перелітає дорогу час від часу.
@@ -434,6 +560,11 @@ func _layout_water() -> void:
 	if _water == null:
 		return
 	var w := road_width()
+	# вода під плато: пласкі площини одразу за краєм узбіччя, з обох боків
+	for i in range(_side_water.size()):
+		var dir := -1.0 if i == 0 else 1.0
+		_side_water[i].position.x = dir * (w * 0.5 + SEA_W * 0.25)
+		_side_water[i].position.y = CLIFF_BOTTOM - 0.05
 	if _sea:
 		# море на всю видиму ширину, трохи нижче дороги (дошка сидить у воді)
 		_water.scale.x = SEA_W / (LANES_W + 0.4)

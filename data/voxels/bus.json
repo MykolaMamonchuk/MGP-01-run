@@ -1,0 +1,13 @@
+{
+  "_note": "Жовтий автобус (Місто-парк) — «транспорт» другого ярусу: рампа спереду, дах із злитками.",
+  "size": 0.15,
+  "palette": {"y": "#FFCA28", "o": "#FF8F00", "g": "#81D4FA", "k": "#3E2723", "w": "#FFFFFF"},
+  "layers": [
+    ["k...k", "k...k", ".....", ".....", ".....", "k...k", "k...k"],
+    ["yyyyy", "yyyyy", "yyyyy", "yyyyy", "yyyyy", "yyyyy", "yyyyy"],
+    ["yyyyy", "ygggy", "ygggy", "ygggy", "ygggy", "ygggy", "yyyyy"],
+    ["yyyyy", "ygggy", "ygggy", "ygggy", "ygggy", "ygggy", "yyyyy"],
+    ["ooooo", "yyyyy", "yyyyy", "yyyyy", "yyyyy", "yyyyy", "ooooo"],
+    ["wwwww", "yyyyy", "yyyyy", "yyyyy", "yyyyy", "yyyyy", "wwwww"]
+  ]
+}

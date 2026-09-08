@@ -1,5 +1,9 @@
-## Спавн перешкод, зірочок, пікапів і сегментів другого рівня за профілем, світом і рівнем;
+## Спавн перешкод, злитків, пікапів і сегментів другого рівня за профілем, світом і рівнем;
 ## рух їх разом із дорогою; зіткнення (AABB, без фізики); життя героя (GDD v1.3).
+## GDD v1.4: на дорозі лежать золоті злитки (Ingot3D) трьома патернами — лінія з 5, діагональ,
+## дуга над рампою/дахом; раз на 20–30 с — великий злиток «+100». Лічильники лишились старими
+## (stars_collected_segment / stars_spawned_segment), сигнал збору теж — Events.star_collected(int).
+## Перешкода з silhouette "vehicle" ставиться не як перешкода, а як транспорт із рампою й дахом-ярусом.
 class_name Spawner3D
 extends Node3D
 
@@ -7,16 +11,24 @@ const SPAWN_Z := -34.0
 const KILL_Z := 4.0
 ## Тривалість польоту після веселки — коротка, щоб не пропускати зірочки на землі.
 const FLY_SEC := 2.6
-## Зірочки — лише за групою перешкод у вільній доріжці: перша на SPAWN_Z-1.2, остання не далі SPAWN_Z-4.
+## Злитки — лише за групою перешкод у вільній доріжці: перший на SPAWN_Z-1.2, останній не далі SPAWN_Z-4.
 const STARS_BEHIND_MIN := 1.2
 const STARS_BEHIND_MAX := 4.0
 const STAR_STEP := 0.9
+## Патерни злитків (GDD v1.4 §3): лінія з 5 і діагональ «переходь доріжку»; дуга — на ярусі/рампі.
+const INGOT_LINE := 5
+## Великий злиток «+100» — раз на 20–30 с.
+const BIG_INTERVAL := [20.0, 30.0]
+const BIG_VALUE := 100
 ## Пікап їде за лінією зірочок у тій самій вільній доріжці.
 const PICKUP_BEHIND := 5.5
 ## Сегмент другого рівня — кожні 25–40 с у світах із "tier2": true.
 const TIER2_INTERVAL := [25.0, 40.0]
 ## Невразливість після удару.
 const INVULN_SEC := 1.5
+## Поки рядок останньої групи не відʼїхав далі, ніж на стільки клітинок від лінії спавну,
+## його єдину вільну доріжку тримаємо чистою (сорока не має права зробити рядок непрохідним).
+const FREE_LANE_KEEP := 4.0
 
 var profile: Dictionary = {}
 var world: Dictionary = {}
@@ -47,6 +59,9 @@ var hearts_lost_segment := 0
 
 var _gap_left := 8.0
 var _min_next_gap := 0.0
+## Остання група: її вільна доріжка і z рядка (їде разом із дорогою) — щоб не перекрити її ззовні.
+var _last_free_lane := 0
+var _last_free_z := KILL_Z
 var _seen_kinds: Dictionary = {}
 ## Малятам перше зіткнення на рівні прощається.
 var _forgiven := false
@@ -58,6 +73,9 @@ var _pickup_pending := ""
 var _tier2: Tier2Segment
 var _tier2_t := 30.0
 var _tier2_due := false
+## Великий злиток «+100»: таймер і прапорець «час ставити».
+var _big_t := 25.0
+var _big_due := false
 
 
 func _ready() -> void:
@@ -79,12 +97,15 @@ func configure(p: Dictionary, w: Dictionary, h: Hero3D, m: ModeBase, r: Node) ->
 	hearts_lost_segment = 0
 	finish_pending = false
 	_forgiven = false
+	_last_free_z = KILL_Z
 	_seen_kinds.clear()
 	_pickup_pending = ""
 	_schedule_pickup()
 	_tier2 = null
 	_tier2_due = false
 	_tier2_t = randf_range(float(TIER2_INTERVAL[0]), float(TIER2_INTERVAL[1]))
+	_big_due = false
+	_big_t = randf_range(float(BIG_INTERVAL[0]), float(BIG_INTERVAL[1]))
 	magnet_wide = false
 	coin_mult = 1
 
@@ -142,6 +163,8 @@ func advance(dist: float) -> void:
 					_tier2 = null
 				c.queue_free()
 	_gap_left -= dist
+	# рядок останньої групи їде разом із дорогою
+	_last_free_z += dist
 	if _gap_left <= 0.0:
 		_min_next_gap = 0.0
 		if spawning and not finish_pending:
@@ -158,9 +181,19 @@ func _next_gap() -> float:
 	return maxf(2.5, sec * speed)
 
 
+## X-ящик сороки: вид "xbox" або силует "x_box" із власним маркером-X
+## (у звичайних перешкод того ж силуету маркер вимкнено: "marker": "none").
+func _is_xbox(kind: String, def: Dictionary) -> bool:
+	if kind == "xbox":
+		return true
+	return String(def.get("shape", "")) == "x_box" and String(def.get("marker", "")) != "none"
+
+
 ## Рівень задає набір перешкод; порожній список — усі перешкоди біому (рівень важливіший за профіль).
+## X-ящик у випадкові групи не потрапляє — його скидає лише сорока (GDD v1.4 §3).
 func _allowed_kinds() -> Array:
-	var world_kinds: Array = world.get("obstacles", {}).keys()
+	var defs: Dictionary = world.get("obstacles", {})
+	var world_kinds: Array = defs.keys().filter(func(k): return not _is_xbox(String(k), defs[k]))
 	if level_types.is_empty():
 		return world_kinds
 	return world_kinds.filter(func(k): return level_types.has(k))
@@ -180,6 +213,9 @@ func _spawn_group() -> void:
 	var kind := String(kinds[randi() % kinds.size()])
 	var used_kinds: Array = [kind]
 	var free_lane := int(candidates[randi() % candidates.size()])
+	# запамʼятовуємо вільну доріжку рядка — сорока не має кинути ящик саме в неї
+	_last_free_lane = free_lane
+	_last_free_z = SPAWN_Z
 	# другий вид — для різноманіття
 	var others := kinds.filter(func(k): return String(k) != kind)
 	if not others.is_empty() and randf() < 0.6:
@@ -190,9 +226,21 @@ func _spawn_group() -> void:
 		to_block.shuffle()
 		to_block = to_block.slice(0, ceili(float(to_block.size()) / 2.0))
 	var mover_placed := false
+	var vehicle_placed := false
 	for l in to_block:
 		var k := String(used_kinds[randi() % used_kinds.size()])
 		var d: Dictionary = world["obstacles"][k]
+		# транспорт (shape: vehicle) — не перешкода, а кузов із рампою й дахом-ярусом; один на групу
+		if String(d.get("shape", "")) == "vehicle":
+			if not vehicle_placed and (_tier2 == null or not is_instance_valid(_tier2)):
+				vehicle_placed = true
+				_spawn_vehicle(int(l), d)
+				continue
+			var plain := used_kinds.filter(func(x): return String((world["obstacles"][x] as Dictionary).get("shape", "")) != "vehicle")
+			if plain.is_empty():
+				continue
+			k = String(plain[0])
+			d = world["obstacles"][k]
 		if bool(d.get("moves", false)):
 			# перебігаючий (їжачок/краб) — один на групу, інакше хаос
 			if mover_placed:
@@ -212,10 +260,8 @@ func _spawn_group() -> void:
 			run.call("tutorial_obstacle", k, String(kd.get("action", "any")), free_lane)
 		_seen_kinds[k] = true
 	Events.obstacle_spawned.emit(kind, mode.seconds_to_hero(-SPAWN_Z))
-	# зірочки — лише у вільній доріжці й лише ЗА групою: «ведуть» дитину повз перешкоду
-	var n := randi_range(3, 4)
-	_spawn_stars_line(free_lane, SPAWN_Z - STARS_BEHIND_MIN, n)
-	var tail := STARS_BEHIND_MIN + float(n - 1) * STAR_STEP
+	# злитки — лише у вільній доріжці й лише ЗА групою: «ведуть» дитину повз перешкоду
+	var tail := _spawn_ingot_pattern(free_lane, SPAWN_Z - STARS_BEHIND_MIN)
 	# пікап, що чекає, — у тій самій вільній доріжці за зірочками
 	if _pickup_pending != "":
 		_spawn_pickup(_pickup_pending, free_lane, SPAWN_Z - PICKUP_BEHIND)
@@ -248,6 +294,38 @@ func spawn_finish_gate() -> void:
 			c.queue_free()
 
 
+## Вільна доріжка останньої групи (сорока цілиться повз неї).
+func last_free_lane() -> int:
+	return _last_free_lane
+
+
+## Найближча доріжка, що не є вільною доріжкою останньої групи; lane — якщо іншої нема.
+func _lane_beside_free(lane: int) -> int:
+	for d in range(1, lanes + 1):
+		for s in [-1, 1]:
+			var l := lane + d * s
+			if l >= -max_lane() and l <= max_lane() and l != _last_free_lane:
+				return l
+	return lane
+
+
+## Перешкода на замовлення ззовні (сорока скидає X-ящик у доріжку lane).
+## Опис бере з поточного світу; false — у цьому біомі такої перешкоди нема, їдуть ворота фінішу
+## або ящик нікуди поставити, не зробивши рядок останньої групи непрохідним.
+func spawn_obstacle_kind(kind: String, lane: int) -> bool:
+	var defs: Dictionary = world.get("obstacles", {})
+	if finish_pending or not defs.has(kind):
+		return false
+	var l := clampi(lane, -max_lane(), max_lane())
+	# рядок останньої групи ще біля лінії спавну — його єдину вільну доріжку не перекриваємо
+	if l == _last_free_lane and _last_free_z <= SPAWN_Z + FREE_LANE_KEEP:
+		l = _lane_beside_free(l)
+		if l == _last_free_lane:
+			return false
+	_spawn_obstacle(kind, defs[kind], l)
+	return true
+
+
 func _spawn_obstacle(kind: String, def: Dictionary, lane: int, with_mesh: bool = true) -> Obstacle3D:
 	var o := Obstacle3D.new()
 	var assist := randf() < float(profile.get("auto_assist_chance", 0.0))
@@ -263,9 +341,30 @@ func _spawn_stars_line(lane: int, z0: float, n: int, y: float = 0.6, value: int 
 		spawn_star_at(Vector3(float(lane) * Hero3D.LANE_W, y, z0 - float(i) * STAR_STEP), value)
 
 
-## Зірочка у позиції; value 2 — подвійна (платформа другого рівня).
+## Патерн злитків за групою (GDD v1.4 §3): «лінія з 5», «діагональ» через сусідню доріжку
+## або великий злиток «+100», коли настав його час. Повертає довжину хвоста в клітинках.
+func _spawn_ingot_pattern(lane: int, z0: float) -> float:
+	if _big_due:
+		_big_due = false
+		_big_t = randf_range(float(BIG_INTERVAL[0]), float(BIG_INTERVAL[1]))
+		spawn_star_at(Vector3(float(lane) * Hero3D.LANE_W, 0.7, z0), BIG_VALUE)
+		return STARS_BEHIND_MIN + 1.0
+	var neighbours := lane_list().filter(func(l): return absi(int(l) - lane) == 1)
+	if not neighbours.is_empty() and randf() < 0.35:
+		# діагональ: перші два злитки у вільній доріжці, далі — «переходь доріжку»
+		var to := int(neighbours[randi() % neighbours.size()])
+		for i in range(INGOT_LINE):
+			var l := lane if i < 2 else to
+			spawn_star_at(Vector3(float(l) * Hero3D.LANE_W, 0.6, z0 - float(i) * STAR_STEP))
+	else:
+		_spawn_stars_line(lane, z0, INGOT_LINE)
+	return STARS_BEHIND_MIN + float(INGOT_LINE - 1) * STAR_STEP
+
+
+## Злиток у позиції; value 2 — подвійний (дах транспорту / платформа), 100 — великий «+100».
+## Ім'я лишилось старим: Run3D і події працюють із цим API як раніше.
 func spawn_star_at(pos: Vector3, value: int = 1) -> void:
-	var s := Star3D.new()
+	var s := Ingot3D.new()
 	s.value = value
 	s.position = pos
 	add_child(s)
@@ -320,6 +419,15 @@ func _spawn_pickup(kind: String, lane: int, z: float) -> void:
 
 # ---------- другий рівень ----------
 
+## Таймер великого злитка «+100»: коли час настав — його поставить наступний патерн у вільній доріжці.
+func _tick_big(delta: float) -> void:
+	if finish_pending or _big_due:
+		return
+	_big_t -= delta
+	if _big_t <= 0.0:
+		_big_due = true
+
+
 func _tick_tier2(delta: float) -> void:
 	if not bool(world.get("tier2", false)) or finish_pending:
 		return
@@ -358,6 +466,28 @@ func _spawn_tier2() -> void:
 	_min_next_gap = 3.0
 
 
+## Транспорт замість перешкоди в доріжці (GDD v1.4 §3): кузов на два зрости героя з рампою спереду.
+## Герой або обходить його вбік, або заїжджає рампою на дах і біжить 6–10 клітинок по лінії злитків.
+func _spawn_vehicle(lane: int, def: Dictionary) -> void:
+	var seg := Tier2Segment.new()
+	seg.setup_vehicle(lane, String(def.get("vehicle_voxel", def.get("voxel", "cart"))), randf_range(6.0, 10.0))
+	# початок координат — дальній кінець даху; рампа (ближній край) стоїть на лінії спавну
+	seg.position.z = SPAWN_Z - seg.total_length()
+	add_child(seg)
+	_tier2 = seg
+	# лінія подвійних злитків по даху
+	var z0 := seg.roof_z0() + 0.8
+	var n := int((seg.length - 1.2) / 1.2)
+	for i in range(n):
+		spawn_star_at(Vector3(float(lane) * Hero3D.LANE_W, Tier2Segment.H + 0.6, z0 + float(i) * 1.2), 2)
+	# дуга злитків над рампою — запрошення заїхати нагору
+	var zr := seg.position.z + seg.length + Tier2Segment.RAMP
+	for i in range(4):
+		var t := float(i) / 3.0
+		spawn_star_at(Vector3(float(lane) * Hero3D.LANE_W, 0.6 + t * Tier2Segment.H, zr - t * Tier2Segment.RAMP))
+	_min_next_gap = 3.0
+
+
 ## Земля під героєм: платформа/пандус або 0. Авто-підскок на початку пандуса вгору.
 func _tick_ground() -> void:
 	if _tier2 != null and is_instance_valid(_tier2):
@@ -377,6 +507,7 @@ func _tick_ground() -> void:
 ## Викликається кожен кадр із Run3D: рух перешкод, зіткнення, збір зірочок і пікапів, авто-допомога, веселка.
 func check(delta: float) -> void:
 	_tick_pickups(delta)
+	_tick_big(delta)
 	_tick_tier2(delta)
 	_tick_ground()
 	var hero_box := hero.hit_box()
@@ -412,12 +543,18 @@ func check(delta: float) -> void:
 				FX.confetti(self, Vector3(hero.position.x, 1.6, 0.0), 90)
 				AudioMgr.sfx("finish")
 				hero.cheer()
-		elif c is Star3D:
-			var s := c as Star3D
-			if not s.collected and absf(s.position.z) < (Star3D.WIDE_REACH if magnet_wide else 3.0) and s.tick(delta, hero, magnet, magnet_wide):
+		elif c is Ingot3D:
+			var s := c as Ingot3D
+			if not s.collected and absf(s.position.z) < (Ingot3D.WIDE_REACH if magnet_wide else 3.0) and s.tick(delta, hero, magnet, magnet_wide):
 				s.collect()
 				stars_collected_segment += 1
-				FX.burst(self, s.position)
+				if s.is_big():
+					# великий злиток «+100»: золотий вибух і конфеті
+					FX.burst(self, s.position, Palette.GOLD_BRIGHT)
+					FX.confetti(self, s.position, 24)
+					AudioMgr.voice("wow")
+				else:
+					FX.burst(self, s.position)
 				Events.star_collected.emit(s.value * coin_mult)
 				AudioMgr.sfx("star", 1.0 + 0.08 * float(stars_collected_segment % 3))
 				if stars_collected_segment % 10 == 0:
@@ -490,11 +627,10 @@ func _resolve(o: Obstacle3D) -> void:
 		_forgiven = true
 		hero.set_invulnerable(INVULN_SEC)
 		return
+	# v1.4: на нулі сердець рівень НЕ перезапускається — далі вирішує Run3D (сорока краде злитки)
 	if hero.lose_heart():
 		hearts_lost_segment += 1
 		Events.hearts_changed.emit(hero.hearts)
-		if hero.hearts <= 0 and run.has_method("_restart_level"):
-			run.call("_restart_level")
 
 
 ## Після падіння дорога на N секунд чиста — дитина встигає оговтатись.

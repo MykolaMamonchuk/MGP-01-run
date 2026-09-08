@@ -1,0 +1,13 @@
+{
+  "_note": "Лісовий віз із колодами — «транспорт» другого ярусу (GDD v1.4 §3). Tier2Segment розтягує меш під доріжку й довжину.",
+  "size": 0.15,
+  "palette": {"w": "#8D6E63", "l": "#A1887F", "k": "#3E2723", "g": "#7CC46B"},
+  "layers": [
+    ["k...k", "k...k", ".....", ".....", ".....", "k...k", "k...k"],
+    ["wwwww", "wwwww", "wwwww", "wwwww", "wwwww", "wwwww", "wwwww"],
+    ["wwwww", "wlllw", "wlllw", "wlllw", "wlllw", "wlllw", "wwwww"],
+    ["wwwww", "wlllw", "wlllw", "wlllw", "wlllw", "wlllw", "wwwww"],
+    [".....", ".lll.", ".lll.", ".lll.", ".lll.", ".lll.", "....."],
+    [".....", ".....", ".ggg.", ".lll.", ".ggg.", ".....", "....."]
+  ]
+}

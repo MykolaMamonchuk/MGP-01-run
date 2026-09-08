@@ -263,6 +263,97 @@ func test_hop_drift_is_clamped() -> void:
 	assert_almost_eq(m.seconds_to_hero(3.8), 2.0, 0.001, "час до перешкоди: дрейф + 1 крок/с")
 
 
+# ---------- 0.8.0: світ GDD v1.4 — камера, плато, стіни впритул, орієнтири, силуети перешкод, злитки ----------
+
+func _shapes() -> Dictionary:
+	var f := FileAccess.open("res://data/obstacle_shapes.json", FileAccess.READ)
+	assert_not_null(f, "data/obstacle_shapes.json існує")
+	var parsed = JSON.parse_string(f.get_as_text())
+	return (parsed as Dictionary).get("shapes", {}) if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
+func test_obstacle_shapes_catalog() -> void:
+	var shapes := _shapes()
+	for id in ["low_bar", "high_frame", "x_box", "vehicle", "critter"]:
+		assert_true(shapes.has(id), "силует %s описано (GDD v1.4 §3)" % id)
+		if shapes.has(id):
+			var s: Dictionary = shapes[id]
+			assert_true(s.has("action"), "%s: є дія" % id)
+			assert_true(s.has("marker"), "%s: є маркер" % id)
+	assert_eq(String(shapes["low_bar"]["action"]), "jump", "низька перекладина — стрибок")
+	assert_eq(String(shapes["high_frame"]["action"]), "duck", "рама згори — присід")
+	assert_eq(String(shapes["x_box"]["marker"]), "x_white", "ящик — білий X")
+
+
+func test_every_world_obstacle_has_valid_shape() -> void:
+	var shapes := _shapes()
+	var seen := {}
+	for id in _worlds.keys():
+		var obs: Dictionary = _worlds[id]["obstacles"]
+		for k in obs.keys():
+			var o: Dictionary = obs[k]
+			var sh := String(o.get("shape", ""))
+			assert_true(shapes.has(sh), "%s/%s: силует «%s» є в каталозі" % [id, k, sh])
+			seen[sh] = true
+			if sh == "vehicle":
+				var v := String(o.get("vehicle_voxel", o.get("voxel", "")))
+				assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % v), "%s/%s: воксель транспорту %s існує" % [id, k, v])
+		# у кожному біомі має бути що обходити (транспорт) і що не чіпати (X-ящик)
+		var kinds := []
+		for k in obs.keys():
+			kinds.append(String((obs[k] as Dictionary).get("shape", "")))
+		assert_true(kinds.has("vehicle"), "%s: є транспорт другого ярусу" % id)
+		assert_true(kinds.has("x_box"), "%s: є ящик із X" % id)
+	assert_eq(seen.size(), 5, "усі п'ять силуетів справді використані")
+
+
+func test_near_walls_and_landmarks_exist() -> void:
+	for id in _worlds.keys():
+		var near: Array = _worlds[id].get("walls_near", [])
+		assert_gte(near.size(), 6, "%s: ≥ 6 видів у ближньому поясі стін (GDD v1.4 §3)" % id)
+		for v in near:
+			assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % String(v)), "%s: ближня стіна %s існує" % [id, v])
+		var marks: Array = _worlds[id].get("landmarks", [])
+		assert_gte(marks.size(), 2, "%s: є орієнтири (арка/вежа/ворота)" % id)
+		for v in marks:
+			assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % String(v)), "%s: орієнтир %s існує" % [id, v])
+		var cliff: Array = _worlds[id].get("cliff", [])
+		assert_eq(cliff.size(), Track.CLIFF_LAYERS, "%s: три шари «цегли» обриву" % id)
+		assert_true(_worlds[id].has("cliff_water"), "%s: є колір води під плато" % id)
+
+
+func test_world_cameras_are_low_enough_for_big_hero() -> void:
+	for id in _worlds.keys():
+		if String(_worlds[id].get("mode", "run")) == "slide":
+			continue
+		var cam: Dictionary = _worlds[id].get("camera", {})
+		var pos: Array = cam.get("pos", [])
+		assert_lte(float(pos[1]), 2.2, "%s: камера низько — герой ≈ 1/4 висоти екрана (GDD v1.4 §3)" % id)
+		assert_lte(float(pos[2]), 3.6, "%s: камера близько до героя" % id)
+		assert_lte(float(cam.get("fov", 99)), 62.0, "%s: fov без «риб'ячого ока»" % id)
+
+
+func test_ingot_builds_and_big_one_is_hundred() -> void:
+	var ing := Ingot3D.new()
+	add_child_autofree(ing)
+	assert_gt(ing.get_child_count(), 0, "злиток збирає меш із data/voxels/ingot.json")
+	assert_false(ing.is_big(), "звичайний злиток — не «+100»")
+	var big := Ingot3D.new()
+	big.value = 100
+	add_child_autofree(big)
+	assert_gt(big.get_child_count(), 0, "великий злиток теж збирається")
+	assert_true(big.is_big(), "100 — це великий злиток «+100»")
+
+
+func test_seam_lines_between_lanes() -> void:
+	var t := Track.new()
+	add_child_autofree(t)
+	assert_eq(t.seam_xs().size(), 2, "3 доріжки — 2 шви")
+	t.set_lanes(7, false)
+	assert_eq(t.seam_xs().size(), 6, "7 доріжок — 6 швів")
+	assert_lte(t.seam_xs().size(), Track.MAX_SEAMS, "швів не більше, ніж інстансів у шарі")
+
+
 func test_finish_gate_width_follows_lanes() -> void:
 	var g := FinishGate3D.new()
 	g.setup(7)

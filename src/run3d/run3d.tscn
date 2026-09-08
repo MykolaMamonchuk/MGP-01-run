@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://src/run3d/run3d.gd" id="1"]
 [ext_resource type="Script" path="res://src/run3d/hero3d.gd" id="2"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://src/ui/map_screen.gd" id="10"]
 [ext_resource type="Script" path="res://src/ui/controls.gd" id="11"]
 [ext_resource type="Script" path="res://src/ui/wheel.gd" id="12"]
+[ext_resource type="Script" path="res://src/run3d/diorama.gd" id="13"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -58,6 +59,10 @@ process_mode = 1
 [node name="Hero" type="Node3D" parent="."]
 process_mode = 1
 script = ExtResource("2")
+
+[node name="Diorama" type="Node3D" parent="."]
+process_mode = 1
+script = ExtResource("13")
 
 [node name="HeroSelect" type="Node3D" parent="."]
 process_mode = 1

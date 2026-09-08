@@ -14,6 +14,15 @@ const FLY_HEIGHT := 1.9
 const X_FREE_LIMIT := 1.3
 const HEAD_TOP := 1.2
 const FACE_Z := -0.37
+## Комічне зіткнення (GDD v1.4 §2): очі ×1,4, зіниці ×0,6, зсув на пів доріжки,
+## оберт ±0,5 рад із поверненням за 0,5 с, 3 зірочки над головою 1,2 с, невразливість 1,5 с.
+const HIT_EYE_SCALE := 1.4
+const HIT_PUPIL_SCALE := 0.6
+const HIT_SIDE_LANES := 0.5
+const HIT_SPIN := 0.5
+const HIT_STARS := 3
+const HIT_STARS_SEC := 1.2
+const HIT_INVULN_SEC := 1.5
 
 var lane := 0
 var x_target := 0.0
@@ -573,28 +582,82 @@ func set_running(on: bool) -> void:
 	running = on
 
 
-## Смішне падіння: перекид клубком 0,8 с, зірочки не втрачаються.
+## Комічне зіткнення (GDD v1.4 §2, реф. §3): великі очі, рот «О», відкинуло вбік на пів доріжки
+## з обертом ±0,5 рад, три зірочки крутяться над головою 1,2 с, невразливість 1,5 с.
+## Спавнер кличе tumble() — тому старе ім'я лишилось, а вигляд новий.
 func tumble() -> void:
+	# бік удару невідомий: відкидає навмання, але з краю дороги — до центру
+	var dir := 1 if randf() < 0.5 else -1
+	if absf(x_target) > (float(max_lane()) - 0.5) * LANE_W:
+		dir = -1 if x_target > 0.0 else 1
+	hit_reaction(dir)
+
+
+## Комічна реакція на удар. dir — куди відкидає (−1 ліворуч, +1 праворуч, 0 — без зсуву).
+func hit_reaction(dir: int = 0) -> void:
 	if tumbling:
 		return
 	tumbling = true
 	ducking = false
-	_set_eyes_closed(true)
+	# очі великі, зіниці меншають, рот «О»
+	for e in _eyes:
+		e.scale = Vector3(HIT_EYE_SCALE, HIT_EYE_SCALE, 1.0)
+	for p in _pupils:
+		p.scale = Vector3(HIT_PUPIL_SCALE, HIT_PUPIL_SCALE, 1.0)
+	_mouth.scale = Vector3(1.6, 2.4, 1.0)
+	_mouth.position.y = _mouth_y - 0.01
+	# відкинуло вбік на пів доріжки (у межах дороги)
+	if dir != 0:
+		x_target = clampf(x_target + float(dir) * LANE_W * HIT_SIDE_LANES, -x_limit(), x_limit())
+		lane = clampi(int(round(x_target / LANE_W)), -max_lane(), max_lane())
+	_hit_stars()
+	FX.burst(self, Vector3(0, HEAD_TOP, 0), Palette.STAR)
+	FX.dust(self, Vector3(0, 0.05, 0))
+	# невразливість ставимо відкладено: Spawner після tumble() кличе lose_heart(),
+	# який мовчки нічого не робить, поки герой невразливий
+	call_deferred("set_invulnerable", HIT_INVULN_SEC)
 	if _tumble_tween:
 		_tumble_tween.kill()
+	var spin := float(dir if dir != 0 else 1) * HIT_SPIN
 	_tumble_tween = create_tween()
-	_tumble_tween.tween_property(_body, "rotation:x", TAU, 0.8).from(0.0)
-	_tumble_tween.parallel().tween_property(_body, "position:y", 0.5, 0.4).from(0.0)
-	_tumble_tween.tween_property(_body, "position:y", 0.0, 0.3)
+	_tumble_tween.tween_property(_body, "rotation:y", spin, 0.18).set_trans(Tween.TRANS_BACK)
+	_tumble_tween.parallel().tween_property(_body, "position:y", 0.22, 0.18)
+	_tumble_tween.tween_property(_body, "rotation:y", 0.0, 0.32).set_trans(Tween.TRANS_ELASTIC)
+	_tumble_tween.parallel().tween_property(_body, "position:y", 0.0, 0.32)
 	_tumble_tween.finished.connect(_end_tumble)
-	FX.dust(self, Vector3(0, 0.05, 0))
+
+
+## Три маленькі зірочки кружляють над головою 1,2 с.
+func _hit_stars() -> void:
+	var ring := Node3D.new()
+	ring.name = "HitStars"
+	ring.position = Vector3(0.0, HEAD_TOP + 0.22, 0.0)
+	add_child(ring)
+	for i in range(HIT_STARS):
+		var s := VoxelBuilder.instance("star")
+		s.scale = Vector3.ONE * 0.4
+		var a := TAU * float(i) / float(HIT_STARS)
+		s.position = Vector3(cos(a) * 0.32, sin(a * 2.0) * 0.05, sin(a) * 0.32)
+		ring.add_child(s)
+	var tw := create_tween()
+	tw.tween_property(ring, "rotation:y", TAU * 2.0, HIT_STARS_SEC).from(0.0)
+	tw.finished.connect(ring.queue_free)
 
 
 func _end_tumble() -> void:
-	_body.rotation.x = 0.0
+	_body.rotation.y = 0.0
 	_body.position.y = 0.0
 	tumbling = false
-	_set_eyes_closed(false)
+	# обличчя назад: очі, зіниці, рот
+	for e in _eyes:
+		e.scale = Vector3(1.0, _eye_scale_y, 1.0)
+	for p in _pupils:
+		p.scale = Vector3.ONE
+	if is_instance_valid(_mouth):
+		_mouth.scale = Vector3.ONE
+		_mouth.position.y = _mouth_y
+	# після відкидання герой стоїть на найближчій доріжці
+	snap_to_lane()
 	tumble_finished.emit()
 
 

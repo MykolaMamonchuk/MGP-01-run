@@ -4,6 +4,9 @@ extends GutTest
 const RunScript := preload("res://src/run3d/run3d.gd")
 const VALID_ACTIONS := ["jump", "duck", "any", "side", "gap", "boost", "rail", "wind"]
 const VALID_ANIMS := ["", "sway", "spin", "bob", "breathe", "bounce", "flap", "pulse", "drip", "wobble"]
+## Мова перешкод (GDD v1.4 §3): силует → дія → маркер.
+const VALID_SHAPES := ["low_bar", "high_frame", "x_box", "vehicle", "critter"]
+const VALID_MARKERS := ["none", "stripes_red", "stripes_yellow", "x_white"]
 
 var _items: Array = []
 var _rng := RandomNumberGenerator.new()
@@ -199,6 +202,8 @@ func test_each_biome_has_eight_animated_obstacles_with_two_ducks() -> void:
 			assert_true(VALID_ACTIONS.has(o.get("action", "")), "%s/%s: дія валідна" % [id, k])
 			assert_true(VALID_ANIMS.has(o.get("anim", "")), "%s/%s: анімація валідна" % [id, k])
 			assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % String(o.get("voxel", k))), "%s/%s: воксель існує" % [id, k])
+			assert_true(VALID_SHAPES.has(String(o.get("shape", ""))), "%s/%s: силует валідний" % [id, k])
+			assert_true(VALID_MARKERS.has(String(o.get("marker", "none"))), "%s/%s: маркер валідний" % [id, k])
 			if o.get("action", "") == "duck":
 				ducks += 1
 				assert_gt(float(o.get("y", 0.0)), 0.6, "%s/%s: «присід» висить над дорогою" % [id, k])
@@ -206,6 +211,25 @@ func test_each_biome_has_eight_animated_obstacles_with_two_ducks() -> void:
 				animated += 1
 		assert_gte(ducks, 2, "%s: ≥ 2 перешкоди «присід» (зверху)" % id)
 		assert_gte(animated, 5, "%s: більшість перешкод анімовані" % id)
+
+
+## Маркер із силуету потрапляє в перешкоду й малюється (GDD v1.4 §3).
+func test_obstacle_marker_comes_from_shape() -> void:
+	assert_eq(String(Obstacle3D.shape_def("x_box").get("marker", "")), "x_white", "силует x_box несе білий X")
+	assert_true(Obstacle3D.shape_def("невідомий").is_empty(), "невідомий силует — порожній опис")
+	var ob := Obstacle3D.new()
+	ob.setup("xbox", {"voxel": "xbox_red", "action": "side", "shape": "x_box", "box": [0.75, 1.0, 0.6]}, 0, false)
+	assert_eq(ob.marker, "x_white", "маркер узято з силуету")
+	var marks := 0
+	for c in ob.get_children():
+		if String(c.name).begins_with("MarkX"):
+			marks += 1
+	assert_eq(marks, 2, "дві білі перекладини хрестом")
+	ob.free()
+	var quiet := Obstacle3D.new()
+	quiet.setup("tree", {"voxel": "tree", "action": "side", "shape": "x_box", "marker": "none", "box": [0.8, 1.2, 0.8]}, 0, false)
+	assert_eq(quiet.marker, "none", "перешкода може вимкнути маркер")
+	quiet.free()
 
 
 func test_wheel_sector_math() -> void:

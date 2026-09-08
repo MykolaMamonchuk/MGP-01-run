@@ -1,0 +1,14 @@
+{
+  "_note": "Хмарний будиночок (Хмаринки): пухка хмарка-основа, світлі стіни, бузковий дах.",
+  "size": 0.16,
+  "palette": {"w": "#FFFFFF", "b": "#E3F2FD", "c": "#CFE6F9", "p": "#B39DDB", "y": "#FFF176"},
+  "layers": [
+    [".www.", "wwwww", "wwwww", "wwwww", ".www."],
+    ["wwwww", "wwwww", "wwwww", "wwwww", "wwwww"],
+    ["bbybb", "b...b", "b...b", "b...b", "bbbbb"],
+    ["bbybb", "b...b", "c...c", "b...b", "bbbbb"],
+    ["ppppp", "ppppp", "ppppp", "ppppp", "ppppp"],
+    [".ppp.", ".ppp.", ".ppp.", ".ppp.", ".ppp."],
+    ["..p..", "..p..", "..p..", "..p..", "..p.."]
+  ]
+}
