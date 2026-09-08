@@ -302,7 +302,7 @@ func last_free_lane() -> int:
 ## Найближча доріжка, що не є вільною доріжкою останньої групи; lane — якщо іншої нема.
 func _lane_beside_free(lane: int) -> int:
 	for d in range(1, lanes + 1):
-		for s in [-1, 1]:
+		for s: int in [-1, 1]:
 			var l := lane + d * s
 			if l >= -max_lane() and l <= max_lane() and l != _last_free_lane:
 				return l

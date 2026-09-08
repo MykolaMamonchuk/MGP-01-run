@@ -88,10 +88,15 @@ static func load_heroes() -> Dictionary:
 
 
 ## Чиста функція: ідентифікатори героїв у порядку каруселі (без службових ключів).
+## Старі пухнастики v1.4 (`"legacy": true`) у каруселі не показуємо — вони лишились у даних лише
+## заради збережень (Hero3D малює замість них першого звірятка), тому карусель — це шість нових героїв.
 static func order_ids(h: Dictionary) -> Array:
 	var out := []
 	for k in h.keys():
 		if String(k).begins_with("_") or k == "growth":
+			continue
+		var def = h[k]
+		if typeof(def) == TYPE_DICTIONARY and bool((def as Dictionary).get("legacy", false)):
 			continue
 		out.append(k)
 	out.sort_custom(func(a, b): return int(h[a].get("order", 99)) < int(h[b].get("order", 99)))
@@ -433,7 +438,7 @@ static func _slot_name(slot: String) -> String:
 
 ## Герой, для якого зараз крамниця (у центрі каруселі).
 func _shop_hero() -> String:
-	return String(ids[index]) if not ids.is_empty() else "puf"
+	return String(ids[index]) if not ids.is_empty() else "lys"
 
 
 ## Показати/сховати панель крамниці (замість «Обрати» — щоб не перекривати героя).

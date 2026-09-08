@@ -1,0 +1,10 @@
+{
+  "_note": "Кубічний кущик узбіччя: трав'яний зелений із тіньовими цятками.",
+  "size": 0.14,
+  "palette": {"g": "#7DC242", "d": "#5E9E33"},
+  "layers": [
+    ["gggg", "gggg", "gggg", "gggg"],
+    ["gdgg", "ggdg", "gggg", "dggg"],
+    ["gggg", "gggg", "gggg", "gggg"]
+  ]
+}

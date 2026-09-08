@@ -51,7 +51,8 @@ func test_road_is_four_layers_covering_every_row() -> void:
 func test_decor_layers_show_exactly_what_rows_hold() -> void:
 	_track.rebuild(_world("meadow"), false)
 	await wait_process_frames(2)
-	assert_gt(_records(), 100, "лужок засаджений декором")
+	# відкрите узбіччя (v1.5): пропси рідші за стіни впритул, але лужок усе одно засаджений
+	assert_gt(_records(), 60, "лужок засаджений декором")
 	assert_eq(_visible(), _records(), "видимих інстансів рівно стільки, скільки предметів у рядах")
 
 

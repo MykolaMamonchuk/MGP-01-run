@@ -1,0 +1,12 @@
+{
+  "_note": "Тулуб звірятка (GDD v1.5 §5): 6×5×8 вокселів × 0,075 = 0,45 × 0,375 × 0,60 м. Ряди — від грудей (-Z) до хвоста (+Z). o — основний колір (підміняється), d — темніший верх, c — кремові груди й животик. Голова, лапки, вуха й хвіст — окремі частини у Hero3D.",
+  "size": 0.075,
+  "palette": {"o": "#F08A3C", "d": "#C86F2C", "c": "#F6E3C2"},
+  "layers": [
+    [".cccc.", ".cccc.", ".cccc.", ".cccc.", ".cccc.", ".cccc.", ".cccc.", ".oooo."],
+    ["occcco", "occcco", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo", ".oooo."],
+    ["oooooo", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo", ".oooo."],
+    ["oooooo", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo", ".oooo."],
+    [".dddd.", ".dddd.", ".dddd.", ".dddd.", ".dddd.", ".dddd.", ".dddd.", "..dd.."]
+  ]
+}

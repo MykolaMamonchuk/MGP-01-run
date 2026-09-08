@@ -1,0 +1,12 @@
+{
+  "_note": "Тулуб оленяти — той самий силует, що hero_body, плюс плямки m на спині й боках. 6×5×8 × 0,075 м.",
+  "size": 0.075,
+  "palette": {"o": "#C9955C", "d": "#A87740", "c": "#F6E3C2", "m": "#F6E3C2"},
+  "layers": [
+    [".cccc.", ".cccc.", ".cccc.", ".cccc.", ".cccc.", ".cccc.", ".cccc.", ".oooo."],
+    ["occcco", "occcco", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo", ".oooo."],
+    ["oooooo", "oomooo", "oooooo", "ooooom", "oooooo", "mooooo", "oooooo", ".oooo."],
+    ["oooooo", "oooooo", "omoooo", "oooooo", "oooomo", "oooooo", "omoooo", ".oooo."],
+    [".dddd.", ".dmdd.", ".dddd.", ".ddmd.", ".dddd.", ".dmdd.", ".dddd.", "..dd.."]
+  ]
+}

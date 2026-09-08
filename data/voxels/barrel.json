@@ -1,0 +1,12 @@
+{
+  "_note": "Дерев'яна бочка: темні обручі знизу/посередині/зверху.",
+  "size": 0.11,
+  "palette": {"w": "#C4813F", "d": "#8F5A2A"},
+  "layers": [
+    ["dddd", "dddd", "dddd", "dddd"],
+    ["wwww", "wwww", "wwww", "wwww"],
+    ["dddd", "dddd", "dddd", "dddd"],
+    ["wwww", "wwww", "wwww", "wwww"],
+    ["dddd", "dddd", "dddd", "dddd"]
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "_note": "Тулуб котика — силует hero_body, плюс смужки m поперек спини. 6×5×8 × 0,075 м.",
+  "size": 0.075,
+  "palette": {"o": "#E8913F", "d": "#C4762E", "c": "#F6E3C2", "m": "#B0611F"},
+  "layers": [
+    [".cccc.", ".cccc.", ".cccc.", ".cccc.", ".cccc.", ".cccc.", ".cccc.", ".oooo."],
+    ["occcco", "occcco", "oooooo", "oooooo", "oooooo", "oooooo", "oooooo", ".oooo."],
+    ["oooooo", "moooom", "oooooo", "moooom", "oooooo", "moooom", "oooooo", ".oooo."],
+    ["oooooo", "moooom", "oooooo", "moooom", "oooooo", "moooom", "oooooo", ".oooo."],
+    [".dddd.", ".mmmm.", ".dddd.", ".mmmm.", ".dddd.", ".mmmm.", ".dddd.", "..dd.."]
+  ]
+}

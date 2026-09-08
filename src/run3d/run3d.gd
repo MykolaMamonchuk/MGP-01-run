@@ -21,6 +21,10 @@ const SPRINT_FROM := 0.8
 const SPRINT_MULT := 1.15
 const GATE_BEFORE_SEC := 6.0
 const DEFAULT_FOG := 0.012
+## Блум (GDD v1.5 §3) — саме «м'який»: поріг близько білого, мала інтенсивність.
+const GLOW_INTENSITY := 0.25
+const GLOW_BLOOM := 0.1
+const GLOW_THRESHOLD := 1.0
 ## Сорока (GDD v1.4 §3): скидає X-ящик кожні 12–20 с, починаючи з 3-го рівня.
 const MAGPIE_FROM_LEVEL := 3
 const MAGPIE_DROP_INTERVAL := [12.0, 20.0]
@@ -204,10 +208,11 @@ static func fork_ids(allowed: Array, current: String, n: int, rng: RandomNumberG
 
 
 ## Камера під ширину дороги: 7 доріжок — вище й далі, ортографічна — ширша.
+## GDD v1.5: ×1,12 на кожен крок ширини (3→5→7), щоб ракурс 3/4 не «розвалювався» на широкій дорозі.
 static func camera_for_lanes(preset: Dictionary, n_lanes: int) -> Dictionary:
-	var k := 1.0 + float(n_lanes - 3) * 0.16
+	var k := pow(1.12, float(n_lanes - 3) * 0.5)
 	var out := preset.duplicate(true)
-	var p: Array = out.get("pos", [0.0, 3.4, 5.6])
+	var p: Array = out.get("pos", [0.0, 3.8, 4.6])
 	out["pos"] = [float(p[0]) * k, float(p[1]) * k, float(p[2]) * k]
 	if bool(out.get("ortho", false)):
 		out["size"] = float(out.get("size", 9.0)) * k
@@ -237,8 +242,10 @@ func _joystick_on() -> bool:
 
 
 func _apply_hero(id: String) -> void:
+	# невідомий id у збереженні — беремо першого звірятка (старі legacy-id лишаються, Hero3D їх сам розв'язує)
 	if not heroes.has(id):
-		id = "puf"
+		var first := Hero3D.first_animal_id(heroes)
+		id = first if first != "" else "puf"
 	var h: Dictionary = heroes.get(id, {})
 	hero.set_hero(id, Palette.of(h.get("color"), Palette.HERO_DEFAULT), String(h.get("feature", "tuft")))
 	Shop.apply_to(hero)
@@ -302,9 +309,26 @@ func _setup_sky() -> void:
 	e.ambient_light_energy = 0.8
 	e.fog_enabled = true
 	e.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	e.fog_density = 0.012
+	e.fog_density = DEFAULT_FOG
 	e.fog_sky_affect = 0.0
 	e.fog_aerial_perspective = 0.4
+	e.fog_light_color = Palette.W_SKY
+	e.background_color = Palette.W_SKY
+	# м'який блум (GDD v1.5 §3): світлі плити й злитки ледь світяться, без «пересвіту»
+	e.glow_intensity = GLOW_INTENSITY
+	e.glow_bloom = GLOW_BLOOM
+	e.glow_hdr_threshold = GLOW_THRESHOLD
+	e.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	set_fx_blur(bool(SaveService.setting("fx_blur", true)))
+
+
+## Налаштування «fx_blur» (типово увімкнене): блум + розмиття планів разом.
+## Рядок-перемикач у батьківській панелі — за hud.gd; сюди можна прийти викликом ззовні.
+func set_fx_blur(on: bool) -> void:
+	if env.environment:
+		env.environment.glow_enabled = on
+	if camera_rig:
+		camera_rig.set_dof(on)
 
 
 ## Живе небо: день → вечір протягом сесії (t 0..1); сезон і фішка рівня (ніч/вечір) підфарбовують.

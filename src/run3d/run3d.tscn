@@ -1,18 +1,18 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene format=3 uid="uid://dtfst0dwnugiu"]
 
-[ext_resource type="Script" path="res://src/run3d/run3d.gd" id="1"]
-[ext_resource type="Script" path="res://src/run3d/hero3d.gd" id="2"]
-[ext_resource type="Script" path="res://src/run3d/track.gd" id="3"]
-[ext_resource type="Script" path="res://src/run3d/spawner3d.gd" id="4"]
-[ext_resource type="Script" path="res://src/run3d/camera_rig.gd" id="5"]
-[ext_resource type="Script" path="res://src/run3d/event_spawner.gd" id="6"]
-[ext_resource type="Script" path="res://src/ui/hud.gd" id="7"]
-[ext_resource type="Script" path="res://src/ui/menu.gd" id="8"]
-[ext_resource type="Script" path="res://src/run3d/hero_select.gd" id="9"]
-[ext_resource type="Script" path="res://src/ui/map_screen.gd" id="10"]
-[ext_resource type="Script" path="res://src/ui/controls.gd" id="11"]
-[ext_resource type="Script" path="res://src/ui/wheel.gd" id="12"]
-[ext_resource type="Script" path="res://src/run3d/diorama.gd" id="13"]
+[ext_resource type="Script" uid="uid://bdtxw2u2jfix2" path="res://src/run3d/run3d.gd" id="1"]
+[ext_resource type="Script" uid="uid://cxqliduebb3re" path="res://src/run3d/hero3d.gd" id="2"]
+[ext_resource type="Script" uid="uid://dqrikofyyb5mx" path="res://src/run3d/track.gd" id="3"]
+[ext_resource type="Script" uid="uid://dcu2vi5d4b3ks" path="res://src/run3d/spawner3d.gd" id="4"]
+[ext_resource type="Script" uid="uid://b6vggf2b6vcgu" path="res://src/run3d/camera_rig.gd" id="5"]
+[ext_resource type="Script" uid="uid://c3bltjixxuf76" path="res://src/run3d/event_spawner.gd" id="6"]
+[ext_resource type="Script" uid="uid://tv0o5od04mso" path="res://src/ui/hud.gd" id="7"]
+[ext_resource type="Script" uid="uid://cskmwj54lvlfo" path="res://src/ui/menu.gd" id="8"]
+[ext_resource type="Script" uid="uid://bdwvp0k7pymrb" path="res://src/run3d/hero_select.gd" id="9"]
+[ext_resource type="Script" uid="uid://ynv7i21h4p60" path="res://src/ui/map_screen.gd" id="10"]
+[ext_resource type="Script" uid="uid://wl2s678pa1um" path="res://src/ui/controls.gd" id="11"]
+[ext_resource type="Script" uid="uid://bkcs71ufo3r5h" path="res://src/ui/wheel.gd" id="12"]
+[ext_resource type="Script" uid="uid://cbayffeerxh7" path="res://src/run3d/diorama.gd" id="13"]
 
 [sub_resource type="Environment" id="Environment_1"]
 background_mode = 1
@@ -20,69 +20,65 @@ background_color = Color(0.608, 0.867, 1, 1)
 ambient_light_source = 2
 ambient_light_color = Color(0.85, 0.93, 1, 1)
 ambient_light_energy = 0.7
-tonemap_mode = 0
 
-[node name="Run3D" type="Node3D"]
+[node name="Run3D" type="Node3D" unique_id=2120652094]
 script = ExtResource("1")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=211913179]
 environment = SubResource("Environment_1")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
-position = Vector3(0, 8, 0)
-rotation = Vector3(-0.9, 0.5, 0)
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=714460631]
+transform = Transform3D(0.87758255, -0.37554693, 0.2980157, 0, 0.62161, 0.7833269, -0.47942555, -0.687434, 0.54551405, 0, 8, 0)
 light_energy = 1.1
-shadow_enabled = false
 
-[node name="CameraRig" type="Node3D" parent="."]
+[node name="CameraRig" type="Node3D" parent="." unique_id=688793029]
 script = ExtResource("5")
 
-[node name="Camera3D" type="Camera3D" parent="CameraRig"]
-position = Vector3(0, 3.4, 5.6)
-rotation = Vector3(-0.44, 0, 0)
+[node name="Camera3D" type="Camera3D" parent="CameraRig" unique_id=884765564]
+transform = Transform3D(1, 0, 0, 0, 0.90475166, 0.42593947, 0, -0.42593947, 0.90475166, 0, 3.4, 5.6)
 fov = 62.0
 
-[node name="Track" type="Node3D" parent="."]
+[node name="Track" type="Node3D" parent="." unique_id=1361315663]
 process_mode = 1
 script = ExtResource("3")
 
-[node name="Ambient" type="Node3D" parent="."]
+[node name="Ambient" type="Node3D" parent="." unique_id=1975107554]
 process_mode = 1
 
-[node name="Spawner" type="Node3D" parent="."]
+[node name="Spawner" type="Node3D" parent="." unique_id=1085394122]
 process_mode = 1
 script = ExtResource("4")
 
-[node name="Actors" type="Node3D" parent="."]
+[node name="Actors" type="Node3D" parent="." unique_id=1379891599]
 process_mode = 1
 
-[node name="Hero" type="Node3D" parent="."]
+[node name="Hero" type="Node3D" parent="." unique_id=1976514112]
 process_mode = 1
 script = ExtResource("2")
 
-[node name="Diorama" type="Node3D" parent="."]
+[node name="Diorama" type="Node3D" parent="." unique_id=1863947824]
 process_mode = 1
 script = ExtResource("13")
 
-[node name="HeroSelect" type="Node3D" parent="."]
+[node name="HeroSelect" type="Node3D" parent="." unique_id=735845466]
 process_mode = 1
 script = ExtResource("9")
 
-[node name="EventSpawner" type="Node" parent="."]
+[node name="EventSpawner" type="Node" parent="." unique_id=1676499848]
 process_mode = 1
 script = ExtResource("6")
 
-[node name="HUD" type="CanvasLayer" parent="."]
+[node name="HUD" type="CanvasLayer" parent="." unique_id=570552320]
 script = ExtResource("7")
 
-[node name="Menu" type="CanvasLayer" parent="."]
+[node name="Menu" type="CanvasLayer" parent="." unique_id=761517368]
 script = ExtResource("8")
 
-[node name="Map" type="CanvasLayer" parent="."]
+[node name="Map" type="CanvasLayer" parent="." unique_id=991714224]
 script = ExtResource("10")
 
-[node name="Controls" type="CanvasLayer" parent="."]
+[node name="Controls" type="CanvasLayer" parent="." unique_id=1218070167]
 script = ExtResource("11")
 
-[node name="Wheel" type="CanvasLayer" parent="."]
+[node name="Wheel" type="CanvasLayer" parent="." unique_id=185003085]
 script = ExtResource("12")

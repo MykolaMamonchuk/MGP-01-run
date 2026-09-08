@@ -912,6 +912,20 @@ func _open_parents() -> void:
 		s.set_setting("joystick", not bool(s.setting("joystick", true)))
 		b_joy.text = "Джойстик: %s" % ("увімк" if bool(s.setting("joystick", true)) else "вимк"))
 	ctl.add_child(b_joy)
+	# розмиття планів + блум (GDD v1.5 §3): «гарно» на новіших пристроях, «швидко» — на слабких
+	var blur_on := bool(s.setting("fx_blur", true))
+	var b_blur := Button.new()
+	b_blur.text = "Розмиття (гарно/швидко): %s" % ("гарно" if blur_on else "швидко")
+	b_blur.custom_minimum_size = Vector2(320, 64)
+	b_blur.add_theme_font_size_override("font_size", 22)
+	b_blur.pressed.connect(func():
+		var on := not bool(s.setting("fx_blur", true))
+		s.set_setting("fx_blur", on)
+		var run := get_parent()
+		if run != null and run.has_method("set_fx_blur"):
+			run.call("set_fx_blur", on)
+		b_blur.text = "Розмиття (гарно/швидко): %s" % ("гарно" if on else "швидко"))
+	ctl.add_child(b_blur)
 	var b_tut := Button.new()
 	b_tut.text = "Скинути підказки"
 	b_tut.custom_minimum_size = Vector2(240, 64)

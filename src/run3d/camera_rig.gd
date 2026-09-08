@@ -8,8 +8,32 @@ extends Node3D
 const PRESET_MENU := {"pos": [1.7, 1.5, 3.0], "look": [0.0, 0.75, 0.0], "fov": 55, "ortho": false}
 const PRESET_HEROES := {"pos": [0.0, 1.7, 1.4], "look": [0.0, 0.7, -2.3], "fov": 58, "ortho": false}
 
+## Тілт-шифт (GDD v1.5 §3): далекий план і те, що прямо під носом, — м'які; герой різкий.
+## У CameraAttributesPractical сила розмиття одна на обидва плани, тож беремо більшу (далеку).
+const DOF_FAR_DISTANCE := 14.0
+const DOF_FAR_TRANSITION := 8.0
+const DOF_NEAR_DISTANCE := 2.2
+const DOF_NEAR_TRANSITION := 1.2
+const DOF_AMOUNT := 0.06
+
 var _tw: Tween
 var _shake_tw: Tween
+
+
+## Увімкнути/вимкнути розмиття планів (налаштування «fx_blur»).
+func set_dof(on: bool) -> void:
+	if not on:
+		cam.attributes = null
+		return
+	var a := CameraAttributesPractical.new()
+	a.dof_blur_far_enabled = true
+	a.dof_blur_far_distance = DOF_FAR_DISTANCE
+	a.dof_blur_far_transition = DOF_FAR_TRANSITION
+	a.dof_blur_near_enabled = true
+	a.dof_blur_near_distance = DOF_NEAR_DISTANCE
+	a.dof_blur_near_transition = DOF_NEAR_TRANSITION
+	a.dof_blur_amount = DOF_AMOUNT
+	cam.attributes = a
 
 
 ## Тряска (падіння героя): h/v_offset камери, без зміни трансформи.
@@ -26,9 +50,9 @@ func shake(strength: float = 0.12) -> void:
 
 
 func apply(preset: Dictionary, duration: float = 0.0) -> void:
-	# запасний пресет — той самий «низько й близько», що й у світах (GDD v1.4 §3: герой ≈ 1/4 висоти екрана)
-	var p: Array = preset.get("pos", [0.0, 1.9, 3.2])
-	var l: Array = preset.get("look", [0.0, 0.8, -4.0])
+	# запасний пресет — той самий ракурс 3/4 зверху-ззаду, що й у світах (GDD v1.5 §3: герой ≈ 1/6 висоти екрана)
+	var p: Array = preset.get("pos", [0.0, 3.8, 4.6])
+	var l: Array = preset.get("look", [0.0, 0.5, -5.0])
 	var pos := Vector3(float(p[0]), float(p[1]), float(p[2]))
 	var look := Vector3(float(l[0]), float(l[1]), float(l[2]))
 	var ortho := bool(preset.get("ortho", false))

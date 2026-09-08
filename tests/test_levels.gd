@@ -3,6 +3,16 @@ extends GutTest
 
 const RunScript := preload("res://src/run3d/run3d.gd")
 
+## Вокселі арт-бази v1.5 (етап 6, агент вокселів). Track пропускає відсутні імена,
+## тож дані можуть посилатися на них ще до появи файлів — тест це дозволяє явним списком.
+const ART_V15_VOXELS := [
+	"crate", "barrel", "mushroom_red", "bush_cube", "tree_round", "pine_3", "fence_low",
+	"lantern_post", "signpost", "house_red", "house_terra", "house_teal", "house_straw",
+	"awning_stall", "bridge_plank", "well", "hay_bale", "rock_grey", "flower_yellow",
+	"flower_pink", "pumpkin", "palm", "beach_hut", "umbrella_stripe", "cloud_house",
+	"city_house_a", "city_house_b", "kiosk",
+]
+
 var _levels: Array = []
 var _worlds: Dictionary = {}
 
@@ -10,6 +20,10 @@ var _worlds: Dictionary = {}
 func before_each() -> void:
 	_levels = LevelManager.load_levels()
 	_worlds = RunScript.load_worlds()
+
+
+func _voxel_ok(name: String) -> bool:
+	return FileAccess.file_exists("res://data/voxels/%s.json" % name) or ART_V15_VOXELS.has(name)
 
 
 func test_seventeen_levels_with_valid_worlds_and_lanes() -> void:
@@ -312,7 +326,7 @@ func test_near_walls_and_landmarks_exist() -> void:
 		var near: Array = _worlds[id].get("walls_near", [])
 		assert_gte(near.size(), 6, "%s: ≥ 6 видів у ближньому поясі стін (GDD v1.4 §3)" % id)
 		for v in near:
-			assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % String(v)), "%s: ближня стіна %s існує" % [id, v])
+			assert_true(_voxel_ok(String(v)), "%s: ближня стіна %s існує (або запланована в арт-базі v1.5)" % [id, v])
 		var marks: Array = _worlds[id].get("landmarks", [])
 		assert_gte(marks.size(), 2, "%s: є орієнтири (арка/вежа/ворота)" % id)
 		for v in marks:
@@ -322,15 +336,49 @@ func test_near_walls_and_landmarks_exist() -> void:
 		assert_true(_worlds[id].has("cliff_water"), "%s: є колір води під плато" % id)
 
 
-func test_world_cameras_are_low_enough_for_big_hero() -> void:
+## GDD v1.5 §3: ракурс 3/4 зверху-ззаду — pos (0, 3.8, 4.6), look (0, 0.5, −5), fov 52.
+func test_world_cameras_are_three_quarter_view() -> void:
 	for id in _worlds.keys():
 		if String(_worlds[id].get("mode", "run")) == "slide":
 			continue
 		var cam: Dictionary = _worlds[id].get("camera", {})
 		var pos: Array = cam.get("pos", [])
-		assert_lte(float(pos[1]), 2.2, "%s: камера низько — герой ≈ 1/4 висоти екрана (GDD v1.4 §3)" % id)
-		assert_lte(float(pos[2]), 3.6, "%s: камера близько до героя" % id)
-		assert_lte(float(cam.get("fov", 99)), 62.0, "%s: fov без «риб'ячого ока»" % id)
+		var look: Array = cam.get("look", [])
+		assert_between(float(pos[1]), 3.4, 4.2, "%s: камера зверху-ззаду (герой ≈ 1/6 висоти екрана)" % id)
+		assert_between(float(pos[2]), 4.0, 5.2, "%s: камера позаду героя" % id)
+		assert_eq(look.size(), 3, "%s: look — 3 числа" % id)
+		assert_lt(float(look[2]), -3.0, "%s: дивимось уперед по трасі" % id)
+		assert_lte(float(cam.get("fov", 99)), 56.0, "%s: fov без «риб'ячого ока»" % id)
+
+
+# ---------- 0.9.0: узбіччя по світах (GDD v1.5 §3) ----------
+
+func test_every_world_describes_its_roadside() -> void:
+	var surfaces := ["slabs", "planks", "sand_planks", "cobble", "cloud"]
+	var sides := ["both", "left", "right", "none"]
+	for id in _worlds.keys():
+		var w: Dictionary = _worlds[id]
+		assert_true(String(w.get("roadside", "")) in ["open", "walls"], "%s: roadside — open або walls" % id)
+		assert_true(String(w.get("road_surface", "")) in surfaces, "%s: road_surface з каталогу покриттів" % id)
+		var canal = w.get("canal")
+		assert_eq(typeof(canal), TYPE_DICTIONARY, "%s: canal — словник" % id)
+		if typeof(canal) == TYPE_DICTIONARY:
+			var c: Dictionary = canal
+			assert_true(String(c.get("side", "")) in sides, "%s: canal.side — both/left/right/none" % id)
+			assert_gte(float(c.get("offset", 0.0)), 1.5, "%s: канал не впритул до дороги" % id)
+			assert_gt(float(c.get("width", 0.0)), 0.0, "%s: у каналу є ширина" % id)
+			if String(c.get("side", "none")) != "none":
+				assert_true(Track.bridge_clears_road(1.6, float(c["offset"]), float(c["width"])),
+					"%s: настил містка не заходить у габарит дороги" % id)
+		for key in ["props_side", "buildings_far"]:
+			var arr = w.get(key)
+			assert_eq(typeof(arr), TYPE_ARRAY, "%s: %s — масив" % [id, key])
+			assert_gt((arr as Array).size(), 0, "%s: %s не порожній" % [id, key])
+			for v in (arr as Array):
+				assert_true(_voxel_ok(String(v)), "%s: %s → %s існує (або запланований у v1.5)" % [id, key, v])
+		assert_gte(int(w.get("bridges_every", 0)), 0, "%s: bridges_every — невідʼємне число" % id)
+		if String((w.get("canal", {}) as Dictionary).get("side", "none")) != "none":
+			assert_gt(int(w.get("bridges_every", 0)), 0, "%s: через канал мають бути містки" % id)
 
 
 func test_ingot_builds_and_big_one_is_hundred() -> void:

@@ -1,13 +1,12 @@
 {
-  "_note": "Кіоск (Місто-парк): кремова будка з віконцем і смугастим дашком.",
-  "size": 0.16,
-  "palette": {"c": "#FFF3E0", "t": "#C9784F", "d": "#7A4128", "r": "#E57373", "y": "#FFF176", "g": "#2E7D32"},
+  "_note": "Кіоск (Місто-парк, дім-діорама): темна основа, кремові стіни з віконцем, червоно-білий смугастий дашок.",
+  "size": 0.15,
+  "palette": {"c": "#F1E4C8", "d": "#7A4A2A", "r": "#D9503A", "w": "#FFFFFF"},
   "layers": [
-    ["ddddd", "ddddd", "ddddd", "ddddd"],
-    ["ccccc", "c...c", "c...c", "ccccc"],
-    ["cy.yc", "c...c", "c...c", "ccccc"],
-    ["ccccc", "c...c", "c...c", "ccccc"],
-    ["rcrcr", "rcrcr", "rcrcr", "rcrcr"],
-    [".ggg.", ".ggg.", ".ggg.", ".ggg."]
+    ["dddd", "dddd", "dddd", "dddd"],
+    ["cccc", "c..c", "c..c", "cccc"],
+    ["cwwc", "c..c", "c..c", "cccc"],
+    ["cccc", "c..c", "c..c", "cccc"],
+    ["rwrw", "rwrw", "rwrw", "rwrw"]
   ]
 }

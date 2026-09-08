@@ -1,0 +1,10 @@
+{
+  "_note": "Сірий валун узбіччя (арт-база v1.5).",
+  "size": 0.11,
+  "palette": {"g": "#9AA5B1", "l": "#B9C2CB", "d": "#7A828C"},
+  "layers": [
+    ["dgggd", "ggggg", "ggggg", "dgggd"],
+    [".ggg.", "glggg", "gggdg", ".ggg."],
+    ["..gg.", ".glg.", ".ggg.", "....."]
+  ]
+}

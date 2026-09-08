@@ -104,6 +104,37 @@ const INK_SOFT := Color("#222831")
 const WHITE := Color.WHITE
 const CLEAR := Color(0, 0, 0, 0)
 
+# арт-біблія v1.5 (GDD §3, Додаток Д) — відтінки світу, злитка та героїв.
+# Це шкала: назви W_/H_ фіксовані брифом етапу 6, ними користуються всі агенти.
+const W_GRASS := Color("#7DC242")        ## трава узбіччя
+const W_GRASS_SHADOW := Color("#5E9E33") ## тінь трави, бік тайла
+const W_WOOD := Color("#C4813F")         ## дошка, планка містка
+const W_WOOD_DARK := Color("#8F5A2A")    ## темна смуга дошки
+const W_CRATE := Color("#D9A05B")        ## ящик
+const W_ROOF_RED := Color("#D9503A")     ## дах червоний
+const W_ROOF_TERRA := Color("#C56A3A")   ## дах теракотовий
+const W_ROOF_TEAL := Color("#3E9A8F")    ## дах бірюзовий
+const W_ROOF_STRAW := Color("#C9A45C")   ## дах солом'яний
+const W_WALL := Color("#F1E4C8")         ## стіна будиночка
+const W_BEAM := Color("#7A4A2A")         ## фахверкова балка
+const W_ROCK := Color("#9AA5B1")         ## валун, камінь
+const W_WATER := Color("#38B6E0")        ## вода каналу
+const W_BANK_1 := Color("#C9784F")       ## берег каналу: верхній шар
+const W_BANK_2 := Color("#A55B3A")       ## берег каналу: середній шар
+const W_BANK_3 := Color("#7A4128")       ## берег каналу: нижній шар
+const W_SLAB := Color("#E9CF8A")         ## пісочна плита дороги
+const W_SLAB_DARK := Color("#D9B96F")    ## темна плита / шов
+const W_COBBLE := Color("#CFC8B8")       ## брук міста
+const W_SKY := Color("#BFE3F7")          ## небо світу
+const INGOT := Color("#F5C43C")          ## злиток
+const INGOT_EDGE := Color("#C98A12")     ## грань злитка
+const H_CREAM := Color("#F6E3C2")        ## мордочка/животик героя
+const H_DARK := Color("#4A2C2A")         ## носик, копитця, обвідка героя
+const H_ACC_PINK := Color("#F04F86")     ## акцент героя: рожевий
+const H_ACC_VIOLET := Color("#6B4FBF")   ## акцент героя: фіолетовий
+const H_ACC_TEAL := Color("#3FC1B0")     ## акцент героя: бірюзовий
+const H_ACC_YELLOW := Color("#F6C445")   ## акцент героя: жовтий
+
 # ─────────────────────────────── 2. РОЛІ ────────────────────────────────
 
 # текст

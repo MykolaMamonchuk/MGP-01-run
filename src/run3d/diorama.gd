@@ -260,21 +260,24 @@ func _build_world() -> void:
 	var w := _world_data()
 	_build_ground(w)
 	_build_props(w)
+	_build_edge_props()
 	_build_plots()
 	_build_magpie()
 	_ensure_hero()
 
 
 ## Плато: вода → три шари «цегли» → трав'яні плитки з варіацією → піщана стежка.
+## Арт-база v1.5: трава W_GRASS/W_GRASS_SHADOW, береги W_BANK_1..3, вода W_WATER, плити W_SLAB/W_SLAB_DARK.
 func _build_ground(w: Dictionary) -> void:
 	var tint := Palette.of(Seasons.current().get("ground_tint"), Palette.GROUND_TINT_NONE)
-	var grass := Palette.of(w.get("ground"), Palette.WORLD_GROUND) * tint
-	var grass_dark := Palette.of(w.get("ground_dark"), Palette.WORLD_GROUND_DARK) * tint
-	# стежка — пісочна (арт-біблія), колір світу тут не підходить: у Лужка «side» зелений
-	var sand := Palette.of(w.get("path", w.get("sand")), Palette.SAND)
-	var water := Palette.of(w.get("cliff_water", w.get("water")), Palette.WORLD_WATER)
+	var grass := Palette.of(w.get("ground"), Palette.W_GRASS) * tint
+	var grass_dark := Palette.of(w.get("ground_dark"), Palette.W_GRASS_SHADOW) * tint
+	# стежка — плитами (арт-біблія), колір світу тут не підходить: у Лужка «side» зелений
+	var sand := Palette.of(w.get("path", w.get("sand")), Palette.W_SLAB)
+	var sand_dark := Palette.W_SLAB_DARK
+	var water := Palette.of(w.get("cliff_water", w.get("water")), Palette.W_WATER)
 	var cliff: Array = w.get("cliff", [])
-	var cliff_fallback := [Palette.WOOD_LIGHT, Palette.WOOD, Palette.WOOD_DARK]
+	var cliff_fallback := [Palette.W_BANK_1, Palette.W_BANK_2, Palette.W_BANK_3]
 
 	# вода довкола острова
 	var span := TILE * float(TILES) + 8.0
@@ -301,10 +304,11 @@ func _build_ground(w: Dictionary) -> void:
 			t.position = Vector3((float(ix) - float(TILES - 1) * 0.5) * TILE, -TOP_H * 0.5, (float(iz) - float(TILES - 1) * 0.5) * TILE)
 			_island.add_child(t)
 
-	# піщана стежка попереду: під героєм і до ділянок
+	# піщана стежка попереду: під героєм і до ділянок, плити чергуються світла/темна (шов)
 	# (починається за передньою межею ділянок, щоб плити не «блимали» одна крізь одну)
 	for i in range(3):
-		var p := Mats.box(Vector3(1.7, 0.06, 0.7), sand.lightened(0.12))
+		var slab_col := sand if i % 2 == 0 else sand_dark
+		var p := Mats.box(Vector3(1.7, 0.06, 0.7), slab_col)
 		p.position = Vector3(0.0, 0.02, 1.6 + 0.75 * float(i))
 		_island.add_child(p)
 
@@ -327,6 +331,28 @@ func _build_props(w: Dictionary) -> void:
 		var mi := VoxelBuilder.instance(vname)
 		mi.position = spots[i]
 		mi.rotation.y = float(i) * 0.7
+		_island.add_child(mi)
+
+
+## Арт-база v1.5: 3–5 нових пропсів узбіччя (мухомор/кущик/паркан/квіти) по краю острова —
+## та сама діорама-«вітрина» вигляду світу, що й на трасі (props_side).
+const EDGE_PROPS := ["mushroom_red", "bush_cube", "fence_low", "flower_yellow", "flower_pink"]
+
+
+func _build_edge_props() -> void:
+	var edge := TILE * float(TILES) * 0.5 - 0.35
+	var spots := [
+		Vector3(-edge, 0.0, -edge * 0.2), Vector3(edge, 0.0, -edge * 0.2),
+		Vector3(-edge * 0.7, 0.0, edge * 0.85), Vector3(edge * 0.7, 0.0, edge * 0.85),
+		Vector3(0.0, 0.0, -edge),
+	]
+	for i in range(EDGE_PROPS.size()):
+		var vname := String(EDGE_PROPS[i])
+		if not FileAccess.file_exists("res://data/voxels/%s.json" % vname):
+			continue
+		var mi := VoxelBuilder.instance(vname)
+		mi.position = spots[i % spots.size()]
+		mi.rotation.y = float(i) * 1.1
 		_island.add_child(mi)
 
 

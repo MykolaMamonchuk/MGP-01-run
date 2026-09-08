@@ -15,3 +15,4 @@ Thumbs.db
 *.keystore
 *.jks
 export_credentials.cfg
+/docs/refs
