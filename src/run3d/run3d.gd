@@ -21,10 +21,17 @@ const SPRINT_FROM := 0.8
 const SPRINT_MULT := 1.15
 const GATE_BEFORE_SEC := 6.0
 const DEFAULT_FOG := 0.012
-## Блум (GDD v1.5 §3) — саме «м'який»: поріг близько білого, мала інтенсивність.
-const GLOW_INTENSITY := 0.25
+## Блум (GDD v1.5 §3) — саме «м'який»: поріг ВИЩЕ за білий, мала інтенсивність.
+## v2: блум був головною причиною «вицвілого» меню — світлі шерстинки героя цвіли
+## й з'їдали насиченість. Тепер цвіте лише те, що яскравіше за 1.1.
+const GLOW_INTENSITY := 0.18
 const GLOW_BLOOM := 0.1
-const GLOW_THRESHOLD := 1.0
+const GLOW_THRESHOLD := 1.1
+## Кольорокорекція (v2): трохи насиченості й контрасту — воксельні кольори звучать як в арт-базі.
+const ADJ_SATURATION := 1.15
+const ADJ_CONTRAST := 1.05
+## Сонце 1.1 (run3d.tscn) + амбієнт 0.55: разом середні тони не перевищують 1.0 і не пересвічуються.
+const AMBIENT_ENERGY := 0.55
 ## Сорока (GDD v1.4 §3): скидає X-ящик кожні 12–20 с, починаючи з 3-го рівня.
 const MAGPIE_FROM_LEVEL := 3
 const MAGPIE_DROP_INTERVAL := [12.0, 20.0]
@@ -32,6 +39,8 @@ const MAGPIE_DROP_INTERVAL := [12.0, 20.0]
 const ANTAGONIST_BY_WORLD := {"city": "pigeon", "clouds": "comet"}
 ## Скільки триває «стікання» лічильника злитків, коли сорока вкрала.
 const STEAL_TALLY_SEC := 1.0
+## Скільки секунд після удару герой кульгає (GDD v1.6 §5, анімація limp).
+const LIMP_AFTER_HIT_SEC := 3.0
 
 @onready var hero: Hero3D = $Hero
 @onready var track: Track = $Track
@@ -90,6 +99,10 @@ var level_coins := 0
 ## Активні пікапи: вид → секунд лишилось; равлик множить швидкість.
 var _effects: Dictionary = {}
 var _pickup_speed := 1.0
+## Супернапій (пікап "potion"): окремий множник, щоб не сваритися з равликом.
+var _potion_speed := 1.0
+## Скільки ще кульгати після удару (GDD v1.6 §5).
+var _limp_t := 0.0
 ## Множники героя (GDD v1.3 §5, stats.speed / stats.magnet) — виставляються на старті рівня.
 var _hero_speed := 1.0
 var _hero_magnet := 1.0
@@ -306,7 +319,7 @@ func _setup_sky() -> void:
 	# суцільний колір неба (надійно на Mobile) + м'який туман: далекий план тане, стає затишно
 	e.background_mode = Environment.BG_COLOR
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_energy = 0.8
+	e.ambient_light_energy = AMBIENT_ENERGY
 	e.fog_enabled = true
 	e.fog_mode = Environment.FOG_MODE_EXPONENTIAL
 	e.fog_density = DEFAULT_FOG
@@ -319,6 +332,11 @@ func _setup_sky() -> void:
 	e.glow_bloom = GLOW_BLOOM
 	e.glow_hdr_threshold = GLOW_THRESHOLD
 	e.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	# кольорокорекція: без неї воксельні кольори в меню й каруселі виглядали вицвілими
+	e.adjustment_enabled = true
+	e.adjustment_saturation = ADJ_SATURATION
+	e.adjustment_contrast = ADJ_CONTRAST
+	e.adjustment_brightness = 1.0
 	set_fx_blur(bool(SaveService.setting("fx_blur", true)))
 
 
@@ -340,7 +358,8 @@ func _set_sky(t: float) -> void:
 	if bool(level.get("evening", false)):
 		t = maxf(t, 0.8)
 	var c := day.lerp(evening, t)
-	var energy := lerpf(1.15, 0.7, t)
+	# сонце 1.1 (як у run3d.tscn) + амбієнт 0.55: разом середні тони не виходять за 1.0
+	var energy := lerpf(1.1, 0.7, t)
 	if bool(level.get("night", false)):
 		c = c.darkened(0.55).lerp(Palette.SKY_NIGHT, 0.5)
 		energy = 0.45
@@ -683,6 +702,11 @@ func _finish() -> void:
 	FX.confetti(self, Vector3(0, 1.2, 0), 60 + 30 * stars)
 	Events.checkpoint_reached.emit(level_num)   # AgeAdapt приймає рішення між рівнями
 	_finish_auto_t = -20.0   # авто-«Далі» лише після колеса
+	if stars >= 3:
+		# три зірочки — герой розвертається до камери й танцює (GDD v1.6 §5),
+		# ще до каскаду нагород: колесо крутиться через 1,2 с
+		hero.face_camera(true, 0.5)
+		hero.dance()
 	if record and stars == 3:
 		hud.flash("Три зірочки!", 1.4, Palette.FLASH_REWARD)
 	# колесо станції → потім панель із зірками
@@ -772,8 +796,15 @@ func _process(delta: float) -> void:
 			_sprint_announced = true
 			hud.flash("Фініш близько!", 1.0, Palette.FLASH_RETRY)
 			AudioMgr.voice("finish_soon")
-	speed = base_speed * _hero_speed * float(level.get("speed_mult", 1.0)) * (1.0 + SPEED_RAMP * progress) * sprint * _slow * _pickup_speed
+	speed = base_speed * _hero_speed * float(level.get("speed_mult", 1.0)) * (1.0 + SPEED_RAMP * progress) * sprint * _slow * _pickup_speed * _potion_speed
 	mode.speed = speed
+	# анімація героя (GDD v1.6 §5): спринт — супернапій або фінішний ривок; кульгає —
+	# останнє серце чи перші 3 с після удару. Пріоритет станів вирішує сам Hero3D
+	# (HIT > ROCKET > CHARGE > SPRINT > LIMP > RUN).
+	if _limp_t > 0.0:
+		_limp_t = maxf(0.0, _limp_t - delta)
+	hero.set_sprint(_effects.has("potion") or progress >= SPRINT_FROM)
+	hero.set_limp(hero.hearts <= 1 or _limp_t > 0.0)
 	spawner.set_speed(speed)
 	hud.set_speed(speed)
 	_tick_pickups(delta)
@@ -992,6 +1023,7 @@ func _on_obstacle_passed(_kind: String) -> void:
 
 func _on_hero_tumbled(_kind: String) -> void:
 	streak_no_hit = 0
+	_limp_t = LIMP_AFTER_HIT_SEC     # 3 с кульгає (анімація limp, GDD v1.6 §5)
 
 
 # ---------- життя: серця → зірки, сорока замість перезапуску (GDD v1.4 §3) ----------
@@ -1136,6 +1168,9 @@ func on_pickup(kind: String, def: Dictionary) -> void:
 	match kind:
 		"snail":
 			_pickup_speed = float(def.get("speed_mult", 0.6))
+		"potion":
+			# супернапій: розганяє й вмикає анімацію спринту (див. _process)
+			_potion_speed = float(def.get("speed_mult", 1.35))
 		"heart":
 			if hero.gain_heart():
 				Events.hearts_changed.emit(hero.hearts)
@@ -1172,6 +1207,7 @@ func _tick_pickups(delta: float) -> void:
 func _end_pickup(kind: String) -> void:
 	match kind:
 		"snail": _pickup_speed = 1.0
+		"potion": _potion_speed = 1.0
 		"magnet": spawner.magnet_wide = false
 		"shield": hero.set_shield(false)
 		"jetpack": hero.stop_fly()
@@ -1197,10 +1233,14 @@ func _end_all_pickups() -> void:
 	for k in _effects.keys().duplicate():
 		_end_pickup(String(k))
 	_pickup_speed = 1.0
+	_potion_speed = 1.0
+	_limp_t = 0.0
 	spawner.magnet_wide = false
 	spawner.coin_mult = 1
 	hero.set_shield(false)
 	hero.stop_fly()
+	hero.set_sprint(false)
+	hero.set_limp(false)
 	hud.hide_pickup()
 
 

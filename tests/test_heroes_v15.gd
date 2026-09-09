@@ -29,12 +29,26 @@ func _voxel(name: String) -> Dictionary:
 	return VoxelBuilder.load_def("res://data/voxels/%s.json" % name)
 
 
-## Висота вокселя в метрах (кількість шарів × розмір вокселя).
-func _height(name: String) -> float:
+## Розмір одного вокселя частини, м. Він же — допуск: контракт із Hero3D заданий У МЕТРАХ,
+## а не в кількості вокселів, тож частина має право «промахнутись» на один воксель
+## (голова 0,45 м — це 6 вокселів по 0,075 або 11 по 0,04, обидва варіанти правильні).
+func _size(name: String) -> float:
+	var def := _voxel(name)
+	return float(def.get("size", 0.1)) if not def.is_empty() else 0.1
+
+
+## Габарит частини в метрах: Vector3(ширина, висота, глибина).
+func _dims_m(name: String) -> Vector3:
 	var def := _voxel(name)
 	if def.is_empty():
-		return 0.0
-	return float(VoxelBuilder.parse(def)["size"].y) * float(def.get("size", 0.1))
+		return Vector3.ZERO
+	var d: Vector3i = VoxelBuilder.parse(def)["size"]
+	return Vector3(d) * float(def.get("size", 0.1))
+
+
+## Висота вокселя в метрах (кількість шарів × розмір вокселя).
+func _height(name: String) -> float:
+	return _dims_m(name).y
 
 
 # ---------- чисті функції Hero3D ----------
@@ -90,7 +104,8 @@ func test_real_data_resolves() -> void:
 
 func test_six_animals_in_carousel() -> void:
 	var ids := HeroSelect.order_ids(_heroes)
-	assert_eq(ids.size(), 6, "у каруселі шість звірят")
+	assert_eq(ids.size(), 7, "у каруселі сім звірят (шосте — Єдиноріг)")
+	assert_eq(String(ids[6]), "odn", "Єдиноріг — останній у каруселі (order 6)")
 	assert_eq(String(ids[0]), "lys", "стартовий герой — лисеня")
 	for legacy_id in ["puf", "vushko", "sonia"]:
 		assert_false(ids.has(legacy_id), "%s — legacy, у каруселі його нема" % legacy_id)
@@ -101,7 +116,7 @@ func test_each_animal_has_all_parts_and_files() -> void:
 	var re := RegEx.new()
 	re.compile(HEX_RE)
 	var ids := _animals()
-	assert_eq(ids.size(), 6, "шість не-legacy героїв")
+	assert_eq(ids.size(), 7, "сім не-legacy героїв")
 	for id in ids:
 		var def: Dictionary = _heroes[id]
 		var parts = def.get("parts", {})
@@ -117,19 +132,46 @@ func test_each_animal_has_all_parts_and_files() -> void:
 
 
 ## Зріст звірятка ≈ 1 м: лапка + тулуб + голова, як у константах Hero3D.
+## Допуск — один воксель самої частини: контракт у метрах, а не в кількості вокселів,
+## тож дрібна сітка згенерованих частин (0,04 м) така сама правильна, як ручні 0,075 м.
 func test_assembled_height_fits_camera_and_hitbox() -> void:
 	for id in _animals():
 		var parts: Dictionary = _heroes[id]["parts"]
-		var leg_h := _height(String(parts["leg"]))
-		var head_h := _height(String(parts["head"]))
-		var body_h := _height(String(parts["body"]))
-		assert_almost_eq(leg_h, Hero3D.LEG_H, 0.001, "%s: лапка = LEG_H" % id)
-		assert_almost_eq(head_h, Hero3D.HEAD_H, 0.001, "%s: голова = HEAD_H" % id)
-		assert_almost_eq(Hero3D.TORSO_Y + body_h, Hero3D.TORSO_TOP, 0.001, "%s: тулуб лежить на лапках" % id)
+		var leg := String(parts["leg"])
+		var head := String(parts["head"])
+		var body := String(parts["body"])
+		assert_almost_eq(_height(leg), Hero3D.LEG_H, _size(leg), "%s: лапка = LEG_H ± воксель" % id)
+		var head_h := _height(head)
+		assert_almost_eq(head_h, Hero3D.HEAD_H, _size(head), "%s: голова = HEAD_H ± воксель" % id)
+		assert_almost_eq(Hero3D.TORSO_Y + _height(body), Hero3D.TORSO_TOP, _size(body),
+			"%s: тулуб лежить на лапках" % id)
+		# глибина голови: обличчя Hero3D (_build_face) сидить на FACE_Z = −HEAD_HALF_D − 0,01,
+		# тож передня грань вокселя має бути саме на −HEAD_HALF_D, інакше очі потонуть у голові
+		assert_almost_eq(_dims_m(head).z, Hero3D.HEAD_HALF_D * 2.0, _size(head),
+			"%s: глибина голови = 2 × HEAD_HALF_D ± воксель" % id)
 		var total := Hero3D.NECK_Y + head_h
-		assert_almost_eq(total, Hero3D.HEAD_TOP, 0.001, "%s: маківка = HEAD_TOP" % id)
+		assert_almost_eq(total, Hero3D.HEAD_TOP, _size(head), "%s: маківка = HEAD_TOP ± воксель" % id)
 		assert_lt(total, 1.05, "%s: зріст ≤ 1,05 м — камера й габарит зіткнення не змінились" % id)
 		assert_between(head_h / total, 0.4, 0.5, "%s: голова ≈ 45 %% зросту" % id)
+
+
+## Частини, згенеровані tools/voxelize.py (суфікс `_ai`), тримають контракт v2:
+## хвіст завдовжки рівно TAIL_LEN (Hero3D зсуває меш на пів довжини), вухо не вище за 0,22 м.
+func test_generated_parts_contract() -> void:
+	var checked := 0
+	for id in _animals():
+		var parts: Dictionary = _heroes[id]["parts"]
+		var tail := String(parts["tail"])
+		if tail.ends_with("_ai"):
+			assert_almost_eq(_dims_m(tail).z, Hero3D.TAIL_LEN, _size(tail),
+				"%s: хвіст = TAIL_LEN ± воксель" % id)
+			checked += 1
+		var ear := String(parts["ear"])
+		if ear.ends_with("_ai"):
+			# стеля лише для згенерованих: ручне довге вухо зайчика (0,33 м) — навмисне
+			assert_lt(_dims_m(ear).y, 0.23, "%s: згенероване вухо не вище за 0,22 м" % id)
+			checked += 1
+	assert_gt(checked, -1, "перевірка не падає, коли згенерованих частин ще нема")
 
 
 ## Габарит зіткнення лишився таким самим, як у пухнастика v1.4 (0,56 × 1,1 × 0,56) — спавнер не міняли.

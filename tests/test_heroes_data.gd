@@ -3,7 +3,7 @@ extends GutTest
 
 const VALID_UNLOCK_TYPES := ["start", "stars", "checkpoints", "rewarded_or_stars", "growth", "full_game"]
 ## v1.5: звірята (fox…bear); решта — риси старих пухнастиків (legacy), лишились заради збережень.
-const VALID_FEATURES := ["fox", "deer", "dog", "bunny", "cat", "bear",
+const VALID_FEATURES := ["fox", "deer", "dog", "bunny", "cat", "bear", "unicorn",
 	"tuft", "ears", "tail", "antenna", "stripes", "cloud", "sparkle", "sleepy"]
 const HEX_COLOR_RE := "^#[0-9A-Fa-f]{6}$"
 
@@ -51,7 +51,7 @@ func test_each_hero_shape() -> void:
 
 	assert_eq(start_count, 1, "рівно один герой каруселі має unlock.type == start")
 	orders.sort()
-	assert_eq(orders, [0, 1, 2, 3, 4, 5], "order — 0..5 без дірок (шість звірят у каруселі)")
+	assert_eq(orders, [0, 1, 2, 3, 4, 5, 6], "order — 0..6 без дірок (сім звірят у каруселі)")
 
 
 func test_growth_stages_increase() -> void:

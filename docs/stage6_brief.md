@@ -2,7 +2,7 @@
 
 Godot 4.7, GDScript 4, Mobile renderer. Godot **не можна запустити** — пишемо обережний валідний код, коментарі в коді короткі українською. Тести — GUT (`tests/*.gd`, `extends GutTest`, `func test_*`). Кольори у `src/` — тільки через `Palette` (`src/ui/theme/palette.gd`), hex-літерали лише в palette.gd (тест `test_palette.gd`). Вокселі — JSON у `data/voxels/*.json`, будує `VoxelBuilder` (`addons/mgp_core/voxel/`).
 
-Обов'язково прочитати: `README.md`, `docs/CHANGELOG.md` (верх), `docs/refs/README.md` (розділи «Арт-біблія ч.1» і «ч.2 — БАЗА»), референси-картинки `docs/refs/want/world+items+atmosphere/*.jpg` і `docs/refs/want/characters/*.jpg` (дивитись через Read — вони визначають вигляд).
+Обов'язково прочитати: `docs/MEMORY.md` (уроки — Meshy-чекліст, sRGB, процес), `README.md`, `docs/CHANGELOG.md` (верх), `docs/refs/README.md` (розділи «Арт-біблія ч.1» і «ч.2 — БАЗА»), референси-картинки `docs/refs/want/world+items+atmosphere/*.jpg` і `docs/refs/want/characters/*.jpg` (дивитись через Read — вони визначають вигляд).
 
 ## Що вже є (v0.8.0)
 - Світ рухається на героя (+Z), `Track` — пул рядів + MultiMesh (дорога/декор/кліфи), `walls_near`, `landmarks`, кліфи з `world.cliff`, вода `cliff_water`.

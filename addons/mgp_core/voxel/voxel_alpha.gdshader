@@ -7,7 +7,7 @@ uniform float rim_strength : hint_range(0.0, 1.0) = 0.5;
 
 void fragment() {
 	float rim = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), 2.0);
-	ALBEDO = COLOR.rgb;
+	ALBEDO = pow(COLOR.rgb, vec3(2.2));   // sRGB палітри → лінійний (як у voxel.gdshader)
 	EMISSION = vec3(1.0) * rim * rim_strength;
 	ALPHA = alpha;
 	ROUGHNESS = 0.9;

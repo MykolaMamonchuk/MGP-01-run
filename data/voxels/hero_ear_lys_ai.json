@@ -1,0 +1,29 @@
+{
+  "_note": "Вухо; друге Hero3D дзеркалить (scale.x = -1). Згенеровано tools/voxelize.py з fox.glb.",
+  "size": 0.05,
+  "palette": {
+    "o": "#E8853A"
+  },
+  "layers": [
+    [
+      "oooo",
+      "oooo",
+      "oooo"
+    ],
+    [
+      "oooo",
+      "oooo",
+      "oooo"
+    ],
+    [
+      "oooo",
+      "oooo",
+      "oooo"
+    ],
+    [
+      "ooo.",
+      "ooo.",
+      "ooo."
+    ]
+  ]
+}

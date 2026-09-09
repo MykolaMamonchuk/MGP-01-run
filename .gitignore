@@ -16,3 +16,6 @@ Thumbs.db
 *.jks
 export_credentials.cfg
 /docs/refs
+# Python-інструменти (tools/voxelize.py)
+/tools/.venv/
+__pycache__/
