@@ -1,0 +1,690 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+
+[node name="LevelLayout" type="Node3D"]
+
+[node name="M0_obstacle_rock" type="Node3D" parent="." index="0"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -20.0)
+
+[node name="M1_obstacle_seaweed" type="Node3D" parent="." index="1"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -31.2)
+
+[node name="M2_obstacle_rock" type="Node3D" parent="." index="2"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -42.5)
+
+[node name="M3_obstacle_seaweed" type="Node3D" parent="." index="3"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -53.8)
+
+[node name="M4_obstacle_rock" type="Node3D" parent="." index="4"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -65.0)
+
+[node name="M5_obstacle_seaweed" type="Node3D" parent="." index="5"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -76.2)
+
+[node name="M6_obstacle_rock" type="Node3D" parent="." index="6"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -87.5)
+
+[node name="M7_obstacle_seaweed" type="Node3D" parent="." index="7"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -98.8)
+
+[node name="M8_obstacle_rock" type="Node3D" parent="." index="8"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -110.0)
+
+[node name="M9_obstacle_seaweed" type="Node3D" parent="." index="9"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -121.2)
+
+[node name="M10_obstacle_rock" type="Node3D" parent="." index="10"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -132.5)
+
+[node name="M11_obstacle_seaweed" type="Node3D" parent="." index="11"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -143.8)
+
+[node name="M12_obstacle_rock" type="Node3D" parent="." index="12"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -155.0)
+
+[node name="M13_obstacle_seaweed" type="Node3D" parent="." index="13"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -166.2)
+
+[node name="M14_obstacle_rock" type="Node3D" parent="." index="14"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -177.5)
+
+[node name="M15_obstacle_seaweed" type="Node3D" parent="." index="15"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -188.8)
+
+[node name="M16_obstacle_rock" type="Node3D" parent="." index="16"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -200.0)
+
+[node name="M17_obstacle_seaweed" type="Node3D" parent="." index="17"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -211.2)
+
+[node name="M18_obstacle_rock" type="Node3D" parent="." index="18"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -222.5)
+
+[node name="M19_obstacle_seaweed" type="Node3D" parent="." index="19"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -233.8)
+
+[node name="M20_obstacle_rock" type="Node3D" parent="." index="20"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -245.0)
+
+[node name="M21_obstacle_seaweed" type="Node3D" parent="." index="21"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -256.2)
+
+[node name="M22_obstacle_rock" type="Node3D" parent="." index="22"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -267.5)
+
+[node name="M23_obstacle_seaweed" type="Node3D" parent="." index="23"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -278.8)
+
+[node name="M24_obstacle_rock" type="Node3D" parent="." index="24"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -290.0)
+
+[node name="M25_obstacle_seaweed" type="Node3D" parent="." index="25"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -301.2)
+
+[node name="M26_obstacle_rock" type="Node3D" parent="." index="26"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -312.5)
+
+[node name="M27_obstacle_seaweed" type="Node3D" parent="." index="27"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -323.8)
+
+[node name="M28_obstacle_rock" type="Node3D" parent="." index="28"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -335.0)
+
+[node name="M29_obstacle_seaweed" type="Node3D" parent="." index="29"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -346.2)
+
+[node name="M30_obstacle_rock" type="Node3D" parent="." index="30"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -357.5)
+
+[node name="M31_obstacle_seaweed" type="Node3D" parent="." index="31"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -368.8)
+
+[node name="M32_obstacle_rock" type="Node3D" parent="." index="32"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -380.0)
+
+[node name="M33_obstacle_seaweed" type="Node3D" parent="." index="33"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -391.2)
+
+[node name="M34_obstacle_rock" type="Node3D" parent="." index="34"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -402.5)
+
+[node name="M35_obstacle_seaweed" type="Node3D" parent="." index="35"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -413.8)
+
+[node name="M36_obstacle_rock" type="Node3D" parent="." index="36"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -425.0)
+
+[node name="M37_obstacle_seaweed" type="Node3D" parent="." index="37"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -436.2)
+
+[node name="M38_obstacle_rock" type="Node3D" parent="." index="38"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -447.5)
+
+[node name="M39_obstacle_seaweed" type="Node3D" parent="." index="39"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -458.8)
+
+[node name="M40_obstacle_rock" type="Node3D" parent="." index="40"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -470.0)
+
+[node name="M41_obstacle_seaweed" type="Node3D" parent="." index="41"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -481.2)
+
+[node name="M42_obstacle_rock" type="Node3D" parent="." index="42"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -492.5)
+
+[node name="M43_obstacle_seaweed" type="Node3D" parent="." index="43"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -503.8)
+
+[node name="M44_obstacle_rock" type="Node3D" parent="." index="44"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -515.0)
+
+[node name="M45_obstacle_seaweed" type="Node3D" parent="." index="45"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -526.2)
+
+[node name="M46_obstacle_rock" type="Node3D" parent="." index="46"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -537.5)
+
+[node name="M47_obstacle_seaweed" type="Node3D" parent="." index="47"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -548.8)
+
+[node name="M48_obstacle_rock" type="Node3D" parent="." index="48"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -560.0)
+
+[node name="M49_decor_palm" type="Node3D" parent="." index="49"]
+script = ExtResource("1")
+role = "decor"
+kind = "palm"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -10.0)
+
+[node name="M50_decor_umbrella" type="Node3D" parent="." index="50"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -20.0)
+
+[node name="M51_decor_sandcastle" type="Node3D" parent="." index="51"]
+script = ExtResource("1")
+role = "decor"
+kind = "sandcastle"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -30.0)
+
+[node name="M52_decor_buoy" type="Node3D" parent="." index="52"]
+script = ExtResource("1")
+role = "decor"
+kind = "buoy"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -40.0)
+
+[node name="M53_decor_rock" type="Node3D" parent="." index="53"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -50.0)
+
+[node name="M54_decor_crab" type="Node3D" parent="." index="54"]
+script = ExtResource("1")
+role = "decor"
+kind = "crab"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -60.0)
+
+[node name="M55_decor_star" type="Node3D" parent="." index="55"]
+script = ExtResource("1")
+role = "decor"
+kind = "star"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -70.0)
+
+[node name="M56_decor_shell" type="Node3D" parent="." index="56"]
+script = ExtResource("1")
+role = "decor"
+kind = "shell"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -80.0)
+
+[node name="M57_decor_palm" type="Node3D" parent="." index="57"]
+script = ExtResource("1")
+role = "decor"
+kind = "palm"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -90.0)
+
+[node name="M58_decor_umbrella" type="Node3D" parent="." index="58"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -100.0)
+
+[node name="M59_decor_sandcastle" type="Node3D" parent="." index="59"]
+script = ExtResource("1")
+role = "decor"
+kind = "sandcastle"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -110.0)
+
+[node name="M60_decor_buoy" type="Node3D" parent="." index="60"]
+script = ExtResource("1")
+role = "decor"
+kind = "buoy"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -120.0)
+
+[node name="M61_decor_rock" type="Node3D" parent="." index="61"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -130.0)
+
+[node name="M62_decor_crab" type="Node3D" parent="." index="62"]
+script = ExtResource("1")
+role = "decor"
+kind = "crab"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -140.0)
+
+[node name="M63_decor_star" type="Node3D" parent="." index="63"]
+script = ExtResource("1")
+role = "decor"
+kind = "star"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -150.0)
+
+[node name="M64_decor_shell" type="Node3D" parent="." index="64"]
+script = ExtResource("1")
+role = "decor"
+kind = "shell"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -160.0)
+
+[node name="M65_decor_palm" type="Node3D" parent="." index="65"]
+script = ExtResource("1")
+role = "decor"
+kind = "palm"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -170.0)
+
+[node name="M66_decor_umbrella" type="Node3D" parent="." index="66"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -180.0)
+
+[node name="M67_decor_sandcastle" type="Node3D" parent="." index="67"]
+script = ExtResource("1")
+role = "decor"
+kind = "sandcastle"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -190.0)
+
+[node name="M68_decor_buoy" type="Node3D" parent="." index="68"]
+script = ExtResource("1")
+role = "decor"
+kind = "buoy"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -200.0)
+
+[node name="M69_decor_rock" type="Node3D" parent="." index="69"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -210.0)
+
+[node name="M70_decor_crab" type="Node3D" parent="." index="70"]
+script = ExtResource("1")
+role = "decor"
+kind = "crab"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -220.0)
+
+[node name="M71_decor_star" type="Node3D" parent="." index="71"]
+script = ExtResource("1")
+role = "decor"
+kind = "star"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -230.0)
+
+[node name="M72_decor_shell" type="Node3D" parent="." index="72"]
+script = ExtResource("1")
+role = "decor"
+kind = "shell"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -240.0)
+
+[node name="M73_decor_palm" type="Node3D" parent="." index="73"]
+script = ExtResource("1")
+role = "decor"
+kind = "palm"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -250.0)
+
+[node name="M74_decor_umbrella" type="Node3D" parent="." index="74"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -260.0)
+
+[node name="M75_decor_sandcastle" type="Node3D" parent="." index="75"]
+script = ExtResource("1")
+role = "decor"
+kind = "sandcastle"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -270.0)
+
+[node name="M76_decor_buoy" type="Node3D" parent="." index="76"]
+script = ExtResource("1")
+role = "decor"
+kind = "buoy"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -280.0)
+
+[node name="M77_decor_rock" type="Node3D" parent="." index="77"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -290.0)
+
+[node name="M78_decor_crab" type="Node3D" parent="." index="78"]
+script = ExtResource("1")
+role = "decor"
+kind = "crab"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -300.0)
+
+[node name="M79_decor_star" type="Node3D" parent="." index="79"]
+script = ExtResource("1")
+role = "decor"
+kind = "star"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -310.0)
+
+[node name="M80_decor_shell" type="Node3D" parent="." index="80"]
+script = ExtResource("1")
+role = "decor"
+kind = "shell"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -320.0)
+
+[node name="M81_decor_palm" type="Node3D" parent="." index="81"]
+script = ExtResource("1")
+role = "decor"
+kind = "palm"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -330.0)
+
+[node name="M82_decor_umbrella" type="Node3D" parent="." index="82"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -340.0)
+
+[node name="M83_decor_sandcastle" type="Node3D" parent="." index="83"]
+script = ExtResource("1")
+role = "decor"
+kind = "sandcastle"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -350.0)
+
+[node name="M84_decor_buoy" type="Node3D" parent="." index="84"]
+script = ExtResource("1")
+role = "decor"
+kind = "buoy"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -360.0)
+
+[node name="M85_decor_rock" type="Node3D" parent="." index="85"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -370.0)
+
+[node name="M86_decor_crab" type="Node3D" parent="." index="86"]
+script = ExtResource("1")
+role = "decor"
+kind = "crab"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -380.0)
+
+[node name="M87_decor_star" type="Node3D" parent="." index="87"]
+script = ExtResource("1")
+role = "decor"
+kind = "star"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -390.0)
+
+[node name="M88_decor_shell" type="Node3D" parent="." index="88"]
+script = ExtResource("1")
+role = "decor"
+kind = "shell"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -400.0)
+
+[node name="M89_decor_palm" type="Node3D" parent="." index="89"]
+script = ExtResource("1")
+role = "decor"
+kind = "palm"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -410.0)
+
+[node name="M90_decor_umbrella" type="Node3D" parent="." index="90"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -420.0)
+
+[node name="M91_decor_sandcastle" type="Node3D" parent="." index="91"]
+script = ExtResource("1")
+role = "decor"
+kind = "sandcastle"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -430.0)
+
+[node name="M92_decor_buoy" type="Node3D" parent="." index="92"]
+script = ExtResource("1")
+role = "decor"
+kind = "buoy"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -440.0)
+
+[node name="M93_decor_rock" type="Node3D" parent="." index="93"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -450.0)
+
+[node name="M94_decor_crab" type="Node3D" parent="." index="94"]
+script = ExtResource("1")
+role = "decor"
+kind = "crab"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -460.0)
+
+[node name="M95_decor_star" type="Node3D" parent="." index="95"]
+script = ExtResource("1")
+role = "decor"
+kind = "star"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -470.0)
+
+[node name="M96_decor_shell" type="Node3D" parent="." index="96"]
+script = ExtResource("1")
+role = "decor"
+kind = "shell"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -480.0)
+
+[node name="M97_decor_palm" type="Node3D" parent="." index="97"]
+script = ExtResource("1")
+role = "decor"
+kind = "palm"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -490.0)
+
+[node name="M98_decor_umbrella" type="Node3D" parent="." index="98"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -500.0)
+
+[node name="M99_decor_sandcastle" type="Node3D" parent="." index="99"]
+script = ExtResource("1")
+role = "decor"
+kind = "sandcastle"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -510.0)
+
+[node name="M100_decor_buoy" type="Node3D" parent="." index="100"]
+script = ExtResource("1")
+role = "decor"
+kind = "buoy"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -520.0)
+
+[node name="M101_decor_rock" type="Node3D" parent="." index="101"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -530.0)
+
+[node name="M102_decor_crab" type="Node3D" parent="." index="102"]
+script = ExtResource("1")
+role = "decor"
+kind = "crab"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -540.0)
+
+[node name="M103_decor_star" type="Node3D" parent="." index="103"]
+script = ExtResource("1")
+role = "decor"
+kind = "star"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -550.0)
+
+[node name="M104_decor_shell" type="Node3D" parent="." index="104"]
+script = ExtResource("1")
+role = "decor"
+kind = "shell"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -560.0)
+
+[node name="M105_landmark_arch_terracotta" type="Node3D" parent="." index="105"]
+script = ExtResource("1")
+role = "landmark"
+kind = "arch_terracotta"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -281.2)
