@@ -1,0 +1,1053 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+
+[node name="LevelLayout" type="Node3D"]
+
+[node name="M0_obstacle_bench" type="Node3D" parent="." index="0"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -20.0)
+
+[node name="M1_obstacle_lamp" type="Node3D" parent="." index="1"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -29.4)
+
+[node name="M2_obstacle_puddle" type="Node3D" parent="." index="2"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -38.8)
+
+[node name="M3_obstacle_rail" type="Node3D" parent="." index="3"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -48.1)
+
+[node name="M4_obstacle_sign" type="Node3D" parent="." index="4"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -57.5)
+
+[node name="M5_obstacle_ramp" type="Node3D" parent="." index="5"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -66.9)
+
+[node name="M6_obstacle_balloons" type="Node3D" parent="." index="6"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -76.2)
+
+[node name="M7_obstacle_fountain" type="Node3D" parent="." index="7"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -85.6)
+
+[node name="M8_obstacle_bench" type="Node3D" parent="." index="8"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -95.0)
+
+[node name="M9_obstacle_lamp" type="Node3D" parent="." index="9"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -104.4)
+
+[node name="M10_obstacle_puddle" type="Node3D" parent="." index="10"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -113.8)
+
+[node name="M11_obstacle_rail" type="Node3D" parent="." index="11"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -123.1)
+
+[node name="M12_obstacle_sign" type="Node3D" parent="." index="12"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -132.5)
+
+[node name="M13_obstacle_ramp" type="Node3D" parent="." index="13"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -141.9)
+
+[node name="M14_obstacle_balloons" type="Node3D" parent="." index="14"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -151.2)
+
+[node name="M15_obstacle_fountain" type="Node3D" parent="." index="15"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -160.6)
+
+[node name="M16_obstacle_bench" type="Node3D" parent="." index="16"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -170.0)
+
+[node name="M17_obstacle_lamp" type="Node3D" parent="." index="17"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -179.4)
+
+[node name="M18_obstacle_puddle" type="Node3D" parent="." index="18"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -188.8)
+
+[node name="M19_obstacle_rail" type="Node3D" parent="." index="19"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -198.1)
+
+[node name="M20_obstacle_sign" type="Node3D" parent="." index="20"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -207.5)
+
+[node name="M21_obstacle_ramp" type="Node3D" parent="." index="21"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -216.9)
+
+[node name="M22_obstacle_balloons" type="Node3D" parent="." index="22"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -226.2)
+
+[node name="M23_obstacle_fountain" type="Node3D" parent="." index="23"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -235.6)
+
+[node name="M24_obstacle_bench" type="Node3D" parent="." index="24"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -245.0)
+
+[node name="M25_obstacle_lamp" type="Node3D" parent="." index="25"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -254.4)
+
+[node name="M26_obstacle_puddle" type="Node3D" parent="." index="26"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -263.8)
+
+[node name="M27_obstacle_rail" type="Node3D" parent="." index="27"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -273.1)
+
+[node name="M28_obstacle_sign" type="Node3D" parent="." index="28"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -282.5)
+
+[node name="M29_obstacle_ramp" type="Node3D" parent="." index="29"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -291.9)
+
+[node name="M30_obstacle_balloons" type="Node3D" parent="." index="30"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -301.2)
+
+[node name="M31_obstacle_fountain" type="Node3D" parent="." index="31"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -310.6)
+
+[node name="M32_obstacle_bench" type="Node3D" parent="." index="32"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -320.0)
+
+[node name="M33_obstacle_lamp" type="Node3D" parent="." index="33"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -329.4)
+
+[node name="M34_obstacle_puddle" type="Node3D" parent="." index="34"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -338.8)
+
+[node name="M35_obstacle_rail" type="Node3D" parent="." index="35"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -348.1)
+
+[node name="M36_obstacle_sign" type="Node3D" parent="." index="36"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -357.5)
+
+[node name="M37_obstacle_ramp" type="Node3D" parent="." index="37"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -366.9)
+
+[node name="M38_obstacle_balloons" type="Node3D" parent="." index="38"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -376.2)
+
+[node name="M39_obstacle_fountain" type="Node3D" parent="." index="39"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -385.6)
+
+[node name="M40_obstacle_bench" type="Node3D" parent="." index="40"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -395.0)
+
+[node name="M41_obstacle_lamp" type="Node3D" parent="." index="41"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -404.4)
+
+[node name="M42_obstacle_puddle" type="Node3D" parent="." index="42"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -413.8)
+
+[node name="M43_obstacle_rail" type="Node3D" parent="." index="43"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -423.1)
+
+[node name="M44_obstacle_sign" type="Node3D" parent="." index="44"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -432.5)
+
+[node name="M45_obstacle_ramp" type="Node3D" parent="." index="45"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -441.9)
+
+[node name="M46_obstacle_balloons" type="Node3D" parent="." index="46"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -451.2)
+
+[node name="M47_obstacle_fountain" type="Node3D" parent="." index="47"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -460.6)
+
+[node name="M48_obstacle_bench" type="Node3D" parent="." index="48"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -470.0)
+
+[node name="M49_obstacle_lamp" type="Node3D" parent="." index="49"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -479.4)
+
+[node name="M50_obstacle_puddle" type="Node3D" parent="." index="50"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -488.8)
+
+[node name="M51_obstacle_rail" type="Node3D" parent="." index="51"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -498.1)
+
+[node name="M52_obstacle_sign" type="Node3D" parent="." index="52"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -507.5)
+
+[node name="M53_obstacle_ramp" type="Node3D" parent="." index="53"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -516.9)
+
+[node name="M54_obstacle_balloons" type="Node3D" parent="." index="54"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -526.2)
+
+[node name="M55_obstacle_fountain" type="Node3D" parent="." index="55"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -535.6)
+
+[node name="M56_obstacle_bench" type="Node3D" parent="." index="56"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -545.0)
+
+[node name="M57_obstacle_lamp" type="Node3D" parent="." index="57"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -554.4)
+
+[node name="M58_obstacle_puddle" type="Node3D" parent="." index="58"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -563.8)
+
+[node name="M59_obstacle_rail" type="Node3D" parent="." index="59"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -573.1)
+
+[node name="M60_obstacle_sign" type="Node3D" parent="." index="60"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -582.5)
+
+[node name="M61_obstacle_ramp" type="Node3D" parent="." index="61"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -591.9)
+
+[node name="M62_obstacle_balloons" type="Node3D" parent="." index="62"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -601.2)
+
+[node name="M63_obstacle_fountain" type="Node3D" parent="." index="63"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -610.6)
+
+[node name="M64_obstacle_bench" type="Node3D" parent="." index="64"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -620.0)
+
+[node name="M65_obstacle_lamp" type="Node3D" parent="." index="65"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -629.4)
+
+[node name="M66_obstacle_puddle" type="Node3D" parent="." index="66"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -638.8)
+
+[node name="M67_obstacle_rail" type="Node3D" parent="." index="67"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -648.1)
+
+[node name="M68_obstacle_sign" type="Node3D" parent="." index="68"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -657.5)
+
+[node name="M69_obstacle_ramp" type="Node3D" parent="." index="69"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -666.9)
+
+[node name="M70_obstacle_balloons" type="Node3D" parent="." index="70"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -676.2)
+
+[node name="M71_obstacle_fountain" type="Node3D" parent="." index="71"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -685.6)
+
+[node name="M72_obstacle_bench" type="Node3D" parent="." index="72"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -695.0)
+
+[node name="M73_obstacle_lamp" type="Node3D" parent="." index="73"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -704.4)
+
+[node name="M74_obstacle_puddle" type="Node3D" parent="." index="74"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "puddle"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -713.8)
+
+[node name="M75_obstacle_rail" type="Node3D" parent="." index="75"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rail"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -723.1)
+
+[node name="M76_obstacle_sign" type="Node3D" parent="." index="76"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "sign"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -732.5)
+
+[node name="M77_obstacle_ramp" type="Node3D" parent="." index="77"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ramp"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -741.9)
+
+[node name="M78_obstacle_balloons" type="Node3D" parent="." index="78"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -751.2)
+
+[node name="M79_obstacle_fountain" type="Node3D" parent="." index="79"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -760.6)
+
+[node name="M80_obstacle_bench" type="Node3D" parent="." index="80"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -770.0)
+
+[node name="M81_obstacle_lamp" type="Node3D" parent="." index="81"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -779.4)
+
+[node name="M82_decor_lamp" type="Node3D" parent="." index="82"]
+script = ExtResource("1")
+role = "decor"
+kind = "lamp"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -10.0)
+
+[node name="M83_decor_tree" type="Node3D" parent="." index="83"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -20.0)
+
+[node name="M84_decor_fence" type="Node3D" parent="." index="84"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -30.0)
+
+[node name="M85_decor_umbrella" type="Node3D" parent="." index="85"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -40.0)
+
+[node name="M86_decor_cart" type="Node3D" parent="." index="86"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -50.0)
+
+[node name="M87_decor_fountain" type="Node3D" parent="." index="87"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -60.0)
+
+[node name="M88_decor_bush" type="Node3D" parent="." index="88"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -70.0)
+
+[node name="M89_decor_flower" type="Node3D" parent="." index="89"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -80.0)
+
+[node name="M90_decor_mushroom" type="Node3D" parent="." index="90"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -90.0)
+
+[node name="M91_decor_lamp" type="Node3D" parent="." index="91"]
+script = ExtResource("1")
+role = "decor"
+kind = "lamp"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -100.0)
+
+[node name="M92_decor_tree" type="Node3D" parent="." index="92"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -110.0)
+
+[node name="M93_decor_fence" type="Node3D" parent="." index="93"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -120.0)
+
+[node name="M94_decor_umbrella" type="Node3D" parent="." index="94"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -130.0)
+
+[node name="M95_decor_cart" type="Node3D" parent="." index="95"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -140.0)
+
+[node name="M96_decor_fountain" type="Node3D" parent="." index="96"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -150.0)
+
+[node name="M97_decor_bush" type="Node3D" parent="." index="97"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -160.0)
+
+[node name="M98_decor_flower" type="Node3D" parent="." index="98"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -170.0)
+
+[node name="M99_decor_mushroom" type="Node3D" parent="." index="99"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -180.0)
+
+[node name="M100_decor_lamp" type="Node3D" parent="." index="100"]
+script = ExtResource("1")
+role = "decor"
+kind = "lamp"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -190.0)
+
+[node name="M101_decor_tree" type="Node3D" parent="." index="101"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -200.0)
+
+[node name="M102_decor_fence" type="Node3D" parent="." index="102"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -210.0)
+
+[node name="M103_decor_umbrella" type="Node3D" parent="." index="103"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -220.0)
+
+[node name="M104_decor_cart" type="Node3D" parent="." index="104"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -230.0)
+
+[node name="M105_decor_fountain" type="Node3D" parent="." index="105"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -240.0)
+
+[node name="M106_decor_bush" type="Node3D" parent="." index="106"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -250.0)
+
+[node name="M107_decor_flower" type="Node3D" parent="." index="107"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -260.0)
+
+[node name="M108_decor_mushroom" type="Node3D" parent="." index="108"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -270.0)
+
+[node name="M109_decor_lamp" type="Node3D" parent="." index="109"]
+script = ExtResource("1")
+role = "decor"
+kind = "lamp"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -280.0)
+
+[node name="M110_decor_tree" type="Node3D" parent="." index="110"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -290.0)
+
+[node name="M111_decor_fence" type="Node3D" parent="." index="111"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -300.0)
+
+[node name="M112_decor_umbrella" type="Node3D" parent="." index="112"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -310.0)
+
+[node name="M113_decor_cart" type="Node3D" parent="." index="113"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -320.0)
+
+[node name="M114_decor_fountain" type="Node3D" parent="." index="114"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -330.0)
+
+[node name="M115_decor_bush" type="Node3D" parent="." index="115"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -340.0)
+
+[node name="M116_decor_flower" type="Node3D" parent="." index="116"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -350.0)
+
+[node name="M117_decor_mushroom" type="Node3D" parent="." index="117"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -360.0)
+
+[node name="M118_decor_lamp" type="Node3D" parent="." index="118"]
+script = ExtResource("1")
+role = "decor"
+kind = "lamp"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -370.0)
+
+[node name="M119_decor_tree" type="Node3D" parent="." index="119"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -380.0)
+
+[node name="M120_decor_fence" type="Node3D" parent="." index="120"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -390.0)
+
+[node name="M121_decor_umbrella" type="Node3D" parent="." index="121"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -400.0)
+
+[node name="M122_decor_cart" type="Node3D" parent="." index="122"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -410.0)
+
+[node name="M123_decor_fountain" type="Node3D" parent="." index="123"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -420.0)
+
+[node name="M124_decor_bush" type="Node3D" parent="." index="124"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -430.0)
+
+[node name="M125_decor_flower" type="Node3D" parent="." index="125"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -440.0)
+
+[node name="M126_decor_mushroom" type="Node3D" parent="." index="126"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -450.0)
+
+[node name="M127_decor_lamp" type="Node3D" parent="." index="127"]
+script = ExtResource("1")
+role = "decor"
+kind = "lamp"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -460.0)
+
+[node name="M128_decor_tree" type="Node3D" parent="." index="128"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -470.0)
+
+[node name="M129_decor_fence" type="Node3D" parent="." index="129"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -480.0)
+
+[node name="M130_decor_umbrella" type="Node3D" parent="." index="130"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -490.0)
+
+[node name="M131_decor_cart" type="Node3D" parent="." index="131"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -500.0)
+
+[node name="M132_decor_fountain" type="Node3D" parent="." index="132"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -510.0)
+
+[node name="M133_decor_bush" type="Node3D" parent="." index="133"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -520.0)
+
+[node name="M134_decor_flower" type="Node3D" parent="." index="134"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -530.0)
+
+[node name="M135_decor_mushroom" type="Node3D" parent="." index="135"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -540.0)
+
+[node name="M136_decor_lamp" type="Node3D" parent="." index="136"]
+script = ExtResource("1")
+role = "decor"
+kind = "lamp"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -550.0)
+
+[node name="M137_decor_tree" type="Node3D" parent="." index="137"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -560.0)
+
+[node name="M138_decor_fence" type="Node3D" parent="." index="138"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -570.0)
+
+[node name="M139_decor_umbrella" type="Node3D" parent="." index="139"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -580.0)
+
+[node name="M140_decor_cart" type="Node3D" parent="." index="140"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -590.0)
+
+[node name="M141_decor_fountain" type="Node3D" parent="." index="141"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -600.0)
+
+[node name="M142_decor_bush" type="Node3D" parent="." index="142"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -610.0)
+
+[node name="M143_decor_flower" type="Node3D" parent="." index="143"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -620.0)
+
+[node name="M144_decor_mushroom" type="Node3D" parent="." index="144"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -630.0)
+
+[node name="M145_decor_lamp" type="Node3D" parent="." index="145"]
+script = ExtResource("1")
+role = "decor"
+kind = "lamp"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -640.0)
+
+[node name="M146_decor_tree" type="Node3D" parent="." index="146"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -650.0)
+
+[node name="M147_decor_fence" type="Node3D" parent="." index="147"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -660.0)
+
+[node name="M148_decor_umbrella" type="Node3D" parent="." index="148"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -670.0)
+
+[node name="M149_decor_cart" type="Node3D" parent="." index="149"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -680.0)
+
+[node name="M150_decor_fountain" type="Node3D" parent="." index="150"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -690.0)
+
+[node name="M151_decor_bush" type="Node3D" parent="." index="151"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -700.0)
+
+[node name="M152_decor_flower" type="Node3D" parent="." index="152"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -710.0)
+
+[node name="M153_decor_mushroom" type="Node3D" parent="." index="153"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -720.0)
+
+[node name="M154_decor_lamp" type="Node3D" parent="." index="154"]
+script = ExtResource("1")
+role = "decor"
+kind = "lamp"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -730.0)
+
+[node name="M155_decor_tree" type="Node3D" parent="." index="155"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -740.0)
+
+[node name="M156_decor_fence" type="Node3D" parent="." index="156"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -750.0)
+
+[node name="M157_decor_umbrella" type="Node3D" parent="." index="157"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -760.0)
+
+[node name="M158_decor_cart" type="Node3D" parent="." index="158"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -770.0)
+
+[node name="M159_decor_fountain" type="Node3D" parent="." index="159"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -780.0)
+
+[node name="M160_landmark_arch_terracotta" type="Node3D" parent="." index="160"]
+script = ExtResource("1")
+role = "landmark"
+kind = "arch_terracotta"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -393.8)
