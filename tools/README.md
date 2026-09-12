@@ -7,6 +7,7 @@
 | `voxelize.py` | Meshy `.glb`/`.obj` → воксельні частини героя `data/voxels/*_ai.json` + `.vox` |
 | `vox2json.py` | Зворотно: MagicaVoxel `.vox` → `data/voxels/<name>.json` |
 | `test_voxelize.py` | Тести конвертера на синтетичному звірятку (`python3 tools/test_voxelize.py`) |
+| `rig_fix.py` | Blender headless: прибрати зайві кістки з ригнутого `.glb` і віддати їхні ваги сусідній кістці (`--list` — тільки дамп дерева з вершинами) |
 | `palette_hero.json` | Палітра героя `{символ: #hex}` для `vox2json.py --palette` |
 | `perf/` | Сцена заміру FPS (Godot) |
 | `../src/debug/voxel_preview.tscn` | Показати один воксель у порожній сцені: `VOXEL=<ім'я> godot res://src/debug/voxel_preview.tscn` |
@@ -29,6 +30,31 @@ python3 tools/voxelize.py docs/refs/models/fox.glb --hero lys --height 0.98 --pi
 допиши герою `"rig": "<ім'я файлу без .glb>"` у `data/heroes.json` — і `Hero3D` малює
 цю модель, анімуючи кістки процедурно й фарбуючи вершини за зонами
 (`src/run3d/hero_rig.gd`). Покрокова інструкція — `docs/tasks/rig.md`.
+
+Єдиний інструмент, який тут буває потрібен, — `rig_fix.py`, коли Meshy повісив шкіру
+лапки на чуже пасмо чи аксесуар:
+
+```bash
+alias blender=/Applications/Blender.app/Contents/MacOS/Blender
+
+# 1. подивитись дерево кісток і вершини на кожній (нічого не змінює)
+blender --background --python tools/rig_fix.py -- --in assets/models/unicorn.glb --list
+
+# 2. прибрати зайві кістки, ваги віддати найближчій задній лапці (пише .glb.bak)
+blender --background --python tools/rig_fix.py -- \
+    --in assets/models/unicorn.glb --out assets/models/unicorn.glb \
+    --remove Bone_025 Bone_024 Bone_023 Bone_028 Bone_027 Bone_026 \
+    --merge-into nearest-leg --report
+
+# 3. переімпортувати й глянути
+godot --headless --import
+RIG=unicorn godot res://src/debug/voxel_preview.tscn
+```
+
+`--merge-into parent` — віддати ваги батькові видаленої кістки; `--legs` — свій список
+ланцюжків для `nearest-leg`; `--dry-run` — не писати файл. `heroes.json` скрипт не чіпає:
+що саме прибрати з `rig_bones` (`static`, зайві імена в `tail`), написано в
+`docs/tasks/rig.md`, розділ «Чистка рига в Blender».
 
 ## Готовий воксельний GLB (`--exact`)
 

@@ -1,5 +1,5 @@
 {
-  "_note": "v1.3 (3D). speed — базова швидкість, клітинок/с у режимі Біг (Самокат ×1.15). Швидкість рівня: speed × level.speed_mult × (1 + 0.35 × прогрес); останні 20% — спринт ×1.15. jump_velocity — м/с угору (гравітація 22). worlds — які світи доступні профілю; fork_options — скільки дверей на Розвилці. first_hit_forgiven — перше падіння на рівні не забирає серце (малята). session_minutes у профілях — на майбутнє; зараз береться з налаштувань батьків.",
+  "_note": "v1.3 (3D). speed — базова швидкість, клітинок/с у режимі Біг (Самокат ×1.15). Швидкість рівня: speed × level.speed_mult × (1 + 0.35 × прогрес); останні 20% — спринт ×1.15. jump_velocity — м/с угору (гравітація 22). worlds — які світи доступні профілю; fork_options — скільки дверей на Розвилці. first_hit_forgiven — перше падіння на рівні не забирає серце (малята). power_charge — скільки злитків треба на суперсилу (GDD v1.6 §3c); нема ключа → беремо charge із data/heroes.json. power_auto — суперсила вмикається сама, щойно заряджена (малята: кнопку видно, але тиснути не треба). session_minutes у профілях — на майбутнє; зараз береться з налаштувань батьків.",
   "young": {
     "speed": 2.8,
     "jump_velocity": 7.2,
@@ -8,6 +8,8 @@
     "auto_assist_chance": 0.6,
     "star_magnet": 1.5,
     "first_hit_forgiven": true,
+    "power_charge": 60,
+    "power_auto": true,
     "session_minutes": 10,
     "hint_after_sec": 5,
     "worlds": ["meadow", "forest", "beach"],
@@ -24,6 +26,7 @@
     "auto_assist_chance": 0.2,
     "star_magnet": 1.0,
     "first_hit_forgiven": false,
+    "power_auto": false,
     "session_minutes": 15,
     "hint_after_sec": 6,
     "worlds": ["meadow", "forest", "beach", "city", "clouds"],
@@ -38,6 +41,7 @@
     "auto_assist_chance": 0.0,
     "star_magnet": 1.0,
     "first_hit_forgiven": false,
+    "power_auto": false,
     "session_minutes": 20,
     "hint_after_sec": 8,
     "worlds": ["meadow", "forest", "beach", "city", "clouds"],

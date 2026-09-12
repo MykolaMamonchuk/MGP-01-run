@@ -45,6 +45,13 @@ func test_mesh_is_centered_on_xz_and_stands_on_ground() -> void:
 	assert_almost_eq(aabb.position.y, 0.0, 0.001, "стоїть на y = 0")
 
 
+## Файли, які НЕ йдуть у гру — лише довідковий дамп для src/debug/voxel_preview.gd
+## (ціла модель tools/voxelize.py, потрібна дрібна сітка для порівняння з референсом).
+## Бюджет ≤ 600 вокселів стереже те, що реально інстансується в грі (герой по частинах,
+## перешкоди, декор) — не debug-артефакти.
+const DEBUG_ONLY_FILES := ["fox_voxel.json"]
+
+
 func test_all_voxel_files_parse_and_are_small() -> void:
 	var dir := DirAccess.open("res://data/voxels")
 	assert_not_null(dir, "папка data/voxels існує")
@@ -52,7 +59,7 @@ func test_all_voxel_files_parse_and_are_small() -> void:
 		return
 	var n := 0
 	for f in dir.get_files():
-		if not f.ends_with(".json"):
+		if not f.ends_with(".json") or DEBUG_ONLY_FILES.has(f):
 			continue
 		n += 1
 		var def := VoxelBuilder.load_def("res://data/voxels/%s" % f)

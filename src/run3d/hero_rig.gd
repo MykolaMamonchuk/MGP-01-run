@@ -76,6 +76,15 @@ const ROLES := ["hips", "spine", "neck", "head", "fl", "fr", "bl", "br", "ear_l"
 	"tail", "tuft", "nose", "mane", "horn"]
 const LEG_ROLES := ["fl", "fr", "bl", "br"]
 const TORSO_ROLES := ["hips", "spine", "neck"]
+## Скільки вершин мусить мати ланцюжок однієї лапки, щоб її оберт було ВИДНО. Менше —
+## скінінг Meshy віддав лапу тазу, і крутити її марно (див. _count_leg_verts, face_report).
+const LEG_VERTS_MIN := 60
+## Наскільки має зрушити проба лапки при пробному оберті калібрування, щоб кістка вважалась
+## робочою, м (метри героя). Менше — кістка є, а лапи на ній нема.
+const LEG_MOVE_MIN := 0.01
+## Запас навколо коробки задніх лапок, у якому вершина ще вважається «вершиною лапки»
+## (метри героя) — для діагностики «чужа кістка володіє лапкою», див. _count_static_leg_verts.
+const STATIC_LEG_PAD := 0.03
 
 ## З ЯКИХ РОЛЕЙ складається коробка голови (посадка обличчя, площина очей, масштаб лиця).
 ## Писок входить — це та сама морда; а от ріг, грива й чубчик НІ: у єдинорога ріг стирчить
@@ -200,6 +209,35 @@ var _sign: Dictionary = {}     ## КАЛІБРОВАНІ знаки оберті
 var _tail_lift_sign: Array[float] = []   ## знак підйому для кожної ланки хвоста
 var _tail_wag_sign: Array[float] = []    ## знак виляння для кожної ланки хвоста
 var _leg_tips: Array = []      ## [[кістка-кінчик, точка в її координатах], …] — найнижче копитце
+## Те саме для ЖИВОТА: [[кістка тулуба, точка низу тулуба в її координатах], …].
+## Потрібне лише в ковзанні, де копитця розкидані вбоки й найнижче в героя — черево.
+var _body_tips: Array = []
+## ДІАГНОСТИКА СКІНІНГУ ЛАПОК (див. face_report). Meshy іноді прив'язує задні лапи майже
+## цілком до тазу — кістка лапки тоді «володіє» десятком вершин, і скільки її не крути,
+## лапа стоїть. Тому в build() рахуємо, скільки вершин має КОЖЕН ланцюжок лапки.
+var _leg_weights: Dictionary = {}   ## роль лапки → скільки вершин у всьому її ланцюжку
+var _bone_verts: Dictionary = {}    ## індекс кістки → скільки вершин вважають її головною
+## КІСТКА-МАХОВИК кожної лапки: зазвичай сама кістка лапки, а коли на ній майже нема шкіри
+## (< LEG_VERTS_MIN вершин) — найгустіший член її ланцюжка, тобто нижня ланка.
+var _swing_bone: Dictionary = {}    ## роль лапки → індекс кістки, якою махаємо
+## СТАТИЧНІ КІСТКИ (`rig_bones.static`) — індекси кісток, які НІКОЛИ не крутить жоден стан:
+## вони лишаються в позі спокою (див. static_of, _rot). Фарбування це не чіпає — роль
+## (наприклад `tail`) у них лишається, і колір рахується як раніше.
+var _static: Dictionary = {}        ## індекс кістки → true
+## Скільки вершин У ЗОНІ ЗАДНІХ ЛАПОК володіють статичні кістки (діагностика: саме через
+## них пасма хвоста «тягли» за собою лапку єдинорога — див. legs_report).
+var _static_leg_verts := 0
+## ТОЧКА, НАВКОЛО ЯКОЇ ГЕРОЙ ЗВОДИТЬСЯ ДИБКИ (метри героя, y = 0): середина між кінчиками
+## ЗАДНІХ копит у позі спокою. Стійка дибки — це оберт УСІЄЇ моделі навколо неї (див.
+## rear_pivot і _place_root), а не оберт якоїсь однієї кістки.
+var _rear_pivot := Vector3.ZERO
+## Частка вершин, у яких найбільша вага ≥ RIGID_MAX_W (1.0 — скінінг цілком жорсткий).
+var _rigid_share := 0.0
+## Найбільша частка вершин ланцюжка лапки, що припала на НИЖНЮ ланку (діагностика коліна).
+var _knee_share := 0.0
+## Коліно вимкнув сам build() (жорсткий скінінг), а не дані — для звіту прев'ю.
+var _knee_auto := false
+var _leg_move: Dictionary = {}      ## роль лапки → на скільки метрів проба зрушила при калібруванні
 var _zone_counts: Dictionary = {}   ## символ зони → скільки ГРАНЕЙ (діагностика прев'ю)
 var _bag_info: Dictionary = {}      ## діагностика пошуку торбинки (див. face_report)
 var _side_info: Array = []          ## знайдені купки бічних наростів (див. side_clusters)
@@ -309,11 +347,50 @@ static func _in_band(band, value: float) -> bool:
 
 
 ## ПІДГОНКА АНІМАЦІЇ ПІД МОДЕЛЬ (`rig_anim` у heroes.json) — множники поверх профілю:
-##   leg_amp  — розмах лапок (у єдинорога скінінг жорсткий, і на повному розмаху меш
-##              передньої лапки «відривається» від грудей, а задньої розтягується);
-##   leg_lift — згин НИЖНЬОЇ ланки лапки в махові (GAIT_LOWER_BEND).
-## Дефолт — 1.0, тобто «як у профілі». Чиста функція.
-const DEFAULT_ANIM := {"leg_amp": 1.0, "leg_lift": 1.0}
+##   leg_amp   — розмах лапок (у єдинорога скінінг жорсткий, і на повному розмаху меш
+##               передньої лапки «відривається» від грудей, а задньої розтягується);
+##   leg_lift  — згин НИЖНЬОЇ ланки лапки в махові (GAIT_LOWER_BEND);
+##   hind_amp  — ДОДАТКОВИЙ множник розмаху САМЕ задніх лапок (bl/br) поверх leg_amp:
+##               у єдинорога задні лапки ховаються за бічними пасмами хвоста (кістки 025/028
+##               висять на тій самій глибині z), і загальний `leg_amp 0.7` ще й приборкує мах —
+##               `hind_amp` дає їм ширший розмах, не займаючи передніх;
+##   tail_lift — СТАЛИЙ підйом кута хвоста (рад) поверх режиму профілю в станах бігу
+##               (RUN/SPRINT/CHARGE/LIMP — див. animate(), прапорець `galloping`): хвіст
+##               стелиться НАЗАД-ВГОРУ, а не висить над крижами; виляння (`wag`) лишається,
+##               підйом лише додається зверху. У ROCKET (хвіст навмисно вниз) і IDLE не діє.
+##   knee      — множник ЗГИНУ КОЛІНА (нижньої ланки) у махові, 0…1. НУЛЬ = коліна нема
+##               взагалі, лапка махає одним шматком. Саме це рятує ЖОРСТКИЙ скінінг: коли
+##               гомілка «володіє» третиною вершин ланцюжка, а ваг-перетікання між кістками
+##               нема, згин коліна ЗСУВАЄ пів меша лапки відносно решти — між стегном і
+##               копитцем вилазять трикутні шматки («лапка порвана»). Дефолт 1.0, але
+##               на ригах із жорстким скінінгом build() сам ставить 0 (див. knee_auto_off),
+##               якщо в даних `knee` не заданий ЯВНО.
+## Дефолт — 1.0/1.0/1.0/0.0/1.0, тобто «як у профілі». Чиста функція.
+const DEFAULT_ANIM := {"leg_amp": 1.0, "leg_lift": 1.0, "hind_amp": 1.0, "tail_lift": 0.0,
+	"knee": 1.0}
+## Межі значень (clampf): без них хибне число з даних могло б вивернути лапку чи хвіст.
+const ANIM_CLAMP := {
+	"hind_amp": Vector2(0.5, 2.0),
+	"tail_lift": Vector2(0.0, 1.2),
+	"knee": Vector2(0.0, 1.0),
+}
+
+## ЖОРСТКИЙ СКІНІНГ І КОЛІНО (лекція з прев'ю єдинорога, 09.09).
+## Ознака жорсткого скінінгу: у вершини одна кістка з вагою ≈ 1 і жодного перетікання.
+## Міряємо часткою вершин, у яких найбільша вага ≥ RIGID_MAX_W; від RIGID_SHARE — риг
+## вважаємо жорстким. Друга умова — «нижня ланка володіє великим шматком лапки»
+## (частка вершин ланцюжка від KNEE_CHILD_SHARE): у єдинорога Bone_007 (гомілка з копитом)
+## тримає ≈ 46 % ланцюжка, і згин коліна рве меш навпіл.
+const RIGID_MAX_W := 0.99
+const RIGID_SHARE := 0.9
+const KNEE_CHILD_SHARE := 0.3
+
+
+## Чи вимикати згин коліна САМІ (без `rig_anim.knee` у даних). Чиста функція — саме її
+## перевіряє тест. `child_share` — найбільша частка вершин ланцюжка лапки, що припала на
+## нижню ланку; `rigid_share` — частка вершин рига з максимальною вагою ≥ RIGID_MAX_W.
+static func knee_auto_off(child_share: float, rigid_share: float) -> bool:
+	return child_share > KNEE_CHILD_SHARE and rigid_share >= RIGID_SHARE
 
 
 static func anim_of(def: Dictionary) -> Dictionary:
@@ -321,9 +398,59 @@ static func anim_of(def: Dictionary) -> Dictionary:
 	var a = def.get("rig_anim", {})
 	if typeof(a) == TYPE_DICTIONARY:
 		for k in (a as Dictionary).keys():
-			if out.has(k):
-				out[k] = maxf(0.0, float((a as Dictionary)[k]))
+			if not out.has(k):
+				continue
+			var v := maxf(0.0, float((a as Dictionary)[k]))
+			if ANIM_CLAMP.has(k):
+				var lim: Vector2 = ANIM_CLAMP[k]
+				v = clampf(v, lim.x, lim.y)
+			out[k] = v
 	return out
+
+
+## ─────────────────── СТАТИЧНІ КІСТКИ (`rig_bones.static`) ───────────────────
+## ЧОМУ. У Meshy-ригу пасмо хвоста чи аксесуар легко «володіє» вершинами сусідньої
+## частини тіла: у єдинорога бічні пасма хвоста (Bone_025…023 і Bone_028…026) сидять
+## рівно на крижах і задніх лапках (x ±16, z −21), і скінінг віддав їм шматок ЛАПКИ.
+## Щойно пасмо піднімалось разом із хвостом, лапка їхала за ним — меш зсувався сам
+## відносно себе, і задня лапка «рвалась» (а ще й фарбувалась у колір хвоста).
+##
+## Лікується не амплітудами, а тим, що такі кістки ми взагалі НЕ РУХАЄМО: вони
+## лишаються в позі спокою в будь-якому стані (див. _rot / _rot2 / _rot3), не беруть
+## участі в калібруванні знаків і не рахуються в дільнику ланцюжка хвоста. Роль
+## (наприклад `tail`) у них при цьому лишається — розмальовка працює як раніше.
+##
+## Формат: `"rig_bones": {"static": ["Bone_025", …]}` — список ІМЕН кісток. Чиста функція.
+static func static_of(def: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	var manual = def.get("rig_bones", {})
+	if typeof(manual) != TYPE_DICTIONARY:
+		return out
+	var v = (manual as Dictionary).get("static", [])
+	if typeof(v) != TYPE_ARRAY:
+		return out
+	for item in (v as Array):
+		var name := String(item)
+		if name != "" and not out.has(name):
+			out.append(name)
+	return out
+
+
+## ─────────────────── ТОЧКА ОБЕРТУ СТІЙКИ ДИБКИ ───────────────────
+## Дибки — це НЕ оберт «кістки тазу» (у кожного Meshy-ригу своя ієрархія, і та сама
+## кістка в одного героя несе все тіло, а в іншого лише його передню половину). Дибки —
+## це оберт УСІЄЇ МОДЕЛІ навколо осі X, що проходить через ЗАДНІ КОПИТА на землі: тоді
+## задні копита лишаються на місці на будь-якому ригу, а перед іде вгору.
+## `hind_tips` — кінчики задніх копит у метрах героя (поза спокою). Повертає точку
+## обертання: середину між ними, притиснуту до землі (y = 0). Чиста функція.
+static func rear_pivot(hind_tips: Array[Vector3]) -> Vector3:
+	if hind_tips.is_empty():
+		return Vector3.ZERO
+	var sum := Vector3.ZERO
+	for p in hind_tips:
+		sum += p
+	var c := sum / float(hind_tips.size())
+	return Vector3(c.x, 0.0, c.z)
 
 
 ## ─────────────────── природний 4-тактний крок (хода чотирилапого) ───────────────────
@@ -343,6 +470,19 @@ const GAIT_PAW_LIFT := 0.03
 const GAIT_HIP_ROLL := 0.03
 const GAIT_SPINE_FLEX := 0.04
 const GAIT_TAIL_YAW := 0.1
+
+## ─────────────── ТЕМП ХОДИ — ФІКСОВАНИЙ (рішення Nick, тюнінг GDD v1.7) ───────────────
+## Раніше частота кроку рахувалась зі швидкості світу (`Hero3D.gait_hz`), і на розгоні
+## лапки виходили на 4+ Гц — це читалось як мультяшне мерехтіння, а не як біг.
+## Тепер частота — ДВІ СТАЛІ: спокійний біг і спринт. Швидкість світу на частоту НЕ
+## впливає взагалі; від неї лишилась лише ±SPEED_AMP_K модуляція РОЗМАХУ (див. speed_amp_k).
+## Відчуття «біжимо швидше» дає світ і NPC (дорога, узбіччя, суперники), а не ноги героя.
+const RUN_CADENCE_HZ := 2.2       ## біг: 2,2 циклу кроку на секунду
+const SPRINT_CADENCE_HZ := 3.0    ## спринт (і розгін-суперсила) — та сама частота
+const LIMP_CADENCE_HZ := 1.6      ## кульгає — повільніше за біг
+const IDLE_CADENCE_HZ := 0.6      ## тупцяє на місці (як було: 0,13 × ходи на 4 м/с)
+## Наскільки швидкість світу ще має право керувати РОЗМАХОМ кроку (частку від 1,0).
+const SPEED_AMP_K := 0.1
 
 
 ## Зсув фази лапки в циклі кроку (0…1). Чиста функція — саме її перевіряє тест.
@@ -970,6 +1110,18 @@ func build(parent: Node3D, def: Dictionary, colors: Dictionary) -> bool:
 	_scale = HEAD_TOP / maxf(box.size.y, 0.0001)
 	_inv_scale = 1.0 / _scale
 	_model_box = box          # потрібен _hero_point() — переклад у метри героя (rig_marks)
+	# скільки шкіри насправді висить на кожній лапці (і якою кісткою нею махати) —
+	# рахуємо ДО осей і калібрування: вони обидва працюють уже з кісткою-маховиком
+	_count_leg_verts(verts)
+	# ЖОРСТКИЙ СКІНІНГ → КОЛІНА НЕМА. Коли нижня ланка «володіє» великим шматком лапки, а
+	# ваги не перетікають між кістками, згин коліна зсуває пів меша лапки відносно решти —
+	# між стегном і копитцем вилазять трикутні шматки. Явний `rig_anim.knee` у даних
+	# сильніший за це правило (і вимикати, і вмикати назад можна руками)
+	var anim_raw = def.get("rig_anim", {})
+	var knee_explicit := typeof(anim_raw) == TYPE_DICTIONARY and (anim_raw as Dictionary).has("knee")
+	_knee_auto = not knee_explicit and knee_auto_off(_knee_share, _rigid_share)
+	if _knee_auto:
+		_anim_cfg["knee"] = 0.0
 
 	_root = Node3D.new()
 	_root.name = "Rig"
@@ -1008,13 +1160,22 @@ func _map_bones(def: Dictionary) -> void:
 		parents.append(_skel.get_bone_parent(i))
 		origins.append(s2m * _skel.get_bone_global_rest(i).origin)
 	_bones = map_bones_by_name(names)
-	var geo := map_bones_by_geometry(names, parents, origins, _guess_front(origins))
-	for role in geo.keys():
-		if not _bones.has(role):
-			_bones[role] = geo[role]
 	var manual = def.get("rig_bones", {})
+	var manual_dict: Dictionary = manual if typeof(manual) == TYPE_DICTIONARY else {}
+	# Геометричну евристику (квадранти → fl/fr/bl/br, найнижча центральна → hips, …) пускаємо
+	# лише тоді, коли герой ЗОВСІМ не має ручної розкладки: інакше вона могла б підмінити
+	# ролі, яких автор навмисно не задав (у дельфіна нема ніг — плавці-«квадранти» без
+	# `rig_bones` галопували б, як лапки). Ручна розкладка — авторитетна: чого в ній нема,
+	# те й лишається невизначеним, а не «вгадується» геометрією.
+	if manual_dict.is_empty():
+		var geo := map_bones_by_geometry(names, parents, origins, _guess_front(origins))
+		for role in geo.keys():
+			if not _bones.has(role):
+				_bones[role] = geo[role]
 	if typeof(manual) == TYPE_DICTIONARY:
 		for role in (manual as Dictionary).keys():
+			if String(role) == "static":
+				continue          # це не роль, а список нерухомих кісток (див. static_of)
 			var v = (manual as Dictionary)[role]
 			if typeof(v) == TYPE_ARRAY:
 				var chain: Array[int] = []
@@ -1028,7 +1189,19 @@ func _map_bones(def: Dictionary) -> void:
 				var bi2 := _skel.find_bone(String(v))
 				if bi2 >= 0:
 					_bones[String(role)] = bi2
+	# СТАТИЧНІ КІСТКИ: імена з `rig_bones.static` → індекси. Роль у них лишається
+	# (вони й далі в `tail` заради кольору), але жоден стан їх не крутить
+	_static.clear()
+	for name in static_of(def):
+		var si := _skel.find_bone(String(name))
+		if si >= 0:
+			_static[si] = true
 	_role_cache.clear()
+
+
+## Чи кістка НЕРУХОМА (`rig_bones.static`): така лишається в позі спокою завжди.
+func _is_static(idx: int) -> bool:
+	return _static.has(idx)
 
 
 ## НИЖНЯ ЛАНКА кожної лапки — перша дитина кістки, яку розкладка дала за роль лапки
@@ -1047,6 +1220,111 @@ func _find_lower_legs() -> void:
 			if _skel.get_bone_parent(i) == idx:
 				_lower_leg[role] = i
 				break
+
+
+## Скільки вершин «володіє» кожна кістка (домінантна вага) і скільки їх у ланцюжку кожної
+## лапки. ЧОМУ ЦЕ ВАЖЛИВО: у єдинорога від Meshy задні лапи майже цілком прив'язані до тазу,
+## тож оберт кістки `bl`/`br` рухав лічені вершини — лапи «не ворушились». Тепер це видно
+## числом у прев'ю, а сама анімація крутить ту кістку ланцюжка, на якій справді є шкіра
+## (_swing_bone): якщо стегно порожнє, а гомілка ні — махаємо гомілкою.
+func _count_leg_verts(verts: Dictionary) -> void:
+	_bone_verts.clear()
+	_leg_weights.clear()
+	_swing_bone.clear()
+	_knee_share = 0.0
+	if _skel == null:
+		return
+	for md in (verts.get("per_mesh", []) as Array):
+		for sd in ((md as Dictionary).get("surfaces", []) as Array):
+			var owner_bone: PackedInt32Array = (sd as Dictionary)["bone"]
+			for v in range(owner_bone.size()):
+				var bi := owner_bone[v]
+				if bi < 0:
+					continue
+				_bone_verts[bi] = int(_bone_verts.get(bi, 0)) + 1
+	for role in LEG_ROLES:
+		if not _bones.has(role):
+			continue
+		var root := int(_bones[role])
+		var total := int(_bone_verts.get(root, 0))
+		var best := root
+		var best_n := total
+		for i in range(_skel.get_bone_count()):
+			if i == root or not _is_descendant(i, root):
+				continue
+			var n := int(_bone_verts.get(i, 0))
+			total += n
+			if n > best_n:
+				best_n = n
+				best = i
+		_leg_weights[role] = total
+		# ЧАСТКА НИЖНЬОЇ ЛАНКИ в ланцюжку: від KNEE_CHILD_SHARE згин коліна на жорсткому
+		# скінінгу зсуває півлапки відносно решти — меш «рветься» (див. knee_auto_off)
+		if _lower_leg.has(role) and total > 0:
+			_knee_share = maxf(_knee_share,
+				float(int(_bone_verts.get(int(_lower_leg[role]), 0))) / float(total))
+		# КІСТКА-МАХОВИК: за замовчуванням це сама кістка лапки — рухати лапу від плеча/стегна
+		# правильно, і в нормальному ригу (лисеня) нічого міняти не треба. Переходимо на
+		# найгустіший член ланцюжка ЛИШЕ тоді, коли на самій кістці лапки шкіри майже нема
+		# (менше за LEG_VERTS_MIN) — це і є порятунок для задніх лап єдинорога
+		_swing_bone[role] = best if int(_bone_verts.get(root, 0)) < LEG_VERTS_MIN else root
+	_count_static_leg_verts(verts)
+
+
+## ЧУЖІ КІСТКИ НА ЗАДНІЙ ЛАПЦІ. Пасмо хвоста або аксесуар легко «володіє» вершинами лапки
+## (у єдинорога бічні пасма хвоста сидять рівно на крижах і задніх лапках). Такі вершини
+## їдуть за пасмом, а не за лапкою, — меш лапки зсувається сам відносно себе й «рветься».
+## Рахуємо, скільки вершин у КОРОБЦІ ЗАДНІХ ЛАПОК належать СТАТИЧНИМ кісткам
+## (`rig_bones.static`): це і є та шкіра, яку ми щойно перестали смикати.
+func _count_static_leg_verts(verts: Dictionary) -> void:
+	_static_leg_verts = 0
+	if _static.is_empty():
+		return
+	# 1) коробка «зони задніх лапок» — габарит вершин ланцюжків bl/br (координати моделі)
+	var hind := {}
+	for role in ["bl", "br"]:
+		if not _bones.has(role):
+			continue
+		var root := int(_bones[role])
+		hind[root] = true
+		for i in range(_skel.get_bone_count()):
+			if _is_descendant(i, root):
+				hind[i] = true
+	if hind.is_empty():
+		return
+	var box := AABB()
+	var first := true
+	for md in (verts.get("per_mesh", []) as Array):
+		for sd in ((md as Dictionary).get("surfaces", []) as Array):
+			var owner_bone: PackedInt32Array = (sd as Dictionary)["bone"]
+			var mpos: PackedVector3Array = (sd as Dictionary)["model"]
+			for v in range(mini(owner_bone.size(), mpos.size())):
+				if not hind.has(owner_bone[v]):
+					continue
+				if first:
+					box = AABB(mpos[v], Vector3.ZERO)
+					first = false
+				else:
+					box = box.expand(mpos[v])
+	if first:
+		return
+	# запас навколо коробки: вершина пасма може стирчати трохи за поверхню лапки
+	var pad := STATIC_LEG_PAD * _inv_scale
+	box = box.grow(pad)
+	# 2) скільки вершин у цій коробці володіють статичні кістки
+	for md2 in (verts.get("per_mesh", []) as Array):
+		for sd2 in ((md2 as Dictionary).get("surfaces", []) as Array):
+			var ob: PackedInt32Array = (sd2 as Dictionary)["bone"]
+			var mp: PackedVector3Array = (sd2 as Dictionary)["model"]
+			for v2 in range(mini(ob.size(), mp.size())):
+				if _static.has(ob[v2]) and box.has_point(mp[v2]):
+					_static_leg_verts += 1
+
+
+## Кістка, якою МАХАЄМО цю лапку: член ланцюжка з найбільшою кількістю вершин.
+## Нема даних — сама кістка лапки (як було до діагностики).
+func _swing_of(role: String) -> int:
+	return int(_swing_bone.get(role, _bones.get(role, -1)))
 
 
 ## Куди дивиться модель у власних координатах: +1 (морда на +Z) або −1.
@@ -1092,6 +1370,8 @@ func _gather_vertices() -> Dictionary:
 	var box := AABB()
 	var first := true
 	var role_box := {}
+	var total_verts := 0        ## скільки вершин узагалі має ваги
+	var rigid_verts := 0        ## …і скільки з них «жорсткі» (одна кістка, вага ≈ 1)
 	for mi in _meshes:
 		var to_model := _rel_transform(mi, _model)
 		var surfaces := []
@@ -1129,6 +1409,11 @@ func _gather_vertices() -> Dictionary:
 						if wt > bw:
 							bw = wt
 							bi = int(bones[v * per_vertex + w])
+					# ЖОРСТКИЙ СКІНІНГ: вага ≈ 1 на одну кістку, перетікання між суглобами
+					# нема (див. knee_auto_off) — рахуємо частку саме таких вершин
+					total_verts += 1
+					if bw >= RIGID_MAX_W:
+						rigid_verts += 1
 				owner_bone[v] = bi
 				var role := _role_of(bi)
 				if role != "":
@@ -1138,6 +1423,7 @@ func _gather_vertices() -> Dictionary:
 						role_box[role] = AABB(p, Vector3.ZERO)
 			surfaces.append({"arrays": arr, "model": mpos, "bone": owner_bone, "n": per_vertex})
 		per_mesh.append({"surfaces": surfaces})
+	_rigid_share = float(rigid_verts) / float(maxi(total_verts, 1))
 	return {"box": box, "per_mesh": per_mesh, "role_box": role_box}
 
 
@@ -1550,9 +1836,10 @@ func _flat_arrays(sd: Dictionary, tri: PackedInt32Array, face_cols: PackedColorA
 		var a := src_pos[i0]
 		var b := src_pos[i1]
 		var c := src_pos[i2]
+		# запасна ГРАННА нормаль — лише коли в моделі своєї нема (рідкість) або трикутник
+		# вироджений (буває після децимації): рахуємо і на цей випадок, і для звірки знака.
 		var fn := (b - a).cross(c - a)
 		if fn.length_squared() < 1e-16:
-			# вироджений трикутник (буває після децимації) — беремо нормаль вершини
 			fn = src_norm[i0] if has_norm else Vector3.UP
 		fn = fn.normalized()
 		if has_norm and fn.dot(src_norm[i0] + src_norm[i1] + src_norm[i2]) < 0.0:
@@ -1562,7 +1849,10 @@ func _flat_arrays(sd: Dictionary, tri: PackedInt32Array, face_cols: PackedColorA
 			var v := f * 3 + k
 			var srcv := tri[f * 3 + k]
 			pos[v] = src_pos[srcv]
-			norm[v] = fn
+			# glossy toy (вересень 2026): лишаємо ГЛАДКУ нормаль вершини моделі замість
+			# грани — фасети зникають, підсвітка на круглих формах читається природно.
+			# Позначки/грань лишаються плоскими лише за кольором (col), не за нормаллю.
+			norm[v] = src_norm[srcv] if has_norm else fn
 			cols[v] = col
 			if has_skin:
 				for w in range(per_v):
@@ -1579,16 +1869,15 @@ func _flat_arrays(sd: Dictionary, tri: PackedInt32Array, face_cols: PackedColorA
 	return out
 
 
-## Матеріал рига: той самий шейдер, що й у вокселів, але з м'якшою rim-облямівкою.
+## Матеріал рига: власний glossy-шейдер (hero_glossy.gdshader), відколотий від вокселя
+## (арт-вектор, вересень 2026) — довкілля лишається матовим, герої отримують справжній
+## specular/roughness замість emission-«пуху».
 static func _rig_material() -> Material:
 	if _rig_mat == null:
-		var base := VoxelBuilder.material()
-		if base is ShaderMaterial:
-			var sm := (base as ShaderMaterial).duplicate() as ShaderMaterial
-			sm.set_shader_parameter("rim_strength", RIG_RIM)
-			_rig_mat = sm
-		else:
-			_rig_mat = base
+		var sm := ShaderMaterial.new()
+		sm.shader = load("res://src/run3d/hero_glossy.gdshader")
+		sm.set_shader_parameter("rim_strength", RIG_RIM)
+		_rig_mat = sm
 	return _rig_mat
 
 
@@ -1859,11 +2148,80 @@ func face_report() -> String:
 		("\n    " + "\n    ".join(sides)) if sides.size() > 0 else "нема"]
 	var marks := "  rig_marks: %d (ручні позначки → зона m)" % _marks.size()
 	# множники анімації під модель (`rig_anim`) і чи знайшлись нижні ланки лапок
-	var anim := "  rig_anim: leg_amp ×%.2f, leg_lift ×%.2f · нижніх ланок лапок %d/4" % [
+	var anim := "  rig_anim: leg_amp ×%.2f, leg_lift ×%.2f, hind_amp ×%.2f, tail_lift +%.2f рад, knee ×%.2f%s · нижніх ланок лапок %d/4" % [
 		float(_anim_cfg.get("leg_amp", 1.0)), float(_anim_cfg.get("leg_lift", 1.0)),
+		float(_anim_cfg.get("hind_amp", 1.0)), float(_anim_cfg.get("tail_lift", 0.0)),
+		float(_anim_cfg.get("knee", 1.0)),
+		" (вимкнув сам: жорсткий скінінг)" if _knee_auto else "",
 		_lower_leg.size()]
-	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [
-		head, hb, bag, side, torso, marks, anim, sign_report()]
+	# СКІНІНГ: жорсткий (одна кістка на вершину) чи з перетіканням ваг — від цього залежить,
+	# чи можна згинати коліно взагалі (див. knee_auto_off)
+	var rigid := _rigid_share >= RIGID_SHARE
+	var skin := "  скінінг: %s (%.0f %%), нижня ланка тримає до %.0f %% лапки (поріг %.0f %%)" % [
+		"жорсткий" if rigid else "з вагами", _rigid_share * 100.0,
+		_knee_share * 100.0, KNEE_CHILD_SHARE * 100.0]
+	# СТІЙКА ДИБКИ: жодної «кістки нахилу» більше нема — крутиться ВСЯ модель навколо
+	# задніх копит (див. rear_pivot). Плюс список нерухомих кісток (`rig_bones.static`)
+	var st := PackedStringArray()
+	for idx in _static.keys():
+		st.append(_bone_name(int(idx)))
+	st.sort()
+	var wave := "  дибки: оберт моделі %.2f рад навколо (y=0, z %+.3f м) · статичні кістки: %s" % [
+		WAVE_PITCH, _rear_pivot.z, ", ".join(st) if st.size() > 0 else "нема"]
+	return "%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s\n%s" % [
+		head, hb, bag, side, torso, marks, anim, skin, wave, legs_report(), sign_report()]
+
+
+## Ім'я кістки за індексом (для звітів): −1 або нема скелета — прочерк.
+func _bone_name(idx: int) -> String:
+	if _skel == null or idx < 0 or idx >= _skel.get_bone_count():
+		return "—"
+	return _skel.get_bone_name(idx)
+
+
+## СКІНІНГ ЛАПОК — головна діагностика «задні лапи не рухаються» (єдиноріг, 09.09).
+## Три числа на кожну лапку: скільки вершин у її ланцюжку, якою кісткою ми нею махаємо
+## (це може бути не сама кістка лапки, а нижня ланка — там, де Meshy лишив усю шкіру),
+## і на скільки зрушила проба при пробному оберті калібрування.
+## Мало вершин або нерухома проба — риг треба перегенерувати (див. docs/tasks/rig.md).
+func legs_report() -> String:
+	if _skel == null:
+		return "  вершин на лапку: скелета нема"
+	var counts := PackedStringArray()
+	var warn := PackedStringArray()
+	var detail := PackedStringArray()
+	for role in LEG_ROLES:
+		var n := int(_leg_weights.get(role, 0))
+		counts.append("%s %d" % [role, n])
+		if not _bones.has(role):
+			warn.append("  [!] лапка %s не має кістки — задай `rig_bones`" % role)
+			continue
+		if n < LEG_VERTS_MIN:
+			warn.append(("  [!] лапка %s має < %d вершин — скінінг Meshy прив'язав її до тазу; "
+				+ "перегенеруй риг") % [role, LEG_VERTS_MIN])
+		var swing := _swing_of(role)
+		var swing_name := _skel.get_bone_name(swing) if swing >= 0 else "—"
+		var own := " (сама кістка лапки)" if swing == int(_bones[role]) else " (НИЖНЯ ланка: на кістці лапки шкіри нема)"
+		var move := float(_leg_move.get(role, 0.0))
+		detail.append("    %s: махова кістка %s%s, вершин на ній %d, знак %s, проба зрушила на %.1f см" % [
+			role, swing_name, own, int(_bone_verts.get(swing, 0)),
+			"+" if _s("%s_swing" % role) >= 0.0 else "−", move * 100.0])
+		if move < LEG_MOVE_MIN:
+			warn.append("  [!] лапка %s не рухається від кістки (проба %.1f см < %.0f см)" % [
+				role, move * 100.0, LEG_MOVE_MIN * 100.0])
+	var out := "  вершин на лапку: %s (норма від %d)\n%s" % [
+		" ".join(counts), LEG_VERTS_MIN, "\n".join(detail)]
+	# ЧУЖА ШКІРА НА ЛАПЦІ: скільки вершин у зоні задніх лапок володіють нерухомі кістки
+	# (`rig_bones.static`) — саме через них лапка «рвалась» за пасмом хвоста
+	out += "\n  вершин лапки на статичних кістках: %d" % _static_leg_verts
+	if warn.size() > 0:
+		out += "\n" + "\n".join(warn)
+	return out
+
+
+## Скільки вершин у ланцюжку кожної лапки — для прев'ю й тестів: {"fl": 812, …}.
+func leg_weights() -> Dictionary:
+	return _leg_weights.duplicate()
 
 
 ## КАЛІБРОВАНІ знаки обертів (див. _calibrate_signs) — головна діагностика «поза дзеркальна».
@@ -1942,6 +2300,8 @@ func _prepare_axes() -> void:
 			todo.append(v)
 	# нижні ланки лапок теж крутяться (згин коліна в махові) — їм потрібні ті самі осі
 	todo.append_array(_lower_leg.values())
+	# і кістки-маховики: коли шкіра лапки висить не на стегні, махає інший член ланцюжка
+	todo.append_array(_swing_bone.values())
 	for item in todo:
 		var idx := int(item)
 		# ортонормуємо: масштаб у кістці зіпсував би тотожність R_{B⁻¹a} = B⁻¹·R_a·B,
@@ -1999,6 +2359,7 @@ func _calibrate_signs() -> void:
 	_tail_lift_sign.clear()
 	_tail_wag_sign.clear()
 	_leg_tips.clear()
+	_body_tips.clear()
 	if _skel == null:
 		return
 	var fwd := Vector3(0.0, 0.0, -1.0)      # перед героя — це −z
@@ -2007,29 +2368,50 @@ func _calibrate_signs() -> void:
 	var left := Vector3(-1.0, 0.0, 0.0)     # ліворуч героя — це −x
 	# лапки, вуха й хвіст справді ЛЕЖАТЬ уздовж своєї кістки, тож пробою беремо кінчик
 	# їхнього ланцюжка: він рухається в потрібний бік із першого ж порядку малості
+	_leg_move.clear()
 	for role in LEG_ROLES:
 		if not _bones.has(role):
 			continue
-		var li := int(_bones[role])
-		var lp := _probe_local(li)
-		_sign["%s_swing" % role] = _measure(li, _axis_x[li], lp, fwd, -_front)
-		_sign["%s_splay" % role] = _measure(li, _axis_z[li], lp, left, 1.0)
-		# НИЖНЯ ланка (коліно/п'ястка): + = копитце йде НАЗАД, тобто лапка згинається
-		# й піднімає копитце в махові. Знак у кожної моделі свій, тож теж міряємо
-		if _lower_leg.has(role):
-			var ki := int(_lower_leg[role])
-			_sign["%s_knee" % role] = _measure(ki, _axis_x[ki], _probe_local(ki), back, -_front)
-		_leg_tips.append(_leg_tip(li))
+		# махає НЕ обов'язково сама кістка лапки: коли скінінг віддав шкіру нижній ланці,
+		# крутити стегно марно — беремо кістку ланцюжка з найбільшою кількістю вершин.
+		# СТАТИЧНУ кістку (`rig_bones.static`) не пробуємо взагалі: її ніхто не крутить,
+		# знак їй не потрібен, а пробний оберт лише смикав би сусідню шкіру
+		var li := _swing_of(role)
+		if not _is_static(li):
+			var lp := _probe_local(li)
+			_sign["%s_swing" % role] = _measure(li, _axis_x[li], lp, fwd, -_front)
+			_sign["%s_splay" % role] = _measure(li, _axis_z[li], lp, left, 1.0)
+			# наскільки взагалі зрушила проба (метри героя) — діагностика «лапка не рухається»
+			_leg_move[role] = _probe_move(li, _axis_x[li], lp)
+			# НИЖНЯ ланка (коліно/п'ястка): + = копитце йде НАЗАД, тобто лапка згинається
+			# й піднімає копитце в махові. Знак у кожної моделі свій, тож теж міряємо.
+			# Якщо маховиком стала сама нижня ланка, згинати нічого — інакше згин затер би мах
+			if _lower_leg.has(role) and int(_lower_leg[role]) != li \
+					and not _is_static(int(_lower_leg[role])):
+				var ki := int(_lower_leg[role])
+				_sign["%s_knee" % role] = _measure(ki, _axis_x[ki], _probe_local(ki), back, -_front)
+		# кінчик копитця потрібен ЗАВЖДИ: по ньому працює «копитця на підлозі» й рахується
+		# точка обертання стійки дибки (див. rear_pivot)
+		_leg_tips.append(_leg_tip(int(_bones[role])))
 	for role4 in ["ear_l", "ear_r"]:
 		if not _bones.has(role4):
 			continue
 		var ei := int(_bones[role4])
+		if _is_static(ei):
+			continue
 		_sign["%s_back" % role4] = _measure(ei, _axis_x[ei], _probe_local(ei), back, -_front)
 	var tail = _bones.get("tail", [])
 	if typeof(tail) == TYPE_ARRAY:
 		# у хвоста кожна ланка своя (бічні пасма єдинорога дивляться інакше за основне)
 		for item in (tail as Array):
 			var ti := int(item)
+			# СТАТИЧНУ ланку не пробуємо: її ніхто не крутить, а зайвий пробний оберт лише
+			# зсунув би сусідні вершини. Знак кладемо запасний — індекси мусять збігатися
+			# з ланцюжком (див. animate)
+			if _is_static(ti):
+				_tail_lift_sign.append(-_front)
+				_tail_wag_sign.append(1.0)
+				continue
 			var tp := _probe_local(ti)
 			_tail_lift_sign.append(_measure(ti, _axis_x[ti], tp, up, -_front))
 			_tail_wag_sign.append(_measure(ti, _axis_y[ti], tp, left, 1.0))
@@ -2041,13 +2423,45 @@ func _calibrate_signs() -> void:
 		if not _bones.has(role2):
 			continue
 		var bi := int(_bones[role2])
+		if _is_static(bi):
+			continue
 		_sign["%s_pitch" % role2] = _measure(bi, _axis_x[bi], _probe_forward(bi), up, -_front)
 	for role3 in ["neck", "head"]:
 		if not _bones.has(role3):
 			continue
 		var ni := int(_bones[role3])
+		if _is_static(ni):
+			continue
 		_sign["%s_pitch" % role3] = _measure(ni, _axis_x[ni], _probe_forward(ni), -up, -_front)
+	# точки ЖИВОТА — під кістками тулуба, на рівні низу коробки тулуба (метри героя).
+	# Їх стереже «нічого не тоне» в ковзанні: там копитця розкидані вбоки й найнижче черево
+	if _torso_box.size.y > 0.0001:
+		for role5 in TORSO_ROLES:
+			if not _bones.has(role5):
+				continue
+			_body_tips.append(_belly_tip(int(_bones[role5])))
 	_skel.reset_bone_poses()
+	_skel.force_update_all_bone_transforms()
+	# ТОЧКА ОБЕРТУ СТІЙКИ ДИБКИ — середина між ЗАДНІМИ копитами в позі спокою (див. rear_pivot).
+	# Рахуємо тут, бо саме тут скелет уже стоїть у спокої й кінчики копит відомі
+	var hind: Array[Vector3] = []
+	for role6 in ["bl", "br"]:
+		if not _bones.has(role6):
+			continue
+		var tip := _leg_tip(int(_bones[role6]))
+		hind.append(_hero_point(_model_point(
+			_skel.get_bone_global_pose(int(tip[0])) * (tip[1] as Vector3))))
+	_rear_pivot = rear_pivot(hind)
+
+
+## Точка «низ тулуба під цією кісткою» в ЛОКАЛЬНИХ координатах кістки (поза спокою).
+## Беремо початок кістки й опускаємо його до дна _torso_box — далі вона їде разом із кісткою.
+func _belly_tip(idx: int) -> Array:
+	var g := _skel.get_bone_global_rest(idx)
+	var mp := _model_point(g.origin)                       # координати моделі
+	var floor_model := _model_box.position.y + _torso_box.position.y * _inv_scale
+	var sp := _model_to_skel * Vector3(mp.x, floor_model, mp.z)
+	return [idx, g.affine_inverse() * sp]
 
 
 ## Один вимір: пробний оберт кістки `idx` на CAL_ANGLE навколо `axis` (у ЛОКАЛЬНИХ
@@ -2065,6 +2479,21 @@ func _measure(idx: int, axis: Vector3, probe: Vector3, want: Vector3, fallback: 
 	_skel.reset_bone_poses()
 	var s := sign_from_probe(before, after, want)
 	return s if s != 0.0 else fallback
+
+
+## НАСКІЛЬКИ зрушила проба при тому самому пробному оберті (метри героя). Знак тут не
+## цікавий — цікаво, чи кістка взагалі щось везе: у Meshy-ригу бувають кістки лапок, до
+## яких не прив'язано майже нічого, і тоді хоч крути, хоч ні — лапа стоїть.
+func _probe_move(idx: int, axis: Vector3, probe: Vector3) -> float:
+	_skel.reset_bone_poses()
+	_skel.force_update_all_bone_transforms()
+	var before := _hero_dir(_model_point(_skel.get_bone_global_pose(idx) * probe))
+	var rest := _skel.get_bone_rest(idx).basis.get_rotation_quaternion()
+	_skel.set_bone_pose_rotation(idx, rest * Quaternion(axis, CAL_ANGLE))
+	_skel.force_update_all_bone_transforms()
+	var after := _hero_dir(_model_point(_skel.get_bone_global_pose(idx) * probe))
+	_skel.reset_bone_poses()
+	return (after - before).length()
 
 
 ## Штучна проба «20 см ПОПЕРЕДУ суглоба» в локальних координатах кістки: для тулуба й
@@ -2151,8 +2580,10 @@ func _s(key: String) -> float:
 ## Довернути кістку на `angle` навколо осі, заданої В ЇЇ ЛОКАЛЬНИХ координатах
 ## (див. _prepare_axes: там модельні X/Y перекладені в локальні). Поза множиться
 ## СПРАВА від спокою — тоді в координатах скелета це чистий оберт навколо модельної осі.
+## СТАТИЧНІ кістки (`rig_bones.static`) не крутить жоден стан — перевірка стоїть тут,
+## в одній точці, щоб її не можна було забути в новій позі.
 func _rot(idx: int, axis: Vector3, angle: float) -> void:
-	if absf(angle) < 0.0005:
+	if absf(angle) < 0.0005 or _is_static(idx):
 		return
 	var rest := _skel.get_bone_rest(idx).basis.get_rotation_quaternion()
 	_skel.set_bone_pose_rotation(idx, rest * Quaternion(axis, angle))
@@ -2161,7 +2592,7 @@ func _rot(idx: int, axis: Vector3, angle: float) -> void:
 ## Те саме, але двома осями за раз. Окремо кликати _rot() двічі не можна: друга поза
 ## рахується від СПОКОЮ і просто затерла б першу.
 func _rot2(idx: int, axis_a: Vector3, angle_a: float, axis_b: Vector3, angle_b: float) -> void:
-	if absf(angle_a) < 0.0005 and absf(angle_b) < 0.0005:
+	if (absf(angle_a) < 0.0005 and absf(angle_b) < 0.0005) or _is_static(idx):
 		return
 	var rest := _skel.get_bone_rest(idx).basis.get_rotation_quaternion()
 	_skel.set_bone_pose_rotation(idx, rest * Quaternion(axis_a, angle_a) * Quaternion(axis_b, angle_b))
@@ -2170,7 +2601,8 @@ func _rot2(idx: int, axis_a: Vector3, angle_a: float, axis_b: Vector3, angle_b: 
 ## Те саме трьома осями (таз: тангаж + виляння танцю + крен кроку).
 func _rot3(idx: int, axis_a: Vector3, angle_a: float, axis_b: Vector3, angle_b: float,
 		axis_c: Vector3, angle_c: float) -> void:
-	if absf(angle_a) < 0.0005 and absf(angle_b) < 0.0005 and absf(angle_c) < 0.0005:
+	if (absf(angle_a) < 0.0005 and absf(angle_b) < 0.0005 and absf(angle_c) < 0.0005) \
+			or _is_static(idx):
 		return
 	var rest := _skel.get_bone_rest(idx).basis.get_rotation_quaternion()
 	_skel.set_bone_pose_rotation(idx, rest * Quaternion(axis_a, angle_a)
@@ -2188,8 +2620,9 @@ func _rot3(idx: int, axis_a: Vector3, angle_a: float, axis_b: Vector3, angle_b: 
 var frozen := false
 
 ## Дефолт профілю: коли Hero3D його не передав (старий виклик, тест) — поводимось як RUN/IDLE.
+## `leg_freq` — це ЧАСТОТА КРОКУ В ГЕРЦАХ (а не множник швидкості світу, як було до GDD v1.7).
 const PROF_FALLBACK := {
-	"leg_amp": GALLOP_SWING, "leg_freq": 1.0, "bob_amp": 1.0, "body_pitch": 0.0,
+	"leg_amp": GALLOP_SWING, "leg_freq": RUN_CADENCE_HZ, "bob_amp": 1.0, "body_pitch": 0.0,
 	"body_y": 0.0, "head_pitch": 0.0, "ears": "free", "tail": "wag",
 	"limp_leg": -1, "shake": 0.0, "spin_y": 0.0, "hop": 0.0, "leg_spread": 0.0,
 }
@@ -2213,17 +2646,25 @@ const DANCE_HIND_EXT := 0.2
 const TAIL_IDLE := 0.12
 const TAIL_IDLE_HZ := 1.2
 
-## Привітання (див. Hero3D.wave_hello): герой ЗВОДИТЬСЯ ДИБКИ на задні лапки. Нахил іде
-## НАВКОЛО ТАЗУ (у ригу крутиться сама кістка hips, тож задні копитця лишаються на місці),
-## задні лапки довертаються ВПЕРЕД, щоб опинитись під тілом, передні звисають: ліва
-## підібгана, права махає. Голова доверстує контр-нахилом, щоб морда дивилась у камеру.
+## Привітання (див. Hero3D.wave_hello): герой ЗВОДИТЬСЯ ДИБКИ на задні лапки.
+##
+## ЯК САМЕ. Не «крутимо кістку тазу» (ієрархія в кожного Meshy-ригу своя — див. MEMORY),
+## а обертаємо ВСЮ МОДЕЛЬ навколо осі X, що проходить через ЗАДНІ КОПИТА на землі
+## (`rear_pivot`, `_place_root`). Такий оберт працює на БУДЬ-ЯКОМУ ригу однаково: задні
+## копита лишаються на місці, перед іде вгору. Далі:
+##   • задні лапки отримують КОНТР-оберт −WAVE_PITCH — і лишаються вертикальними;
+##   • передні звисають уже вздовж піднятого тіла: ліва підібгана (WAVE_LIFT_TUCK),
+##     права махає (WAVE_LIFT ± WAVE_LIFT_SWING на WAVE_HZ);
+##   • голова доверстує контр-нахилом WAVE_HEAD_PITCH — морда дивиться в камеру;
+##   • вуха вгору, хвіст донизу (це вже режими профілю WAVE).
 ## Числа — ті самі, що в Hero3D (дублі навмисно, див. вище).
 const WAVE_LIFT := -1.2       ## передня права («привіт») — середина розмаху, рад
 const WAVE_LIFT_SWING := 0.2  ## розмах помаху вгору-вниз: WAVE_LIFT ± це (−1,4 … −1,0)
 const WAVE_LIFT_TUCK := -0.6  ## передня ліва просто підібгана, рад
-const WAVE_HIND := 0.5        ## задні лапки ВПЕРЕД — під тіло, рад (+ = мах уперед)
-const WAVE_BODY_PITCH := -0.9 ## ніс угору ≈ 50°, рад (у наших знаках + = ніс униз)
-const WAVE_BODY_Y := -0.09    ## таз сідає на задні лапки, м
+## НА СКІЛЬКИ ЗАДИРАЄТЬСЯ ПЕРЕД, рад (≈50°). Це кут оберту ВСІЄЇ МОДЕЛІ навколо X через
+## задні копита, і знак тут ГЕОМЕТРИЧНИЙ, а не «профільний»: + = перед УГОРУ (той самий
+## знак, що й «мах лапки вперед»). Задні лапки крутяться на −WAVE_PITCH, щоб стояти прямо.
+const WAVE_PITCH := 0.9
 const WAVE_HEAD_PITCH := 0.6  ## контр-нахил голови, рад (+ = морда вниз) — морда в камеру
 const WAVE_OUT := 0.25        ## постійний відворот лапки назовні, рад
 const WAVE_YAW := 0.25        ## розмах помаху навколо вертикалі, рад
@@ -2267,11 +2708,14 @@ func animate(delta: float, s: Dictionary) -> void:
 		return
 	_skel.reset_bone_poses()
 	if _root != null and is_instance_valid(_root):
-		_root.position.y = _root_y0       # підйом «копитця на підлозі» рахується в кінці кадру
+		# нахил дибки й підйом «копитця на підлозі» рахуються в кінці кадру (_apply_ground_lift)
+		_place_root(_root_y0, Basis.IDENTITY)
 	if frozen:
 		return
 	var t := float(s.get("t", 0.0))
-	var run_f := float(s.get("run_f", 11.0))
+	# `run_f` лишився лише для сумісності зі старими викликами: частота кроку більше НЕ
+	# рахується зі швидкості світу (див. RUN_CADENCE_HZ), а приходить готовою в `leg_f`
+	var run_f := float(s.get("run_f", TAU * RUN_CADENCE_HZ))
 	var galloping := bool(s.get("galloping", false))
 	var running := bool(s.get("running", false))
 	var airborne := bool(s.get("airborne", false))
@@ -2289,7 +2733,9 @@ func animate(delta: float, s: Dictionary) -> void:
 	if prof.is_empty():
 		prof = PROF_FALLBACK
 	var leg_amp := float(prof.get("leg_amp", GALLOP_SWING))
-	var leg_f := float(s.get("leg_f", run_f * float(prof.get("leg_freq", 1.0))))
+	# частота лапок (рад/с) = 2π × ФІКСОВАНА каденція профілю (Гц). Швидкість світу тут
+	# більше не бере участі взагалі — вона лишилась тільки в `speed_k` (розмах)
+	var leg_f := float(s.get("leg_f", TAU * float(prof.get("leg_freq", RUN_CADENCE_HZ))))
 	# фаза кроку (радіани): від неї рахуються всі чотири лапки зі своїми зсувами GAIT_PHASE
 	var phase := float(s.get("phase", t * leg_f))
 	var limp_leg := int(prof.get("limp_leg", -1))
@@ -2299,6 +2745,14 @@ func animate(delta: float, s: Dictionary) -> void:
 	## множники моделі (`rig_anim`): у єдинорога скінінг жорсткий, тож розмах приборканий
 	var cfg_amp := float(_anim_cfg.get("leg_amp", 1.0))
 	var cfg_lift := float(_anim_cfg.get("leg_lift", 1.0))
+	## ДОДАТКОВИЙ розмах задніх лапок (bl/br) — див. anim_of(): у єдинорога вони ховаються
+	## за бічними пасмами хвоста, і саме їм треба ширший мах, а не всій четвірці
+	var cfg_hind := float(_anim_cfg.get("hind_amp", 1.0))
+	## сталий підйом хвоста в бігу (RUN/SPRINT/CHARGE/LIMP) — див. anim_of()
+	var cfg_tail_lift := float(_anim_cfg.get("tail_lift", 0.0))
+	## множник ЗГИНУ КОЛІНА: 0 — коліна нема взагалі (жорсткий скінінг рве меш лапки,
+	## див. knee_auto_off; у єдинорога стоїть 0 руками)
+	var cfg_knee := float(_anim_cfg.get("knee", 1.0))
 	## розмах лапок цієї моделі (профіль × темп бігу × множник моделі)
 	var step_amp := leg_amp * float(s.get("speed_k", 1.0)) * cfg_amp
 
@@ -2313,7 +2767,9 @@ func animate(delta: float, s: Dictionary) -> void:
 	for role in LEG_ROLES:
 		if not _bones.has(role):
 			continue
-		var idx := int(_bones[role])
+		# крутимо кістку-МАХОВИК ланцюжка (найбільше вершин), а не обов'язково саму
+		# кістку лапки: у Meshy-ригів стегно буває порожнє, а вся шкіра — на гомілці
+		var idx := _swing_of(role)
 		var front: bool = (role == "fl" or role == "fr")
 		var leg_i := LEG_ROLES.find(role)                 # 0 fl · 1 fr · 2 bl · 3 br — як у Hero3D
 		var a := 0.0
@@ -2333,7 +2789,8 @@ func animate(delta: float, s: Dictionary) -> void:
 				a = 0.15 + DANCE_HIND_EXT * dance_bounce(t, DANCE_BPS)
 		elif galloping:
 			var phi := phase + TAU * gait_phase(leg_i)
-			a = sin(phi) * step_amp
+			# задні лапки (bl/br) отримують ще й hind_amp — саме їх ховає хвіст
+			a = sin(phi) * step_amp * (1.0 if front else cfg_hind)
 			lift = gait_lift(phi)
 		else:
 			a = sin(t * 1.4 + (0.0 if leg_i % 2 == 0 else 1.1)) * 0.05
@@ -2346,17 +2803,23 @@ func animate(delta: float, s: Dictionary) -> void:
 			a = lerpf(a, 0.0, duck)
 			lift = lerpf(lift, 0.0, duck)
 		if wave_b > 0.001:
-			# привітання: стійка дибки — передня ліва підібгана, задні ВПЕРЕД під тіло
-			a = lerpf(a, WAVE_LIFT_TUCK if front else WAVE_HIND, wave_b)
+			# СТІЙКА ДИБКИ. Тіло вже нахилене цілком (оберт моделі навколо задніх копит,
+			# див. _place_root), тож задні лапки треба лише КОНТР-обернути на −WAVE_PITCH —
+			# тоді вони лишаються вертикальними й стоять на землі. Передні звисають уздовж
+			# піднятого тіла: ліва підібгана, права махає (нижче, гілка `fr`)
+			a = lerpf(a, WAVE_LIFT_TUCK if front else -WAVE_PITCH, wave_b)
 			lift = lerpf(lift, 0.0, wave_b)
 		# Знак «додатне `a` = мах УПЕРЕД» не вгадується з _front, а ВИМІРЯНИЙ у build()
 		# (див. _calibrate_signs): у єдинорога кістки лежать інакше, ніж у лисеняти, і стара
 		# формула давала дзеркальну позу — передні лапки вниз, задні вгору
 		var sw := _s("%s_swing" % role)
-		# нижня ланка: + = копитце назад (виміряно в build), розмах — GAIT_LOWER_BEND
-		if _lower_leg.has(role):
+		# нижня ланка: + = копитце назад (виміряно в build), розмах — GAIT_LOWER_BEND.
+		# Коли маховиком стала САМА нижня ланка, згин пропускаємо: другий _rot по тій самій
+		# кістці рахується від спокою й просто затер би мах
+		# `cfg_knee` = 0 (жорсткий скінінг) вимикає згин зовсім: нижня ланка лишається в спокої
+		if cfg_knee > 0.0001 and _lower_leg.has(role) and int(_lower_leg[role]) != idx:
 			var ki := int(_lower_leg[role])
-			_rot(ki, _axis_x[ki], _s("%s_knee" % role) * lift * GAIT_LOWER_BEND * cfg_lift)
+			_rot(ki, _axis_x[ki], _s("%s_knee" % role) * lift * GAIT_LOWER_BEND * cfg_lift * cfg_knee)
 		if role == "fr" and wave_b > 0.001:
 			# вітається передньою правою: махає нею вгору-вниз (WAVE_LIFT ± WAVE_LIFT_SWING)
 			# і навколо вертикалі. Осі йдуть у порядку «спершу підняти, потім вильнути»
@@ -2372,6 +2835,9 @@ func animate(delta: float, s: Dictionary) -> void:
 				* SLIDE_SPLAY * duck * _s("%s_splay" % role)
 			_rot2(idx, _axis_z[idx], out, _axis_x[idx], sw * a)
 			continue
+		# У БІГУ — РІВНО ОДНА ВІСЬ. Розкид убік (`splay`, вісь Z) живе тільки в ковзанні
+		# (гілка `duck` вище), а помах — тільки в привітанні: другий оберт на жорсткому
+		# скінінгу скручує лапку навколо себе й рве меш у суглобі
 		_rot(idx, _axis_x[idx], sw * a)
 
 	# наскільки поза НАВМИСНО опускає тіло (спринт притискає героя до землі) — рівно на стільки
@@ -2396,10 +2862,10 @@ func animate(delta: float, s: Dictionary) -> void:
 		# присіду тут більше нема: ковзання на животі опускає ВСЕ тіло (Hero3D.SLIDE_BODY_Y),
 		# а таз лишається на своєму місці — інакше опускання лічилось би двічі
 		if wave_b > 0.001:
-			# привітання: таз сідає на задні лапки. Нахил дибки крутить тіло НАВКОЛО ТАЗУ
-			# (нижче), тож окремий підйом тіла більше не потрібен — залишок добирає
-			# «копитця на підлозі»
-			bob = lerpf(bob - float(prof.get("body_y", 0.0)), WAVE_BODY_Y, wave_b)
+			# ПРИВІТАННЯ: посадки тазу більше нема взагалі. Дибки робить оберт УСІЄЇ моделі
+			# навколо задніх копит (_place_root), а «копитця на підлозі» доводить решту —
+			# опускати ще й таз означало б рахувати те саме двічі (і на кожному ригу по-своєму)
+			bob = lerpf(bob, 0.0, wave_b)
 		# танець: м'який підскок на кожен біт (smoothstep, без гострих розворотів синуса)
 		if float(prof.get("hop", 0.0)) > 0.0:
 			bob += dance_bounce(t, DANCE_BPS) * DANCE_HOP * float(prof.get("hop", 0.0))
@@ -2412,10 +2878,11 @@ func animate(delta: float, s: Dictionary) -> void:
 				_shake_off = Vector2(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0)) * SHAKE_AMP * shake
 			bob += _shake_off.y
 		body_floor = minf(0.0, bob)
-		if absf(bob) > 0.0002:
+		if absf(bob) > 0.0002 and not _is_static(hi):
 			var rest_pos := _skel.get_bone_rest(hi).origin
 			# метри героя → одиниці моделі (_inv_scale) → одиниці скелета (_skel_unit)
-			_skel.set_bone_pose_position(hi, rest_pos + _up_parent[hi] * bob * _inv_scale * _skel_unit)
+			_skel.set_bone_pose_position(hi,
+				rest_pos + _up_parent[hi] * bob * _inv_scale * _skel_unit)
 		# танець: виляння ±spin_y навколо вертикалі (ліворуч — назад — праворуч — назад
 		# за DANCE_SEC). Кут АБСОЛЮТНИЙ, а не накопичений: коли танець урвали на середині,
 		# наступний кадр уже ставить кістку рівно, і герой не лишається розвернутим
@@ -2423,11 +2890,10 @@ func animate(delta: float, s: Dictionary) -> void:
 		# знак «+ = ніс УГОРУ» виміряний у build(); у профілі body_pitch навпаки («+ = ніс униз»),
 		# тому кут іде з мінусом
 		var hip_pitch := sin(phase * 2.0) * 0.02 if galloping else 0.0
-		# ПРИВІТАННЯ КРУТИТЬСЯ САМЕ ТУТ, на кістці тазу: її оберт має шарнір у тазі, тож
-		# задні копитця лишаються на місці, а вгору їде перед (у хребта шарнір вище —
-		# з ним герой «ламався» посередині й зад ішов під підлогу)
 		if wave_b > 0.001:
-			hip_pitch = lerpf(hip_pitch, WAVE_BODY_PITCH, wave_b)
+			# ДИБКИ НАХИЛЯЄ ВСЮ МОДЕЛЬ (оберт навколо задніх копит, _place_root) — кістки
+			# тулуба лишаються прямі, інакше нахил лічився б двічі й герой складався б навпіл
+			hip_pitch = lerpf(hip_pitch, 0.0, wave_b)
 		# крен корпусу на кроці: таз хитається навколо модельного Z на частоті циклу
 		var hip_roll := sin(phase) * GAIT_HIP_ROLL if galloping else 0.0
 		_rot3(hi, _axis_x[hi], -_s("hips_pitch") * hip_pitch,
@@ -2443,8 +2909,8 @@ func animate(delta: float, s: Dictionary) -> void:
 		if duck > 0.001:
 			pitch = lerpf(pitch, 0.0, duck)               # ковзання: корпус лежить рівно
 		if wave_b > 0.001:
-			# дибки нахиляє ТАЗ (див. вище), а хребет лишається прямим — інакше нахил
-			# лічився б двічі й герой складався б навпіл
+			# дибки нахиляє ВСЮ МОДЕЛЬ (див. _place_root) — хребет лишається прямим,
+			# інакше нахил лічився б двічі й герой складався б навпіл
 			pitch = lerpf(pitch, 0.0, wave_b)
 		_rot(si, _axis_x[si], pitch)
 
@@ -2492,8 +2958,14 @@ func animate(delta: float, s: Dictionary) -> void:
 		var chain: Array = tail
 		# дільник кутів: кожна ланка додає СВІЙ нахил, тож кут ділиться на довжину ланцюжка —
 		# але не більше ніж на TAIL_CHAIN_MAX. У єдинорога в ролі `tail` 11 кісток (три окремі
-		# пасма), і поділ на 11 з'їдав виляння танцю повністю
-		var links := float(clampi(chain.size(), 1, TAIL_CHAIN_MAX))
+		# пасма), і поділ на 11 з'їдав виляння танцю повністю.
+		# СТАТИЧНІ ланки (`rig_bones.static`) у дільник не входять узагалі: вони не крутяться,
+		# тож ділити на них кут — це просто загубити амплітуду решти хвоста
+		var moving := 0
+		for item0 in chain:
+			if not _is_static(int(item0)):
+				moving += 1
+		var links := float(clampi(moving, 1, TAIL_CHAIN_MAX))
 		var mode := String(prof.get("tail", "wag"))
 		if duck > 0.5:
 			mode = "straight"                   # ковзання: хвіст витягнутий назад
@@ -2519,6 +2991,11 @@ func animate(delta: float, s: Dictionary) -> void:
 			var s_wag: float = _tail_wag_sign[i] if i < _tail_wag_sign.size() else 1.0
 			var yaw := sin(t * freq - float(i) * 0.6) * amp * 0.6
 			var lift := 0.35 if mode == "up" else 0.0
+			# tail_lift (rig_anim): сталий підйом ПОВЕРХ режиму — лише в бігу (galloping —
+			# RUN/SPRINT/CHARGE/LIMP), не в ROCKET (там хвіст навмисно вниз) і не в IDLE.
+			# Виляння (`wag`/`yaw` вище) лишається як є — додається тільки підйом
+			if galloping:
+				lift += cfg_tail_lift
 			if mode == "down":
 				# ракета: хвіст ЗВИСАЄ вниз і повільно похитується (мінус = вниз)
 				lift = ROCKET_TAIL_DOWN / links
@@ -2535,39 +3012,79 @@ func animate(delta: float, s: Dictionary) -> void:
 				yaw += -sin(phase) * GAIT_TAIL_YAW
 			_rot2(ti, _axis_y[ti], s_wag * yaw, _axis_x[ti], s_lift * lift)
 
-	# ── копитця на підлозі: після всіх поз найнижчий кінчик лапки не має тонути в землі ──
-	_apply_ground_lift(duck, airborne, body_floor)
+	# ── копитця на підлозі: після всіх поз нічого не має тонути в землі ──
+	# `body_offset` — наскільки Hero3D опустив УСЕ тіло (ковзання): рахуємо його теж,
+	# інакше в ковзанні герой їхав би животом під дорогою.
+	# Тут же на вузол-корінь лягає СТІЙКА ДИБКИ — оберт усієї моделі навколо задніх копит
+	_apply_ground_lift(duck, airborne, body_floor, float(s.get("body_offset", 0.0)), wave_b)
 
 
 ## Підняти всю модель, якщо після пози найнижче копитце провалилось під землю. Нахили
 ## (спринт, стійка дибки, підскоки танцю) крутять тіло навколо ЙОГО центру, і зад чи перед
 ## ідуть під підлогу — замість того, щоб гадати компенсацію на кожну позу, міряємо результат.
-## У КОВЗАННІ не працює (герой навмисно лежить на землі — тому × (1 − duck)),
-## у повітрі теж (лапки й мають висіти).
+## У КОВЗАННІ теж працює (playtest 09.09: риг їхав під дорогою) — просто міряє ще й
+## ЖИВІТ (_body_tips) і враховує `body_offset`, на який Hero3D опустив усе тіло.
+## У повітрі не працює (лапки й мають висіти).
 ## `floor_y` (≤ 0) — наскільки поза НАВМИСНО опустила таз: на стільки копитцям бути нижче
 ## нуля дозволено (спринт притискає героя до землі, і «випрямляти» його назад не можна).
-func _apply_ground_lift(duck: float, airborne: bool, floor_y: float) -> void:
+## `body_offset` (≤ 0) — опускання ВСЬОГО тіла ззовні; його компенсуємо повністю, тож
+## стеля підйому в ковзанні більша рівно на цю глибину.
+## `wave_b` — наскільки герой звівся дибки (0…1): на цей кут нахилена ВСЯ модель, і
+## найнижчу точку треба міряти вже після нахилу (задні копита лишаються на місці,
+## а от контр-оберт задніх лапок опускає їх на кілька сантиметрів — саме це й добираємо).
+func _apply_ground_lift(duck: float, airborne: bool, floor_y: float, body_offset: float = 0.0,
+		wave_b: float = 0.0) -> void:
 	if _root == null or not is_instance_valid(_root):
 		return
+	var rot := _wave_basis(wave_b)
 	var lift := 0.0
+	var sliding := duck > 0.001
 	if not airborne and not _leg_tips.is_empty():
 		_skel.force_update_all_bone_transforms()
-		var low := _lowest_hoof() - minf(floor_y, 0.0)
+		var sink := minf(body_offset, 0.0)
+		var low := _lowest_point(sliding, rot) - minf(floor_y, 0.0) + sink
 		if low < -GROUND_EPS:
-			lift = clampf(-low, 0.0, GROUND_LIFT_MAX) * (1.0 - clampf(duck, 0.0, 1.0))
-	_root.position.y = _root_y0 + lift
+			lift = clampf(-low, 0.0, GROUND_LIFT_MAX + absf(sink))
+	_place_root(_root_y0 + lift, rot)
 
 
-## Найнижчий кінчик лапки в метрах героя (0 — рівень землі, мінус — під землею).
-## Кінчики знайдені один раз у build() (_leg_tip), тут лише читаємо позу.
-func _lowest_hoof() -> float:
+## Оберт СТІЙКИ ДИБКИ як базис (нахил усієї моделі навколо осі X). `blend` — 0…1.
+func _wave_basis(blend: float) -> Basis:
+	var ang := WAVE_PITCH * clampf(blend, 0.0, 1.0)
+	return Basis(Vector3.RIGHT, ang) if absf(ang) > 0.0005 else Basis.IDENTITY
+
+
+## Поставити вузол-корінь рига: підйом `base_y` над землею плюс оберт `rot` НАВКОЛО
+## ЗАДНІХ КОПИТ (_rear_pivot, y = 0). Саме тут живе стійка дибки: обертається вся модель,
+## а не «кістка тазу», тож поза виходить однакова на будь-якому ригу.
+## Масштаб (_scale) лишається — усередині _root координати модельні.
+func _place_root(base_y: float, rot: Basis) -> void:
+	var o := Vector3(0.0, base_y, 0.0)
+	var p := Vector3(_rear_pivot.x, 0.0, _rear_pivot.z)
+	_root.transform = Transform3D(rot.scaled(Vector3.ONE * _scale), p + rot * (o - p))
+
+
+## Найнижча точка героя в метрах (0 — рівень землі, мінус — під землею): копитця, а в
+## ковзанні ще й живіт. Точки знайдені один раз у build(), тут лише читаємо позу.
+## `rot` — нахил усієї моделі (стійка дибки): точки проводимо через нього, інакше підйом
+## рахувався б по неперехиленому герою.
+func _lowest_point(with_body: bool = false, rot: Basis = Basis.IDENTITY) -> float:
+	var low := _lowest_of(_leg_tips, rot)
+	if with_body and not _body_tips.is_empty():
+		low = minf(low, _lowest_of(_body_tips, rot))
+	return low
+
+
+func _lowest_of(tips: Array, rot: Basis = Basis.IDENTITY) -> float:
 	var low := 0.0
 	var first := true
-	for e in _leg_tips:
+	var p := Vector3(_rear_pivot.x, 0.0, _rear_pivot.z)
+	for e in tips:
 		var idx := int((e as Array)[0])
 		var loc: Vector3 = (e as Array)[1]
-		var mp := _model_point(_skel.get_bone_global_pose(idx) * loc)
-		var y := (mp.y - _model_box.position.y) * _scale
+		# точка в метрах героя (перед = −z, земля = 0), далі — через нахил моделі
+		var hp := _hero_point(_model_point(_skel.get_bone_global_pose(idx) * loc))
+		var y := (p + rot * (hp - p)).y
 		if first or y < low:
 			low = y
 			first = false
@@ -2586,7 +3103,15 @@ func dispose() -> void:
 	_meshes.clear()
 	_anchors.clear()
 	_leg_tips.clear()
+	_body_tips.clear()
 	_lower_leg.clear()
+	_swing_bone.clear()
+	_leg_weights.clear()
+	_bone_verts.clear()
+	_leg_move.clear()
+	_static.clear()
+	_static_leg_verts = 0
+	_rear_pivot = Vector3.ZERO
 
 
 # ──────────────────────────────── дрібниці ────────────────────────────────

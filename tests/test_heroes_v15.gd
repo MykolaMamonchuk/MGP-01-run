@@ -104,8 +104,8 @@ func test_real_data_resolves() -> void:
 
 func test_six_animals_in_carousel() -> void:
 	var ids := HeroSelect.order_ids(_heroes)
-	assert_eq(ids.size(), 7, "у каруселі сім звірят (шосте — Єдиноріг)")
-	assert_eq(String(ids[6]), "odn", "Єдиноріг — останній у каруселі (order 6)")
+	assert_eq(ids.size(), 9, "у каруселі дев'ять звірят (+ дельфін, черепаха)")
+	assert_eq(String(ids[6]), "odn", "Єдиноріг — сьомий (order 6), далі дельфін і черепаха")
 	assert_eq(String(ids[0]), "lys", "стартовий герой — лисеня")
 	for legacy_id in ["puf", "vushko", "sonia"]:
 		assert_false(ids.has(legacy_id), "%s — legacy, у каруселі його нема" % legacy_id)
@@ -116,7 +116,7 @@ func test_each_animal_has_all_parts_and_files() -> void:
 	var re := RegEx.new()
 	re.compile(HEX_RE)
 	var ids := _animals()
-	assert_eq(ids.size(), 7, "сім не-legacy героїв")
+	assert_eq(ids.size(), 9, "дев'ять не-legacy героїв")
 	for id in ids:
 		var def: Dictionary = _heroes[id]
 		var parts = def.get("parts", {})

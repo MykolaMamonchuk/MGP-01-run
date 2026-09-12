@@ -44,7 +44,8 @@ func test_values_are_sane() -> void:
 		var p := Hero3D.profile_for(s)
 		var who: String = Hero3D.ANIM_NAMES[int(s)]
 		assert_between(float(p["leg_amp"]), 0.0, 1.6, "%s: розмах лапок" % who)
-		assert_between(float(p["leg_freq"]), 0.0, 2.0, "%s: частота лапок" % who)
+		# leg_freq — це ГЕРЦИ (фіксована каденція), а не множник швидкості світу
+		assert_between(float(p["leg_freq"]), 0.0, 4.0, "%s: каденція лапок, Гц" % who)
 		assert_between(float(p["shake"]), 0.0, 1.0, "%s: тремтіння" % who)
 		assert_between(float(p["hop"]), 0.0, 1.0, "%s: підскоки" % who)
 		assert_between(float(p["body_y"]), -0.4, 0.4, "%s: зсув тіла" % who)
@@ -57,6 +58,8 @@ func test_run_and_sprint_differ() -> void:
 	var sprint := Hero3D.profile_for(Hero3D.Anim.SPRINT)
 	assert_gt(float(sprint["leg_amp"]), float(run["leg_amp"]), "спринт крокує ширше")
 	assert_gt(float(sprint["leg_freq"]), float(run["leg_freq"]), "спринт частіший")
+	assert_almost_eq(float(run["leg_freq"]), Hero3D.RUN_CADENCE_HZ, 0.0001, "біг — фіксовані Гц")
+	assert_almost_eq(float(sprint["leg_freq"]), Hero3D.SPRINT_CADENCE_HZ, 0.0001, "спринт — фіксовані Гц")
 	assert_gt(float(sprint["body_pitch"]), 0.0, "спринт нахиляє ніс униз")
 	assert_lt(float(sprint["body_y"]), 0.0, "спринт притискає героя до землі")
 	assert_eq(String(sprint["ears"]), "back", "на спринті вуха назад")
@@ -120,6 +123,13 @@ func test_duck_is_a_belly_slide() -> void:
 		"ковзання не нахиляє корпус — це не присід навпочіпки")
 	assert_almost_eq(float(duck["body_y"]), Hero3D.SLIDE_BODY_Y, 0.0001, "тіло лягає на землю")
 	assert_lt(Hero3D.SLIDE_BODY_Y, -0.2, "живіт справді біля землі")
+	# у скелетного героя живіт нижчий — його опускаємо МЕНШЕ, інакше він їде під дорогою
+	assert_gt(Hero3D.SLIDE_BODY_Y_RIG, Hero3D.SLIDE_BODY_Y, "риг опускається менше за вокселі")
+	assert_lt(Hero3D.SLIDE_BODY_Y_RIG, 0.0, "але все одно опускається")
+	assert_almost_eq(Hero3D.slide_body_y(true), Hero3D.SLIDE_BODY_Y_RIG, 0.0001)
+	assert_almost_eq(Hero3D.slide_body_y(false), Hero3D.SLIDE_BODY_Y, 0.0001)
+	assert_lt(absf(Hero3D.SLIDE_BODY_Y_RIG), Hero3D.TORSO_Y,
+		"глибина ковзання менша за висоту низу тулуба — тулуб не провалюється")
 	assert_eq(String(duck["ears"]), "back", "вуха прищулені")
 	assert_eq(String(duck["tail"]), "straight", "хвіст витягнутий назад")
 	assert_almost_eq(float(duck["leg_amp"]), 0.0, 0.0001, "лапки не махають — вони розкинуті")
@@ -139,6 +149,113 @@ func test_ground_lift_is_clamped() -> void:
 	assert_almost_eq(Hero3D.GROUND_LIFT_MAX, HeroRig.GROUND_LIFT_MAX, 0.0001)
 	assert_almost_eq(Hero3D.GROUND_EPS, HeroRig.GROUND_EPS, 0.0001)
 	assert_lt(Hero3D.GROUND_EPS, Hero3D.GROUND_LIFT_MAX, "поріг менший за сам підйом")
+	# у ковзанні стеля більша: підйом має вміти скасувати всю глибину ковзання
+	assert_gt(Hero3D.GROUND_LIFT_MAX_SLIDE, absf(Hero3D.SLIDE_BODY_Y),
+		"у ковзанні можна підняти героя рівно настільки, наскільки його опустили")
+
+
+## Чиста функція підйому: нічого не тоне, дрібниця не смикає, стеля тримає.
+func test_ground_lift_function() -> void:
+	assert_eq(Hero3D.ground_lift(0.2, 0.15), 0.0, "усе над землею — підйому нема")
+	assert_eq(Hero3D.ground_lift(0.0, 0.15), 0.0, "рівно на землі — теж")
+	assert_eq(Hero3D.ground_lift(-Hero3D.GROUND_EPS * 0.5, 0.15), 0.0,
+		"дрібниця в межах похибки не смикає тіло")
+	assert_almost_eq(Hero3D.ground_lift(-0.05, 0.15), 0.05, 0.0001, "тоне на 5 см — піднімаємо на 5 см")
+	assert_almost_eq(Hero3D.ground_lift(-1.0, 0.15), 0.15, 0.0001, "стеля тримає")
+	assert_eq(Hero3D.ground_lift(-1.0, 0.0), 0.0, "нульова стеля — підйому нема")
+	# після підйому найнижча точка вже не під землею (це і є вся суть функції)
+	for k in range(20):
+		var low := -0.3 + float(k) * 0.03
+		var lift := Hero3D.ground_lift(low, Hero3D.GROUND_LIFT_MAX_SLIDE)
+		assert_gte(low + lift, -Hero3D.GROUND_EPS, "після підйому нічого не тоне")
+
+
+## ТЕМП ХОДИ ФІКСОВАНИЙ (рішення Nick, тюнінг GDD v1.7): дві каденції — біг і спринт.
+## Швидкість світу на частоту не впливає НІЯК; 4+ Гц виглядали неприродно.
+func test_cadence_is_fixed() -> void:
+	assert_almost_eq(Hero3D.RUN_CADENCE_HZ, 2.2, 0.0001, "біг — 2,2 Гц")
+	assert_almost_eq(Hero3D.SPRINT_CADENCE_HZ, 3.0, 0.0001, "спринт — 3,0 Гц")
+	assert_almost_eq(Hero3D.LIMP_CADENCE_HZ, 1.6, 0.0001, "кульгає — 1,6 Гц")
+	assert_lt(Hero3D.SPRINT_CADENCE_HZ, 4.0, "більше — вже мерехтіння, а не біг")
+	assert_lt(Hero3D.LIMP_CADENCE_HZ, Hero3D.RUN_CADENCE_HZ, "кульгає повільніше за біг")
+	assert_lt(Hero3D.IDLE_CADENCE_HZ, Hero3D.LIMP_CADENCE_HZ, "у спокої лапки ледь тупцяють")
+	# риг і вокселі беруть ті самі числа (у HeroRig вони — джерело, тут псевдоніми)
+	assert_almost_eq(Hero3D.RUN_CADENCE_HZ, HeroRig.RUN_CADENCE_HZ, 0.0001)
+	assert_almost_eq(Hero3D.SPRINT_CADENCE_HZ, HeroRig.SPRINT_CADENCE_HZ, 0.0001)
+	# каденція стану — це просто leg_freq профілю, у герцах
+	assert_almost_eq(Hero3D.cadence_hz(Hero3D.Anim.RUN), Hero3D.RUN_CADENCE_HZ, 0.0001)
+	assert_almost_eq(Hero3D.cadence_hz(Hero3D.Anim.SPRINT), Hero3D.SPRINT_CADENCE_HZ, 0.0001)
+	# розгін біжить із каденцією спринту, а не швидше
+	assert_almost_eq(Hero3D.cadence_hz(Hero3D.Anim.CHARGE), Hero3D.SPRINT_CADENCE_HZ, 0.0001,
+		"розгін бере каденцію спринту")
+	assert_almost_eq(Hero3D.cadence_hz(Hero3D.Anim.LIMP), Hero3D.LIMP_CADENCE_HZ, 0.0001)
+	assert_eq(Hero3D.cadence_hz(Hero3D.Anim.HIT), 0.0, "у позі удару лапки не крокують")
+
+
+## Від швидкості світу лишилась лише ±10 % модуляція РОЗМАХУ кроку — і жодного герца.
+func test_speed_only_modulates_amplitude() -> void:
+	assert_almost_eq(Hero3D.SPEED_AMP_K, 0.1, 0.0001, "±10 %")
+	assert_almost_eq(Hero3D.speed_amp_k(Hero3D.DEFAULT_SPEED_MPS), 1.0, 0.0001,
+		"на базовій швидкості розмах рівно профільний")
+	assert_almost_eq(Hero3D.speed_amp_k(100.0), 1.0 + Hero3D.SPEED_AMP_K, 0.0001, "стеля тримає")
+	assert_almost_eq(Hero3D.speed_amp_k(0.0), 1.0 - Hero3D.SPEED_AMP_K, 0.0001, "дно тримає")
+	assert_almost_eq(Hero3D.speed_amp_k(-4.0), Hero3D.speed_amp_k(4.0), 0.0001,
+		"знак швидкості не важливий")
+	# монотонність у межах затисків
+	var prev := 0.0
+	for k in range(30):
+		var v := Hero3D.speed_amp_k(float(k) * 0.4)
+		assert_gte(v, prev - 0.0001, "розмах не падає зі зростанням швидкості")
+		prev = v
+	# і головне: скільки не жени світ — каденція та сама
+	for v2 in [0.0, 2.0, 4.0, 9.0, 30.0]:
+		assert_almost_eq(Hero3D.cadence_hz(Hero3D.Anim.RUN), Hero3D.RUN_CADENCE_HZ, 0.0001,
+			"каденція не залежить від швидкості %s" % v2)
+
+
+## Чистий ПОМІЧНИК gait_hz («яка була б хода під швидкість») — ходу він більше не крутить,
+## але лишається для діагностики й старих викликів, тож і далі мусить бути коректним.
+func test_gait_hz_helper_still_sane() -> void:
+	assert_gt(Hero3D.STRIDE_M, 0.0)
+	assert_lt(Hero3D.GAIT_HZ_MIN, Hero3D.GAIT_HZ_MAX)
+	# у робочому діапазоні швидкостей — рівно швидкість / довжина кроку
+	for v in [1.0, 2.0, 3.6, 4.0, 4.4]:
+		assert_almost_eq(Hero3D.gait_hz(float(v)), float(v) / Hero3D.STRIDE_M, 0.0001,
+			"Гц = швидкість / довжина кроку")
+	# затиски з обох боків
+	assert_almost_eq(Hero3D.gait_hz(0.0), Hero3D.GAIT_HZ_MIN, 0.0001, "стоїмо — хода не завмирає")
+	assert_almost_eq(Hero3D.gait_hz(100.0), Hero3D.GAIT_HZ_MAX, 0.0001, "і не мерехтить")
+	assert_almost_eq(Hero3D.gait_hz(-4.0), Hero3D.gait_hz(4.0), 0.0001, "знак швидкості не важливий")
+	# монотонність: швидше біжимо — частіше крокуємо (у межах затисків)
+	var prev := 0.0
+	for k in range(30):
+		var hz := Hero3D.gait_hz(float(k) * 0.3)
+		assert_gte(hz, prev - 0.0001, "частота не падає зі зростанням швидкості")
+		prev = hz
+	# рад/с — це просто TAU × Гц (саме таке число їде в риг як run_f)
+	assert_almost_eq(Hero3D.gait_freq(4.0), TAU * Hero3D.gait_hz(4.0), 0.0001)
+	# довший крок = рідші лапки
+	assert_lt(Hero3D.gait_hz(4.0, 1.8), Hero3D.gait_hz(4.0, 0.9), "довший крок — рідше")
+	assert_gt(Hero3D.gait_hz(4.0, 0.0), 0.0, "нульова довжина кроку не ділить на нуль")
+	# за один цикл герой має пройти рівно STRIDE_M метрів (це і є «лапки не ковзають»)
+	var speed := 3.0
+	var dist_per_cycle := speed / Hero3D.gait_hz(speed)
+	assert_almost_eq(dist_per_cycle, Hero3D.STRIDE_M, 0.0001, "цикл кроку = STRIDE_M метрів")
+
+
+## Замах перед розгоном (суперсила): присів → вистрілив, без стрибків на краях.
+func test_charge_windup() -> void:
+	assert_gt(Hero3D.CHARGE_WINDUP, 0.0)
+	assert_lt(Hero3D.CHARGE_WINDUP, 0.6, "замах короткий — це не окрема анімація")
+	assert_lt(Hero3D.CHARGE_WINDUP_DIP, 0.0, "у замаху герой присідає")
+	assert_eq(Hero3D.charge_crouch(0.0), 0.0, "замаху нема — присіду нема")
+	assert_almost_eq(Hero3D.charge_crouch(Hero3D.CHARGE_WINDUP), 0.0, 0.0001, "на початку ще рівний")
+	assert_almost_eq(Hero3D.charge_crouch(Hero3D.CHARGE_WINDUP * 0.5), 1.0, 0.0001, "у середині — дно")
+	assert_eq(Hero3D.charge_crouch(-1.0), 0.0, "від'ємний час не ламає")
+	assert_eq(Hero3D.charge_crouch(0.2, 0.0), 0.0, "нульова тривалість не ділить на нуль")
+	for k in range(30):
+		var v := Hero3D.charge_crouch(Hero3D.CHARGE_WINDUP * float(k) / 29.0)
+		assert_between(v, 0.0, 1.0, "присід — частка 0…1")
 
 
 ## Хвіст у танці: тримається ВГОРІ й виляє навколо вертикалі — і ніколи не нижче горизонталі.
@@ -195,11 +312,15 @@ func test_dance_is_smooth() -> void:
 ## Привітання: герой ЗВОДИТЬСЯ ДИБКИ на задні лапки, а морда лишається в камері.
 func test_wave_rears_up() -> void:
 	var p := Hero3D.profile_for(Hero3D.Anim.WAVE)
-	assert_lt(float(p["body_pitch"]), 0.0, "ніс угору (у наших знаках + = ніс униз)")
-	assert_lte(float(p["body_pitch"]), -0.8, "це справжня дибка (≈50°), а не легкий нахил")
-	assert_lt(float(p["body_y"]), 0.0, "таз сідає на задні лапки")
+	# САМ НАХИЛ у профілі не живе: дибки — це оберт УСЬОГО тіла навколо задніх лапок
+	# (WAVE_PITCH + WAVE_PIVOT), і йде він через бленд _wave_blend. Інакше нахил лічився б
+	# двічі — на тілі й на хребті рига
+	assert_almost_eq(float(p["body_pitch"]), 0.0, 0.0001, "нахил не з профілю, а з WAVE_PITCH")
+	assert_almost_eq(float(p["body_y"]), 0.0, 0.0001, "герой не сідає, а зводиться дибки")
+	assert_gt(Hero3D.WAVE_PITCH, 0.0, "+ WAVE_PITCH = перед УГОРУ")
+	assert_gte(Hero3D.WAVE_PITCH, 0.8, "це справжня дибка (≈50°), а не легкий нахил")
 	assert_gt(float(p["head_pitch"]), 0.0, "голова доверстує КОНТР-нахилом (+ = морда вниз)")
-	assert_lt(float(p["head_pitch"]), -float(p["body_pitch"]),
+	assert_lt(float(p["head_pitch"]), Hero3D.WAVE_PITCH,
 		"контр-нахил менший за нахил тіла — морда дивиться в камеру, а не в землю")
 	assert_eq(String(p["ears"]), "up")
 	assert_eq(String(p["tail"]), "down", "у дибках хвіст донизу")
@@ -210,28 +331,29 @@ func test_wave_rears_up() -> void:
 	assert_between(Hero3D.WAVE_LIFT - Hero3D.WAVE_LIFT_SWING, -1.45, -1.35, "нижня межа помаху ≈ −1,4")
 	assert_between(Hero3D.WAVE_LIFT + Hero3D.WAVE_LIFT_SWING, -1.05, -0.95, "верхня межа помаху ≈ −1,0")
 	assert_almost_eq(Hero3D.WAVE_HZ, 3.0, 0.0001, "махає 3 рази на секунду")
-	assert_gt(Hero3D.WAVE_HIND, 0.0, "задні лапки йдуть УПЕРЕД — під тіло")
 	assert_gt(Hero3D.WAVE_EASE, 0.0, "у позу входимо й виходимо плавно")
 	assert_almost_eq(Hero3D.WAVE_EASE, 0.3, 0.0001)
 	assert_lt(Hero3D.WAVE_EASE, Hero3D.WAVE_ANIM_SEC, "згладжування коротше за саме привітання")
-	# шарнір нахилу — стегно ЗАДНІХ лапок, інакше зад провалюється під підлогу
-	assert_almost_eq(Hero3D.WAVE_PIVOT.y, Hero3D.LEG_H, 0.0001)
+	# шарнір нахилу — ЗАДНІ ЛАПКИ НА ЗЕМЛІ (y = 0): саме вони мають лишитись на дорозі
+	assert_almost_eq(Hero3D.WAVE_PIVOT.y, 0.0, 0.0001, "вісь обертання лежить на землі")
 	assert_almost_eq(Hero3D.WAVE_PIVOT.z, Hero3D.HIP_Z_BACK, 0.0001)
 	# і сама компенсація: точка шарніра після нахилу лишається на місці
-	var comp := Hero3D.pivot_offset(Hero3D.WAVE_BODY_PITCH, Hero3D.WAVE_PIVOT)
-	var moved := Basis(Vector3.RIGHT, Hero3D.WAVE_BODY_PITCH) * Hero3D.WAVE_PIVOT + comp
+	var comp := Hero3D.pivot_offset(Hero3D.WAVE_PITCH, Hero3D.WAVE_PIVOT)
+	var moved := Basis(Vector3.RIGHT, Hero3D.WAVE_PITCH) * Hero3D.WAVE_PIVOT + comp
 	assert_almost_eq(moved.y, Hero3D.WAVE_PIVOT.y, 0.0001, "шарнір не поїхав по висоті")
 	assert_almost_eq(moved.z, Hero3D.WAVE_PIVOT.z, 0.0001, "шарнір не поїхав по глибині")
 	assert_almost_eq(Hero3D.pivot_offset(0.0, Hero3D.WAVE_PIVOT).length(), 0.0, 0.0001,
 		"без нахилу компенсації нема")
+	# ніс справді їде ВГОРУ (перед героя — це −z), а не в землю
+	var nose := Vector3(0.0, Hero3D.NECK_Y, Hero3D.FACE_Z)
+	var nose_up := Basis(Vector3.RIGHT, Hero3D.WAVE_PITCH) * nose + comp
+	assert_gt(nose_up.y, nose.y, "морда піднялась — це дибка, а не поклон")
 	# обидва тіла читають ОДНІ Й ТІ САМІ числа
-	assert_almost_eq(Hero3D.WAVE_BODY_PITCH, HeroRig.WAVE_BODY_PITCH, 0.0001)
-	assert_almost_eq(Hero3D.WAVE_BODY_Y, HeroRig.WAVE_BODY_Y, 0.0001)
+	assert_almost_eq(Hero3D.WAVE_PITCH, HeroRig.WAVE_PITCH, 0.0001)
 	assert_almost_eq(Hero3D.WAVE_HEAD_PITCH, HeroRig.WAVE_HEAD_PITCH, 0.0001)
 	assert_almost_eq(Hero3D.WAVE_LIFT, HeroRig.WAVE_LIFT, 0.0001)
 	assert_almost_eq(Hero3D.WAVE_LIFT_TUCK, HeroRig.WAVE_LIFT_TUCK, 0.0001)
 	assert_almost_eq(Hero3D.WAVE_LIFT_SWING, HeroRig.WAVE_LIFT_SWING, 0.0001)
-	assert_almost_eq(Hero3D.WAVE_HIND, HeroRig.WAVE_HIND, 0.0001)
 	assert_almost_eq(Hero3D.WAVE_HZ, HeroRig.WAVE_HZ, 0.0001)
 	assert_almost_eq(Hero3D.WAVE_YAW, HeroRig.WAVE_YAW, 0.0001)
 

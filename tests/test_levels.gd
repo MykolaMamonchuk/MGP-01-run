@@ -93,6 +93,29 @@ func test_islands_group_consecutive_worlds() -> void:
 	assert_eq(int(isl[-1]["to"]), 17)
 
 
+## EDD §2 (рішення Nick №1): світи переставлено — по три рівні на кожен пізній острів.
+func test_world_ranges_after_reorder() -> void:
+	var lm := LevelManager.new()
+	var want := [
+		{"world": "meadow", "from": 1,  "to": 4},
+		{"world": "forest", "from": 5,  "to": 8},
+		{"world": "beach",  "from": 9,  "to": 11},
+		{"world": "city",   "from": 12, "to": 14},
+		{"world": "clouds", "from": 15, "to": 17},
+	]
+	var isl := lm.islands()
+	assert_eq(isl.size(), want.size())
+	for i in range(want.size()):
+		assert_eq(String(isl[i]["world"]), String(want[i]["world"]), "острів %d" % i)
+		assert_eq(int(isl[i]["from"]), int(want[i]["from"]), "%s: перший рівень" % want[i]["world"])
+		assert_eq(int(isl[i]["to"]), int(want[i]["to"]), "%s: останній рівень" % want[i]["world"])
+	# кожен світ трапляється рівно одним суцільним шматком
+	var seen := {}
+	for isl_i in isl:
+		assert_false(seen.has(isl_i["world"]), "світ %s не повертається двічі" % isl_i["world"])
+		seen[isl_i["world"]] = true
+
+
 func test_map_positions_inside_screen() -> void:
 	var pts := MapScreen.node_positions(17, Vector2(1280, 720))
 	assert_eq(pts.size(), 17)
@@ -381,16 +404,20 @@ func test_every_world_describes_its_roadside() -> void:
 			assert_gt(int(w.get("bridges_every", 0)), 0, "%s: через канал мають бути містки" % id)
 
 
-func test_ingot_builds_and_big_one_is_hundred() -> void:
+func test_ingot_builds_and_big_one_is_twenty() -> void:
 	var ing := Ingot3D.new()
 	add_child_autofree(ing)
 	assert_gt(ing.get_child_count(), 0, "злиток збирає меш із data/voxels/ingot.json")
-	assert_false(ing.is_big(), "звичайний злиток — не «+100»")
+	assert_false(ing.is_big(), "звичайний злиток — не «+20»")
+	var tier2 := Ingot3D.new()
+	tier2.value = 2
+	add_child_autofree(tier2)
+	assert_false(tier2.is_big(), "подвійний злиток на даху — теж не великий")
 	var big := Ingot3D.new()
-	big.value = 100
+	big.value = Spawner3D.BIG_VALUE
 	add_child_autofree(big)
 	assert_gt(big.get_child_count(), 0, "великий злиток теж збирається")
-	assert_true(big.is_big(), "100 — це великий злиток «+100»")
+	assert_true(big.is_big(), "EDD §2: великий злиток — це 20, а не 100")
 
 
 func test_seam_lines_between_lanes() -> void:

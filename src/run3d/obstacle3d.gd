@@ -253,6 +253,27 @@ func tick(delta: float) -> void:
 			pass
 
 
+## Суперсила «Роги напролом» (GDD v1.6 §3c): перешкода РОЗЛІТАЄТЬСЯ.
+## Меш роздувається й зникає, з нього летять кубики кольору самої перешкоди — і вузол іде геть.
+## Плитка небезпеки й маркер зникають разом із ним (вони діти цього ж вузла).
+func shatter() -> void:
+	hit = true
+	passed = true
+	var c := Palette.W_CRATE
+	if is_instance_valid(_mesh) and _mesh.mesh != null and (_mesh.mesh as Mesh).get_surface_count() > 0:
+		# колір беремо з першої вершини меша (вокселі фарбовані вершинними кольорами)
+		var arrays := (_mesh.mesh as Mesh).surface_get_arrays(0)
+		var cols = arrays[Mesh.ARRAY_COLOR] if arrays.size() > Mesh.ARRAY_COLOR else null
+		if cols is PackedColorArray and (cols as PackedColorArray).size() > 0:
+			c = (cols as PackedColorArray)[0]
+	if is_inside_tree():
+		FX.burst(get_parent(), position + Vector3(0.0, _box_y + box.y * 0.5, 0.0), c)
+	var tw := create_tween()
+	tw.tween_property(self, "scale", Vector3(1.4, 0.5, 1.4), 0.08)
+	tw.tween_property(self, "scale", Vector3.ZERO, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.finished.connect(queue_free)
+
+
 ## Реакція на зіткнення без перекиду (калюжа/кущ): маленький «пшик».
 func splash() -> void:
 	var tw := create_tween()

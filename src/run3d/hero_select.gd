@@ -104,7 +104,10 @@ static func order_ids(h: Dictionary) -> Array:
 
 
 ## Чиста функція: чи відкритий герой за станом гри. Використовує лише передані числа — для тестів.
-static func is_unlocked(def: Dictionary, stars: int, checkpoints: int, full_game: bool, growth_stage: int = 1) -> bool:
+## homes — id збудованих домівок друзів (SaveService.child()["homes"], data/homes.json):
+## тип "home" відкриває героя рівно тоді, коли його домівку добудовано (EDD §3, GDD v1.7 §7).
+## friend у самому unlock необов'язковий — типово домівка зветься так само, як герой.
+static func is_unlocked(def: Dictionary, stars: int, checkpoints: int, full_game: bool, growth_stage: int = 1, homes: Array = [], hero_id: String = "") -> bool:
 	var u: Dictionary = def.get("unlock", {})
 	match String(u.get("type", "start")):
 		"start": return true
@@ -112,6 +115,19 @@ static func is_unlocked(def: Dictionary, stars: int, checkpoints: int, full_game
 		"checkpoints": return checkpoints >= int(u.get("amount", 0))
 		"growth": return growth_stage >= int(u.get("stage", 2))
 		"full_game": return full_game
+		"home": return _has_home(homes, String(u.get("friend", hero_id)))
+	return false
+
+
+## Чи є домівка у списку збудованих (порожнє ім'я — ніколи; збереження може дати не-рядки).
+static func _has_home(homes: Array, home_id: String) -> bool:
+	if home_id == "":
+		return false
+	for h in homes:
+		# String(null) кидає помилку в 4.7 (не лише повертає ""), а збереження може містити
+		# що завгодно — фільтруємо до рядків, а не покладаємось, що конструктор це стерпить
+		if typeof(h) == TYPE_STRING and h == home_id:
+			return true
 	return false
 
 
@@ -123,6 +139,7 @@ static func unlock_hint(def: Dictionary) -> String:
 		"checkpoints": return "%d станції" % int(u.get("amount", 0))
 		"growth": return "виростити героя"
 		"full_game": return "разом з батьками"
+		"home": return "збудуй домівку"
 	return ""
 
 
@@ -156,7 +173,9 @@ func current_stats() -> Dictionary:
 
 
 func _unlocked(id: String) -> bool:
-	return is_unlocked(heroes[id], SaveService.stars(), int(SaveService.child().get("checkpoints", 0)), Purchase.is_full_game())
+	var homes = SaveService.child().get("homes", [])
+	return is_unlocked(heroes[id], SaveService.stars(), int(SaveService.child().get("checkpoints", 0)),
+		Purchase.is_full_game(), 1, homes if typeof(homes) == TYPE_ARRAY else [], id)
 
 
 func _build_ui() -> void:

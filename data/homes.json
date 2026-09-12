@@ -1,0 +1,17 @@
+{
+  "_note": "Домівки друзів (EDD docs/ECONOMY.md §3, GDD v1.7 §7) — головний сюжетний сінк злитків і ЄДИНИЙ спосіб зробити друга грабельним. Куплене лежить у збереженні як SaveService.child()[\"homes\"] — масив id домівок (він же id героя). Поля: id (== id героя в data/heroes.json; ті, кого в heroes.json ще нема, позначені reserved: true — це роль у сюжеті, у каруселі їх поки нема), friend (підпис українською), element (land/water/sky — стихія двору й майбутніх «воріт стихії», LDD §6), world (на якому острові стоїть домівка), price (злитки; драбина 100…600 із кроком 50, гніздо сороки — 700), name_uk (підпис у підтвердженні), slot (номер ділянки у дворі, 0-based, у порядку драбини цін), requires_spark (домівку не збудувати, поки не виграно вогник друга — гроші НІКОЛИ не блокують сюжет, блокує лише історія), unlock_level (рівень, на якому друга знайдено — довідково для дизайну).",
+  "homes": [
+    {"id": "lys",     "friend": "Лиско",     "element": "land",  "world": "meadow", "price": 100, "name_uk": "Нірка Лиска",        "slot": 0,  "requires_spark": false, "unlock_level": 1},
+    {"id": "olen",    "friend": "Оленя",     "element": "land",  "world": "meadow", "price": 150, "name_uk": "Галявина Оленяти",   "slot": 1,  "requires_spark": true,  "unlock_level": 4},
+    {"id": "pes",     "friend": "Песик",     "element": "land",  "world": "forest", "price": 200, "name_uk": "Будка Песика",       "slot": 2,  "requires_spark": true,  "unlock_level": 6},
+    {"id": "zai",     "friend": "Зайчик",    "element": "land",  "world": "forest", "price": 250, "name_uk": "Нора Зайчика",       "slot": 3,  "requires_spark": true,  "unlock_level": 8},
+    {"id": "kit",     "friend": "Котик",     "element": "land",  "world": "beach",  "price": 300, "name_uk": "Кошик Котика",       "slot": 4,  "requires_spark": true,  "unlock_level": 10},
+    {"id": "med",     "friend": "Ведмежа",   "element": "land",  "world": "city",   "price": 350, "name_uk": "Барліг Ведмежати",   "slot": 5,  "requires_spark": true,  "unlock_level": 12},
+    {"id": "dolphin", "friend": "Дельфін",   "element": "water", "world": "beach",  "price": 400, "name_uk": "Бухта Дельфіна",     "slot": 6,  "requires_spark": true,  "unlock_level": 11},
+    {"id": "turtle",  "friend": "Черепаха",  "element": "water", "world": "city",   "price": 450, "name_uk": "Ставок Черепахи",    "slot": 7,  "requires_spark": true,  "unlock_level": 14},
+    {"id": "odn",     "friend": "Єдиноріг",  "element": "sky",   "world": "clouds", "price": 500, "name_uk": "Веселковий дім",     "slot": 8,  "requires_spark": true,  "unlock_level": 17},
+    {"id": "bird",    "friend": "Пташка",    "element": "sky",   "world": "clouds", "price": 550, "name_uk": "Гніздечко Пташки",   "slot": 9,  "requires_spark": true,  "unlock_level": 16, "reserved": true},
+    {"id": "comet",   "friend": "Кометка",   "element": "sky",   "world": "clouds", "price": 600, "name_uk": "Хвіст Кометки",      "slot": 10, "requires_spark": true,  "unlock_level": 17, "reserved": true},
+    {"id": "magpie",  "friend": "Сорока",    "element": "sky",   "world": "clouds", "price": 700, "name_uk": "Гніздо Сороки",      "slot": 11, "requires_spark": true,  "unlock_level": 17, "reserved": true}
+  ]
+}

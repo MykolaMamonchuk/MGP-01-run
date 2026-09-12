@@ -1,9 +1,9 @@
 {
   "_note": "Сезонний шар за місяцем (1–12). particles — атмосферні частинки замість базових світу (порожньо = базові); ground_tint — множник кольору землі; decor_colors — заміна кольорів квітів.",
   "seasons": [
-    {"id": "winter", "months": [12, 1, 2], "particles": "snow", "ground_tint": "#DCE9F5", "sky_tint": "#DDEBF7", "decor_colors": ["#FFFFFF", "#B3E5FC"]},
-    {"id": "spring", "months": [3, 4, 5], "particles": "", "ground_tint": "#FFFFFF", "sky_tint": "#FFFFFF", "decor_colors": ["#F06292", "#FFF176", "#BA68C8", "#FFFFFF"]},
-    {"id": "summer", "months": [6, 7, 8], "particles": "", "ground_tint": "#FFFFFF", "sky_tint": "#FFFFFF", "decor_colors": ["#FF7043", "#FFEE58", "#F06292"]},
-    {"id": "autumn", "months": [9, 10, 11], "particles": "leaves", "ground_tint": "#F2DDB0", "sky_tint": "#FFE9D0", "decor_colors": ["#FF8F00", "#D84315", "#FDD835"]}
+	{"id": "winter", "months": [12, 1, 2], "particles": "snow", "ground_tint": "#DCE9F5", "sky_tint": "#DDEBF7", "decor_colors": ["#FFFFFF", "#B3E5FC"]},
+	{"id": "spring", "months": [3, 4, 5], "particles": "", "ground_tint": "#FFFFFF", "sky_tint": "#FFFFFF", "decor_colors": ["#F06292", "#FFF176", "#BA68C8", "#FFFFFF"]},
+	{"id": "summer", "months": [6, 7, 8], "particles": "", "ground_tint": "#FFFFFF", "sky_tint": "#FFFFFF", "decor_colors": ["#FF7043", "#FFEE58", "#F06292"]},
+	{"id": "autumn", "months": [9, 10, 11], "particles": "leaves", "ground_tint": "#F2DDB0", "sky_tint": "#FFE9D0", "decor_colors": ["#FF8F00", "#D84315", "#FDD835"]}
   ]
 }

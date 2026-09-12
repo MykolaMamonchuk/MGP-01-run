@@ -1,6 +1,9 @@
 ## Скелетний герой (HeroRig): чисті функції розкладки кісток і зон розмальовки + дані heroes.json.
 ## Самої моделі .glb у репозиторії може ще не бути (docs/tasks/rig.md, крок «скопіювати») —
 ## тести це враховують і НЕ падають: перевіряють лише те, що можна перевірити без файлу.
+##
+## Color.to_html(false) повертає hex у НИЖНЬОМУ регістрі (перевірено на Godot 4.7.2) —
+## тому всюди .to_upper(), щоб звіряти з великими літерами даних (heroes.json, rig_styles.gd).
 extends GutTest
 
 ## Типовий Mixamo-подібний риг, який Meshy віддає на чотирилапій моделі:
@@ -354,13 +357,13 @@ func test_major_bone() -> void:
 
 ## Веселка: 6 дискретних смуг, на 0 / 0,5 / 1 — рівно стопи (перший, четвертий, останній).
 func test_rainbow_stops() -> void:
-	assert_eq(RigStyles.rainbow(0.0).to_html(false), "FF5E7E", "початок — рожевий")
-	assert_eq(RigStyles.rainbow(0.5).to_html(false), "7CE38B", "середина — зелений (4-й із 6)")
-	assert_eq(RigStyles.rainbow(1.0).to_html(false), "B18CFF", "кінчик — бузковий")
-	assert_eq(RigStyles.rainbow(-3.0).to_html(false), "FF5E7E", "за межами діапазону не падаємо")
-	assert_eq(RigStyles.rainbow(9.0).to_html(false), "B18CFF")
+	assert_eq(RigStyles.rainbow(0.0).to_html(false).to_upper(), "FF5E7E", "початок — рожевий")
+	assert_eq(RigStyles.rainbow(0.5).to_html(false).to_upper(), "7CE38B", "середина — зелений (4-й із 6)")
+	assert_eq(RigStyles.rainbow(1.0).to_html(false).to_upper(), "B18CFF", "кінчик — бузковий")
+	assert_eq(RigStyles.rainbow(-3.0).to_html(false).to_upper(), "FF5E7E", "за межами діапазону не падаємо")
+	assert_eq(RigStyles.rainbow(9.0).to_html(false).to_upper(), "B18CFF")
 	# смуги різні: сусідні чверті не збігаються
-	assert_ne(RigStyles.rainbow(0.1).to_html(false), RigStyles.rainbow(0.3).to_html(false))
+	assert_ne(RigStyles.rainbow(0.1).to_html(false).to_upper(), RigStyles.rainbow(0.3).to_html(false).to_upper())
 
 
 func test_for_def() -> void:
@@ -379,12 +382,12 @@ func test_palette_of() -> void:
 	var base := {"o": Color("#F4EFFF"), "c": Color("#F6E3C2"), "d": Color("#111111"),
 		"m": Color("#FF8AD8")}
 	var out := RigStyles.palette_of(RigStyles.for_def({"rig_style": "unicorn"}), base)
-	assert_eq((out["o"] as Color).to_html(false), "FFFFFF", "тіло єдинорога біле")
-	assert_eq((out["c"] as Color).to_html(false), "FBE9F0", "писок — рожево-білий")
-	assert_eq((out["d"] as Color).to_html(false), "F3EEF8", "животик — бузковий")
-	assert_eq((out["m"] as Color).to_html(false), "FF8AD8", "символи поза стилем не чіпаємо")
-	assert_eq((base["o"] as Color).to_html(false), "F4EFFF", "вхідний словник не змінився")
-	assert_eq((RigStyles.palette_of({}, base)["c"] as Color).to_html(false), "F6E3C2", "без стилю — як було")
+	assert_eq((out["o"] as Color).to_html(false).to_upper(), "2FB6B0", "тіло єдинорога смарагдово-бірюзове")
+	assert_eq((out["c"] as Color).to_html(false).to_upper(), "FBE9F0", "писок — рожево-білий")
+	assert_eq((out["d"] as Color).to_html(false).to_upper(), "4ED0A8", "животик — м'ятний")
+	assert_eq((out["m"] as Color).to_html(false).to_upper(), "FF8AD8", "символи поза стилем не чіпаємо")
+	assert_eq((base["o"] as Color).to_html(false).to_upper(), "F4EFFF", "вхідний словник не змінився")
+	assert_eq((RigStyles.palette_of({}, base)["c"] as Color).to_html(false).to_upper(), "F6E3C2", "без стилю — як було")
 
 
 ## Копитця тепер малює сам стиль (кольори по лапках), а не підміна символа зони.
@@ -404,23 +407,23 @@ func test_hoof_colors() -> void:
 	for role in ["fl", "br"]:
 		var c: Color = RigStyles.face_color(s, role, Vector3(0.5, 0.1, 0.5), -1.0, 1,
 			Vector3(-1.0, -1.0, -1.0), hoof)
-		assert_eq(c.to_html(false), "5CC8B8", "%s: бірюзове копитце" % role)
+		assert_eq(c.to_html(false).to_upper(), "5CC8B8", "%s: бірюзове копитце" % role)
 	for role2 in ["fr", "bl"]:
 		var c2: Color = RigStyles.face_color(s, role2, Vector3(0.5, 0.1, 0.5), -1.0, 1,
 			Vector3(-1.0, -1.0, -1.0), hoof)
-		assert_eq(c2.to_html(false), "7ED9A0", "%s: м'ятне копитце" % role2)
+		assert_eq(c2.to_html(false).to_upper(), "7ED9A0", "%s: м'ятне копитце" % role2)
 	assert_null(RigStyles.face_color(s, "fl", Vector3(0.5, 0.9, 0.5), -1.0, 1,
 		Vector3(-1.0, -1.0, -1.0), "o"), "стегно — звичайна зона, не копитце")
 
 
 ## Пояси гриви й хвоста: рожевий і кораловий чергуються кожні 25 % ланцюжка.
 func test_bands() -> void:
-	assert_eq(RigStyles.band_color(["#111111", "#222222"], 0.25, 0.0).to_html(false), "111111")
-	assert_eq(RigStyles.band_color(["#111111", "#222222"], 0.25, 0.3).to_html(false), "222222")
-	assert_eq(RigStyles.band_color(["#111111", "#222222"], 0.25, 0.6).to_html(false), "111111")
-	assert_eq(RigStyles.band_color(["#111111", "#222222"], 0.25, 1.0).to_html(false), "222222",
+	assert_eq(RigStyles.band_color(["#111111", "#222222"], 0.25, 0.0).to_html(false).to_upper(), "111111")
+	assert_eq(RigStyles.band_color(["#111111", "#222222"], 0.25, 0.3).to_html(false).to_upper(), "222222")
+	assert_eq(RigStyles.band_color(["#111111", "#222222"], 0.25, 0.6).to_html(false).to_upper(), "111111")
+	assert_eq(RigStyles.band_color(["#111111", "#222222"], 0.25, 1.0).to_html(false).to_upper(), "222222",
 		"кінчик — четвертий пояс")
-	assert_eq(RigStyles.band_color([], 0.25, 0.5).to_html(false), "FFFFFF", "без кольорів не падаємо")
+	assert_eq(RigStyles.band_color([], 0.25, 0.5).to_html(false).to_upper(), "FFFFFF", "без кольорів не падаємо")
 	# у стилі: пояси по всьому ланцюжку + рідкі помаранчеві грані
 	var s := RigStyles.for_def({"rig_style": "unicorn"})
 	var seen := {}
@@ -428,12 +431,12 @@ func test_bands() -> void:
 	for i in range(400):
 		var c: Color = RigStyles.face_color(s, "tail", Vector3(0.5, 0.5, 0.5),
 			float(i) / 399.0, i)
-		seen[c.to_html(false)] = true
-		if c.to_html(false) == "FFB36B":
+		seen[c.to_html(false).to_upper()] = true
+		if c.to_html(false).to_upper() == "FFB36B":
 			accent += 1
 	assert_true(seen.has("F48FB1") and seen.has("FF9E7A"), "рожевий і кораловий пояси є")
 	assert_between(accent, 15, 110, "помаранчевих граней мало (%d з 400)" % accent)
-	assert_true(seen.size() <= 3, "жодних інших кольорів у гриві/хвості нема: %s" % seen.keys())
+	assert_true(seen.size() <= 3, "жодних інших кольорів у гриві/хвості нема: %s" % [seen.keys()])
 
 
 ## Поки грива й ріг не задані кістками, вони ловляться геометрією коробки голови.
@@ -474,18 +477,18 @@ func test_face_color() -> void:
 	var plain := {"bands": {"roles": ["mane", "tail"], "colors": ["#F48FB1", "#FF9E7A"], "band": 0.25}}
 	var t0: Color = RigStyles.face_color(plain, "tail", Vector3(0.5, 0.5, 0.5), 0.0, 1)
 	var t1: Color = RigStyles.face_color(plain, "tail", Vector3(0.5, 0.5, 0.5), 0.3, 1)
-	assert_eq(t0.to_html(false), "F48FB1", "основа хвоста — рожевий пояс")
-	assert_eq(t1.to_html(false), "FF9E7A", "наступні 25 % — кораловий")
+	assert_eq(t0.to_html(false).to_upper(), "F48FB1", "основа хвоста — рожевий пояс")
+	assert_eq(t1.to_html(false).to_upper(), "FF9E7A", "наступні 25 % — кораловий")
 	# одна кістка на всю гриву (chain_t = −1): рахуємо по z, кінчик позаду
 	var back: Color = RigStyles.face_color(plain, "mane", Vector3(0.5, 0.5, 0.0), -1.0, 1)
-	assert_eq(back.to_html(false), "FF9E7A", "потилиця гриви — кінець ланцюжка")
+	assert_eq(back.to_html(false).to_upper(), "FF9E7A", "потилиця гриви — кінець ланцюжка")
 	# ріг: кремова й помаранчева смуги чергуються кожні 12 % висоти
 	var a: Color = RigStyles.face_color(s, "horn", Vector3(0.5, 0.05, 0.5), -1.0, 1)
 	var b: Color = RigStyles.face_color(s, "horn", Vector3(0.5, 0.18, 0.5), -1.0, 1)
-	assert_eq(a.to_html(false), "F6E3C2", "перша смуга — крем")
-	assert_eq(b.to_html(false), "FFB36B", "наступні 12 % — помаранчева")
-	assert_eq((RigStyles.face_color(s, "horn", Vector3(0.5, 0.3, 0.5), -1.0, 1) as Color).to_html(false),
-		"F6E3C2", "і знову крем")
+	assert_eq(a.to_html(false).to_upper(), "E8C468", "перша смуга — золото")
+	assert_eq(b.to_html(false).to_upper(), "FFB36B", "наступні 12 % — помаранчева")
+	assert_eq((RigStyles.face_color(s, "horn", Vector3(0.5, 0.3, 0.5), -1.0, 1) as Color).to_html(false).to_upper(),
+		"E8C468", "і знову золото")
 
 
 ## Сердечко на грудях: передні 25 % глибини тулуба, ±30 % ширини, 40…80 % висоти.
@@ -494,9 +497,11 @@ func test_chest_heart() -> void:
 	# частки габариту ТУЛУБА: x 0 ліворуч … 1 праворуч, y знизу вгору, z = 1 перед героя
 	var hit: Color = RigStyles.face_color(s, "spine", Vector3(0.5, 0.5, 0.5), -1.0, 1,
 		Vector3(0.5, 0.6, 0.95))
-	assert_eq(hit.to_html(false), "E9B7F2", "груди спереду по центру — лавандове сердечко")
+	assert_eq(hit.to_html(false).to_upper(), "F0DE6A", "груди спереду по центру — жовтий ромб")
+	# НЕ (0.5, 0.6, 0.5): права латка сидить якраз на x ≥ 0,5 і z ∈ [0.50, 0.72] (див. RIG_STYLES),
+	# тож рівно на межі x = 0,5 крапка належала б латці, а не «нічому» — узяли z=0.45, до латки
 	assert_null(RigStyles.face_color(s, "spine", Vector3(0.5, 0.5, 0.5), -1.0, 1,
-		Vector3(0.5, 0.6, 0.5)), "середина тулуба — не груди")
+		Vector3(0.5, 0.6, 0.45)), "середина тулуба — не груди")
 	assert_null(RigStyles.face_color(s, "spine", Vector3(0.5, 0.5, 0.5), -1.0, 1,
 		Vector3(0.9, 0.6, 0.95)), "збоку від центру сердечка нема")
 	assert_null(RigStyles.face_color(s, "spine", Vector3(0.5, 0.5, 0.5), -1.0, 1,
@@ -506,7 +511,7 @@ func test_chest_heart() -> void:
 	# 09.09: сердечко зробили більшим — краї грудей і глибина 0,8 тепер теж його
 	for p in [Vector3(0.25, 0.45, 0.80), Vector3(0.75, 0.75, 0.99), Vector3(0.5, 0.42, 0.78)]:
 		assert_eq((RigStyles.face_color(s, "neck", Vector3(0.5, 0.5, 0.5), -1.0, 1, p) as Color)
-			.to_html(false), "E9B7F2", "велике сердечко бере й %s" % p)
+			.to_html(false).to_upper(), "F0DE6A", "великий ромб бере й %s" % p)
 
 
 ## Позначка сильніша за пояси гриви: пасмо гриви на грудях має бути сердечком, а не смугою.
@@ -516,7 +521,7 @@ func test_mark_paint_is_independent_of_role() -> void:
 	var chest := Vector3(0.5, 0.6, 0.95)
 	var mk := RigStyles.mark_paint(s, chest)
 	assert_eq(String(mk.get("tag", "")), "r", "сердечко видно навіть роль не питаючи")
-	assert_eq((mk["color"] as Color).to_html(false), "E9B7F2")
+	assert_eq((mk["color"] as Color).to_html(false).to_upper(), "F0DE6A")
 	assert_true(RigStyles.mark_paint(s, Vector3(-1.0, -1.0, -1.0)).is_empty(),
 		"грань не з тулуба — позначки нема")
 	assert_true(RigStyles.mark_paint({}, chest).is_empty(), "без стилю позначок нема")
@@ -531,19 +536,19 @@ func test_mark_paint_is_independent_of_role() -> void:
 		assert_false(HeroRig.MARK_SKIP_ROLES.has(role), "%s позначку отримати може" % role)
 
 
-## Дві пастельні латки: м'ятна на ЛІВОМУ боці ззаду, бірюзова на ПРАВОМУ спереду.
+## Дві латки — жовті ромби, як на стегні референсу: одна на ЛІВОМУ боці ззаду, друга на ПРАВОМУ спереду.
 func test_patches() -> void:
 	var s := RigStyles.for_def({"rig_style": "unicorn"})
 	var left: Color = RigStyles.face_color(s, "hips", Vector3(0.5, 0.5, 0.5), -1.0, 1,
 		Vector3(0.2, 0.45, 0.2))
-	assert_eq(left.to_html(false), "7ED9A0", "лівий бік ззаду")
+	assert_eq(left.to_html(false).to_upper(), "F0DE6A", "лівий бік ззаду")
 	var right: Color = RigStyles.face_color(s, "spine", Vector3(0.5, 0.5, 0.5), -1.0, 1,
 		Vector3(0.8, 0.45, 0.65))
-	assert_eq(right.to_html(false), "5CC8B8", "правий бік спереду")
-	# передні 25 % глибини — це вже сердечко, латка туди не лізе (інакше вона його з'їдала б)
+	assert_eq(right.to_html(false).to_upper(), "F0DE6A", "правий бік спереду")
+	# передні 25 % глибини — це вже ромб на грудях, латка туди не лізе (інакше вона його з'їдала б)
 	assert_eq((RigStyles.face_color(s, "spine", Vector3(0.5, 0.5, 0.5), -1.0, 1,
-		Vector3(0.7, 0.45, 0.9)) as Color).to_html(false), "E9B7F2",
-		"на самих грудях сердечко сильніше за латку")
+		Vector3(0.7, 0.45, 0.9)) as Color).to_html(false).to_upper(), "F0DE6A",
+		"на самих грудях ромб сильніший за латку")
 	assert_null(RigStyles.face_color(s, "hips", Vector3(0.5, 0.5, 0.5), -1.0, 1,
 		Vector3(0.8, 0.45, 0.2)), "правий бік ЗЗАДУ — латки нема (дзеркала не робимо)")
 	assert_null(RigStyles.face_color(s, "hips", Vector3(0.5, 0.9, 0.5), -1.0, 1,
@@ -553,14 +558,14 @@ func test_patches() -> void:
 ## Веселка лишається доступною будь-якому стилю: `"rainbow": true` або список ролей.
 func test_rainbow_option_still_available() -> void:
 	var s := {"rainbow": true}
-	assert_eq((RigStyles.face_color(s, "tail", Vector3(0.5, 0.5, 0.5), 0.0, 1) as Color).to_html(false),
+	assert_eq((RigStyles.face_color(s, "tail", Vector3(0.5, 0.5, 0.5), 0.0, 1) as Color).to_html(false).to_upper(),
 		"FF5E7E", "true — грива й хвіст веселкою")
-	assert_eq((RigStyles.face_color(s, "mane", Vector3(0.5, 0.5, 0.5), 1.0, 1) as Color).to_html(false),
+	assert_eq((RigStyles.face_color(s, "mane", Vector3(0.5, 0.5, 0.5), 1.0, 1) as Color).to_html(false).to_upper(),
 		"B18CFF")
 	assert_null(RigStyles.face_color(s, "spine", Vector3(0.5, 0.5, 0.5), 0.0, 1), "тулуб не веселковий")
 	assert_null(RigStyles.face_color({"rainbow": false}, "tail", Vector3(0.5, 0.5, 0.5), 0.0, 1))
 	assert_eq((RigStyles.face_color({"rainbow": ["head"]}, "head", Vector3(0.5, 0.5, 0.5), 0.5, 1) as Color)
-		.to_html(false), "7CE38B", "список ролей теж працює")
+		.to_html(false).to_upper(), "7CE38B", "список ролей теж працює")
 
 
 ## Зірочки: механізм лишився (єдиноріг їх вимкнув) — детермінований і рідкий.
@@ -572,7 +577,7 @@ func test_sparkle_is_deterministic_and_rare() -> void:
 		var c = RigStyles.face_color(s, "spine", Vector3(0.5, 0.7, 0.5), -1.0, i)
 		if c != null:
 			hits += 1
-			first[i] = (c as Color).to_html(false)
+			first[i] = (c as Color).to_html(false).to_upper()
 	assert_between(hits, 20, 140, "зірочок ≈ 3 %% від 2000 граней (%d)" % hits)
 	for i in first.keys():
 		assert_eq(String(first[i]), "FFF6B0", "зірочка — блідо-жовта")
@@ -631,14 +636,17 @@ func test_head_box_excludes_horn_and_mane() -> void:
 
 ## Числа поз, які тримають героя НА ПІДЛОЗІ: стійка дибки й підскоки танцю.
 func test_wave_and_dance_keep_feet_on_floor() -> void:
-	# привітання: нахил крутиться НАВКОЛО ТАЗУ (у ригу — оберт самої кістки hips), тож
-	# окремого підйому тіла (колишній WAVE_RISE) більше нема — таз просто сідає нижче,
-	# а залишок добирає «копитця на підлозі»
-	assert_lt(HeroRig.WAVE_BODY_Y, 0.0, "таз сідає на задні лапки")
-	assert_gt(absf(HeroRig.WAVE_BODY_Y), 0.05, "присідання помітне — це дибка, а не поклон")
-	assert_almost_eq(HeroRig.WAVE_BODY_Y, Hero3D.WAVE_BODY_Y, 0.0001, "риг і вокселі — ті самі числа")
-	assert_lt(absf(HeroRig.WAVE_BODY_Y), Hero3D.GROUND_LIFT_MAX + 0.05,
-		"залишок провалу має бути в межах підйому «копитця на підлозі»")
+	# привітання: нахиляється ВСЯ модель навколо задніх копит, ніякої посадки тазу нема
+	# (колишні WAVE_BODY_Y і WAVE_RISE прибрані). Задні лапки контр-обертаються на
+	# −WAVE_PITCH і стоять вертикально, а залишок провалу добирає «копитця на підлозі»
+	assert_gt(HeroRig.WAVE_PITCH, 0.0, "+ WAVE_PITCH = перед УГОРУ")
+	assert_between(HeroRig.WAVE_PITCH, 0.7, 1.2, "справжня дибка ≈50°, а не легкий нахил")
+	assert_almost_eq(HeroRig.WAVE_PITCH, Hero3D.WAVE_PITCH, 0.0001, "риг і вокселі — ті самі числа")
+	# скільки провалюється копитце, коли лапка контр-обертається навколо СТЕГНА:
+	# L·(1 − cos θ) — і це має вміститись у стелю підйому «копитця на підлозі»
+	var sink: float = Hero3D.LEG_H * (1.0 - cos(HeroRig.WAVE_PITCH))
+	assert_lt(sink, Hero3D.GROUND_LIFT_MAX,
+		"провал задніх копит у дибках добирається підйомом, а не лишається в дорозі")
 	# танець: нижчий підскок + доворот задніх лапок
 	assert_almost_eq(HeroRig.DANCE_HOP, 0.04, 0.0001, "підскок 4 см")
 	assert_almost_eq(HeroRig.DANCE_HOP, Hero3D.DANCE_HOP, 0.0001)
@@ -688,18 +696,88 @@ func test_face_of_override() -> void:
 	assert_eq(String(plain["layout"]), "front", "за замовчуванням очі на морді")
 
 
-## Підгонка анімації під модель (`rig_anim`): множники поверх профілю, дефолт 1.0.
+## Підгонка анімації під модель (`rig_anim`): множники поверх профілю, дефолт 1.0
+## (tail_lift — виняток, дефолт 0.0 рад: без даних хвіст не піднімається взагалі).
 func test_anim_of_override() -> void:
-	var a := HeroRig.anim_of({"rig_anim": {"leg_amp": 0.75, "leg_lift": 0.35, "nonsense": 5}})
+	var a := HeroRig.anim_of({"rig_anim": {"leg_amp": 0.75, "leg_lift": 0.35,
+		"hind_amp": 1.35, "tail_lift": 0.45, "knee": 0.0, "nonsense": 5}})
+	assert_almost_eq(float(a["knee"]), 0.0, 0.0001, "коліно можна вимкнути зовсім")
 	assert_almost_eq(float(a["leg_amp"]), 0.75, 0.0001)
 	assert_almost_eq(float(a["leg_lift"]), 0.35, 0.0001)
+	assert_almost_eq(float(a["hind_amp"]), 1.35, 0.0001, "додатковий розмах задніх лапок")
+	assert_almost_eq(float(a["tail_lift"]), 0.45, 0.0001, "підйом хвоста поверх режиму")
 	assert_false(a.has("nonsense"), "чужі ключі в підгонку не потрапляють")
 	var plain := HeroRig.anim_of({})
 	assert_eq(plain.size(), HeroRig.DEFAULT_ANIM.size(), "без rig_anim — рівно дефолти")
 	for k in HeroRig.DEFAULT_ANIM.keys():
-		assert_almost_eq(float(plain[k]), 1.0, 0.0001, "дефолт %s — «як у профілі»" % k)
+		var want := 0.0 if k == "tail_lift" else 1.0
+		assert_almost_eq(float(plain[k]), want, 0.0001, "дефолт %s — «як у профілі»" % k)
+	# коліно затиснуте 0…1: більше за 1 — це вже не «як у профілі», а вивернута лапка
+	assert_almost_eq(float(HeroRig.anim_of({"rig_anim": {"knee": 3.0}})["knee"]), 1.0, 0.0001,
+		"knee затиснутий зверху 1.0")
+	assert_almost_eq(float(HeroRig.anim_of({"rig_anim": {"knee": -1.0}})["knee"]), 0.0, 0.0001,
+		"від'ємне коліно — це нуль")
 	# від'ємний множник вивернув би позу — беремо нуль
 	assert_almost_eq(float(HeroRig.anim_of({"rig_anim": {"leg_amp": -2.0}})["leg_amp"]), 0.0, 0.0001)
+	# hind_amp/tail_lift затиснуті в межах (ANIM_CLAMP) — хибне число з даних не виверне позу
+	assert_almost_eq(float(HeroRig.anim_of({"rig_anim": {"hind_amp": 5.0}})["hind_amp"]), 2.0, 0.0001,
+		"hind_amp затиснутий зверху 2.0")
+	assert_almost_eq(float(HeroRig.anim_of({"rig_anim": {"hind_amp": 0.1}})["hind_amp"]), 0.5, 0.0001,
+		"hind_amp затиснутий знизу 0.5")
+	assert_almost_eq(float(HeroRig.anim_of({"rig_anim": {"tail_lift": 5.0}})["tail_lift"]), 1.2, 0.0001,
+		"tail_lift затиснутий зверху 1.2")
+
+
+## ЖОРСТКИЙ СКІНІНГ → КОЛІНА НЕМА (єдиноріг, 09.09): дві умови разом і жодної окремо.
+func test_knee_auto_off() -> void:
+	assert_true(HeroRig.knee_auto_off(0.46, 0.98),
+		"нижня ланка тримає пів лапки, ваги жорсткі — коліно вимикаємо")
+	assert_false(HeroRig.knee_auto_off(0.46, 0.4),
+		"ваги перетікають між кістками — згин меш не рве")
+	assert_false(HeroRig.knee_auto_off(0.1, 1.0),
+		"на нижній ланці майже нема шкіри — рвати нічого")
+	assert_false(HeroRig.knee_auto_off(0.0, 0.0), "порожній риг нічого не вимикає")
+	assert_between(HeroRig.KNEE_CHILD_SHARE, 0.1, 0.5, "поріг «дитина тримає багато» — коло 30 %")
+
+
+## СТАТИЧНІ КІСТКИ (`rig_bones.static`): список ІМЕН, а не роль. Саме ними ми знерухомили
+## бічні пасма хвоста єдинорога, що «володіли» вершинами задніх лапок.
+func test_static_of() -> void:
+	var names := HeroRig.static_of({"rig_bones": {
+		"hips": "Bone_001", "static": ["Bone_025", "Bone_024", "Bone_025"]}})
+	assert_eq(names.size(), 2, "дублікати не рахуються двічі")
+	assert_true(names.has("Bone_025") and names.has("Bone_024"))
+	assert_eq(HeroRig.static_of({}).size(), 0, "нема даних — нема нерухомих кісток")
+	assert_eq(HeroRig.static_of({"rig_bones": {}}).size(), 0)
+	assert_eq(HeroRig.static_of({"rig_bones": {"static": "Bone_025"}}).size(), 0,
+		"не список — ігноруємо, а не падаємо")
+	assert_eq(HeroRig.static_of({"rig_bones": 5}).size(), 0, "сміття в даних нічого не ламає")
+	# новий унiкорн (іменовані кістки Meshy-подібного рига) взагалі не потребує статичних
+	# кісток — немає бічних пасом хвоста, що «володіли б» вершинами задніх лапок
+	assert_eq(HeroRig.static_of(Hero3D.defs().get("odn", {})).size(), 0,
+		"у нового єдинорога всі кістки рухаються — статичних нема")
+	assert_eq(HeroRig.static_of(Hero3D.defs().get("lys", {})).size(), 0,
+		"у лисеняти рухається все — статичних кісток нема")
+
+
+## ТОЧКА ОБЕРТУ СТІЙКИ ДИБКИ: середина між задніми копитами, притиснута до землі.
+func test_rear_pivot() -> void:
+	var tips: Array[Vector3] = [Vector3(-0.15, 0.02, 0.26), Vector3(0.15, 0.0, 0.26)]
+	var p := HeroRig.rear_pivot(tips)
+	assert_almost_eq(p.y, 0.0, 0.0001, "вісь обертання лежить на землі, а не на висоті копита")
+	assert_almost_eq(p.z, 0.26, 0.0001, "глибина — середина між задніми копитами")
+	assert_almost_eq(p.x, 0.0, 0.0001, "лапки симетричні — середина по центру")
+	# одна лапка (риг без другої задньої) — беремо її саму, і це не падіння
+	var one: Array[Vector3] = [Vector3(0.1, 0.05, 0.3)]
+	assert_almost_eq(HeroRig.rear_pivot(one).z, 0.3, 0.0001)
+	var none: Array[Vector3] = []
+	assert_eq(HeroRig.rear_pivot(none), Vector3.ZERO, "порожній список — початок координат")
+	# і сам оберт: точка обертання не їде нікуди, а перед іде ВГОРУ
+	var rot := Basis(Vector3.RIGHT, HeroRig.WAVE_PITCH)
+	var stay := p + rot * (p - p)
+	assert_almost_eq(stay.y, 0.0, 0.0001, "задні копита лишаються на землі")
+	var nose := Vector3(0.0, 0.5, -0.4)          # перед героя — це −z
+	assert_gt((p + rot * (nose - p)).y, nose.y, "ніс їде вгору: + WAVE_PITCH = перед угору")
 
 
 ## Розкладка обличчя: `layout` — рядок, а не число (кінь дивиться БОКАМИ голови).
@@ -776,7 +854,7 @@ func test_lys_has_rig_and_path_is_well_formed() -> void:
 	var lys: Dictionary = all.get("lys", {})
 	assert_false(lys.is_empty(), "герой lys є в даних")
 	var rig := String(lys.get("rig", ""))
-	assert_eq(rig, "fox_no_voxel", "у лисеняти заданий скелетний риг")
+	assert_eq(rig, "fox", "у лисеняти заданий скелетний риг")
 	var path := HeroRig.rig_path(rig)
 	assert_true(path.begins_with("res://assets/models/"), "модель лежить у res:// (інакше Godot її не імпортує)")
 	assert_true(path.ends_with(".glb"))
@@ -785,8 +863,8 @@ func test_lys_has_rig_and_path_is_well_formed() -> void:
 	var bones: Dictionary = lys.get("rig_bones", {})
 	assert_true(bones.has("tuft"), "чубчик заданий окремою роллю, інакше він просто помаранчевий")
 	assert_true(bones.has("nose"), "кістки писка задані окремо — кінчик носа має бути темний")
-	assert_eq(String(lys.get("accent", "")), "#F6C445", "акцент лисеняти — жовтий камінець на маківці")
-	assert_eq(String(lys.get("mark", "")), "#3FC1B0", "торбинка збоку — бірюзова")
+	assert_eq(String(lys.get("accent", "")), "#FBE3C4", "акцент лисеняти — кремовий кінчик хвоста")
+	assert_eq(String(lys.get("mark", "")), "#FF8F73", "торбинка збоку — коралова")
 	# після переходу на грані (центроїд «всередині» боку) поріг торбинки довелось опустити
 	var zones := HeroRig.zones_of(lys)
 	assert_almost_eq(float(zones["bag_x"]), 0.9, 0.0001, "поріг торбинки лисеняти — 0,9 півширини")
@@ -796,6 +874,9 @@ func test_lys_has_rig_and_path_is_well_formed() -> void:
 
 ## Єдиноріг: другий ригнутий герой, зі стилем розмальовки. Моделі `unicorn.glb` у репо ще
 ## може не бути — тоді малюються воксельні частини, і це не помилка даних.
+## GDD v1.7: модель замінена на іменований риг (Hips/chest/head/frontleg/…) замість
+## безіменних Bone_NNN — автомапа плутала ліву/праву лапку (обидві на "R_frontleg") і
+## неоднозначно розкладала неозначену "neck", тож розкладка кісток задана руками.
 func test_unicorn_hero_data() -> void:
 	var all := Hero3D.defs()
 	var odn: Dictionary = all.get("odn", {})
@@ -805,37 +886,39 @@ func test_unicorn_hero_data() -> void:
 	assert_eq(String(odn.get("rig_style", "")), "unicorn", "і стиль розмальовки")
 	assert_false(RigStyles.for_def(odn).is_empty(), "стиль знаходиться в RIG_STYLES")
 	assert_eq(int(odn.get("order", -1)), 6, "сьомий у каруселі")
-	assert_eq(String(odn.get("rig_front", "")), "+z", "модель єдинорога дивиться в +z (голова й ріг там)")
+	assert_eq(String(odn.get("rig_front", "")), "", "напрям не заданий руками — рахується евристикою")
 	assert_true(odn.has("parts"), "воксельні частини лишились запасним варіантом")
-	assert_eq(String(odn.get("accent", "")), "#F6C445", "акцент — золото рога")
-	# ручна розкладка кісток за дампом прев'ю (Meshy дає безіменні Bone_NNN)
+	assert_eq(String(odn.get("accent", "")), "#E8C468", "акцент — золото рога")
+	# ручна розкладка кісток за дампом прев'ю (іменовані кістки, без окремої "neck" —
+	# аліас на "chest", інакше автомапа хапала кінчик вуха)
 	var bones: Dictionary = odn.get("rig_bones", {})
-	assert_eq(String(bones.get("hips", "")), "Bone_001", "таз — центр моделі, а не гілка гриви")
-	assert_eq(String(bones.get("head", "")), "Bone_030")
-	assert_eq(String(bones.get("neck", "")), "Bone_004")
-	assert_eq(String(bones.get("spine", "")), "Bone_005")
-	assert_eq((bones.get("horn", []) as Array), ["Bone_029"], "ріг — окрема кістка, і не голова")
-	assert_eq((bones.get("mane", []) as Array).size(), 4, "гичка гриви — ланцюжок із 4 кісток")
+	assert_eq(String(bones.get("hips", "")), "Hips")
+	assert_eq(String(bones.get("head", "")), "head")
+	assert_eq(String(bones.get("neck", "")), "chest", "окремої кістки шиї нема — аліас на груди")
+	assert_eq(String(bones.get("spine", "")), "chest")
+	assert_false(bones.has("horn"), "ріг без власної кістки — працює геометричний запасний варіант")
+	assert_false(bones.has("mane"), "грива теж без кістки — геометричний запасний варіант")
 	var tail: Array = bones.get("tail", [])
-	assert_eq(tail.size(), 11, "хвіст: основний ланцюжок + дві бічні пасма")
-	assert_eq(String(tail[0]), "Bone_022", "ланцюжок починається за крижами (003/002 лишаються тазом)")
-	assert_false(tail.has("Bone_003") or tail.has("Bone_002"), "круп — це не хвіст")
+	assert_eq(tail.size(), 5, "хвіст: один прямий ланцюжок, без бічних пасом")
+	assert_eq(String(tail[0]), "tail")
 	for role in ["fl", "fr", "bl", "br"]:
 		assert_true(bones.has(role), "лапка %s задана руками" % role)
-	# морда в коня довга — обличчя стискаємо сильніше й саджаємо трохи нижче
+	assert_eq(String(bones.get("fl", "")), "frontleg")
+	assert_eq(String(bones.get("fr", "")), "R_frontleg", "R_ — права сторона")
+	# морда компактна, а не довга, як у старої моделі коня: обличчя стискаємо сильно
+	# й саджаємо нижче, інакше очі-«блоки» вилазять аж до вух/рога
 	var f := HeroRig.face_of(odn)
-	assert_almost_eq(float(f["scale"]), 0.8, 0.0001)
-	assert_almost_eq(float(f["y"]), 0.62, 0.0001)
-	assert_eq(String(f["layout"]), "side", "кінь дивиться БОКАМИ голови, а не мордою")
+	assert_almost_eq(float(f["scale"]), 0.35, 0.0001)
+	assert_almost_eq(float(f["y"]), 0.45, 0.0001)
+	assert_eq(String(f["layout"]), "side", "довга морда — очі дивляться БОКАМИ голови")
 	assert_eq(String(HeroRig.face_of(Hero3D.defs().get("lys", {}))["layout"]), "front",
 		"у лисеняти очі лишились на морді")
-	# скінінг єдинорога жорсткий: на повному розмаху меш передньої лапки «відривався»
-	# від грудей, а задньої розтягувався — тому розмах і згин коліна приборкані
+	# rig_anim не перевизначений — модель ходить на дефолтних множниках
 	var an := HeroRig.anim_of(odn)
-	assert_almost_eq(float(an["leg_amp"]), 0.7, 0.0001, "розмах лапок єдинорога ×0,7")
-	assert_lt(float(an["leg_lift"]), 1.0, "і згин нижньої ланки менший")
-	assert_almost_eq(float(HeroRig.anim_of(Hero3D.defs().get("lys", {}))["leg_amp"]), 1.0, 0.0001,
-		"у лисеняти анімація без обмежень")
+	assert_almost_eq(float(an["leg_amp"]), 1.0, 0.0001)
+	assert_almost_eq(float(an["hind_amp"]), 1.0, 0.0001)
+	assert_almost_eq(float(an["knee"]), 1.0, 0.0001)
+	assert_almost_eq(float(an["tail_lift"]), 0.0, 0.0001)
 	var path := HeroRig.rig_path("unicorn")
 	assert_eq(path, "res://assets/models/unicorn.glb")
 	if FileAccess.file_exists(path):
@@ -862,7 +945,9 @@ func test_rig_exists_is_safe_for_garbage() -> void:
 ## Герой без поля "rig" лишається воксельним — тіло Hero3D не змінилось.
 func test_other_heroes_stay_voxel() -> void:
 	var all := Hero3D.defs()
-	for id in ["olen", "pes", "zai", "kit", "med"]:
+	for id in ["pes", "zai", "kit", "med"]:
 		var def: Dictionary = all.get(id, {})
 		assert_false(def.is_empty(), "%s є в даних" % id)
 		assert_eq(String(def.get("rig", "")), "", "%s: без рига, малюється вокселями" % id)
+	# оленя (fawn.glb) отримало іменований риг у вересні 2026 — з тих пір воно тут не воксельне
+	assert_eq(String(all.get("olen", {}).get("rig", "")), "fawn", "олень: скелетний риг fawn.glb")

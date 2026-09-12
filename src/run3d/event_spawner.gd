@@ -13,9 +13,16 @@ var events_seen_segment := 0
 var allowed_ids: Array = []
 var events_enabled := true
 
+## ДРУГ — рівно ОДИН на дорозі й не частіше ніж раз на FRIEND_COOLDOWN секунд.
+## Playtest 09.09 (Місто): на доріжці стояла колона з десятка однакових синіх друзів —
+## кожен виклик (зокрема дебаг-клавіша) створював ще одного, і ніхто нікого не рахував.
+const FRIEND_COOLDOWN := 20.0
+
 var _events: Array = []
 var _next := 25.0
 var _active := ""
+var _friend: Friend3D          ## живий друг (null або вже звільнений — можна кликати нового)
+var _friend_t := 0.0           ## скільки ще секунд друга не кличемо взагалі
 
 
 func _ready() -> void:
@@ -66,7 +73,14 @@ static func pick(events: Array, profile_name: String, mode: String, rng: RandomN
 	return pool[-1][0]
 
 
+## Чи можна кликати друга: попередній уже пішов І кулдаун вичерпано.
+func friend_allowed() -> bool:
+	return _friend_t <= 0.0 and not is_instance_valid(_friend)
+
+
 func tick(delta: float) -> void:
+	# кулдаун друга цокає ЗАВЖДИ — навіть поки триває інша подія
+	_friend_t = maxf(0.0, _friend_t - delta)
 	if _active != "" or not events_enabled:
 		return
 	_next -= delta
@@ -80,13 +94,18 @@ func tick(delta: float) -> void:
 	_schedule()
 	if e.is_empty():
 		return
+	if String(e.get("id", "")) == "friend" and not friend_allowed():
+		return          # друг ще на дорозі або щойно був — цього разу без події
 	_start(e)
 
 
-## Дебаг: запустити подію за id негайно.
+## Дебаг: запустити подію за id негайно. Сторожі ті самі, що й у випадкового вибору —
+## інакше десять натискань клавіші дають десять друзів (саме так і сталось на playtest).
 func force(id: String) -> void:
 	for e in _events:
 		if String(e.get("id", "")) == id:
+			if id == "friend" and not friend_allowed():
+				return
 			_active = ""
 			_start(e)
 			return
@@ -111,6 +130,10 @@ func _start(e: Dictionary) -> void:
 			var fr := Friend3D.new()
 			actors.add_child(fr)
 			fr.setup(hero, Palette.FRIEND_DEFAULT, dur)
+			# запам'ятовуємо ЦЬОГО друга: поки він живий (або поки не мине кулдаун),
+			# другого не буде — ні з випадкової події, ні з дебаг-клавіші
+			_friend = fr
+			_friend_t = maxf(FRIEND_COOLDOWN, dur + 5.0)
 		"dragonfly":
 			var d := Dragonfly3D.new()
 			actors.add_child(d)
@@ -135,4 +158,6 @@ func reset() -> void:
 	_active = ""
 	for c in actors.get_children():
 		c.queue_free()
+	_friend = null
+	_friend_t = 0.0
 	_schedule()

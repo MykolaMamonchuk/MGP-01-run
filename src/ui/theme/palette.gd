@@ -135,6 +135,29 @@ const H_ACC_VIOLET := Color("#6B4FBF")   ## акцент героя: фіоле�
 const H_ACC_TEAL := Color("#3FC1B0")     ## акцент героя: бірюзовий
 const H_ACC_YELLOW := Color("#F6C445")   ## акцент героя: жовтий
 
+# риг-стилі (RigStyles) — пастельна палітра єдинорога й веселка гриви/хвоста скелетних героїв.
+const RIG_ROSE := Color("#FF5E7E")
+const RIG_TANGERINE := Color("#FFA94D")
+const RIG_BUTTER := Color("#FFE66D")
+const RIG_LEAF := Color("#7CE38B")
+const RIG_SKY := Color("#5DC8F5")
+const RIG_VIOLET := Color("#B18CFF")
+const RIG_BELLY_LILAC := Color("#F3EEF8")   ## бузково-білий животик
+const RIG_MUZZLE_BLUSH := Color("#FBE9F0")  ## рожево-білий писок
+const RIG_MANE_PINK := Color("#F48FB1")     ## перший пояс гриви/хвоста
+const RIG_MANE_CORAL := Color("#FF9E7A")    ## другий пояс гриви/хвоста
+const RIG_ACCENT_AMBER := Color("#FFB36B")  ## рідкі акцентні грані гриви + друга смуга рога
+const RIG_HOOF_TEAL := Color("#5CC8B8")     ## копитце fl/br, права латка
+const RIG_HOOF_MINT := Color("#7ED9A0")     ## копитце fr/bl, ліва латка
+const RIG_HEART_LAVENDER := Color("#E9B7F2")## сердечко на грудях (застаріле — див. RIG_DIAMOND_YELLOW)
+const RIG_SPARKLE := Color("#FFF6B0")       ## блідо-жовта зірочка-блискітка
+## Арт-вектор glossy toy (вересень 2026, want/characters/unicorn-texture.png): тіло
+## єдинорога тепер смарагдово-бірюзове, а не біле — «сердечко»/латки стали жовтими ромбами.
+const RIG_UNICORN_BODY := Color("#2FB6B0")  ## основний колір тіла (був WHITE)
+const RIG_UNICORN_BELLY := Color("#4ED0A8") ## животик — світліший м'ятний відтінок тіла
+const RIG_HORN_GOLD := Color("#E8C468")     ## перша смуга рога (був H_CREAM)
+const RIG_DIAMOND_YELLOW := Color("#F0DE6A")## жовті ромби на грудях/лапках (замість сердечка)
+
 # ─────────────────────────────── 2. РОЛІ ────────────────────────────────
 
 # текст
@@ -291,6 +314,9 @@ const TITLE_LETTERS: Array[Color] = [CORAL_DEEP, AMBER, GREEN, BLUE, PURPLE, PIN
 
 ## Сектори колеса призів.
 const WHEEL_SECTORS: Array[Color] = [BLUE, GREEN, AMBER, RED, CYAN, ORANGE, PURPLE, PINK_DEEP]
+
+## Веселка гриви й хвоста скелетних героїв (RigStyles.rainbow) — пастельніша за RAINBOW.
+const RIG_RAINBOW: Array[Color] = [RIG_ROSE, RIG_TANGERINE, RIG_BUTTER, RIG_LEAF, RIG_SKY, RIG_VIOLET]
 
 ## Градієнти частинок (FX._ramp).
 const RAMP_CONFETTI: Array[Color] = [RED_BRIGHT, GOLD_BRIGHT, MINT, AZURE, MAGENTA, CORAL_PALE]

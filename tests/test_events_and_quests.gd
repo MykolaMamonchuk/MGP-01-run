@@ -26,6 +26,20 @@ func test_events_data_shape() -> void:
 		assert_true(e.has("id") and e.has("modes") and e.has("weights"), "%s: id/modes/weights" % e.get("id", "?"))
 
 
+## Друг на дорозі — рівно один і не частіше ніж раз на FRIEND_COOLDOWN
+## (playtest 09.09: колона з десятка однакових друзів на одній доріжці).
+func test_friend_has_a_cooldown() -> void:
+	assert_gte(EventSpawner.FRIEND_COOLDOWN, 20.0, "мінімум 20 с між друзями")
+	var es := EventSpawner.new()
+	add_child_autofree(es)
+	assert_true(es.friend_allowed(), "спочатку друга покликати можна")
+	# подія «друг» триває менше за кулдаун — інакше сторож нічого не стереже
+	for e in _events:
+		if String(e.get("id", "")) == "friend":
+			assert_lte(float(e.get("duration", 0.0)), EventSpawner.FRIEND_COOLDOWN,
+				"друг іде раніше, ніж мине кулдаун")
+
+
 func test_pick_respects_mode() -> void:
 	for m in ["surf", "scooter"]:
 		var picked := 0

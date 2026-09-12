@@ -114,6 +114,19 @@ var _mm_edge: MultiMeshInstance3D
 ## Вид покриття (road_surface) і зерно ряду — від нього залежить малюнок плиток і напуск трави.
 var _surface := "slabs"
 var _row_seed := PackedInt32Array()
+## Скільки метрів проїхала дорога від старту рівня — джерело правди для авторського таймлайну
+## (Run3D рахує один раз і передає сюди й у Spawner3D тим самим викликом advance(), щоб
+## лічильники не розійшлись; якщо advance() викликають без другого аргументу — рахуємо самі).
+var distance_m := 0.0
+## Абсолютна відстань, яку представляє вміст кожного ряду в момент його останньої decorate() —
+## та сама «decide once per wrap» лічба, що й _row_seed, паралельно (Phase 1 level-authoring plumbing).
+var _row_distance_m := PackedFloat32Array()
+## Авторський таймлайн рівня (res://levels/level_XX.tscn → LevelTimeline.extract()): якщо
+## заданий — _decorate() бере декор/будівлі звідси замість випадкового вибору. Порожньо —
+## трек лишається повністю процедурним, як і всі рівні до цієї фічі (сумісність 1:1).
+var _authored_decor: Array = []
+var _authored_buildings: Array = []
+var _authored_active := false
 ## Канал уздовж дороги: вода + береги (по 3 шари на кожен борт), настили-містки — у декорі.
 var _canal: Dictionary = {}
 var _canal_sides: Array = []
@@ -178,6 +191,7 @@ func _ready() -> void:
 
 	_rng.randomize()
 	_row_seed.resize(ROWS)
+	_row_distance_m.resize(ROWS)
 	_row_sx.resize(ROWS)
 	_row_lx.resize(ROWS)
 	_row_rx.resize(ROWS)
@@ -356,6 +370,52 @@ static func bridge_deck_len(width: float) -> float:
 static func bridge_clears_road(edge: float, offset: float, width: float) -> bool:
 	var center := edge + offset + width * 0.5
 	return center - bridge_deck_len(width) * 0.5 > edge
+
+
+## Задати авторський таймлайн рівня (Phase 1 level-authoring plumbing): decor/buildings —
+## масиви записів {z_m, x_m, y_m, kind, override, yaw_deg, scale} від LevelTimeline.extract().
+## Сортуємо за z_m — _decorate() потім лінійно фільтрує по вікну одного ряду (~1 м), запис
+## авторського рівня невеликий, тож зайвого коштує копійки. Викликати ДО першого advance()/rebuild().
+func set_authored_timeline(decor: Array, buildings: Array) -> void:
+	_authored_decor = decor.duplicate()
+	_authored_decor.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
+	_authored_buildings = buildings.duplicate()
+	_authored_buildings.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
+	_authored_active = true
+
+
+## Повернутися до повністю процедурного декору (рівні без authored .tscn — усі, поки що).
+func clear_authored_timeline() -> void:
+	_authored_decor = []
+	_authored_buildings = []
+	_authored_active = false
+
+
+## Один запис із авторського таймлайну — тим самим шляхом, що й випадковий декор (_add_decor),
+## щоб MultiMesh-пачки й усі інваріанти test_track_batching.gd лишались тими самими.
+func _add_authored_record(ids: PackedInt32Array, data: PackedFloat32Array, rec: Dictionary) -> void:
+	var kind := String(rec.get("kind", ""))
+	if kind == "" or not _voxel_exists(kind):
+		return   # автор указав неіснуючий воксель — мовчки пропускаємо (як і випадкові списки узбіччя)
+	var override: Dictionary = rec.get("override", {}) if typeof(rec.get("override", {})) == TYPE_DICTIONARY else {}
+	_add_decor(ids, data, kind, override,
+		float(rec.get("x_m", 0.0)), float(rec.get("y_m", 0.0)), float(rec.get("scale", 1.0)),
+		deg_to_rad(float(rec.get("yaw_deg", 0.0))))
+
+
+## Декор одного ряду з авторського таймлайну: усі записи, чиє z_m потрапляє у вікно цього ряду
+## (ряди — по 1 м уздовж траси, тому вікно ±0,5 м навколо _row_distance_m[i]).
+func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array) -> void:
+	var lo := _row_distance_m[i] - 0.5
+	var hi := _row_distance_m[i] + 0.5
+	for rec in _authored_decor:
+		var z := float((rec as Dictionary).get("z_m", 0.0))
+		if z >= lo and z < hi:
+			_add_authored_record(ids, data, rec)
+	for rec in _authored_buildings:
+		var z := float((rec as Dictionary).get("z_m", 0.0))
+		if z >= lo and z < hi:
+			_add_authored_record(ids, data, rec)
 
 
 ## Записати предмет у пачку ряду. z, поворот і фаза — випадкові, як було в кожного Critter3D.
@@ -607,6 +667,19 @@ func _decorate(row: Node3D) -> void:
 	var i := int(row.get_meta("i", 0))
 	var ids := PackedInt32Array()
 	var data := PackedFloat32Array()
+	# ряд переставили — нове зерно малюнка покриття й напуску трави (те саме в обох режимах)
+	_row_seed[i] = _rng.randi_range(0, 1 << 29)
+	_paint_surface_row(i)
+	# яку абсолютну відстань рівня цей ряд тепер представляє (Phase 1 level-authoring plumbing);
+	# паралельно до _row_seed — та сама лічба «раз на wrap», але лишень для читання авторським таймлайном
+	_row_distance_m[i] = distance_m - row.position.z
+	if _authored_active:
+		# авторський рівень: декор/будівлі йдуть з LevelTimeline.extract(), а не з _rng —
+		# випадковий код нижче для authored-рядів узагалі не виконується (нема подвійного декору)
+		_decorate_authored(i, ids, data)
+		_decor_ids[i] = ids
+		_decor_data[i] = data
+		return
 	var kinds: Array = world.get("decor", [])
 	var big: Array = world.get("decor_big", [])
 	var critters: Array = world.get("critters", [])
@@ -618,9 +691,6 @@ func _decorate(row: Node3D) -> void:
 	var open := is_open(world)
 	var c_offset := float(_canal.get("offset", 2.0))
 	var c_width := float(_canal.get("width", 1.2))
-	# ряд переставили — нове зерно малюнка покриття й напуску трави
-	_row_seed[i] = _rng.randi_range(0, 1 << 29)
-	_paint_surface_row(i)
 	# будинок другого плану: раз на 4–6 рядів, боки чергуються (горизонт не «дірявий»)
 	var far_row := false
 	if open and not _buildings_far.is_empty():
@@ -926,7 +996,11 @@ func _layout_water() -> void:
 
 
 ## Зсунути дорогу на dist клітинок (може бути відʼємним — відкат у Стрибках).
-func advance(dist: float) -> void:
+## total_distance_m — якщо задано, Run3D передає єдиний загальний лічильник (той самий, що й у
+## Spawner3D.advance()), щоб обидва не розходились; null (за замовчуванням, і в усіх старих
+## викликах на кшталт tests/test_track_batching.gd) — рахуємо самі, просто накопичуючи dist.
+func advance(dist: float, total_distance_m: Variant = null) -> void:
+	distance_m = float(total_distance_m) if total_distance_m != null else distance_m + dist
 	for row in _rows:
 		row.position.z += dist
 		if row.position.z > BEHIND:

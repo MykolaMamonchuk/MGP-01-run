@@ -9,6 +9,9 @@ extends CanvasLayer
 signal pause_pressed()
 signal resume_pressed()
 signal menu_pressed()
+## Дитина натиснула кнопку суперсили (GDD v1.6 §3c). Малятам кнопка не натискається —
+## сила вмикається сама, сигнал тоді не йде.
+signal power_pressed()
 
 ## Знак пікапа, якщо в data/pickups.json його нема (колір — Palette.PICKUP_DEFAULT).
 const PICKUP_FALLBACK_LETTER := "?"
@@ -18,6 +21,8 @@ const INGOT_VOXEL := "ingot"
 const SPEED_PULSE_STEP := 10
 ## Миттєвий пікап (seconds 0): іконка підскакує й ховається через стільки секунд.
 const PICKUP_POP_SEC := 0.8
+## Відступ кнопки суперсили від правого-нижнього кута (px). По y — вище за смужку пікапа.
+const POWER_MARGIN := Vector2(32.0, 96.0)
 
 var stars_label: Label
 var profile_label: Label
@@ -63,6 +68,8 @@ var _mult_label: Label
 var _pause_btn: Button
 var _pause_panel: Control
 var _tally_tw: Tween
+# v1.6 §3c: кнопка суперсили героя (знизу праворуч, над рядом смужки пікапа)
+var _power_btn: PowerButton
 
 
 ## Кругла сіра кнопка паузи: коло з двома білими рисками.
@@ -206,6 +213,19 @@ func _ready() -> void:
 	_pickup_bar = PickupBar.new(Palette.PICKUP_DEFAULT)
 	_pickup_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_pickup_box.add_child(_pickup_bar)
+
+	# кнопка суперсили — знизу праворуч, ВИЩЕ за ряд смужки пікапа (той по центру внизу)
+	_power_btn = PowerButton.new()
+	_power_btn.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_power_btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_power_btn.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_power_btn.offset_left = -(POWER_MARGIN.x + PowerButton.PX)
+	_power_btn.offset_right = -POWER_MARGIN.x
+	_power_btn.offset_top = -(POWER_MARGIN.y + PowerButton.PX)
+	_power_btn.offset_bottom = -POWER_MARGIN.y
+	_power_btn.visible = false
+	_power_btn.pressed.connect(_on_power_button)
+	_root.add_child(_power_btn)
 
 	# підказка-жест: велика стрілка + слово, над героєм (замість незрозумілої «лапки»)
 	hint = VBoxContainer.new()
@@ -547,6 +567,59 @@ func _on_pickup_ended(kind: String) -> void:
 		hide_pickup()
 
 
+# ---------- суперсила героя (GDD v1.6 §3c) ----------
+
+## Чия сила зараз на кнопці: id гліфа (див. PowerButton.GLYPHS) і колір героя.
+## Порожній id — кнопки на екрані нема (герой без сили).
+func set_power(id: String, color: Color) -> void:
+	if not is_instance_valid(_power_btn):
+		return
+	_power_btn.set_power(id, color)
+	_power_btn.reset()
+	_power_btn.visible = id != "" and _tally_box.visible
+
+
+## Заповнення кільця, 0..1. Повне — кнопка сама починає світитись.
+func set_power_progress(p: float) -> void:
+	if is_instance_valid(_power_btn):
+		_power_btn.set_progress(p)
+
+
+## Заряджено / ні: світіння й пульсація, тап приймається лише коли on.
+func power_ready(on: bool) -> void:
+	if is_instance_valid(_power_btn):
+		_power_btn.set_ready(on)
+
+
+## Сила спрацювала — спалах кнопки.
+func power_fired() -> void:
+	if is_instance_valid(_power_btn):
+		_power_btn.fire()
+
+
+## Кільце стікає, поки сила діє: t — частка часу, що лишилась (0..1).
+func set_power_active(t: float) -> void:
+	if is_instance_valid(_power_btn):
+		_power_btn.set_active(t)
+
+
+## Кінець сили: кільце порожнє, диск тьмяніє, заряд збирається наново.
+func power_reset() -> void:
+	if is_instance_valid(_power_btn):
+		_power_btn.reset()
+
+
+## Малятам кнопка ВИДНА (щоб знали, що сила є), але тиснути її не треба — вона сама.
+func set_power_interactive(on: bool) -> void:
+	if is_instance_valid(_power_btn):
+		_power_btn.set_interactive(on)
+
+
+func _on_power_button() -> void:
+	AudioMgr.sfx("ui_tap")
+	power_pressed.emit()
+
+
 func _on_star_collected(_n: int) -> void:
 	call_deferred("_refresh")
 
@@ -712,6 +785,9 @@ func set_gameplay_visible(on: bool) -> void:
 	_mult_label.visible = on
 	_pause_btn.visible = on
 	_stars_box.visible = not on
+	if is_instance_valid(_power_btn):
+		# кнопка суперсили — лише в бігу й лише якщо в героя ця сила є
+		_power_btn.visible = on and _power_btn.power_id != ""
 	if not on:
 		_quest_box.visible = false
 		hint.visible = false

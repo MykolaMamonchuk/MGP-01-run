@@ -79,7 +79,8 @@ enum Anim {IDLE, RUN, SPRINT, LIMP, DUCK, JUMP, ROCKET, CHARGE, DANCE, WAVE, HIT
 const ANIM_NAMES := ["idle", "run", "sprint", "limp", "duck", "jump", "rocket",
 	"charge", "dance", "wave", "hit", "fly", "glide", "hop"]
 ## Ключі МОТОРНОГО ПРОФІЛЮ — одного словника, який керує обома тілами (вокселем і ригом):
-##   leg_amp (рад) · leg_freq (× частоти бігу) · bob_amp (× бобу) · body_pitch (рад, + = ніс униз)
+##   leg_amp (рад) · leg_freq (ГЦ — фіксована каденція кроку, НЕ множник швидкості світу) ·
+##   bob_amp (× бобу) · body_pitch (рад, + = ніс униз)
 ##   body_y (м) · head_pitch (рад, + = голова вниз) · ears ("up"/"back"/"down"/"free")
 ##   tail ("wag"/"up"/"straight"/"wag_up") · limp_leg (індекс лапки або −1) · shake (0..1 тремтіння)
 ##   spin_y (рад, АМПЛІТУДА виляння навколо вертикалі — не швидкість: кут завжди
@@ -90,20 +91,21 @@ const PROFILE_KEYS := ["leg_amp", "leg_freq", "bob_amp", "body_pitch", "body_y",
 const HIT_ANIM_SEC := 0.5         ## скільки триває поза удару
 const WAVE_ANIM_SEC := 1.6
 ## Привітання (ті самі числа й у HeroRig): герой ЗВОДИТЬСЯ ДИБКИ на задні лапки.
-## Нахил іде НАВКОЛО ТАЗУ (WAVE_PIVOT — точка стегна задніх лапок; у ригу для цього
-## крутиться сама кістка hips), задні лапки довертаються ВПЕРЕД, щоб опинитись під тілом,
-## передні звисають: ліва підібгана, права махає вгору-вниз і навколо вертикалі 3 рази
-## на секунду. Голова доверстує контр-нахилом, щоб морда дивилась у камеру.
-## У НАШИХ ЗНАКАХ: + оберт лапки — мах УПЕРЕД, + body_pitch — ніс УНИЗ, + head_pitch — морда ВНИЗ.
+## ВСЕ ТІЛО обертається навколо ЗАДНІХ ЛАПОК НА ЗЕМЛІ (WAVE_PIVOT) на WAVE_PITCH; задні
+## лапки отримують КОНТР-оберт −WAVE_PITCH і лишаються вертикальними й на місці; передні
+## звисають уздовж піднятого тіла: ліва підібгана, права махає вгору-вниз і навколо
+## вертикалі 3 рази на секунду. Голова доверстує контр-нахилом, щоб морда дивилась у камеру.
+## Скелетний герой робить рівно те саме, тільки обертає вузол моделі (HeroRig._place_root) —
+## жодних «кісток тазу», бо ієрархія в кожного ригу своя (див. docs/MEMORY.md).
+## У НАШИХ ЗНАКАХ: + оберт лапки — мах УПЕРЕД, + WAVE_PITCH — перед УГОРУ, + head_pitch — морда ВНИЗ.
 const WAVE_LIFT := -1.2           ## передня права («привіт») — середина розмаху, рад
 const WAVE_LIFT_SWING := 0.2      ## розмах помаху вгору-вниз: WAVE_LIFT ± це (−1,4 … −1,0)
 const WAVE_LIFT_TUCK := -0.6      ## передня ліва просто підібгана, рад
-const WAVE_HIND := 0.5            ## задні лапки ВПЕРЕД — під тіло, рад
-const WAVE_BODY_PITCH := -0.9     ## ніс угору ≈ 50°, рад
-const WAVE_BODY_Y := -0.09        ## таз сідає на задні лапки, м
-## Навколо ЧОГО крутиться нахил дибки (координати тіла): стегно задніх лапок. Раніше тіло
-## крутилось навколо свого початку, зад ішов під підлогу, і це лікували підйомом WAVE_RISE.
-const WAVE_PIVOT := Vector3(0.0, LEG_H, HIP_Z_BACK)
+const WAVE_PITCH := HeroRig.WAVE_PITCH   ## на скільки задирається перед, рад (≈50°)
+## Навколо ЧОГО крутиться дибка (координати тіла): ЗАДНІ ЛАПКИ НА ЗЕМЛІ (y = 0). Раніше
+## шарнір стояв на висоті стегна (LEG_H), і копитця все одно від'їжджали від землі —
+## герой «висів» на нахилі. Тепер точка обертання рівно там, де лапка торкається дороги.
+const WAVE_PIVOT := Vector3(0.0, 0.0, HIP_Z_BACK)
 const WAVE_HEAD_PITCH := 0.6      ## контр-нахил голови, рад (морда дивиться в камеру)
 const WAVE_EASE := 0.3            ## вхід у позу дибки й вихід із неї, с
 const WAVE_OUT := 0.25            ## відворот лапки назовні, рад
@@ -127,7 +129,12 @@ const ROCKET_TAIL_SWAY := 0.1     ## розмах похитування, рад
 ## корпус ледь похитує з боку в бік, хвіст витягнутий назад, вуха прищулені,
 ## з-під боків раз на SLIDE_DUST_SEC вилітає пилюка.
 ## Прапорець `ducking` і коробка зіткнень (hit_box) не змінились — це та сама дія «присісти».
-const SLIDE_BODY_Y := -0.30       ## тіло на землю, м
+## Наскільки опускається тіло в ковзанні. Числа РІЗНІ для двох тіл: у воксельного героя
+## тулуб починається на TORSO_Y = 0,225 м, у скелетного живіт нижчий і ширший, тож −0,30
+## заганяли рига під дорогу (playtest 09.09, Місто). Глибше за живіт не опускаємось ніколи —
+## решту стереже підйом «нічого не тоне» (див. ground_lift).
+const SLIDE_BODY_Y := -0.22       ## воксельне тіло на землю, м
+const SLIDE_BODY_Y_RIG := -0.16   ## скелетне тіло (риг) — вище: інакше голова під дорогою
 const SLIDE_SPLAY := 1.1          ## розкид лапок убік, рад
 const SLIDE_ROLL := 0.05          ## похитування корпусу, рад
 const SLIDE_ROLL_HZ := 6.0        ## частота похитування, Гц
@@ -136,9 +143,35 @@ const SLIDE_DUST_SEC := 0.3       ## пилюка з боків, с
 const SLIDE_DUST_X := 0.28        ## наскільки вбік від центру сипле пилюка, м
 ## Копитця на підлозі: коли поза (спринт, дибки, підскоки) заганяє найнижчу лапку під землю,
 ## піднімаємо тіло рівно на різницю — але не більше ніж на GROUND_LIFT_MAX.
-## У ковзанні й у повітрі не працює: там герой лежить / висить навмисно.
+## У повітрі не працює (герой висить навмисно), а в КОВЗАННІ працює — просто міряє не самі
+## копитця, а найнижчу точку ТУЛУБА Й ЛАПОК: живіт лягає на дорогу, але не крізь неї.
 const GROUND_EPS := 0.005
 const GROUND_LIFT_MAX := 0.15
+## У ковзанні підйом більший: він має вміти скасувати всю глибину SLIDE_BODY_Y.
+const GROUND_LIFT_MAX_SLIDE := 0.30
+## ТЕМП ХОДИ — ФІКСОВАНИЙ (рішення Nick, тюнінг GDD v1.7). Частота кроку більше НЕ
+## залежить від швидкості світу: на розгоні виходило 4+ Гц, і лапки зливались у мерехтіння.
+## Тепер каденцій дві — спокійний біг і спринт (розгін бере ту саму, що спринт), плюс
+## окремі для кульгання й спокою. Відчуття «швидко» дає СВІТ (дорога, узбіччя, NPC),
+## а не частота ніг. Числа живуть у HeroRig — там вони потрібні кісткам (одне джерело).
+const RUN_CADENCE_HZ := HeroRig.RUN_CADENCE_HZ         ## біг, Гц
+const SPRINT_CADENCE_HZ := HeroRig.SPRINT_CADENCE_HZ   ## спринт і розгін, Гц
+const LIMP_CADENCE_HZ := HeroRig.LIMP_CADENCE_HZ       ## кульгає, Гц
+const IDLE_CADENCE_HZ := HeroRig.IDLE_CADENCE_HZ       ## тупцяє на місці, Гц
+const FLY_CADENCE_HZ := 1.0       ## політ — лапки ліниво перебирають
+const GLIDE_CADENCE_HZ := 0.5     ## планування — майже завмерли
+## Скільки лишилось швидкості світу: ±10 % РОЗМАХУ кроку (амплітуда, не частота).
+const SPEED_AMP_K := HeroRig.SPEED_AMP_K
+## STRIDE_M / GAIT_HZ_* лишились ЛИШЕ для чистих помічників gait_hz/gait_freq (їх ще читають
+## тести й діагностика «а яка була б хода під швидкість»). ФАЗУ ходи вони більше не крутять.
+const STRIDE_M := 0.9
+const GAIT_HZ_MIN := 0.8
+const GAIT_HZ_MAX := 5.0
+const DEFAULT_SPEED_MPS := 4.0    ## поки світ не сказав своєї швидкості (меню, прев'ю, тести)
+## РОЗГІН (суперсила): перед самим ефектом герой на CHARGE_WINDUP присідає («замах»),
+## і лише потім біжить із профілем CHARGE — інакше сила вмикалась «без анімації».
+const CHARGE_WINDUP := 0.35       ## тривалість замаху, с
+const CHARGE_WINDUP_DIP := -0.09  ## наскільки присідає в замаху, м
 ## ТАНЕЦЬ. Рухи ЗГЛАДЖЕНІ: підскок — не |sin| (гострий розворот на кожному нулі), а
 ## додатна половина синуса крізь smoothstep (HeroRig.dance_bounce), а передні лапки не
 ## клацають на біт, а ПЕРЕКОЧУЮТЬ вагу за DANCE_LEG_EASE (HeroRig.dance_leg_weight).
@@ -164,6 +197,10 @@ const CHARGE_DUST_SEC := 0.25     ## пилюка з-під лап на розг
 const SHAKE_HZ := 20.0            ## частота тремтіння (ракета)
 const SHAKE_AMP := 0.02           ## амплітуда тремтіння, м
 const LIMP_LEG := 0               ## кульгає передня ліва
+## Другий стрибок у повітрі («Подвійний стрибок») — трохи слабший за перший.
+const DOUBLE_JUMP_K := 0.85
+## Скільки світиться носик песика на суперсилі «Нюх-магніт», с.
+const NOSE_GLOW_SEC := 1.2
 
 ## Частини за замовчуванням (герой без parts у даних, друг Friend3D, старе збереження).
 const DEFAULT_PARTS := {
@@ -186,6 +223,9 @@ var flying := false
 var running := false           # біг-боб увімкнено (Біг/Хвиля/Стрибки), вимкнено в меню
 ## Темп бігу-боба: 1.0 — Біг, 0.6 — покрокові режими (Стрибки/Невагомість), де світ лише дрейфує.
 var run_speed_factor := 1.0
+## Швидкість СВІТУ під героєм, м/с (Run3D кличе set_speed_mps щоразу, коли її перерахував).
+## На ЧАСТОТУ ходи не впливає (та фіксована, див. RUN_CADENCE_HZ) — лише на розмах кроку ±10 %.
+var speed_mps := DEFAULT_SPEED_MPS
 ## Рівень землі під героєм (подіум у каруселі, платформа другого рівня) — тінь лягає на нього.
 var ground_y := 0.0
 ## Життя (GDD v1.3): 3 серця; після удару — невразливість і миготіння.
@@ -197,7 +237,12 @@ var shield_on := false
 ## Сидить після втрати всіх сердець («Ще раз!») — біг-боб і нахил тіла вимкнені.
 var sitting := false
 ## Множник стрибка режиму (невагомість ×0.8), поверх jump_velocity профілю.
+## Суперсила «Хитрий стрибок» теж піднімає його — і повертає назад те саме значення,
+## яке було до неї (у Хмаринках режим уже поставив своє).
 var jump_scale := 1.0
+## Суперсила «Подвійний стрибок» (GDD v1.6 §3c): один додатковий стрибок у повітрі за політ.
+var double_jump := false
+var _double_used := false
 var hero_id := "lys"
 var feature := "fox"
 var color := Palette.HERO_DEFAULT
@@ -215,6 +260,13 @@ var _rocket := false
 var _shake_t := 0.0
 var _shake_off := Vector2.ZERO
 var _charge_dust_t := 0.0
+## Замах перед розгоном: скільки секунд його ще лишилось (0 — уже біжить із профілем CHARGE).
+var _charge_wind_t := 0.0
+## Слід-родзинка розгону (один на весь розгін): щоб пилюка кожні 0,25 с не плодила нові емітери.
+var _accent_node: GPUParticles3D
+## ФАЗА КРОКУ (рад) — накопичується, а не рахується як t × частота: інакше кожна зміна
+## швидкості світу перекидала б лапки в іншу точку циклу.
+var _gait_phase := 0.0
 var _slide_dust_t := 0.0           ## пилюка з боків під час ковзання (присід)
 var _dance_t := 0.0                ## секунд від початку танцю (з нього виляння ±DANCE_YAW)
 var _sprint_trail: GPUParticles3D  ## слід спринту (лише якщо в слоті "trail" нічого нема)
@@ -730,6 +782,15 @@ func _box(size: Vector3, c: Color, pos: Vector3, parent: Node3D) -> MeshInstance
 	return mi
 
 
+## Той самий блок, але глянцевий (арт-вектор glossy toy) — для очей: справжній catchlight
+## замість плоского кольору, решта (розмір/позиція/калібрування rig_face) не зачіпається.
+func _box_glossy(size: Vector3, c: Color, pos: Vector3, parent: Node3D) -> MeshInstance3D:
+	var mi := Mats.box_glossy(size, c)
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
+
+
 ## Обличчя живе на голові (координати голови): великі очі з бліком у темних западинах вокселя,
 ## щічки й рот на кремовій морді.
 func _build_face() -> void:
@@ -758,8 +819,8 @@ func _build_face() -> void:
 		else:
 			eye.position = Vector3(side * 0.15, 0.225, face_z)
 		_face.add_child(eye)
-		_box(Vector3(0.105, 0.185, 0.02), eye_pale, Vector3.ZERO, eye)
-		var p := _box(Vector3(0.075, 0.15, 0.02), pupil, Vector3(0.0, 0.0, -0.015), eye)
+		_box_glossy(Vector3(0.105, 0.185, 0.02), eye_pale, Vector3.ZERO, eye)
+		var p := _box_glossy(Vector3(0.075, 0.15, 0.02), pupil, Vector3(0.0, 0.0, -0.015), eye)
 		_box(Vector3(0.028, 0.028, 0.01), Color.WHITE, Vector3(0.02, 0.04, -0.014), p)  # блик
 		_eyes.append(eye)
 		_pupils.append(p)
@@ -783,24 +844,26 @@ func _build_face() -> void:
 ## воксельним (Hero3D._process) і скелетним (HeroRig.animate). Ключі — PROFILE_KEYS.
 static func profile_for(a: Anim) -> Dictionary:
 	var p := {
-		"leg_amp": 0.05, "leg_freq": 0.13, "bob_amp": 0.0, "body_pitch": 0.0,
+		"leg_amp": 0.05, "leg_freq": IDLE_CADENCE_HZ, "bob_amp": 0.0, "body_pitch": 0.0,
 		"body_y": 0.0, "head_pitch": 0.0, "ears": "free", "tail": "wag",
 		"limp_leg": -1, "shake": 0.0, "spin_y": 0.0, "hop": 0.0, "leg_spread": 0.0,
 	}
 	match a:
 		Anim.RUN:
-			p.merge({"leg_amp": GALLOP_SWING, "leg_freq": 1.0, "bob_amp": 1.0}, true)
+			p.merge({"leg_amp": GALLOP_SWING, "leg_freq": RUN_CADENCE_HZ, "bob_amp": 1.0}, true)
 		Anim.SPRINT:
-			p.merge({"leg_amp": 0.9, "leg_freq": 1.3, "bob_amp": 0.7, "body_pitch": 0.18,
+			p.merge({"leg_amp": 0.9, "leg_freq": SPRINT_CADENCE_HZ, "bob_amp": 0.7, "body_pitch": 0.18,
 				"body_y": -0.04, "ears": "back", "tail": "straight"}, true)
 		Anim.LIMP:
-			p.merge({"leg_amp": 0.45, "leg_freq": 0.8, "bob_amp": 0.8, "body_pitch": 0.1,
+			p.merge({"leg_amp": 0.45, "leg_freq": LIMP_CADENCE_HZ, "bob_amp": 0.8, "body_pitch": 0.1,
 				"head_pitch": 0.35, "ears": "down", "tail": "straight", "limp_leg": LIMP_LEG}, true)
 		Anim.DUCK:
 			# КОВЗАННЯ НА ЖИВОТІ, а не навпочіпки: корпус РІВНИЙ (body_pitch 0) і лежить
 			# на землі, лапки розкидані вбоки (SLIDE_SPLAY — не з профілю, бо це оберт
 			# навколо іншої осі), вуха прищулені, хвіст витягнутий назад
 			p.merge({"leg_amp": 0.0, "leg_freq": 0.0, "body_pitch": 0.0,
+				# body_y тут — ВОКСЕЛЬНА глибина; у грі присід накладається блендом і бере
+				# свою для кожного тіла (slide_body_y), профіль потрібен лише прев'ю
 				"body_y": SLIDE_BODY_Y, "head_pitch": SLIDE_HEAD_PITCH,
 				"ears": "back", "tail": "straight"}, true)
 		Anim.JUMP:
@@ -811,27 +874,31 @@ static func profile_for(a: Anim) -> Dictionary:
 			p.merge({"leg_amp": ROCKET_LEG_SWAY, "leg_freq": 0.0, "bob_amp": 0.6,
 				"body_y": 0.05, "shake": 0.6, "ears": "up", "tail": "down"}, true)
 		Anim.CHARGE:
-			p.merge({"leg_amp": 0.75, "leg_freq": 1.15, "bob_amp": 1.0, "body_pitch": 0.25,
+			# розгін бере ТУ САМУ каденцію, що спринт: більше — і лапки мерехтять
+			p.merge({"leg_amp": 0.75, "leg_freq": SPRINT_CADENCE_HZ, "bob_amp": 1.0, "body_pitch": 0.25,
 				"head_pitch": 0.4, "ears": "back", "tail": "straight", "leg_spread": 0.04}, true)
 		Anim.DANCE:
 			p.merge({"leg_amp": 0.9, "leg_freq": 0.0, "ears": "up", "tail": "wag_up",
 				"spin_y": DANCE_YAW, "hop": 1.0}, true)
 		Anim.WAVE:
-			# стійка дибки: ніс угору на ≈50°, таз сідає на задні, голова контр-нахилом
-			# дивиться в камеру, вуха вгору, хвіст донизу.
+			# стійка дибки: голова контр-нахилом дивиться в камеру, вуха вгору, хвіст донизу.
+			# САМ НАХИЛ у профілі НЕ живе: це оберт УСЬОГО тіла навколо задніх лапок
+			# (WAVE_PITCH + WAVE_PIVOT, у ригу — HeroRig._place_root), і йде він через
+			# бленд _wave_blend, а не через `body_pitch`/`body_y` — інакше нахил лічився б
+			# двічі (у вокселів на тілі, у рига ще й на хребті).
 			# leg_amp — РОЗМАХ лапки-«привіт» (сам знак у WAVE_LIFT); вхід/вихід — WAVE_EASE
-			p.merge({"leg_amp": absf(WAVE_LIFT), "leg_freq": 0.0, "body_pitch": WAVE_BODY_PITCH,
-				"body_y": WAVE_BODY_Y, "head_pitch": WAVE_HEAD_PITCH,
-				"ears": "up", "tail": "down"}, true)
+			p.merge({"leg_amp": absf(WAVE_LIFT), "leg_freq": 0.0,
+				"head_pitch": WAVE_HEAD_PITCH, "ears": "up", "tail": "down"}, true)
 		Anim.HIT:
 			p.merge({"leg_amp": 0.0, "leg_freq": 0.0, "ears": "back", "tail": "straight"}, true)
 		Anim.FLY:
-			p.merge({"leg_amp": 0.25, "leg_freq": 0.4, "bob_amp": 0.4, "ears": "up", "tail": "up"}, true)
+			p.merge({"leg_amp": 0.25, "leg_freq": FLY_CADENCE_HZ, "bob_amp": 0.4,
+				"ears": "up", "tail": "up"}, true)
 		Anim.GLIDE:
-			p.merge({"leg_amp": 0.1, "leg_freq": 0.2, "body_pitch": -0.1,
+			p.merge({"leg_amp": 0.1, "leg_freq": GLIDE_CADENCE_HZ, "body_pitch": -0.1,
 				"ears": "back", "tail": "straight"}, true)
 		Anim.HOP:
-			p.merge({"leg_amp": 0.7, "leg_freq": 1.0, "bob_amp": 1.2, "hop": 0.5,
+			p.merge({"leg_amp": 0.7, "leg_freq": RUN_CADENCE_HZ, "bob_amp": 1.2, "hop": 0.5,
 				"ears": "up", "tail": "up"}, true)
 	return p
 
@@ -847,6 +914,56 @@ static func gait_phase(leg_index: int) -> float:
 ## Чиста функція: підйом копитця (0…1) у махові — лапка йде ВПЕРЕД, поки cos φ > 0.
 static func gait_lift(phi: float) -> float:
 	return HeroRig.gait_lift(phi)
+
+
+## Чиста функція-ПОМІЧНИК: яка була б частота кроку, якби хода йшла під швидкість світу
+## (Гц = швидкість / довжина кроку). ХОДУ ВОНА БІЛЬШЕ НЕ КРУТИТЬ (рішення Nick, GDD v1.7):
+## частота фіксована — RUN_CADENCE_HZ / SPRINT_CADENCE_HZ, див. cadence_hz. Лишилась для
+## діагностики й тестів («скільки б це було»), і щоб не ламати старі виклики.
+static func gait_hz(speed_mps_v: float, stride: float = STRIDE_M) -> float:
+	return clampf(absf(speed_mps_v) / maxf(0.05, stride), GAIT_HZ_MIN, GAIT_HZ_MAX)
+
+
+## Те саме в рад/с. Теж лише помічник — фазу крутить cadence_hz профілю.
+static func gait_freq(speed_mps_v: float, stride: float = STRIDE_M) -> float:
+	return TAU * gait_hz(speed_mps_v, stride)
+
+
+## Чиста функція: ФАКТИЧНА каденція кроку стану, Гц — просто `leg_freq` профілю.
+## Швидкість світу сюди не входить НІКОЛИ: у цьому вся суть рішення «лапки не мерехтять».
+static func cadence_hz(a: Anim) -> float:
+	return float(profile_for(a).get("leg_freq", RUN_CADENCE_HZ))
+
+
+## Чиста функція: єдине, що лишилось швидкості світу — ±SPEED_AMP_K (10 %) РОЗМАХУ кроку.
+## Швидше біжимо — крок ледь ширший; частота при цьому не змінюється ні на герц.
+static func speed_amp_k(speed_mps_v: float) -> float:
+	var k := absf(speed_mps_v) / maxf(0.05, DEFAULT_SPEED_MPS)
+	return clampf(k, 1.0 - SPEED_AMP_K, 1.0 + SPEED_AMP_K)
+
+
+## Чиста функція: наскільки підняти тіло, щоб найнижча його точка не тонула в дорозі.
+## `lowest` — та точка у метрах (мінус = під землею), ВЖЕ з урахуванням зсуву пози;
+## `cap` — стеля підйому, щоб помилка в кістках не підкинула героя в небо.
+## Дрібниця в межах GROUND_EPS — не привід смикати тіло.
+static func ground_lift(lowest: float, cap: float) -> float:
+	if lowest >= -GROUND_EPS:
+		return 0.0
+	return clampf(-lowest, 0.0, maxf(0.0, cap))
+
+
+## Чиста функція: глибина ковзання для тіла героя (у рига живіт нижчий — опускаємо менше).
+static func slide_body_y(is_rig: bool) -> float:
+	return SLIDE_BODY_Y_RIG if is_rig else SLIDE_BODY_Y
+
+
+## Чиста функція: присід «замаху» перед розгоном, 0…1. `left` — скільки секунд замаху
+## лишилось. Крива полога з обох боків (sin): герой м'яко сідає й м'яко вистрілює.
+static func charge_crouch(left: float, total: float = CHARGE_WINDUP) -> float:
+	if left <= 0.0 or total <= 0.0:
+		return 0.0
+	var u := clampf(1.0 - left / total, 0.0, 1.0)
+	return sin(PI * u)
 
 
 ## Чиста функція: компенсація зсуву, коли нахил тіла має крутитись НАВКОЛО ЗАДАНОЇ ТОЧКИ,
@@ -880,6 +997,11 @@ func anim_name() -> String:
 	if ducking:
 		return "duck"
 	return ANIM_NAMES[int(anim_state)]
+
+
+## Каденція кроку ПОТОЧНОГО стану, Гц (прев'ю, HUD, тести): фіксоване число з профілю.
+func cadence() -> float:
+	return cadence_hz(anim_state)
 
 
 ## Профіль поточного стану (присід накладається окремо — це блендом, не станом).
@@ -928,8 +1050,11 @@ func _enter_anim(a: Anim) -> void:
 				_squash(Vector3(0.94, 1.08, 0.94), 0.1)
 		Anim.CHARGE:
 			_charge_dust_t = 0.0
+			# спершу ЗАМАХ (герой присідає, вуха назад), і лише в його кінці — родзинка героя:
+			# так суперсилу видно як РУХ, а не як хмару частинок на рівному місці
+			_charge_wind_t = CHARGE_WINDUP
 			if not _pose_only:
-				charge_accent()
+				_squash(Vector3(1.06, 0.9, 1.06), CHARGE_WINDUP * 0.5)
 		Anim.DANCE:
 			_dance_t = 0.0
 			if not _pose_only:
@@ -940,6 +1065,8 @@ func _enter_anim(a: Anim) -> void:
 
 func _exit_anim(a: Anim) -> void:
 	match a:
+		Anim.CHARGE:
+			_charge_wind_t = 0.0
 		Anim.SPRINT:
 			if _sprint_trail != null and is_instance_valid(_sprint_trail):
 				_sprint_trail.emitting = false
@@ -1008,17 +1135,101 @@ func dance(sec: float = DANCE_SEC) -> void:
 	_hold_anim(Anim.DANCE, sec)
 
 
-## Гачок «фірмова родзинка героя на розгоні» (кожен герой додає своє).
-## Єдиноріг: іскри біля рога. Точка — «капелюшкова» кістка голови (у рига вона на маківці,
-## у воксельного тіла родзинки нема). Решта героїв поки нічого не роблять.
+## Фірмова родзинка героя на розгоні (стан CHARGE, а з v1.6 §3c — ще й суперсила).
+## У кожного своя й НАВМИСНО крихітна: одна частинка-подія, без нових станів анімації.
+##   лисеня  — іскри-слід за спиною          ведмежа  — бульбашка щита
+##   оленя   — пилюка з-під копит            котик    — блискітки навколо
+##   песик   — світиться носик               єдиноріг — іскри від рога + веселковий слід
+##   зайчик  — нічого (його сила — сам стрибок)
 func charge_accent() -> void:
-	if _rig_style != "unicorn":
+	match hero_id:
+		"lys":
+			_accent_trail(accent, 0.9)
+		"olen":
+			FX.dust(self, Vector3(0.0, 0.05, 0.0))
+		"pes":
+			_nose_glow()
+		"kit":
+			FX.burst(self, Vector3(0.0, HEAD_TOP, 0.0), Palette.LEMON_PALE)
+			_timed_sparkles(1.2)
+		"med":
+			set_shield(true)
+		"odn":
+			_horn_sparks()
+			_accent_trail(Palette.RAINBOW[0], 1.4)
+		"dolphin":
+			FX.splash(self, Vector3(0.0, 0.1, 0.3))
+			_accent_trail(Palette.SPLASH_WATER, 1.0)
+		"turtle":
+			set_shield(true)
+		_:
+			pass
+
+
+## Короткий слід-іскри за героєм (сам зникає). Слід із крамниці не чіпаємо: він у слоті "trail".
+## Емітер РІВНО ОДИН на розгін: раніше родзинка викликалась ще й із пилюки кожні 0,25 с,
+## і за секунду за героєм тягнулось чотири сліди — це й були «занадто багато частинок».
+func _accent_trail(col: Color, seconds: float) -> void:
+	if _accent_node != null and is_instance_valid(_accent_node):
 		return
+	var tr := FX.trail(self, col)          # 16 частинок × 0,8 с ≈ 20 частинок/с
+	tr.position = Vector3(0.0, 0.3, 0.3)
+	_accent_node = tr
+	get_tree().create_timer(maxf(0.1, seconds)).timeout.connect(func():
+		if is_instance_valid(tr):
+			tr.emitting = false
+			tr.queue_free()
+		if _accent_node == tr:
+			_accent_node = null)
+
+
+## Блискітки навколо героя на seconds (котик). Постійні блискітки «Іскринки» — це _sparkles,
+## їх не чіпаємо: цей вузол свій і сам іде геть.
+func _timed_sparkles(seconds: float) -> void:
+	var sp := FX.sparkles(self, 0.6, 12)
+	get_tree().create_timer(maxf(0.1, seconds)).timeout.connect(func():
+		if is_instance_valid(sp):
+			sp.emitting = false
+			sp.queue_free())
+
+
+## Іскри від рога єдинорога. Точка — «капелюшкова» кістка голови (у рига вона на маківці).
+func _horn_sparks() -> void:
 	var horn := _rig.anchor("hat") if _rig != null else null
 	if horn == null:
+		# воксельне тіло: сиплемо з маківки
+		FX.burst(self, Vector3(0.0, HEAD_TOP, 0.0), Palette.H_ACC_PINK)
 		return
 	# вузол «hat» живе в координатах воксельної голови: низ голови по центру, висота HEAD_H
 	FX.burst(horn, Vector3(0.0, HEAD_H, 0.0), Palette.H_ACC_PINK)
+
+
+## Носик песика світиться NOSE_GLOW_SEC — маленька куля-емісія в точці обличчя.
+func _nose_glow() -> void:
+	var anchor := _face if is_instance_valid(_face) else _head
+	if anchor == null or not is_instance_valid(anchor):
+		return
+	var glow := MeshInstance3D.new()
+	glow.name = "NoseGlow"
+	var sph := SphereMesh.new()
+	sph.radius = 0.05
+	sph.height = 0.1
+	sph.radial_segments = 10
+	sph.rings = 6
+	glow.mesh = sph
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.albedo_color = Palette.H_ACC_PINK
+	m.emission_enabled = true
+	m.emission = Palette.H_ACC_PINK
+	m.emission_energy_multiplier = 2.0
+	glow.material_override = m
+	glow.position = Vector3(0.0, 0.09, -HEAD_HALF_D - 0.04)
+	anchor.add_child(glow)
+	var tw := create_tween()
+	tw.tween_property(glow, "scale", Vector3.ONE * 1.6, NOSE_GLOW_SEC * 0.5)
+	tw.tween_property(glow, "scale", Vector3.ZERO, NOSE_GLOW_SEC * 0.5)
+	tw.finished.connect(glow.queue_free)
 
 
 func is_airborne() -> bool:
@@ -1026,9 +1237,20 @@ func is_airborne() -> bool:
 
 
 ## Стрибок. scale < 1 — нижчий (підскок на хвилі). Повертає false, якщо стрибнути не можна.
+## У повітрі стрибок можливий лише з суперсилою «Подвійний стрибок» — і лише один раз за політ.
 func jump(k: float = 1.0) -> bool:
-	if is_airborne() or tumbling or sitting:
+	if tumbling or sitting:
 		return false
+	if is_airborne():
+		if not double_jump or _double_used or flying:
+			return false
+		_double_used = true
+		_vy = jump_velocity * k * jump_scale * DOUBLE_JUMP_K
+		_squash(Vector3(0.9, 1.18, 0.9), 0.12)
+		_flap(1.0)
+		FX.dust(self, Vector3(0.0, 0.2, 0.0))
+		return true
+	_double_used = false
 	_vy = jump_velocity * k * jump_scale
 	ducking = false
 	_squash(Vector3(0.9, 1.18, 0.9), 0.12)
@@ -1101,20 +1323,21 @@ func tilt(v: float) -> void:
 
 
 ## Транспорт: дошка (Серфінг), мушля (Хвиля) або самокат (Місто). kind — назва вокселя.
+## ЧОТИРИЛАПІ ЗВІРЯТА НЕ ЇЗДЯТЬ: меш транспорту не показуємо НІКОЛИ (playtest 09.09 —
+## «незрозуміла синя штука під героєм» у Місті це був самокат під лапками рига).
+## Режими лишились як були (ScooterMode — «біг + трампліни й рейки», швидший на 15 %),
+## тож прапорець `_vehicle_on` живе далі: від нього залежить гойдання на хвилі (wave_offset).
 var _vehicle_kind := "shell"
+var _vehicle_on := false
 ## Невагомість (Хмаринки): 0.4 — герой падає повільно.
 var gravity_scale := 1.0
 
 
 func set_vehicle(on: bool, kind: String = "shell") -> void:
-	if on and kind != _vehicle_kind:
-		_vehicle.queue_free()
-		_vehicle = VoxelBuilder.instance(kind)
-		# дошка/мушля сидять у воді трохи нижче
-		_vehicle.position.y = -0.05 if kind in ["shell", "surfboard"] else 0.0
-		add_child(_vehicle)
-		_vehicle_kind = kind
-	_vehicle.visible = on
+	_vehicle_on = on
+	_vehicle_kind = kind if on else _vehicle_kind
+	# меш лишається в дереві (API й тести ті самі), але не показується жодному героєві
+	_vehicle.visible = false
 
 
 # ---------- життя, щит, платформа ----------
@@ -1236,6 +1459,20 @@ func set_ground(h: float) -> void:
 			_y = -dy
 			_vy = 0.0
 	# малий спуск (пандус вниз) — лишаємось на поверхні: _y не чіпаємо
+
+
+## Швидкість світу, м/с (Run3D кличе щокадру). ЧАСТОТУ ходи вона більше НЕ задає
+## (та фіксована — RUN_CADENCE_HZ / SPRINT_CADENCE_HZ): від неї лишилась лише ±10 %
+## модуляція РОЗМАХУ кроку (speed_amp_k). Метод лишається — його кличе Run3D, і швидкість
+## читають інші системи.
+func set_speed_mps(v: float) -> void:
+	speed_mps = maxf(0.0, v)
+
+
+## Швидкість, з якої рахується РОЗМАХ кроку: покрокові режими (Стрибки) дрейфують повільніше.
+func _gait_speed() -> float:
+	var v := speed_mps if speed_mps > 0.01 else DEFAULT_SPEED_MPS
+	return v * run_speed_factor
 
 
 func set_running(on: bool) -> void:
@@ -1523,6 +1760,7 @@ func _process(delta: float) -> void:
 		if _y <= 0.0:
 			_y = 0.0
 			_vy = 0.0
+			_double_used = false     # на землі другий стрибок знову доступний
 			if was_air:
 				landed.emit()
 				_squash(Vector3(1.12, 0.86, 1.12), 0.09)
@@ -1533,7 +1771,7 @@ func _process(delta: float) -> void:
 	var bob := 0.0
 	if feature == "cloud":
 		bob = 0.12 + sin(_t * 2.2) * 0.06
-	position.y = ground_y + _y + bob + (wave_offset if _vehicle.visible else 0.0)
+	position.y = ground_y + _y + bob + (wave_offset if _vehicle_on else 0.0)
 	# невразливість: тіло миготить кожні 0,1 с
 	if invulnerable_t > 0.0:
 		invulnerable_t -= delta
@@ -1595,16 +1833,35 @@ func _process(delta: float) -> void:
 			set_anim_state(_anim_return)
 	# присід: плавний перехід 20/с
 	_duck_blend = lerpf(_duck_blend, 1.0 if ducking else 0.0, minf(1.0, delta * 20.0))
+	# ЗАМАХ перед розгоном: герой присідає, і рівно в кінці замаху вилітає родзинка героя
+	if _charge_wind_t > 0.0:
+		_charge_wind_t = maxf(0.0, _charge_wind_t - delta)
+		if _charge_wind_t <= 0.0 and anim_state == Anim.CHARGE and not _pose_only:
+			charge_accent()
+			_squash(Vector3(0.9, 1.14, 0.9), 0.12)      # вистрілив із присіду
 	# моторний профіль стану — з нього живуть і лапки, і тіло, і голова, і вуха, і хвіст
 	var prof := _profile()
-	var run_f := 11.0 * run_speed_factor        # базова частота галопу (її ж отримує риг)
-	var leg_f := run_f * float(prof["leg_freq"])
-	var phase := _t * leg_f
+	# ЗАМАХ правимо просто в профілі — тоді обидва тіла (вокселі й кістки) сідають однаково
+	var crouch := charge_crouch(_charge_wind_t)
+	if crouch > 0.0:
+		prof["body_y"] = float(prof["body_y"]) + CHARGE_WINDUP_DIP * crouch
+		prof["leg_amp"] = float(prof["leg_amp"]) * (1.0 - crouch)   # у замаху лапки завмирають
+	# ЧАСТОТА ХОДИ — ФІКСОВАНА КАДЕНЦІЯ СТАНУ (Гц), а не швидкість світу: 4+ Гц на розгоні
+	# читались як мерехтіння (рішення Nick, тюнінг GDD v1.7). Фаза все одно НАКОПИЧУЄТЬСЯ —
+	# перемикання стану (біг ↔ спринт) не перекидає лапки в іншу точку циклу.
+	var leg_f := TAU * float(prof["leg_freq"])          # рад/с
+	# «біговою» частотою для рига лишається каденція бігу — її ще читають старі виклики
+	var run_f := TAU * RUN_CADENCE_HZ
+	_gait_phase = fmod(_gait_phase + leg_f * delta, TAU)
+	var phase := _gait_phase
 	var galloping := running and not is_airborne() and not ducking and not sitting
-	# темп бігу (той самий множник отримує риг) і розмах кроку цієї швидкості
-	var speed_k := clampf(run_speed_factor, 0.5, 1.4)
+	# швидкість світу керує тільки РОЗМАХОМ кроку, і то ледь — ±10 % (див. speed_amp_k)
+	var speed_k := speed_amp_k(_gait_speed())
 	var step_amp := float(prof["leg_amp"]) * speed_k
 	var limp_leg := int(prof["limp_leg"])
+	# КОВЗАННЯ опускає ВСЕ тіло (і воксельне, і скелетне) — глибина своя для кожного,
+	# і риг про неї має знати, щоб підняти себе рівно настільки, щоб нічого не тонуло
+	var slide_y := slide_body_y(_rig != null) * _duck_blend
 	# ковзання на животі пилить З БОКІВ кожні SLIDE_DUST_SEC (поки герой на землі)
 	if ducking and not is_airborne() and not tumbling:
 		_slide_dust_t += delta
@@ -1614,13 +1871,13 @@ func _process(delta: float) -> void:
 			FX.dust(self, Vector3(SLIDE_DUST_X, 0.03, 0.1))
 	else:
 		_slide_dust_t = SLIDE_DUST_SEC          # почав ковзати — пилюка одразу, без затримки
-	# розгін пилить з-під лап кожні 0,25 с
-	if anim_state == Anim.CHARGE:
+	# розгін пилить з-під лап кожні 0,25 с. РОДЗИНКУ героя звідси НЕ кличемо: вона
+	# спрацьовує один раз, у кінці замаху (інакше за секунду набігало чотири сліди)
+	if anim_state == Anim.CHARGE and _charge_wind_t <= 0.0:
 		_charge_dust_t += delta
 		if _charge_dust_t >= CHARGE_DUST_SEC:
 			_charge_dust_t = 0.0
 			FX.dust(self, Vector3(0, 0.03, 0))
-			charge_accent()
 	# лапки: природний 4-ТАКТНИЙ КРОК (не рись!) — копитця ставляться по черзі
 	# задня ліва → передня ліва → задня права → передня права (Hero3D.gait_phase;
 	# _legs: 0 FL, 1 FR, 2 BL, 3 BR). У махові лапка ще й ПІДНІМАЄТЬСЯ на GAIT_PAW_LIFT:
@@ -1662,8 +1919,9 @@ func _process(delta: float) -> void:
 			var wave_yaw := 0.0
 			if _wave_blend > 0.001:
 				# привітання: герой стає дибки — передня ліва підібгана, права махає
-				# вгору-вниз і навколо вертикалі, задні йдуть УПЕРЕД під тіло
-				var target := WAVE_HIND
+				# вгору-вниз і навколо вертикалі, а задні КОНТР-обертаються на −WAVE_PITCH,
+				# щоб лишитись вертикальними під нахиленим тілом і не з'їхати з дороги
+				var target := -WAVE_PITCH
 				if i == 1:
 					target = WAVE_LIFT + sin(_t * TAU * WAVE_HZ) * WAVE_LIFT_SWING
 					wave_yaw = (-WAVE_OUT + sin(_t * TAU * WAVE_HZ) * WAVE_YAW) * _wave_blend
@@ -1698,6 +1956,8 @@ func _process(delta: float) -> void:
 			"running": running, "airborne": is_airborne(), "ducking": ducking,
 			"duck_blend": _duck_blend, "sitting": sitting, "tumbling": tumbling,
 			"wave": _wave_t, "wave_blend": _wave_blend,
+			# на скільки Hero3D опустив УСЕ тіло (ковзання) — риг це компенсує підйомом
+			"body_offset": slide_y,
 			# словник анімацій (GDD v1.6 §5): риг живе з того самого профілю, що й вокселі
 			"prof": prof, "leg_f": leg_f, "phase": phase, "dance_t": _dance_t,
 			"anim": int(anim_state), "anim_name": anim_name(),
@@ -1799,14 +2059,16 @@ func _process(delta: float) -> void:
 		# дибки входимо й виходимо за WAVE_EASE, а не стрибком на зміні стану
 		if _wave_blend > 0.001:
 			if _rig != null:
-				# у скелетного героя дибки крутить САМА КІСТКА ТАЗУ (шарнір і так у тазі),
-				# тож вузол-обгортку не чіпаємо — інакше нахил і присідання лічились би двічі
+				# у скелетного героя дибки робить оберт УСЬОГО вузла моделі навколо задніх
+				# копит (HeroRig._place_root) — обгортку не чіпаємо, інакше нахил лічився б двічі
 				body_y = 0.0
 				lean_x = 0.0
 			else:
-				body_y = WAVE_BODY_Y * _wave_blend
-				lean_x = WAVE_BODY_PITCH * _wave_blend
-				# нахил має крутитись НАВКОЛО СТЕГНА ЗАДНІХ ЛАПОК, а не навколо початку
+				# + = перед УГОРУ (той самий знак, що й «мах лапки вперед»); посадки тіла
+				# більше нема — герой не сідає, а саме зводиться дибки
+				body_y = 0.0
+				lean_x = WAVE_PITCH * _wave_blend
+				# нахил крутиться НАВКОЛО ЗАДНІХ ЛАПОК НА ЗЕМЛІ, а не навколо початку
 				# тіла — інакше зад іде під підлогу. Компенсуємо зсув тієї самої точки
 				var comp := pivot_offset(lean_x, WAVE_PIVOT)
 				body_y += comp.y
@@ -1835,10 +2097,17 @@ func _process(delta: float) -> void:
 		# танець: м'який підскок на кожен біт (smoothstep, без гострих розворотів синуса)
 		if float(prof["hop"]) > 0.0:
 			body_y += HeroRig.dance_bounce(_t, DANCE_BPS) * DANCE_HOP * float(prof["hop"])
+		# СКЕЛЕТНИЙ ГЕРОЙ: усе вертикальне й нахил корпусу вже зробили кістки (таз і хребет
+		# у HeroRig.animate читають ТОЙ САМИЙ профіль). Вузол-обгортку ними не рухаємо —
+		# інакше боб, спринт і ракета лічились би ДВІЧІ, і герой на спринті сідав під дорогу
+		if _rig != null:
+			body_y = 0.0
+			lean_x = 0.0
 		if _duck_blend > 0.01:
 			rate = 20.0
-			# ковзання: тіло на землю, корпус РІВНИЙ (нахилу нема — герой не навпочіпки)
-			body_y = lerpf(body_y, SLIDE_BODY_Y, _duck_blend)
+			# ковзання: усе тіло лягає на землю (своя глибина для рига й для вокселів),
+			# корпус РІВНИЙ (нахилу нема — герой не навпочіпки)
+			body_y = lerpf(body_y, slide_body_y(_rig != null), _duck_blend)
 			lean_x = lerpf(lean_x, 0.0, _duck_blend)
 		# після присіду відстань до цілі велика — пускаємо лерп і тоді (сквош-твін не заважає: він короткий)
 		if _body.scale.distance_to(target_scale) < 0.3 or _duck_blend > 0.01:
@@ -1882,28 +2151,41 @@ func _process(delta: float) -> void:
 			tw.tween_property(_body, "rotation:y", 0.0, 0.4).set_trans(Tween.TRANS_SINE)
 
 
-## На скільки підняти ВОКСЕЛЬНЕ тіло, щоб найнижче копитце не тонуло в землі.
-## Геометрія лапки відома точно (шарнір на висоті LEG_H, меш звисає на LEG_H униз), тож
-## кінчик — це просто точка (0, −LEG_H, 0) у координатах лапки, проведена через її оберт
-## і через трансформу тіла (нахил, підскок, масштаб). Мешів ніхто не читає.
+## На скільки підняти ВОКСЕЛЬНЕ тіло, щоб найнижча його точка не тонула в землі.
+## Геометрія відома точно, мешів ніхто не читає:
+##   • кінчик лапки — точка (0, −LEG_H, 0) у координатах лапки (шарнір на висоті LEG_H);
+##   • низ тулуба — чотири кути коробки на висоті TORSO_Y навколо TORSO_Z.
+## Обидві групи проводимо через базис тіла (нахил, оберт, масштаб).
+## У КОВЗАННІ підйом ПРАЦЮЄ (лапки розкидані вбоки й тонули б у дорозі), тому в рахунок
+## іде й ТУЛУБ: живіт лягає на дорогу, але не крізь неї, і голова лишається над нею.
+## У повітрі підйому нема: герой висить навмисно.
 ## У скелетного героя список лапок порожній — там те саме робить HeroRig._apply_ground_lift.
-## У КОВЗАННІ й у повітрі підйому нема: герой лежить / висить навмисно.
 ## `body_y` — ЦІЛЬОВЕ (а не поточне) зміщення тіла: беремо саме його, інакше підйом
-## рахувався б від уже піднятого тіла й ганявся сам за собою. Опускання тіла НАВМИСНЕ
-## (спринт притискає героя до землі), тож у рахунок іде лише підйом: max(body_y, 0).
+## рахувався б від уже піднятого тіла й ганявся сам за собою. Опускання пози НАВМИСНЕ
+## (спринт притискає героя до землі) — окрім ковзання, яке ми якраз і сторожимо.
+const TORSO_HALF := 0.28          ## півширина/півглибина коробки тулуба (та сама, що в hit_box)
+
+
 func _voxel_ground_lift(body_y: float) -> float:
-	if _legs.is_empty() or is_airborne() or _duck_blend > 0.01:
+	if _legs.is_empty() or is_airborne():
 		return 0.0
+	var sliding := _duck_blend > 0.01
 	var lowest := 0.0
 	for leg in _legs:
 		if not is_instance_valid(leg):
 			continue
 		# тільки БАЗИС тіла (нахил, оберт, масштаб) — без його позиції
 		lowest = minf(lowest, (_body.basis * (leg.transform * Vector3(0.0, -LEG_H, 0.0))).y)
-	lowest += maxf(body_y, 0.0)
-	if lowest >= -GROUND_EPS:
-		return 0.0
-	return clampf(-lowest, 0.0, GROUND_LIFT_MAX)
+	if sliding:
+		# чотири кути дна тулуба — у ковзанні саме живіт найнижчий
+		for i in range(4):
+			var sx := TORSO_HALF if i % 2 == 0 else -TORSO_HALF
+			var sz := TORSO_HALF if i < 2 else -TORSO_HALF
+			lowest = minf(lowest, (_body.basis * Vector3(sx, TORSO_Y, TORSO_Z + sz)).y)
+		# у ковзанні опускання враховуємо ПОВНІСТЮ: нижче нуля не можна нічому
+		return ground_lift(lowest + body_y, GROUND_LIFT_MAX_SLIDE)
+	# поза ковзанням опускання пози навмисне (спринт), тож у рахунок іде лише підйом
+	return ground_lift(lowest + maxf(body_y, 0.0), GROUND_LIFT_MAX)
 
 
 ## Одне вухо сіпається (спокій).

@@ -10,7 +10,7 @@ func before_each() -> void:
 
 func test_order_ids_skips_service_keys_and_sorts() -> void:
 	var ids := HeroSelect.order_ids(_heroes)
-	assert_eq(ids.size(), 7, "7 звірят у каруселі (старі пухнастики — legacy, їх не показуємо)")
+	assert_eq(ids.size(), 9, "9 звірят у каруселі (+ дельфін, черепаха; старі пухнастики — legacy, їх не показуємо)")
 	assert_eq(ids[0], "lys", "стартовий герой перший")
 	assert_false(ids.has("puf"), "старий пухнастик лишився в даних, але не в каруселі")
 	assert_false(ids.has("growth"))
@@ -29,10 +29,26 @@ func test_unlock_rules() -> void:
 	assert_true(HeroSelect.is_unlocked({"unlock": {"type": "growth", "stage": 2}}, 0, 0, false, 2))
 
 
+# ---------- EDD §3: розблокування домівкою ----------
+
+func test_home_unlock_needs_the_home() -> void:
+	var deer := {"unlock": {"type": "home"}}
+	assert_false(HeroSelect.is_unlocked(deer, 9999, 99, true, 3, [], "olen"), "домівки нема — жодні зірочки не допоможуть")
+	assert_true(HeroSelect.is_unlocked(deer, 0, 0, false, 1, ["olen"], "olen"), "домівку збудовано — герой грабельний")
+	assert_false(HeroSelect.is_unlocked(deer, 0, 0, false, 1, ["pes"], "olen"), "чужа домівка не рахується")
+	assert_false(HeroSelect.is_unlocked(deer, 0, 0, false, 1, ["olen"]), "без hero_id нема чого шукати")
+	# явний friend перевизначає id домівки
+	var comet := {"unlock": {"type": "home", "friend": "comet"}}
+	assert_true(HeroSelect.is_unlocked(comet, 0, 0, false, 1, ["comet"], "kometka"))
+	# збереження може віддати числа/сміття — не падаємо
+	assert_false(HeroSelect.is_unlocked(deer, 0, 0, false, 1, [7, null], "olen"))
+
+
 func test_unlock_hints() -> void:
 	assert_eq(HeroSelect.unlock_hint({"unlock": {"type": "start"}}), "")
 	assert_eq(HeroSelect.unlock_hint({"unlock": {"type": "stars", "amount": 100}}), "100")
 	assert_true(HeroSelect.unlock_hint({"unlock": {"type": "full_game"}}).contains("батьк"), "преміум — «разом з батьками»")
+	assert_true(HeroSelect.unlock_hint({"unlock": {"type": "home"}}).contains("домівку"), "home — «збудуй домівку»")
 
 
 func test_only_start_hero_unlocked_at_zero() -> void:

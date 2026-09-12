@@ -70,6 +70,34 @@ static func burst(parent: Node, pos: Vector3, color: Color = Palette.STAR) -> vo
 	_auto_free(p)
 
 
+## Спалах-кільце (суперсила): пласке кільце розлітається від героя й гасне. Це НЕ частинки —
+## один меш на 0,35 с, тож «видно подію», а не хмару крапок (playtest 09.09: частинок було
+## занадто багато, а самої анімації не було видно).
+static func ring(parent: Node, pos: Vector3, color: Color, seconds: float = 0.35) -> void:
+	var mi := MeshInstance3D.new()
+	var tm := TorusMesh.new()
+	tm.inner_radius = 0.42
+	tm.outer_radius = 0.5
+	tm.rings = 24
+	tm.ring_segments = 8
+	mi.mesh = tm
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_color = Color(color.r, color.g, color.b, 0.85)
+	m.emission_enabled = true
+	m.emission = color
+	m.emission_energy_multiplier = 1.4
+	mi.material_override = m
+	mi.position = pos
+	mi.scale = Vector3(0.4, 0.4, 0.4)
+	parent.add_child(mi)
+	var tw := mi.create_tween().set_parallel(true)
+	tw.tween_property(mi, "scale", Vector3(2.4, 0.6, 2.4), seconds).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(m, "albedo_color:a", 0.0, seconds)
+	tw.finished.connect(mi.queue_free)
+
+
 ## Пил при приземленні / кроці.
 static func dust(parent: Node, pos: Vector3) -> void:
 	var p := _make(10, 0.45, true, 0.12, Color(0.95, 0.93, 0.85, 0.8))

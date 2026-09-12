@@ -1,60 +1,60 @@
 {
-  "_note": "Дім-діорама (GDD v1.4 §10): що дитина добудовує на острові кожного світу. Для кожного світу — рівно 9 записів (стільки ж, скільки ділянок 3×3) у порядку зростання ціни; порядок = порядок ділянок. id — унікальний у межах світу, voxel — модель із data/voxels, price — злитки, name_uk — підпис у підтвердженні. Куплене лежить у збереженні як SaveService.child()[\"buildings\"][world_id] — масив імен вокселів; Track додає ці ж вокселі у пул ближніх стін світу.",
+  "_note": "Дім-діорама (GDD v1.4 §10): що дитина добудовує на острові кожного світу. Для кожного світу — рівно 9 записів (стільки ж, скільки ділянок 3×3) у порядку зростання ціни; порядок = порядок ділянок. id — унікальний у межах світу, voxel — модель із data/voxels, price — злитки, name_uk — підпис у підтвердженні. Куплене лежить у збереженні як SaveService.child()[\"buildings\"][world_id] — масив імен вокселів; Track додає ці ж вокселі у пул ближніх стін світу. EDD (docs/ECONOMY.md §3): ціни зрізано ×0,6 із заокругленням до 10 (20…240, 1110 злитків на світ, 5550 разом) — декор двору лишається сінком «на перегравання», але не з'їдає сюжет.",
   "worlds": {
     "meadow": [
-      {"id": "lantern",  "voxel": "lantern",      "price": 30,  "name_uk": "Ліхтарик"},
-      {"id": "garden",   "voxel": "garden",       "price": 60,  "name_uk": "Городик"},
-      {"id": "well",     "voxel": "well",         "price": 100, "name_uk": "Криничка"},
-      {"id": "swing",    "voxel": "swing",        "price": 150, "name_uk": "Гойдалка"},
-      {"id": "bridge",   "voxel": "bridge_small", "price": 200, "name_uk": "Місток"},
-      {"id": "tree",     "voxel": "tree_big",     "price": 250, "name_uk": "Велике дерево"},
-      {"id": "house",    "voxel": "house_small",  "price": 300, "name_uk": "Хатинка"},
-      {"id": "barn",     "voxel": "barn",         "price": 350, "name_uk": "Сарай"},
-      {"id": "mill",     "voxel": "mill",         "price": 400, "name_uk": "Млин"}
+      {"id": "lantern",  "voxel": "lantern",      "price": 20,  "name_uk": "Ліхтарик"},
+      {"id": "garden",   "voxel": "garden",       "price": 40,  "name_uk": "Городик"},
+      {"id": "well",     "voxel": "well",         "price": 60,  "name_uk": "Криничка"},
+      {"id": "swing",    "voxel": "swing",        "price": 90,  "name_uk": "Гойдалка"},
+      {"id": "bridge",   "voxel": "bridge_small", "price": 120, "name_uk": "Місток"},
+      {"id": "tree",     "voxel": "tree_big",     "price": 150, "name_uk": "Велике дерево"},
+      {"id": "house",    "voxel": "house_small",  "price": 180, "name_uk": "Хатинка"},
+      {"id": "barn",     "voxel": "barn",         "price": 210, "name_uk": "Сарай"},
+      {"id": "mill",     "voxel": "mill",         "price": 240, "name_uk": "Млин"}
     ],
     "forest": [
-      {"id": "lantern",  "voxel": "lantern",      "price": 30,  "name_uk": "Ліхтарик"},
-      {"id": "garden",   "voxel": "garden",       "price": 60,  "name_uk": "Городик"},
-      {"id": "well",     "voxel": "well",         "price": 100, "name_uk": "Криничка"},
-      {"id": "bridge",   "voxel": "bridge_small", "price": 150, "name_uk": "Місток"},
-      {"id": "swing",    "voxel": "swing",        "price": 200, "name_uk": "Гойдалка"},
-      {"id": "hut",      "voxel": "hut",          "price": 250, "name_uk": "Хижка"},
-      {"id": "tree",     "voxel": "tree_big",     "price": 300, "name_uk": "Велике дерево"},
-      {"id": "house",    "voxel": "house_small",  "price": 350, "name_uk": "Хатинка"},
-      {"id": "mill",     "voxel": "mill",         "price": 400, "name_uk": "Млин"}
+      {"id": "lantern",  "voxel": "lantern",      "price": 20,  "name_uk": "Ліхтарик"},
+      {"id": "garden",   "voxel": "garden",       "price": 40,  "name_uk": "Городик"},
+      {"id": "well",     "voxel": "well",         "price": 60,  "name_uk": "Криничка"},
+      {"id": "bridge",   "voxel": "bridge_small", "price": 90,  "name_uk": "Місток"},
+      {"id": "swing",    "voxel": "swing",        "price": 120, "name_uk": "Гойдалка"},
+      {"id": "hut",      "voxel": "hut",          "price": 150, "name_uk": "Хижка"},
+      {"id": "tree",     "voxel": "tree_big",     "price": 180, "name_uk": "Велике дерево"},
+      {"id": "house",    "voxel": "house_small",  "price": 210, "name_uk": "Хатинка"},
+      {"id": "mill",     "voxel": "mill",         "price": 240, "name_uk": "Млин"}
     ],
     "beach": [
-      {"id": "lantern",  "voxel": "lantern",      "price": 30,  "name_uk": "Ліхтарик"},
-      {"id": "garden",   "voxel": "garden",       "price": 60,  "name_uk": "Городик"},
-      {"id": "bridge",   "voxel": "bridge_small", "price": 100, "name_uk": "Місток"},
-      {"id": "well",     "voxel": "well",         "price": 150, "name_uk": "Криничка"},
-      {"id": "swing",    "voxel": "swing",        "price": 200, "name_uk": "Гойдалка"},
-      {"id": "hut",      "voxel": "hut",          "price": 250, "name_uk": "Хижка"},
-      {"id": "tree",     "voxel": "tree_big",     "price": 300, "name_uk": "Велике дерево"},
-      {"id": "house",    "voxel": "house_small",  "price": 350, "name_uk": "Хатинка"},
-      {"id": "lighthouse", "voxel": "lighthouse", "price": 400, "name_uk": "Маячок"}
+      {"id": "lantern",  "voxel": "lantern",      "price": 20,  "name_uk": "Ліхтарик"},
+      {"id": "garden",   "voxel": "garden",       "price": 40,  "name_uk": "Городик"},
+      {"id": "bridge",   "voxel": "bridge_small", "price": 60,  "name_uk": "Місток"},
+      {"id": "well",     "voxel": "well",         "price": 90,  "name_uk": "Криничка"},
+      {"id": "swing",    "voxel": "swing",        "price": 120, "name_uk": "Гойдалка"},
+      {"id": "hut",      "voxel": "hut",          "price": 150, "name_uk": "Хижка"},
+      {"id": "tree",     "voxel": "tree_big",     "price": 180, "name_uk": "Велике дерево"},
+      {"id": "house",    "voxel": "house_small",  "price": 210, "name_uk": "Хатинка"},
+      {"id": "lighthouse", "voxel": "lighthouse", "price": 240, "name_uk": "Маячок"}
     ],
     "city": [
-      {"id": "lantern",  "voxel": "lantern",      "price": 30,  "name_uk": "Ліхтарик"},
-      {"id": "garden",   "voxel": "garden",       "price": 60,  "name_uk": "Клумба"},
-      {"id": "swing",    "voxel": "swing",        "price": 100, "name_uk": "Гойдалка"},
-      {"id": "kiosk",    "voxel": "kiosk",        "price": 150, "name_uk": "Кіоск"},
-      {"id": "well",     "voxel": "well",         "price": 200, "name_uk": "Криничка"},
-      {"id": "bridge",   "voxel": "bridge_small", "price": 250, "name_uk": "Місток"},
-      {"id": "tree",     "voxel": "tree_big",     "price": 300, "name_uk": "Велике дерево"},
-      {"id": "house",    "voxel": "house_small",  "price": 350, "name_uk": "Хатинка"},
-      {"id": "barn",     "voxel": "barn",         "price": 400, "name_uk": "Сарай"}
+      {"id": "lantern",  "voxel": "lantern",      "price": 20,  "name_uk": "Ліхтарик"},
+      {"id": "garden",   "voxel": "garden",       "price": 40,  "name_uk": "Клумба"},
+      {"id": "swing",    "voxel": "swing",        "price": 60,  "name_uk": "Гойдалка"},
+      {"id": "kiosk",    "voxel": "kiosk",        "price": 90,  "name_uk": "Кіоск"},
+      {"id": "well",     "voxel": "well",         "price": 120, "name_uk": "Криничка"},
+      {"id": "bridge",   "voxel": "bridge_small", "price": 150, "name_uk": "Місток"},
+      {"id": "tree",     "voxel": "tree_big",     "price": 180, "name_uk": "Велике дерево"},
+      {"id": "house",    "voxel": "house_small",  "price": 210, "name_uk": "Хатинка"},
+      {"id": "barn",     "voxel": "barn",         "price": 240, "name_uk": "Сарай"}
     ],
     "clouds": [
-      {"id": "lantern",  "voxel": "lantern",      "price": 30,  "name_uk": "Ліхтарик"},
-      {"id": "garden",   "voxel": "garden",       "price": 60,  "name_uk": "Городик"},
-      {"id": "swing",    "voxel": "swing",        "price": 100, "name_uk": "Гойдалка"},
-      {"id": "bridge",   "voxel": "bridge_small", "price": 150, "name_uk": "Місток"},
-      {"id": "well",     "voxel": "well",         "price": 200, "name_uk": "Криничка"},
-      {"id": "tree",     "voxel": "tree_big",     "price": 250, "name_uk": "Велике дерево"},
-      {"id": "cloud_house", "voxel": "cloud_house", "price": 300, "name_uk": "Хмарний дім"},
-      {"id": "house",    "voxel": "house_small",  "price": 350, "name_uk": "Хатинка"},
-      {"id": "mill",     "voxel": "mill",         "price": 400, "name_uk": "Млин"}
+      {"id": "lantern",  "voxel": "lantern",      "price": 20,  "name_uk": "Ліхтарик"},
+      {"id": "garden",   "voxel": "garden",       "price": 40,  "name_uk": "Городик"},
+      {"id": "swing",    "voxel": "swing",        "price": 60,  "name_uk": "Гойдалка"},
+      {"id": "bridge",   "voxel": "bridge_small", "price": 90,  "name_uk": "Місток"},
+      {"id": "well",     "voxel": "well",         "price": 120, "name_uk": "Криничка"},
+      {"id": "tree",     "voxel": "tree_big",     "price": 150, "name_uk": "Велике дерево"},
+      {"id": "cloud_house", "voxel": "cloud_house", "price": 180, "name_uk": "Хмарний дім"},
+      {"id": "house",    "voxel": "house_small",  "price": 210, "name_uk": "Хатинка"},
+      {"id": "mill",     "voxel": "mill",         "price": 240, "name_uk": "Млин"}
     ]
   }
 }

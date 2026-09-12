@@ -88,9 +88,12 @@ func test_every_world_has_full_plot_set() -> void:
 			var voxel := String(def.get("voxel", ""))
 			assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % voxel),
 				"%s/%s: воксель %s існує" % [world_id, bid, voxel])
-		assert_eq(int((defs[0] as Dictionary)["price"]), 30, "%s: найдешевша будівля — 30 злитків" % world_id)
-		assert_eq(int((defs[defs.size() - 1] as Dictionary)["price"]), 400, "%s: найдорожча — 400 злитків" % world_id)
-		assert_between(total, 1500, 2000, "%s: увесь острів коштує 1500–2000 злитків" % world_id)
+		# EDD §3: ціни декору зрізано ×0,6 із заокругленням до 10 (20…240, 1110 на світ)
+		assert_eq(int((defs[0] as Dictionary)["price"]), 20, "%s: найдешевша будівля — 20 злитків" % world_id)
+		assert_eq(int((defs[defs.size() - 1] as Dictionary)["price"]), 240, "%s: найдорожча — 240 злитків" % world_id)
+		assert_eq(total, 1110, "%s: увесь острів коштує 1110 злитків" % world_id)
+		for d in defs:
+			assert_eq(int((d as Dictionary).get("price", 1)) % 10, 0, "%s: ціна кратна 10" % world_id)
 
 
 func test_building_voxels_are_small_enough() -> void:

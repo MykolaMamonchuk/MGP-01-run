@@ -19,7 +19,7 @@
 
 Керування одночасно трьома способами: свайпи будь-де; кнопки-стрілки знизу (увімкнені для `young`, налаштування `arrows`); джойстик під пальцем (`joystick`). Мишкою: клік = тап, тягнути = свайп/джойстик, затиснути = присід.
 
-**Дебаг (тільки з редактора):** `1–5` — біом на льоту · `L` — наступний рівень · `S` — фініш зараз · `M` — мапа · `W` — 3↔7 доріжок · `F` — веселка · `D` — друг · `Q` — завдання виконано.
+**Дебаг (тільки з редактора):** `1–5` — біом на льоту · `L` — наступний рівень · `S` — фініш зараз · `M` — мапа · `W` — 3↔7 доріжок · `F` — веселка · `R` — друг (був `D`) · `D` — присід/ковзання · `Q` — завдання виконано · `E` — суперсила героя негайно.
 
 **Шрифт (необов'язково, але гарно):** покласти будь-який дитячий TTF як `assets/fonts/kenney_mini_square.ttf` — UI підхопить сам. У сусідньому демо він уже є (CC0):
 ```
@@ -69,19 +69,26 @@ CI (`.github/workflows/ci.yml`) запускає ці ж тести на кож�
   - `worlds/*.json` — світ = механіка (`mode`), палітра, камера, перешкоди;
   - `events.json` — міні-події з вагами за профілем; `quests.json` — мінізавдання;
   - `shop.json` — крамниця: предмети за слотами (hat/face/neck/back/trail), ціни в зірочках, воксель або колір сліду;
+  - `homes.json` — домівки друзів: ціна, стихія, вогник, ділянка двору; збудована домівка робить друга грабельним (`heroes.json` → `unlock: {"type": "home"}`). Числа — EDD (Confluence, див. «Посилання»);
+  - `buildings.json` — декор двору по світах (9 ділянок на світ);
   - `voxels/*.json` — воксельні моделі (шари знизу вгору, символи = палітра).
 - `src/run3d/` — геймплей: `run3d.gd` (стани MENU/HEROES/COUNTDOWN/RUN/STATION/SLEEP, жести, Розвилка), `hero3d.gd` (герой: частини, міміка, тінь), `hero_select.gd` (карусель героїв + крамниця), `shop.gd` (каталог/покупка/одягання, `hats.gd` — обгортка для капелюшків), `track.gd`, `spawner3d.gd` (перешкоди/зірочки/зіткнення без фізики), `event_spawner.gd`, `rainbow3d.gd`, `fx.gd` (частинки), `seasons.gd`, `camera_rig.gd`, `modes/` (run / hop / slide), `gestures.gd`.
 - `src/ui/` — інтерфейс, три шари:
   - **екрани** — `hud.gd`, `menu.gd`, `map_screen.gd` (мапа з островами, хвилями й хмаринками), `wheel.gd`, `controls.gd`; вони компонують готові віджети, а не малюють самі;
   - `theme/` — вигляд: `palette.gd` (**єдине джерело кольорів**: шкала → ролі → набори) і `ui_kit.gd` (кнопки, заголовки, пружини, шрифт);
-  - `components/` — самостійні віджети: `item_strip.gd` (стрічка предметів із гортанням), `heart_icon.gd`, `pickup_icon.gd`, `pickup_bar.gd`, `check_icon.gd`, `hero_marker.gd`, `price_badge.gd`, `lock_icon.gd`, `stick_view.gd` і `icons.gd` (бібліотека намальованих іконок; `VoxelIcon` — картинка предмета з вокселя).
+  - `components/` — самостійні віджети: `item_strip.gd` (стрічка предметів із гортанням), `heart_icon.gd`, `pickup_icon.gd`, `pickup_bar.gd`, `check_icon.gd`, `hero_marker.gd`, `price_badge.gd`, `lock_icon.gd`, `stick_view.gd`, `power_button.gd` (кнопка суперсили героя) і `icons.gd` (бібліотека намальованих іконок; `VoxelIcon` — картинка предмета з вокселя).
 
   **Кольори.** Літерала `"#RRGGBB"` у коді бути не повинно — беріть роль із `Palette` (`Palette.BTN_PRIMARY`, `Palette.STAR`, `Palette.WORLD_GROUND`). Кольори з `data/*.json` читайте через `Palette.of(значення, ЗАПАСНИЙ_ТОКЕН)`. Це стереже `tests/test_palette.gd`.
 - `tests/` — тести GUT.
 - `tools/perf/` — замірник продуктивності (`godot res://tools/perf/perf.tscn`), не частина гри.
 - `docs/` — документація: [CHANGELOG](docs/CHANGELOG.md), [задачі](docs/TASKS.md), [збірка](docs/EXPORT.md),
-  а також дві серії датованих заходів — [оптимізація](docs/optimisation/) і [код-рев'ю](docs/review/).
-  Конвенція серій (ID знахідок, чеклисти, статуси) — у [docs/README.md](docs/README.md).
+  [уроки проєкту](docs/MEMORY.md), а також дві серії датованих заходів — [оптимізація](docs/optimisation/) і
+  [код-рев'ю](docs/review/). Конвенція серій (ID знахідок, чеклисти, статуси) — у [docs/README.md](docs/README.md).
+  **Дизайн-документи (LDD, EDD, конкуренти, асети, арт-біблія) живуть у Confluence** — див. «Посилання»
+  нижче; у репо лишились короткі стаби ([docs/LEVELS.md](docs/LEVELS.md), [docs/ECONOMY.md](docs/ECONOMY.md),
+  [docs/refs/COMPETITORS.md](docs/refs/COMPETITORS.md), [docs/refs/ASSETS.md](docs/refs/ASSETS.md)) з
+  посиланнями на канонічну версію; [docs/refs/README.md](docs/refs/README.md) (арт-біблія) лишається в
+  репо повністю, бо його читають агенти під час розробки.
 
 ## Гілки та коміти
 
@@ -90,7 +97,14 @@ CI (`.github/workflows/ci.yml`) запускає ці ж тести на кож�
 
 ## Посилання
 
+Дизайн-документи — усі в Confluence, під GDD (589825), єдине джерело істини:
+
 - GDD (Confluence): https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/589825
+- LDD — дизайн рівнів і економіка: https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/2392065/LDD
+- EDD — економіка та монетизація: https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/2424833/EDD
+- Конкуренти й позиціонування: https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/2424856/
+- Каталог асетів і промти Meshy: https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/2588673/Meshy
+- Арт-біблія та референси: https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/2621441/
 - Задачі (Jira): проєкт `MGPP1`
 
 ## Правила

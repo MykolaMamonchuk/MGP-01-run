@@ -31,7 +31,8 @@ extends RefCounted
 ## одного кольору) — так само, як усе інше в ригу: пласке затінення, різкі межі зон.
 ## Єдиноріг за замовчуванням веселкою НЕ фарбується (див. `bands` нижче), але веселка
 ## лишається доступною будь-якому стилю: `"rainbow": true` (грива й хвіст) або список ролей.
-const RAINBOW := ["#FF5E7E", "#FFA94D", "#FFE66D", "#7CE38B", "#5DC8F5", "#B18CFF"]
+## Самі кольори — Palette.RIG_RAINBOW (єдине джерело кольорів гри, tests/test_palette.gd).
+const RAINBOW := Palette.RIG_RAINBOW
 
 ## Ролі, які бере `"rainbow": true` (коротка форма замість списку).
 const RAINBOW_ROLES := ["mane", "tail"]
@@ -47,28 +48,34 @@ const HOOF_ZONE := "k"
 ## Стилі. Ключ — значення поля `"rig_style"` у data/heroes.json.
 const RIG_STYLES := {
 	## Єдиноріг за референсом Nick: біле тіло з пастельними акцентами, а не веселка.
+	## Кольори — Palette.RIG_* (єдине джерело кольорів гри, tests/test_palette.gd).
 	"unicorn": {
-		## тіло біле, животик бузково-білий, писок рожево-білий, серединка вуха рожева
-		"palette": {"o": "#FFFFFF", "d": "#F3EEF8", "c": "#FBE9F0", "i": "#F48FB1"},
+		## арт-вектор glossy toy (09.2026, want/characters/unicorn-texture.png): тіло
+		## смарагдово-бірюзове, животик — світліший м'ятний, писок лишився рожево-білим
+		"palette": {"o": Palette.RIG_UNICORN_BODY, "d": Palette.RIG_UNICORN_BELLY,
+			"c": Palette.RIG_MUZZLE_BLUSH, "i": Palette.RIG_MANE_PINK},
 		## грива й хвіст: рожеві та коралові пояси по 25 % ланцюжка + рідкі помаранчеві грані
-		"bands": {"roles": ["mane", "tail"], "colors": ["#F48FB1", "#FF9E7A"], "band": 0.25,
-			"accent": "#FFB36B", "accent_chance": 0.12},
-		## ріг: кремова й помаранчева смуги, що чергуються кожні 12 % його висоти
-		"horn": {"colors": ["#F6E3C2", "#FFB36B"], "band": 0.12},
+		"bands": {"roles": ["mane", "tail"], "colors": [Palette.RIG_MANE_PINK, Palette.RIG_MANE_CORAL],
+			"band": 0.25, "accent": Palette.RIG_ACCENT_AMBER, "accent_chance": 0.12},
+		## ріг: золота й помаранчева смуги, що чергуються кожні 12 % його висоти
+		"horn": {"colors": [Palette.RIG_HORN_GOLD, Palette.RIG_ACCENT_AMBER], "band": 0.12},
 		## копитця: бірюза й м'ята НАВХРЕСТ (як діагональні пари рисі) — замість темних `k`
-		"hooves": {"fl": "#5CC8B8", "br": "#5CC8B8", "fr": "#7ED9A0", "bl": "#7ED9A0"},
+		"hooves": {"fl": Palette.RIG_HOOF_TEAL, "br": Palette.RIG_HOOF_TEAL,
+			"fr": Palette.RIG_HOOF_MINT, "bl": Palette.RIG_HOOF_MINT},
 		## сердечко на грудях: передні 25 % глибини тулуба, ±30 % ширини від центру,
 		## 40…80 % висоти (коробка тулуба рахується РАЗОМ із шиєю). Було вдвічі менше й
 		## сиділо під пасмами гриви — 09.09 збільшили й підняли пріоритет (див. mark_paint).
 		## Поки стиль має `chest_heart`, пошук ТОРБИНКИ вимкнено — інакше геометрія бачила б
-		## «сумку» там, де просто широкі груди
-		"chest_heart": {"color": "#E9B7F2", "depth": 0.25, "width": 0.6, "y": [0.40, 0.80]},
-		## дві пастельні латки на боках тулуба (ліворуч ззаду й праворуч спереду), ≈ 6 % граней
-		## кожна. Смуги — частки габариту ТУЛУБА в метрах героя: z = 1 перед, x < 0.5 ліворуч.
-		## Права латка НЕ доходить до передніх 25 % глибини — там тепер сердечко
+		## «сумку» там, де просто широкі груди. Колір — жовтий ромб (09.2026), не лавандове
+		## сердечко: референс малює ромби на грудях і стегні, а не серце
+		"chest_heart": {"color": Palette.RIG_DIAMOND_YELLOW, "depth": 0.25, "width": 0.6, "y": [0.40, 0.80]},
+		## дві латки на боках тулуба (ліворуч ззаду й праворуч спереду), ≈ 6 % граней кожна —
+		## теж жовті ромби, як на стегні референсу. Смуги — частки габариту ТУЛУБА в метрах
+		## героя: z = 1 перед, x < 0.5 ліворуч. Права латка НЕ доходить до передніх 25 %
+		## глибини — там тепер ромб на грудях
 		"patches": [
-			{"color": "#7ED9A0", "side": "left", "z": [0.05, 0.35], "y": [0.28, 0.66]},
-			{"color": "#5CC8B8", "side": "right", "z": [0.50, 0.72], "y": [0.28, 0.66]},
+			{"color": Palette.RIG_DIAMOND_YELLOW, "side": "left", "z": [0.05, 0.35], "y": [0.28, 0.66]},
+			{"color": Palette.RIG_DIAMOND_YELLOW, "side": "right", "z": [0.50, 0.72], "y": [0.28, 0.66]},
 		],
 		## запасна геометрія гриви: задні 35 % глибини й верхні 40 % висоти голови/шиї.
 		## `always` — працює НАВІТЬ коли кістки гриви задані: у моделі грива на потилиці й
@@ -94,7 +101,7 @@ static func for_def(def: Dictionary) -> Dictionary:
 static func rainbow(t: float) -> Color:
 	var n := RAINBOW.size()
 	var i := clampi(int(floor(clampf(t, 0.0, 1.0) * float(n))), 0, n - 1)
-	return Color(String(RAINBOW[i]))
+	return Palette.of(RAINBOW[i], Palette.RIG_ROSE)
 
 
 ## Кольори героя + підміни стилю: {символ: Color}. Оригінал не змінюється. Чиста функція.
@@ -103,7 +110,7 @@ static func palette_of(style: Dictionary, colors: Dictionary) -> Dictionary:
 	var pal = style.get("palette", {})
 	if typeof(pal) == TYPE_DICTIONARY:
 		for k in (pal as Dictionary).keys():
-			out[String(k)] = Color(String((pal as Dictionary)[k]))
+			out[String(k)] = Palette.of((pal as Dictionary)[k], Palette.WHITE)
 	return out
 
 
@@ -151,10 +158,10 @@ static func remap_role(style: Dictionary, role: String, local: Vector3,
 ## `band`, кольори чергуються по колу. Чиста функція (пара до rainbow, тільки з даних стилю).
 static func band_color(colors: Array, band: float, t: float) -> Color:
 	if colors.is_empty():
-		return Color.WHITE
+		return Palette.WHITE
 	var w := maxf(band, 0.01)
 	var i := int(floor(clampf(t, 0.0, 0.9999) / w)) % colors.size()
-	return Color(String(colors[i]))
+	return Palette.of(colors[i], Palette.WHITE)
 
 
 ## Готовий колір грані повз зони + мітка для прев'ю — або {}, і тоді працює звичайне
@@ -178,10 +185,10 @@ static func face_paint(style: Dictionary, role: String, local: Vector3, chain_t:
 	if role == "horn":
 		var h = style.get("horn", {})
 		if typeof(h) == TYPE_DICTIONARY and not (h as Dictionary).is_empty():
-			var list: Array = (h as Dictionary).get("colors", ["#F6E3C2"])
+			var list: Array = (h as Dictionary).get("colors", [Palette.H_CREAM])
 			var band := maxf(float((h as Dictionary).get("band", 0.12)), 0.01)
 			var i := int(floor(clampf(local.y, 0.0, 0.9999) / band)) % maxi(list.size(), 1)
-			return {"color": Color(String(list[i])), "tag": "h"}
+			return {"color": Palette.of(list[i], Palette.H_CREAM), "tag": "h"}
 	# ── грива й хвіст: двоколірні пояси вздовж ланцюжка + рідкі акцентні грані ──
 	var bd = style.get("bands", {})
 	if typeof(bd) == TYPE_DICTIONARY and not (bd as Dictionary).is_empty() \
@@ -189,7 +196,8 @@ static func face_paint(style: Dictionary, role: String, local: Vector3, chain_t:
 		var t := chain_t if chain_t >= 0.0 else 1.0 - local.z
 		var acc := float((bd as Dictionary).get("accent_chance", 0.0))
 		if acc > 0.0 and _rand01(key) < acc:
-			return {"color": Color(String((bd as Dictionary).get("accent", "#FFB36B"))), "tag": "w"}
+			return {"color": Palette.of((bd as Dictionary).get("accent", Palette.RIG_ACCENT_AMBER),
+				Palette.RIG_ACCENT_AMBER), "tag": "w"}
 		return {"color": band_color((bd as Dictionary).get("colors", []) as Array,
 			float((bd as Dictionary).get("band", 0.25)), t), "tag": "w"}
 	# ── грива й хвіст веселкою (опція: `"rainbow": true` або список ролей) ──
@@ -198,7 +206,7 @@ static func face_paint(style: Dictionary, role: String, local: Vector3, chain_t:
 	# ── копитця: свій колір на кожну лапку (замість темної зони `k`) ──
 	var hv = style.get("hooves", {})
 	if zone == HOOF_ZONE and typeof(hv) == TYPE_DICTIONARY and (hv as Dictionary).has(role):
-		return {"color": Color(String((hv as Dictionary)[role])), "tag": "p"}
+		return {"color": Palette.of((hv as Dictionary)[role], Palette.RIG_HOOF_TEAL), "tag": "p"}
 	# ── позначки на тулубі (сердечко, латки) ──
 	var mk := mark_paint(style, torso)
 	if not mk.is_empty():
@@ -208,7 +216,8 @@ static func face_paint(style: Dictionary, role: String, local: Vector3, chain_t:
 	if typeof(sp) == TYPE_DICTIONARY and not (sp as Dictionary).is_empty():
 		var roles: Array = (sp as Dictionary).get("roles", [])
 		if roles.has(role) and _rand01(key) < float((sp as Dictionary).get("chance", 0.0)):
-			return {"color": Color(String((sp as Dictionary).get("color", "#FFF6B0"))), "tag": "s"}
+			return {"color": Palette.of((sp as Dictionary).get("color", Palette.RIG_SPARKLE),
+				Palette.RIG_SPARKLE), "tag": "s"}
 	return {}
 
 
@@ -230,7 +239,8 @@ static func mark_paint(style: Dictionary, torso: Vector3) -> Dictionary:
 		var w2 := float((ch as Dictionary).get("width", 0.6)) * 0.5
 		if torso.z >= 1.0 - d and absf(torso.x - 0.5) <= w2 \
 				and _in_band((ch as Dictionary).get("y", null), torso.y):
-			return {"color": Color(String((ch as Dictionary).get("color", "#E9B7F2"))), "tag": "r"}
+			return {"color": Palette.of((ch as Dictionary).get("color", Palette.RIG_HEART_LAVENDER),
+				Palette.RIG_HEART_LAVENDER), "tag": "r"}
 	# ── пастельні латки на боках ──
 	for item in (style.get("patches", []) as Array):
 		if typeof(item) != TYPE_DICTIONARY:
@@ -241,7 +251,7 @@ static func mark_paint(style: Dictionary, torso: Vector3) -> Dictionary:
 			continue
 		if not _in_band(p.get("y", null), torso.y) or not _in_band(p.get("z", null), torso.z):
 			continue
-		return {"color": Color(String(p.get("color", "#7ED9A0"))), "tag": "g"}
+		return {"color": Palette.of(p.get("color", Palette.RIG_HOOF_MINT), Palette.RIG_HOOF_MINT), "tag": "g"}
 	return {}
 
 

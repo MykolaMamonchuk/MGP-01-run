@@ -19,7 +19,9 @@ const STAR_STEP := 0.9
 const INGOT_LINE := 5
 ## Великий злиток «+100» — раз на 20–30 с.
 const BIG_INTERVAL := [20.0, 30.0]
-const BIG_VALUE := 100
+## Номінал великого злитка. EDD §2: було 100 — з множником він сам давав більше,
+## ніж уся решта дороги, і миттєво заряджав суперсилу. Напис «+20» лишається великим і золотим.
+const BIG_VALUE := 20
 ## Пікап їде за лінією зірочок у тій самій вільній доріжці.
 const PICKUP_BEHIND := 5.5
 ## Сегмент другого рівня — кожні 25–40 с у світах із "tier2": true.
@@ -29,6 +31,13 @@ const INVULN_SEC := 1.5
 ## Поки рядок останньої групи не відʼїхав далі, ніж на стільки клітинок від лінії спавну,
 ## його єдину вільну доріжку тримаємо чистою (сорока не має права зробити рядок непрохідним).
 const FREE_LANE_KEEP := 4.0
+## «Райдужний міст» (GDD v1.6 §3c): скільки триває притягання всіх злитків і як швидко вони летять.
+const PULL_SEC := 0.6
+const PULL_LERP := 9.0
+## Дії перешкод, які ламає «Роги напролом»: низькі бар'єри і X-ящики.
+const BREAKABLE_ACTIONS := ["jump", "side"]
+## Скільки злитків дає розбита перешкода.
+const BREAK_REWARD := 5
 
 var profile: Dictionary = {}
 var world: Dictionary = {}
@@ -41,6 +50,15 @@ var magnet := 1.0
 var magnet_wide := false
 ## Пікап «×2»: множник зірочок.
 var coin_mult := 1
+## ─── суперсила героя (GDD v1.6 §3c) — прапорці ставить і знімає Run3D ───
+## «Роги напролом»: перешкоди, які треба перестрибнути/обійти, розлітаються замість удару.
+var break_obstacles := false
+## Скільки наступних ударів поглинути мовчки («Дев'ять життів» 1, «Ведмежі обійми» 2).
+var absorb_hits := 0
+## Множник злитків від суперсили (окремо від пікапа «×2», бо буває дробовий: ведмідь ×1,5).
+var power_coin_mult := 1.0
+## true — множник суперсили діє лише в повітрі або на другому ярусі («Хитрий стрибок»).
+var power_coin_air_only := false
 ## false — дорога їде порожня (меню, відлік).
 var spawning := true
 ## Кількість доріжок (з рівня).
@@ -56,6 +74,15 @@ var stars_spawned_segment := 0
 var passed_segment := 0
 ## Втрачених сердець на рівні — для зірок фінішу (замість падінь).
 var hearts_lost_segment := 0
+
+## Скільки метрів проїхала дорога від старту рівня — те саме джерело правди, що й у Track
+## (Run3D передає той самий підсумок в обидва advance(), щоб лічильники не розійшлись).
+var distance_m := 0.0
+## Авторський список перешкод рівня (res://levels/level_XX.tscn → LevelTimeline.extract()):
+## якщо заданий — advance() спавнить по ньому курсором замість _next_gap()/_spawn_group().
+var _authored_obstacles: Array = []
+var _authored_cursor := 0
+var _authored_active := false
 
 var _gap_left := 8.0
 var _min_next_gap := 0.0
@@ -76,6 +103,8 @@ var _tier2_due := false
 ## Великий злиток «+100»: таймер і прапорець «час ставити».
 var _big_t := 25.0
 var _big_due := false
+## Скільки ще секунд тягнути всі злитки до героя («Райдужний міст»).
+var _pull_t := 0.0
 
 
 func _ready() -> void:
@@ -108,6 +137,49 @@ func configure(p: Dictionary, w: Dictionary, h: Hero3D, m: ModeBase, r: Node) ->
 	_big_t = randf_range(float(BIG_INTERVAL[0]), float(BIG_INTERVAL[1]))
 	magnet_wide = false
 	coin_mult = 1
+	reset_power()
+
+
+## Скільки монеток дає злиток номіналу value: пікап «×2» (цілий) × множник суперсили (дробовий).
+## Множник «Хитрого стрибка» рахується лише в повітрі або на другому ярусі.
+func ingot_gain(value: int) -> int:
+	var k := power_coin_mult
+	if power_coin_air_only and not (hero.is_airborne() or hero.ground_y > 0.0):
+		k = 1.0
+	return maxi(1, int(round(float(value * coin_mult) * k)))
+
+
+## Зняти всі прапорці суперсили (кінець сили, старт рівня, вихід у меню).
+func reset_power() -> void:
+	break_obstacles = false
+	absorb_hits = 0
+	power_coin_mult = 1.0
+	power_coin_air_only = false
+	_pull_t = 0.0
+
+
+## Суперсила «Райдужний міст»: усі злитки, що зараз на дорозі, летять до героя за seconds.
+## Не твін, а таймер: дорога під час притягання ЇДЕ (advance() щокадру додає z), тож твін
+## на фіксовану точку зривався б. Тягне _tick_pull(), а збирає звичайний Ingot3D.tick()
+## у check() — множники й лічильники рахуються як завжди.
+func pull_all_ingots(seconds: float = PULL_SEC) -> int:
+	_pull_t = maxf(0.05, seconds)
+	var n := 0
+	for c in get_children():
+		if c is Ingot3D and not (c as Ingot3D).collected:
+			n += 1
+	return n
+
+
+## Тягне всі злитки до героя, поки триває «Райдужний міст».
+func _tick_pull(delta: float) -> void:
+	if _pull_t <= 0.0:
+		return
+	_pull_t = maxf(0.0, _pull_t - delta)
+	var target := Vector3(hero.position.x, hero.position.y + 0.5, 0.0)
+	for c in get_children():
+		if c is Ingot3D and not (c as Ingot3D).collected:
+			c.position = (c as Ingot3D).position.lerp(target, minf(1.0, delta * PULL_LERP))
 
 
 func set_level(types: Array, dens: float, n_lanes: int, tut: bool) -> void:
@@ -153,8 +225,10 @@ func _tier2_lanes() -> Array:
 	return []
 
 
-## Зсув усього, що на дорозі, на dist клітинок.
-func advance(dist: float) -> void:
+## Зсув усього, що на дорозі, на dist клітинок. total_distance_m — той самий сумарний лічильник,
+## що йде й у Track.advance() (null — рахуємо самі; так лишаються робочими старі виклики/тести).
+func advance(dist: float, total_distance_m: Variant = null) -> void:
+	distance_m = float(total_distance_m) if total_distance_m != null else distance_m + dist
 	for c in get_children():
 		if c is Node3D:
 			c.position.z += dist
@@ -165,6 +239,9 @@ func advance(dist: float) -> void:
 	_gap_left -= dist
 	# рядок останньої групи їде разом із дорогою
 	_last_free_z += dist
+	if _authored_active:
+		_advance_authored()
+		return
 	if _gap_left <= 0.0:
 		_min_next_gap = 0.0
 		if spawning and not finish_pending:
@@ -173,6 +250,48 @@ func advance(dist: float) -> void:
 			else:
 				_spawn_group()
 		_gap_left = maxf(_next_gap(), _min_next_gap)
+
+
+## Задати авторський список перешкод рівня (Phase 1 level-authoring plumbing): records —
+## масив {z_m, kind, lane, override, ...} від LevelTimeline.extract(), відсортований за z_m.
+func set_authored_obstacles(records: Array) -> void:
+	_authored_obstacles = records.duplicate()
+	_authored_obstacles.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
+	_authored_cursor = 0
+	_authored_active = true
+
+
+## Повернутися до випадкового _next_gap()/_spawn_group() (рівні без authored .tscn — усі, поки що).
+func clear_authored_obstacles() -> void:
+	_authored_obstacles = []
+	_authored_cursor = 0
+	_authored_active = false
+
+
+## Курсор по відсортованому списку: спавнимо запис, щойно дорога проїхала стільки, що він
+## має зʼявитись на лінії спавну (SPAWN_Z) — та сама точка, де _spawn_obstacle() завжди ставить нові.
+func _advance_authored() -> void:
+	if not spawning or finish_pending:
+		return
+	while _authored_cursor < _authored_obstacles.size():
+		var rec: Dictionary = _authored_obstacles[_authored_cursor]
+		if distance_m < float(rec.get("z_m", 0.0)) - absf(SPAWN_Z):
+			break
+		_spawn_authored_obstacle(rec)
+		_authored_cursor += 1
+
+
+## Один запис із авторського списку — тим самим _spawn_obstacle(), що й випадкові групи.
+func _spawn_authored_obstacle(rec: Dictionary) -> void:
+	var kind := String(rec.get("kind", ""))
+	var defs: Dictionary = world.get("obstacles", {})
+	if not defs.has(kind):
+		return   # автор указав перешкоду, якої нема в цьому світі — пропускаємо, а не падаємо
+	var lane := clampi(int(rec.get("lane", 0)), -max_lane(), max_lane())
+	_last_free_lane = lane
+	_last_free_z = SPAWN_Z
+	var ob := _spawn_obstacle(kind, defs[kind], lane)
+	ob.free_lane = lane
 
 
 func _next_gap() -> float:
@@ -510,6 +629,7 @@ func check(delta: float) -> void:
 	_tick_big(delta)
 	_tick_tier2(delta)
 	_tick_ground()
+	_tick_pull(delta)
 	var hero_box := hero.hit_box()
 	for c in get_children():
 		if c is Obstacle3D:
@@ -555,7 +675,7 @@ func check(delta: float) -> void:
 					AudioMgr.voice("wow")
 				else:
 					FX.burst(self, s.position)
-				Events.star_collected.emit(s.value * coin_mult)
+				Events.star_collected.emit(ingot_gain(s.value))
 				AudioMgr.sfx("star", 1.0 + 0.08 * float(stars_collected_segment % 3))
 				if stars_collected_segment % 10 == 0:
 					hero.cheer()
@@ -585,7 +705,7 @@ func _resolve(o: Obstacle3D) -> void:
 		"rail":
 			# рейка: іскри й бонус
 			FX.burst(self, Vector3(hero.position.x, 0.3, 0.0), Palette.HERO_GLOW)
-			Events.star_collected.emit(3 * coin_mult)
+			Events.star_collected.emit(ingot_gain(3))
 			stars_collected_segment += 3
 			stars_spawned_segment += 3   # бонус не ламає відсоток зібраного
 			AudioMgr.sfx("rail")
@@ -599,12 +719,34 @@ func _resolve(o: Obstacle3D) -> void:
 			AudioMgr.sfx("wind")
 			AudioMgr.voice("whoa")
 			return
+	# суперсила «Роги напролом»: низький бар'єр або X-ящик РОЗЛІТАЄТЬСЯ, герой біжить далі
+	if break_obstacles and o.tumble and BREAKABLE_ACTIONS.has(o.action) and not hero.tumbling:
+		var was_passed := o.passed
+		o.shatter()
+		if not was_passed:
+			passed_segment += 1
+			Events.obstacle_passed.emit(o.kind)   # розбита рахується як пройдена (серія не рветься)
+		Events.star_collected.emit(ingot_gain(BREAK_REWARD))
+		stars_collected_segment += BREAK_REWARD
+		stars_spawned_segment += BREAK_REWARD   # бонус не ламає відсоток зібраного
+		AudioMgr.sfx("tumble")
+		return
 	if o.action == "any" or not o.tumble:
 		o.splash()
 		FX.splash(self, Vector3(hero.position.x, 0.1, 0.0), Palette.SPLASH_WATER if o.kind == "puddle" else Palette.SPLASH_GRASS)
 		AudioMgr.sfx("splash")
 		return
 	if hero.tumbling or hero.flying or hero.invulnerable_t > 0.0:
+		return
+	# суперсила («Дев'ять життів», «Ведмежі обійми»): удар поглинуто мовчки, серце ціле
+	if absorb_hits > 0:
+		absorb_hits -= 1
+		hero.set_invulnerable(INVULN_SEC)
+		FX.burst(self, Vector3(hero.position.x, 0.7, 0.0), Palette.HERO_SHIELD)
+		AudioMgr.sfx("shield")
+		if run.has_method("on_hit_absorbed"):
+			run.call("on_hit_absorbed", absorb_hits)
+		_clear_ahead(1.0)
 		return
 	# щит: удар поглинуто, герой біжить далі
 	if hero.shield_on:

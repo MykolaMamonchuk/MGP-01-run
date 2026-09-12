@@ -246,7 +246,8 @@ func _force_state(a: int) -> void:
 		_reset_anim_flags(true)
 	else:
 		_reset_anim_flags(false)
-	print("  стан: %s" % _hero.anim_name())
+	# каденція фіксована (GDD v1.7): показуємо її прямо тут, щоб було з чим звіряти око
+	print("  стан: %s, каденція %.2f Гц" % [_hero.anim_name(), _hero.cadence()])
 
 
 func _reset_anim_flags(run: bool) -> void:
