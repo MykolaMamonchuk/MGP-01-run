@@ -255,6 +255,10 @@ var mark := Palette.H_DARK
 var _ear_inner := Palette.H_ACC_PINK
 ## alpha 0 = не перевизначено — рахуємо як color.darkened(0.35), як і раніше
 var _ear_outer_c := Color(0, 0, 0, 0)
+## Живіт/груди (зона "d"): типово темніша тінь (color.darkened(0.22)), але в багатьох
+## референсів це навпаки СВІТЛА кремова пляма (fox-texture) — `belly_color` у heroes.json
+## перевизначає. alpha 0 = не перевизначено.
+var _belly_c := Color(0, 0, 0, 0)
 
 ## Поточний стан анімації (GDD v1.6 §5). Присід — НЕ стан, а накладка (`ducking` + `_duck_blend`).
 var anim_state: Anim = Anim.IDLE
@@ -483,6 +487,7 @@ func set_hero(id: String, hero_color: Color, feat: String = "fox") -> void:
 	mark = Palette.of(def.get("mark"), color.darkened(0.3))
 	_ear_inner = Palette.of(def.get("ear_inner"), Palette.H_ACC_PINK)
 	_ear_outer_c = Palette.of(def.get("ear_outer"), Color(0, 0, 0, 0))
+	_belly_c = Palette.of(def.get("belly_color"), Color(0, 0, 0, 0))
 	var parts := part_names(def)
 	var pal := _voxel_palette()
 
@@ -529,7 +534,7 @@ func rig() -> HeroRig:
 func _hero_colors() -> Dictionary:
 	return {
 		"o": color,
-		"d": color.darkened(0.22),
+		"d": _belly_c if _belly_c.a > 0.0 else color.darkened(0.22),
 		"c": Palette.H_CREAM,
 		"k": Palette.H_DARK,
 		"i": _ear_inner,
