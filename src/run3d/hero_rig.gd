@@ -841,6 +841,52 @@ static func zone_for(role: String, local: Vector3, zones: Dictionary, above := t
 	return ZONE_MAIN
 
 
+## Ширина плавного переходу для zone_mix() — у тих самих частках 0..1, що й пороги
+## muzzle_height/hoof/belly/… . На грубому low-poly мешу твердий зріз zone_for() (кожна
+## грань — ПОВНІСТЮ один із двох кольорів за координатою свого центроїда) читався як
+## зубчастий «рваний папір» на межі писка/живота/копитець; SMOOTHSTEP розтягує перехід на
+## кілька граней завширшки, і сусідні грані дають проміжний відтінок замість стрибка.
+const ZONE_SOFT_MARGIN := 0.07
+
+
+static func _soft(value: float, threshold: float, margin: float) -> float:
+	if margin <= 0.0001:
+		return 0.0 if value < threshold else 1.0
+	return clampf(smoothstep(threshold - margin, threshold + margin, value), 0.0, 1.0)
+
+
+## М'який відповідник zone_for() — та сама умова, лише як безперервний блендинг {a, b, t}
+## (t=0 → колір a, t=1 → колір b, проміжне — лерп) замість твердого «або-або». `t < 0` —
+## для цієї ролі нема простого одно-порогового переходу (стилі/чубчик/грива/ріг): тоді
+## paint() лишає її на строгому zone_for().
+static func zone_mix(role: String, local: Vector3, zones: Dictionary) -> Dictionary:
+	var z := zones if not zones.is_empty() else DEFAULT_ZONES
+	match role:
+		"head":
+			var tz := _soft(local.z, 1.0 - float(z.get("muzzle_depth", 0.4)), ZONE_SOFT_MARGIN)
+			var ty := 1.0 - _soft(local.y, float(z.get("muzzle_height", 0.55)), ZONE_SOFT_MARGIN)
+			return {"a": ZONE_MAIN, "b": ZONE_CREAM, "t": tz * ty}
+		"ear_l", "ear_r":
+			var t := _soft(local.z, 1.0 - float(z.get("ear_inner", 0.55)), ZONE_SOFT_MARGIN)
+			return {"a": ZONE_EAR, "b": ZONE_INNER, "t": t}
+		"nose":
+			var tz := _soft(local.z, 1.0 - float(z.get("nose_tip", 0.22)), ZONE_SOFT_MARGIN)
+			var ty := _soft(local.y, NOSE_TIP_Y, ZONE_SOFT_MARGIN)
+			return {"a": ZONE_CREAM, "b": ZONE_DARK, "t": tz * ty}
+		"fl", "fr", "bl", "br":
+			var t := 1.0 - _soft(local.y, float(z.get("hoof", 0.25)), ZONE_SOFT_MARGIN)
+			return {"a": ZONE_MAIN, "b": ZONE_DARK, "t": t}
+		"tail":
+			var tip := float(z.get("tail_tip", 0.35))
+			var t1 := 1.0 - _soft(local.z, tip, ZONE_SOFT_MARGIN)
+			var t2 := _soft(local.y, 1.0 - tip, ZONE_SOFT_MARGIN)
+			return {"a": ZONE_MAIN, "b": ZONE_CREAM, "t": maxf(t1, t2)}
+		"hips", "spine", "neck":
+			var t := 1.0 - _soft(local.y, float(z.get("belly", 0.42)), ZONE_SOFT_MARGIN)
+			return {"a": ZONE_MAIN, "b": ZONE_BELLY, "t": t}
+	return {"t": -1.0}
+
+
 ## Чесна півширина тулуба: тіло симетричне, а торба висить з ОДНОГО боку — тож за півширину
 ## беремо той бік, який вужчий (0,98-перцентиль замість максимуму, щоб одна випадкова точка
 ## не задерла результат). `dx` — зсуви по x від площини симетрії ЗІ ЗНАКОМ. Чиста функція.
@@ -1753,6 +1799,18 @@ func _paint(verts: Dictionary, colors: Dictionary) -> void:
 						if not paint.is_empty():
 							styled = paint["color"]
 							style_tag = String(paint.get("tag", "s"))
+						elif _style.is_empty():
+							# без стилю розмальовки — плавний перехід замість твердого зрізу
+							# (див. zone_mix). Стильних героїв (єдиноріг) не чіпаємо: swap_zone
+							# там може підмінити зону на щось своє, і сирі zone_mix-кольори
+							# були б уже не ті
+							var mix := zone_mix(role, l, _zones)
+							var mt: float = mix.get("t", -1.0)
+							if mt >= 0.0 and colors.has(mix.get("a", "")) and colors.has(mix.get("b", "")):
+								var ca: Color = colors[mix["a"]]
+								var cb: Color = colors[mix["b"]]
+								styled = ca.lerp(cb, mt)
+								style_tag = String(mix["b"] if mt >= 0.5 else mix["a"])
 				if styled != null:
 					var sc: Color = styled
 					face_cols[f] = sc
