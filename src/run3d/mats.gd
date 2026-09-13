@@ -48,3 +48,29 @@ static func box_glossy(size: Vector3, color: Color) -> MeshInstance3D:
 	mi.mesh = bm
 	mi.material_override = glossy(color)
 	return mi
+
+
+## Куля, сплющена до `size` (як box(), але кругла) — для очей і бліків: референс-арт
+## малює круглі "аніме"-очі, а не кутасті коробочки. Одна одинична сфера на всі розміри,
+## масштаб вузла (не сама сітка) робить її овалом — дешево й без нового меша на виклик.
+static var _eye_sphere: SphereMesh
+
+
+static func dome(size: Vector3, color: Color) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	if _eye_sphere == null:
+		_eye_sphere = SphereMesh.new()
+		_eye_sphere.radius = 0.5
+		_eye_sphere.height = 1.0
+		_eye_sphere.radial_segments = 20
+		_eye_sphere.rings = 10
+	mi.mesh = _eye_sphere
+	mi.scale = size
+	mi.material_override = solid(color)
+	return mi
+
+
+static func dome_glossy(size: Vector3, color: Color) -> MeshInstance3D:
+	var mi := dome(size, color)
+	mi.material_override = glossy(color)
+	return mi

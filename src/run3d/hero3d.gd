@@ -791,6 +791,25 @@ func _box_glossy(size: Vector3, c: Color, pos: Vector3, parent: Node3D) -> MeshI
 	return mi
 
 
+## Кругле "аніме"-око (референс) замість кутастої коробки: та сама сигнатура, що й
+## _box_glossy, тож калібрування розміру/позиції з rig_face не зачіпається.
+func _dome_glossy(size: Vector3, c: Color, pos: Vector3, parent: Node3D) -> MeshInstance3D:
+	var mi := Mats.dome_glossy(size, c)
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
+
+
+## Матовий круглий блок (щічки) — той самий референс: м'яка овальна пляма рум'янцю,
+## не кутастий квадрат.
+func _dome(size: Vector3, c: Color, pos: Vector3, parent: Node3D) -> MeshInstance3D:
+	var mi := Mats.dome(size, c)
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
+	return mi
+
+
 ## Обличчя живе на голові (координати голови): великі очі з бліком у темних западинах вокселя,
 ## щічки й рот на кремовій морді.
 func _build_face() -> void:
@@ -819,12 +838,15 @@ func _build_face() -> void:
 		else:
 			eye.position = Vector3(side * 0.15, 0.225, face_z)
 		_face.add_child(eye)
-		_box_glossy(Vector3(0.105, 0.185, 0.02), eye_pale, Vector3.ZERO, eye)
-		var p := _box_glossy(Vector3(0.075, 0.15, 0.02), pupil, Vector3(0.0, 0.0, -0.015), eye)
-		_box(Vector3(0.028, 0.028, 0.01), Color.WHITE, Vector3(0.02, 0.04, -0.014), p)  # блик
+		_dome_glossy(Vector3(0.105, 0.185, 0.05), eye_pale, Vector3.ZERO, eye)
+		var p := _dome_glossy(Vector3(0.075, 0.15, 0.04), pupil, Vector3(0.0, 0.0, -0.015), eye)
+		# блик — дитина eye, а НЕ пупила: p має нерівномірний scale (форма еліпса), і
+		# будь-яка дитина під ним теж масштабувалась би тим самим вектором, стискаючись
+		# у невидиму цятку. eye scale лишається (1,1,1), тож розмір/позиція тут прямі метри.
+		_dome_glossy(Vector3(0.032, 0.032, 0.025), Color.WHITE, Vector3(0.015, 0.03, -0.04), eye)
 		_eyes.append(eye)
 		_pupils.append(p)
-		var cheek := _box(Vector3(0.07, 0.05, 0.02), Palette.HERO_CHEEK, Vector3.ZERO, _face)
+		var cheek := _dome(Vector3(0.07, 0.05, 0.03), Palette.HERO_CHEEK, Vector3.ZERO, _face)
 		if side_eyes:
 			# щічка — теж на боці голови, трохи нижче й ближче до морди
 			cheek.position = Vector3(side * side_w, 0.12, side_z - 0.07)
