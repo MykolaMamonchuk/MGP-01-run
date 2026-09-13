@@ -266,8 +266,13 @@ const STAT_DOT_EMPTY := Color(1, 1, 1, 0.25)
 
 # 3D: герой
 const HERO_DEFAULT := APRICOT            ## запасний колір героя (data/heroes.json)
-const HERO_EYE := INK_SOFT
-const HERO_CHEEK := RED_PALE
+## Референс (Meshy fox-texture, 13.09.2026): зіниця тепла темно-коричнева, НЕ холодний
+## сіро-синій INK_SOFT — з чорним/синім оком герой читався мертвим пластиком, а не звіром.
+const HERO_EYE := Color("#2E0D08")
+const HERO_IRIS := Color("#8F5025")      ## тонке кільце райдужки між білком і зіницею
+const HERO_CHEEK := Color("#FC8366")     ## кораловий рум'янець (кружечок)
+const HERO_CHEEK_BASE := Color("#FCA7BC") ## бліда підкладка під рум'янцем — сама пляма ширша
+const HERO_NOSE := Color("#2E0D08")      ## носик — той самий тон, що й зіниця
 const HERO_MOUTH := WOOD_DARK
 const HERO_SHIELD := AZURE
 const HERO_GLOW := LEMON                 ## Ліхтарик

@@ -867,7 +867,7 @@ func test_lys_has_rig_and_path_is_well_formed() -> void:
 	var bones: Dictionary = lys.get("rig_bones", {})
 	for role in ["hips", "spine", "neck", "head", "ear_l", "ear_r", "fl", "fr", "bl", "br", "tail"]:
 		assert_true(bones.has(role), "роль %s задана руками" % role)
-	assert_eq(String(lys.get("accent", "")), "#FBE3C4", "акцент лисеняти — кремовий кінчик хвоста")
+	assert_eq(String(lys.get("accent", "")), "#F8DEBD", "акцент лисеняти — кремовий кінчик хвоста (з референс-текстури Meshy)")
 	assert_eq(String(lys.get("mark", "")), "#FF8F73", "колір позначки лишився в даних (про запас)")
 	# референс fox-texture.png не має торбинки взагалі: детектор бічних наростів на грубому
 	# low-poly тулубі ловив випадкові горбики замість неї — вимкнено (13.09.2026, MEMORY.md)

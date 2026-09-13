@@ -5,7 +5,8 @@
 
   "_note": "Герої v1.5 (GDD §5) — чотирилапі звірята з вокселів-частин. parts {body, head, leg, tail, ear} — імена файлів у data/voxels (частини спільні там, де силует однаковий). color — основний колір (підміняє 'o'), accent — акцент ('t': кінчик хвоста у вокселів, чубчик у рига), mark — плямки/смужки ('m', у рига ще й торбинка збоку); крем 'c' і темне 'k' (носик, копитця) беруться з палітри (H_CREAM/H_DARK), рожева серединка вуха 'i' — H_ACC_PINK. feature лишилось для сумісності (Hero3D його не малює, лише «cloud»/«sleepy» дають напівпрозорість і сонні очі). legacy: true — старі пухнастики v1.4: у каруселі їх нема, але збереження з ними не падають (Hero3D показує першого нового героя). order — порядок у каруселі. stats (GDD v1.3 §5): hearts 3–4, magnet/speed/luck ×. unlock (EDD docs/ECONOMY.md §3): у звірят каруселі лишились два типи — 'start' (Лиско, грабельний з першої секунди) і 'home' (герой стає грабельним, коли добудовано його домівку з data/homes.json; необов'язкове поле friend перевизначає id домівки). Типи 'stars'/'checkpoints'/'growth'/'rewarded_or_stars'/'full_game' лишились ЛИШЕ у legacy-пухнастиків заради старих збережень; 'rewarded_or_stars' у нових героях не використовуємо — реклама відкриває контент через батьківський режим, а не окремих героїв.",
 
-  "lys":      {"name_uk": "Лиско",    "color": "#F0A050", "accent": "#FBE3C4", "mark": "#FF8F73", "feature": "fox",   "order": 0,
+  "lys":      {"name_uk": "Лиско",    "color": "#E0812E", "accent": "#F8DEBD", "mark": "#FF8F73", "feature": "fox",   "order": 0,
+               "ear_inner": "#F8DEBD", "ear_outer": "#E0812E",
                "rig": "fox", "rig_front": "+z",
                "rig_bones": {"hips": "Bone_003", "spine": "Bone_002", "neck": "Bone_026", "head": "Bone_025",
                              "ear_l": "Bone_030", "ear_r": "Bone_028",

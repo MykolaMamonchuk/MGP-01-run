@@ -249,6 +249,12 @@ var color := Palette.HERO_DEFAULT
 ## Колір кінчика хвоста і плямок/смужок — із даних героя (accent / mark).
 var accent := Palette.H_CREAM
 var mark := Palette.H_DARK
+## Вухо: серединка (типово рожева — кролик/пес) і зовнішній бік (типово темніший за тіло).
+## Перевизначаються `ear_inner`/`ear_outer` у heroes.json — коли референс просить своє
+## (fox: кремова серединка, той самий помаранч зовні, без затемнення).
+var _ear_inner := Palette.H_ACC_PINK
+## alpha 0 = не перевизначено — рахуємо як color.darkened(0.35), як і раніше
+var _ear_outer_c := Color(0, 0, 0, 0)
 
 ## Поточний стан анімації (GDD v1.6 §5). Присід — НЕ стан, а накладка (`ducking` + `_duck_blend`).
 var anim_state: Anim = Anim.IDLE
@@ -475,6 +481,8 @@ func set_hero(id: String, hero_color: Color, feat: String = "fox") -> void:
 	_rig_style = String(def.get("rig_style", ""))
 	accent = Palette.of(def.get("accent"), Palette.H_CREAM)
 	mark = Palette.of(def.get("mark"), color.darkened(0.3))
+	_ear_inner = Palette.of(def.get("ear_inner"), Palette.H_ACC_PINK)
+	_ear_outer_c = Palette.of(def.get("ear_outer"), Color(0, 0, 0, 0))
 	var parts := part_names(def)
 	var pal := _voxel_palette()
 
@@ -524,8 +532,8 @@ func _hero_colors() -> Dictionary:
 		"d": color.darkened(0.22),
 		"c": Palette.H_CREAM,
 		"k": Palette.H_DARK,
-		"i": Palette.H_ACC_PINK,
-		"e": color.darkened(0.35),
+		"i": _ear_inner,
+		"e": _ear_outer_c if _ear_outer_c.a > 0.0 else color.darkened(0.35),
 		"t": accent,
 		"u": accent.darkened(0.15),
 		"m": mark,
@@ -807,7 +815,6 @@ func _dome(size: Vector3, c: Color, pos: Vector3, parent: Node3D) -> MeshInstanc
 	mi.position = pos
 	parent.add_child(mi)
 	return mi
-	return mi
 
 
 ## Обличчя живе на голові (координати голови): великі очі з бліком у темних западинах вокселя,
@@ -839,21 +846,35 @@ func _build_face() -> void:
 			eye.position = Vector3(side * 0.15, 0.225, face_z)
 		_face.add_child(eye)
 		_dome_glossy(Vector3(0.105, 0.185, 0.05), eye_pale, Vector3.ZERO, eye)
-		var p := _dome_glossy(Vector3(0.075, 0.15, 0.04), pupil, Vector3(0.0, 0.0, -0.015), eye)
-		# блик — дитина eye, а НЕ пупила: p має нерівномірний scale (форма еліпса), і
-		# будь-яка дитина під ним теж масштабувалась би тим самим вектором, стискаючись
-		# у невидиму цятку. eye scale лишається (1,1,1), тож розмір/позиція тут прямі метри.
-		_dome_glossy(Vector3(0.032, 0.032, 0.025), Color.WHITE, Vector3(0.015, 0.03, -0.04), eye)
+		# райдужка — тонке тепле кільце між білком і зіницею (референс: Meshy fox-texture
+		# показує велику темну зіницю з лише вузьким краєм брунатної райдужки, не чорну
+		# крапку впритул до білка)
+		_dome_glossy(Vector3(0.088, 0.163, 0.045), Palette.HERO_IRIS, Vector3(0.0, 0.0, -0.012), eye)
+		var p := _dome_glossy(Vector3(0.075, 0.15, 0.04), pupil, Vector3(0.0, 0.0, -0.02), eye)
+		# блики — діти eye, а НЕ пупила: p має нерівномірний scale (форма еліпса), і будь-яка
+		# дитина під ним теж масштабувалась би тим самим вектором, стискаючись у невидиму
+		# цятку. eye scale лишається (1,1,1), тож розмір/позиція тут прямі метри. Два блики
+		# (великий знизу-зліва, малий згори-справа), як на референсі — не один по центру.
+		_dome_glossy(Vector3(0.045, 0.045, 0.03), Color.WHITE, Vector3(-0.025, -0.03, -0.045), eye)
+		_dome_glossy(Vector3(0.022, 0.022, 0.02), Color.WHITE, Vector3(0.02, 0.045, -0.04), eye)
 		_eyes.append(eye)
 		_pupils.append(p)
-		var cheek := _dome(Vector3(0.07, 0.05, 0.03), Palette.HERO_CHEEK, Vector3.ZERO, _face)
+		# щічка: бліда підкладка (ширша пляма) + кораловий кружечок зверху — на референсі
+		# рум'янець лежить на власній світлішій ділянці шкіри, а не просто на основному хутрі
+		var cheek_pos := Vector3(side * 0.2, 0.12, face_z + 0.01)
+		var cheek_base_pos := cheek_pos
 		if side_eyes:
-			# щічка — теж на боці голови, трохи нижче й ближче до морди
-			cheek.position = Vector3(side * side_w, 0.12, side_z - 0.07)
+			cheek_pos = Vector3(side * side_w, 0.12, side_z - 0.07)
+			cheek_base_pos = cheek_pos
+		var cheek_base := _dome(Vector3(0.11, 0.09, 0.02), Palette.HERO_CHEEK_BASE, cheek_base_pos, _face)
+		var cheek := _dome(Vector3(0.06, 0.045, 0.03), Palette.HERO_CHEEK, cheek_pos, _face)
+		if side_eyes:
+			cheek_base.rotation.y = -side * PI * 0.5
 			cheek.rotation.y = -side * PI * 0.5
-		else:
-			cheek.position = Vector3(side * 0.2, 0.12, face_z + 0.01)
-	# рот лишається на ПЕРЕДНІЙ грані морди, нижче — і при бічних очах теж
+	# носик — маленька темна крапка на морді (референс не малює рота взагалі, лише носик)
+	_dome(Vector3(0.032, 0.024, 0.022), Palette.HERO_NOSE, Vector3(0.0, _mouth_y + 0.05, face_z + 0.01), _face)
+	# рот лишається на ПЕРЕДНІЙ грані морди, нижче — і при бічних очах теж (усмішка/подив
+	# розтягують саме його — див. _smile()/hit_reaction())
 	_mouth = _box(Vector3(0.1, 0.03, 0.02), Palette.HERO_MOUTH, Vector3(0.0, _mouth_y, face_z), _face)
 	_eye_scale_y = 0.55 if feature == "sleepy" else 1.0
 	for e in _eyes:
