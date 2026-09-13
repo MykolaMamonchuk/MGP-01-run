@@ -868,12 +868,11 @@ func test_lys_has_rig_and_path_is_well_formed() -> void:
 	for role in ["hips", "spine", "neck", "head", "ear_l", "ear_r", "fl", "fr", "bl", "br", "tail"]:
 		assert_true(bones.has(role), "роль %s задана руками" % role)
 	assert_eq(String(lys.get("accent", "")), "#FBE3C4", "акцент лисеняти — кремовий кінчик хвоста")
-	assert_eq(String(lys.get("mark", "")), "#FF8F73", "торбинка збоку — коралова")
-	# після переходу на грані (центроїд «всередині» боку) поріг торбинки довелось опустити
+	assert_eq(String(lys.get("mark", "")), "#FF8F73", "колір позначки лишився в даних (про запас)")
+	# референс fox-texture.png не має торбинки взагалі: детектор бічних наростів на грубому
+	# low-poly тулубі ловив випадкові горбики замість неї — вимкнено (13.09.2026, MEMORY.md)
 	var zones := HeroRig.zones_of(lys)
-	assert_almost_eq(float(zones["bag_x"]), 0.9, 0.0001, "поріг торбинки лисеняти — 0,9 півширини")
-	assert_lt(float(zones["bag_x"]), float(HeroRig.DEFAULT_ZONES["bag_x"]),
-		"центроїди граней ближчі до осі, ніж вершини — поріг нижчий за дефолт")
+	assert_false(bool(zones.get("side_mark", true)), "у лисеняти торбинки нема — пошук вимкнено")
 
 
 ## Єдиноріг: другий ригнутий герой, зі стилем розмальовки. Моделі `unicorn.glb` у репо ще

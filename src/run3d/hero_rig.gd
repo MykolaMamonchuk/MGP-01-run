@@ -109,6 +109,8 @@ const DEFAULT_ZONES := {
 	"belly": 0.42,          ## нижні 42 % тулуба — світліший животик
 	"nose_tip": 0.22,       ## передні 22 % писка — темний носик (і лише верхня половина, див. NOSE_TIP_Y)
 	"bag_x": 0.98,          ## наскільки далі за півширину тулуба має стирчати вершина, щоб це була торба
+	"side_mark": true,      ## шукати бічні нарости (торбинку) геометрією — вимкни, якщо в героя її нема:
+	                        ## на грубому low-poly тулубі детектор ловить випадкові горбики замість торбинки
 }
 
 ## Кінчик носа — це ще й ВЕРХНЯ половина писка: під ним губа й підборіддя, вони кремові.
@@ -1657,7 +1659,7 @@ func _paint(verts: Dictionary, colors: Dictionary) -> void:
 	# бічні нарости (сумки) — локальний пошук, працює й там, де `bag_x` сліпий.
 	# Фарбуємо їх лише коли стиль сам не малює акценти тулуба (сердечко єдинорога)
 	var side_flags := _side_scan(faces, mark_cx)
-	var side_paint := not _style.has("chest_heart")
+	var side_paint := not _style.has("chest_heart") and bool(_zones.get("side_mark", true))
 	for m in range(_meshes.size()):
 		var mi := _meshes[m]
 		if mi.mesh == null or m >= per_mesh.size():
@@ -1738,7 +1740,7 @@ func _paint(verts: Dictionary, colors: Dictionary) -> void:
 						zone = zone_for(role, l, _zones, above)
 						# стара евристика торбинки за `bag_x` — лишилась як запасний варіант
 						var dx := cent[f].x - bag_cx
-						if bag_x > 0.0 and TORSO_ROLES.has(role) \
+						if side_paint and bag_x > 0.0 and TORSO_ROLES.has(role) \
 								and absf(dx) > bag_x \
 								and (bag_side_sign == 0 or signf(dx) == float(bag_side_sign)) \
 								and l.y >= BAG_Y_LO and l.y <= BAG_Y_HI:

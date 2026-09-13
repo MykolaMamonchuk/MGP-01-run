@@ -35,6 +35,7 @@
 """
 
 import argparse
+import math
 import os
 import shutil
 import sys
@@ -76,6 +77,11 @@ def parse_args(argv):
                    help="друкувати вершини на кістку до і після")
     p.add_argument("--dry-run", action="store_true",
                    help="усе порахувати й надрукувати, але не писати файл")
+    p.add_argument("--shade-smooth", action="store_true",
+                   help="згладити нормалі (по куту) — прибирає фасети на грубих мешах; "
+                        "гострі ребра (плавники, шипи) лишаються різкими")
+    p.add_argument("--smooth-angle", type=float, default=40.0,
+                   help="поріг кута для --shade-smooth у градусах (типово 40)")
     return p.parse_args(argv)
 
 
@@ -344,6 +350,34 @@ def delete_bones(arm, removed):
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
+# ------------------------------------------------------------------ нормалі
+
+def shade_smooth(meshes, angle_deg):
+    """Згладити нормалі по куту: грубі (низькополі) меші перестають виглядати
+    фасетовано, а справжні гострі ребра (кінчик плавника, шип) — де кут між
+    гранями більший за поріг — лишаються різкими. Ігрове фарбування
+    (HeroRig._flat_arrays) бере нормаль ВЕРШИНИ моделі, якщо вона є (glossy
+    toy, вересень 2026) — тому цей крок і прибирає фасети в грі, не лише в
+    Blender-переглядачі.
+    """
+    if bpy.context.object is not None and bpy.context.object.mode != "OBJECT":
+        bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
+    angle = math.radians(angle_deg)
+    for obj in meshes:
+        obj.hide_set(False)
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        try:
+            bpy.ops.object.shade_smooth_by_angle(angle=angle)
+        except AttributeError:
+            # старіші Blender: немає shade_smooth_by_angle — просто smooth
+            # (без порогу; гострі ребра теж згладяться, але це запасний шлях)
+            bpy.ops.object.shade_smooth()
+        obj.select_set(False)
+        print("  %s: згладжено (поріг %.0f°)" % (obj.name, angle_deg))
+
+
 def export(dst):
     kw = dict(
         filepath=dst,
@@ -374,30 +408,36 @@ def main():
     arm = find_armature()
     meshes = find_meshes(arm)
 
-    if args.do_list or not args.remove:
+    doing_something = bool(args.remove) or args.shade_smooth
+    if args.do_list or not doing_something:
         print_tree(arm, meshes)
-        if not args.remove:
-            print("  (--remove не задано — нічого не змінюю)")
+        if not doing_something:
+            print("  (--remove/--shade-smooth не задано — нічого не змінюю)")
         return
 
     before = vert_counts(meshes, arm) if args.report else None
+    removed = []
 
-    # звести імена до тих, що справді є в моделі
-    removed, missing = [], []
-    for name in args.remove:
-        real = resolve(name, arm)
-        (removed.append(real) if real else missing.append(name))
-    for name in missing:
-        print("  [!] кістки «%s» у моделі немає — пропускаю "
-              "(перевір дамп через --list: імпортер gltf інколи додає суфікси)" % name)
-    if not removed:
-        sys.exit("[!] жодної з --remove кісток немає в моделі; нічого робити")
-    print("  прибираю: %s" % ", ".join(removed))
+    if args.remove:
+        # звести імена до тих, що справді є в моделі
+        missing = []
+        for name in args.remove:
+            real = resolve(name, arm)
+            (removed.append(real) if real else missing.append(name))
+        for name in missing:
+            print("  [!] кістки «%s» у моделі немає — пропускаю "
+                  "(перевір дамп через --list: імпортер gltf інколи додає суфікси)" % name)
+        if not removed:
+            sys.exit("[!] жодної з --remove кісток немає в моделі; нічого робити")
+        print("  прибираю: %s" % ", ".join(removed))
 
-    merge_weights(arm, meshes, removed, args.legs, args.merge)
-    delete_bones(arm, removed)
+        merge_weights(arm, meshes, removed, args.legs, args.merge)
+        delete_bones(arm, removed)
 
-    if args.report:
+    if args.shade_smooth:
+        shade_smooth(meshes, args.smooth_angle)
+
+    if args.report and removed:
         after = vert_counts(meshes, arm)
         print("  вершини на кістку (було → стало, «ваг / головна»):")
         for name in sorted(before):
