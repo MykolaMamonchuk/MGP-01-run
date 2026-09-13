@@ -199,6 +199,9 @@ var _anim_cfg: Dictionary = DEFAULT_ANIM.duplicate()   ## множники `rig_
 var _lower_leg: Dictionary = {}
 var _style: Dictionary = {}    ## стиль розмальовки з `rig_style` (див. RigStyles)
 var _style_name := ""
+## "rig_texture" у heroes.json — модель уже готова текстурою (Meshy-рендер), _paint() і
+## власне мальоване обличчя Hero3D пропускаються (див. build()/has_own_texture()).
+var _has_own_texture := false
 var _model_to_skel := Transform3D.IDENTITY   ## координати моделі → координати скелета
 var _skel_unit := 1.0          ## одиниць скелета в одиниці моделі (імпортер .glb любить масштаб)
 var _head_box := AABB()        ## габарит вершин голови В КООРДИНАТАХ МОДЕЛІ
@@ -1187,7 +1190,12 @@ func build(parent: Node3D, def: Dictionary, colors: Dictionary) -> bool:
 	if OS.has_environment("RIG"):
 		_verts = verts
 		_colors = colors
-	_paint(verts, colors)
+	# "rig_texture": true — модель має власну готову текстуру (Meshy-рендер), яку хочемо
+	# показати як є, а не перефарбовувати вершинними кольорами. _paint() ставить свій
+	# material_override на кожен меш; пропускаємо його — лишається імпортований матеріал/UV.
+	_has_own_texture = bool(def.get("rig_texture", false))
+	if not _has_own_texture:
+		_paint(verts, colors)
 	_prepare_axes()
 	_calibrate_signs()
 	_build_anchors(verts)
@@ -2157,6 +2165,12 @@ func bone_map() -> Dictionary:
 ## якщо в "c" нуль, морда не пофарбувалась; якщо в "o" все, ролі кісток не розклались.
 func zone_counts() -> Dictionary:
 	return _zone_counts.duplicate()
+
+
+## true — модель має власну готову текстуру ("rig_texture" у heroes.json): Hero3D не
+## малює своє обличчя поверх (в моделі вже є очі/ніс/рот), _paint() не чіпав матеріал.
+func has_own_texture() -> bool:
+	return _has_own_texture
 
 
 ## Ім'я стилю розмальовки («unicorn») або "" — для прев'ю й тестів.

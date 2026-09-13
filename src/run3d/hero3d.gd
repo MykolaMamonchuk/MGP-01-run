@@ -580,7 +580,10 @@ func _build_rig(def: Dictionary) -> bool:
 		_head.name = "Head"
 		_head.position = Vector3(0.0, NECK_Y, NECK_Z)
 		_body.add_child(_head)
-	_build_face()
+	# "rig_texture": модель уже має власне обличчя (Meshy-текстура) — не малюємо своє
+	# поверх, інакше вийдуть подвійні очі
+	if not r.has_own_texture():
+		_build_face()
 	return true
 
 
@@ -1551,8 +1554,9 @@ func hit_reaction(dir: int = 0) -> void:
 		e.scale = Vector3(HIT_EYE_SCALE, HIT_EYE_SCALE, 1.0)
 	for p in _pupils:
 		p.scale = Vector3(HIT_PUPIL_SCALE, HIT_PUPIL_SCALE, 1.0)
-	_mouth.scale = Vector3(1.6, 2.4, 1.0)
-	_mouth.position.y = _mouth_y - 0.01
+	if is_instance_valid(_mouth):
+		_mouth.scale = Vector3(1.6, 2.4, 1.0)
+		_mouth.position.y = _mouth_y - 0.01
 	# відкинуло вбік на пів доріжки (у межах дороги)
 	if dir != 0:
 		x_target = clampf(x_target + float(dir) * LANE_W * HIT_SIDE_LANES, -x_limit(), x_limit())

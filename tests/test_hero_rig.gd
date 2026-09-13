@@ -854,16 +854,16 @@ func test_lys_has_rig_and_path_is_well_formed() -> void:
 	var lys: Dictionary = all.get("lys", {})
 	assert_false(lys.is_empty(), "герой lys є в даних")
 	var rig := String(lys.get("rig", ""))
-	assert_eq(rig, "fox", "у лисеняти заданий скелетний риг")
+	assert_eq(rig, "fox_meshy", "лисеня перейшло на текстуровану Meshy-модель (13.09.2026)")
+	assert_true(bool(lys.get("rig_texture", false)),
+		"rig_texture: власна текстура моделі, HeroRig._paint()/Hero3D._build_face() пропускаються")
 	var path := HeroRig.rig_path(rig)
 	assert_true(path.begins_with("res://assets/models/"), "модель лежить у res:// (інакше Godot її не імпортує)")
 	assert_true(path.ends_with(".glb"))
 	assert_true(lys.has("parts"), "parts лишились як запасний варіант, поки .glb не доїхав")
-	# розкладка кісток руками (автомапа плутала перед/зад — див. MEMORY.md): голова й обидва
-	# вуха виходять з окремого шийного розгалуження (Bone_026→025→027/028), передні лапки
-	# росли зі спини (Bone_020/024), а "хвіст" насправді висів на кістках передньої лапки.
-	# Окремих кісток писка/чубчика в моделі нема — ці зони фарбуються геометричним запасним
-	# варіантом (HeroRig.zone_for), як і грива/ріг у єдинорога.
+	# розкладка кісток руками — структурно аналогічна до попередньої (Bone-номери інші, та
+	# сама форма дерева: спина форкається на передні лапки + шию/вуха, окремий форк на
+	# задні лапки + хвіст). Дет.: docs/MEMORY.md
 	var bones: Dictionary = lys.get("rig_bones", {})
 	for role in ["hips", "spine", "neck", "head", "ear_l", "ear_r", "fl", "fr", "bl", "br", "tail"]:
 		assert_true(bones.has(role), "роль %s задана руками" % role)
