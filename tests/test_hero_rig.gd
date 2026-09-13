@@ -885,9 +885,8 @@ func test_unicorn_hero_data() -> void:
 	var odn: Dictionary = all.get("odn", {})
 	assert_false(odn.is_empty(), "герой odn є в даних")
 	assert_eq(String(odn.get("name_uk", "")), "Єдиноріг")
-	assert_eq(String(odn.get("rig", "")), "unicorn", "тіло — модель зі скелетом")
-	assert_eq(String(odn.get("rig_style", "")), "unicorn", "і стиль розмальовки")
-	assert_false(RigStyles.for_def(odn).is_empty(), "стиль знаходиться в RIG_STYLES")
+	assert_eq(String(odn.get("rig", "")), "unicorn_mesh", "тіло — текстурована Meshy-модель (13.09.2026)")
+	assert_true(bool(odn.get("rig_texture", false)), "rig_texture: власна текстура, стиль розмальовки більше не потрібен")
 	assert_eq(int(odn.get("order", -1)), 6, "сьомий у каруселі")
 	assert_eq(String(odn.get("rig_front", "")), "", "напрям не заданий руками — рахується евристикою")
 	assert_true(odn.has("parts"), "воксельні частини лишились запасним варіантом")
@@ -955,5 +954,6 @@ func test_other_heroes_stay_voxel() -> void:
 		var def: Dictionary = all.get(id, {})
 		assert_false(def.is_empty(), "%s є в даних" % id)
 		assert_eq(String(def.get("rig", "")), "", "%s: без рига, малюється вокселями" % id)
-	# оленя (fawn.glb) отримало іменований риг у вересні 2026 — з тих пір воно тут не воксельне
-	assert_eq(String(all.get("olen", {}).get("rig", "")), "fawn", "олень: скелетний риг fawn.glb")
+	# оленя отримало іменований риг (fawn.glb) у вересні 2026, а потім текстуровану
+	# Meshy-модель (fawn_mesh.glb, 13.09.2026) — з тих пір воно тут не воксельне
+	assert_eq(String(all.get("olen", {}).get("rig", "")), "fawn_mesh", "олень: текстурована модель fawn_mesh.glb")
