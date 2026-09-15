@@ -108,6 +108,9 @@ var level_duration := 90.0
 ## Track.distance_m/Spawner3D.distance_m (Phase 1 level-authoring plumbing): рахуємо тут один
 ## раз і передаємо той самий підсумок в обидва advance(), щоб лічильники не розійшлись.
 var level_distance_m := 0.0
+## Стрімить авторський рівень по чанках (levels/level_XX/chunk_NN.tscn) замість того, щоб
+## вантажити весь level_XX.tscn одразу — див. LevelChunkLoader.
+var _chunk_loader := LevelChunkLoader.new()
 var session_t := 0.0
 var session_total := 600.0
 var switching := false
@@ -660,7 +663,8 @@ func _start_level(num: int) -> void:
 	spawner.magnet = float(profile.get("star_magnet", 1.0)) * _hero_magnet
 	# TODO(v1.3 §5): st.luck — частота пікапів живе у Spawner3D._schedule_pickup (Pickup3D.per_minute_total), множника ще нема
 	spawner.set_level(level.get("obstacle_types", []), float(level.get("density", 1.0)), lanes, bool(level.get("tutorial", false)))
-	_load_authored_level(level_num)
+	_chunk_loader = LevelChunkLoader.new()
+	_chunk_loader.start(level_num, track, spawner)
 	spawner.spawning = false
 	events_spawner.allowed_ids = level.get("events", [])
 	events_spawner.events_enabled = false
@@ -676,6 +680,10 @@ func _start_level(num: int) -> void:
 		if state == State.COUNTDOWN or state == State.RUN:
 			hero.set_running(true))
 	AudioMgr.voice("level_%d" % level_num)
+	# Прогрів шейдерів частинок саме тут: відлік триває 2,6 с, герой уже в кадрі, гри ще
+	# нема. Без цього перший пил з-під лап коштував 34 мс замість 5 — і це було видно як
+	# заїкання на самому початку рівня (виміряно: tools/perf/fx_bench.tscn).
+	FX.preheat(self, hero.position + Vector3(0.0, 0.4, 0.0))
 	if _countdown_tw:
 		_countdown_tw.kill()
 	_countdown_tw = create_tween()
@@ -687,28 +695,6 @@ func _start_level(num: int) -> void:
 	_countdown_tw.tween_callback(_start_run)
 
 
-## Авторський рівень (Phase 1 «level-authoring plumbing»): якщо для номера рівня є
-## res://levels/level_XX.tscn (XX — id рівня, двома цифрами; напр. level_01.tscn для level 1) —
-## інстанціюємо його ЛИШЕ заради LevelTimeline.extract() і одразу звільняємо: усе, що потрапляє
-## на екран, і далі малюють Track/Spawner3D через свої MultiMesh-пачки й пул-вузли
-## (docs/optimisation/2026-09-07-render-budget.md) — авторська сцена в живе дерево не додається
-## і не існує в рантаймі. Нема файлу (усі 17 рівнів, поки що) — Track/Spawner3D лишаються
-## повністю процедурними, як і до цієї фічі: сама ця перевірка й є механізмом поступового переходу.
-func _load_authored_level(num: int) -> void:
-	var path := "res://levels/level_%02d.tscn" % num
-	if not ResourceLoader.exists(path):
-		track.clear_authored_timeline()
-		spawner.clear_authored_obstacles()
-		return
-	var packed := load(path) as PackedScene
-	var layout := packed.instantiate()
-	var extracted := LevelTimeline.extract(layout)
-	layout.queue_free()
-	# landmarks/walls_near ідуть тим самим шляхом _add_decor(), що й decor, — Track приймає лише
-	# два масиви (decor, buildings), тож зливаємо їх тут, а не плодимо ширший API заради Phase 1.
-	var decor: Array = extracted.get("decor", []) + extracted.get("landmarks", []) + extracted.get("walls_near", [])
-	track.set_authored_timeline(decor, extracted.get("buildings", []))
-	spawner.set_authored_obstacles(extracted.get("obstacles", []))
 
 
 func _start_run() -> void:
@@ -844,6 +830,7 @@ func _process(delta: float) -> void:
 			level_distance_m += d
 			track.advance(d, level_distance_m)
 			spawner.advance(d, level_distance_m)
+			_chunk_loader.update(level_distance_m)
 			return
 		State.FINISH:
 			# малюк не тисне «Далі» — гра йде далі сама
@@ -903,6 +890,7 @@ func _process(delta: float) -> void:
 		level_distance_m += dist
 		track.advance(dist, level_distance_m)
 		spawner.advance(dist, level_distance_m)
+		_chunk_loader.update(level_distance_m)
 	spawner.check(delta)
 	events_spawner.tick(delta)
 	_hint(delta)

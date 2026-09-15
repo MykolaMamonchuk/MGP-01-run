@@ -1,12 +1,71 @@
-## Фабрика частинок (GPUParticles3D, квадратики-білборди). Усе процедурне, без текстур.
+## Фабрика частинок (GPUParticles3D, білборди). Усе процедурне, без файлів-текстур.
+##
+## Форма: КРУГЛА м'яка пляма. Спершу були суцільні квадрати — і поруч із гладкими моделями
+## героїв вони читались як воксельні кубики з попередньої версії гри. Круг генерується в
+## коді радіальним градієнтом, тож обіцянка «жодних файлів» лишається чинною.
+## Конфеті — виняток: то паперові квадратики, їм квадратна форма й личить.
 class_name FX
 extends RefCounted
 
 static var _mats: Dictionary = {}
+static var _dot: GradientTexture2D = null
+
+## Скільки тримати прогрівальні частинки в кадрі, перш ніж прибрати.
+const PREHEAT_SEC := 0.35
 
 
-static func _mat(color: Color) -> StandardMaterial3D:
-	var key := color.to_rgba32()
+## Прогріти шейдери частинок ЗАЗДАЛЕГІДЬ.
+##
+## Рушій компілює шейдер тоді, коли вперше його малює. Виміряно (tools/perf/fx_bench.tscn):
+## перший пил коштує 33,9 мс проти 5,2 мс удруге, перший сплеск зірочок — 25,1 проти 3,1.
+## При кадрі 16,7 мс це видимі заїкання, і йдуть вони саме на початку рівня, коли герой
+## уперше стрибає й збирає зірочку.
+##
+## Тому один раз «стріляємо» кожним ефектом наперед — крихітними й У КАДРІ (поза кадром
+## рушій їх не малює, а отже й не компілює), — і одразу прибираємо. Конфігурації беремо
+## ТІ САМІ, справжніми викликами: варіант шейдера залежить від набору увімкнених
+## властивостей, тож «схожий» ефект прогрів би не той шейдер.
+static func preheat(host: Node3D, at: Vector3 = Vector3.ZERO) -> void:
+	if host == null or not host.is_inside_tree():
+		return
+	var probe := Node3D.new()
+	probe.name = "FXPreheat"
+	probe.position = at
+	probe.scale = Vector3.ONE * 0.002      # видимі рушієві, невидимі гравцеві
+	host.add_child(probe)
+	dust(probe, Vector3.ZERO)
+	burst(probe, Vector3.ZERO, Palette.STAR)
+	splash(probe, Vector3.ZERO, Palette.SPLASH_WATER)
+	confetti(probe, Vector3.ZERO, 4)
+	sparkles(probe, 0.1, 4)
+	var star := MeshInstance3D.new()
+	star.mesh = star_mesh(Palette.STAR)
+	probe.add_child(star)
+	host.get_tree().create_timer(PREHEAT_SEC).timeout.connect(
+		func() -> void:
+			if is_instance_valid(probe):
+				probe.queue_free())
+
+
+## М'яка кругла пляма: біле в центрі, прозоре по краю. Множиться на колір частинки.
+static func _dot_texture() -> GradientTexture2D:
+	if _dot == null:
+		var g := Gradient.new()
+		g.offsets = PackedFloat32Array([0.0, 0.5, 0.82, 1.0])
+		g.colors = PackedColorArray([Color(1, 1, 1, 1), Color(1, 1, 1, 1),
+			Color(1, 1, 1, 0.55), Color(1, 1, 1, 0)])
+		_dot = GradientTexture2D.new()
+		_dot.gradient = g
+		_dot.width = 64
+		_dot.height = 64
+		_dot.fill = GradientTexture2D.FILL_RADIAL
+		_dot.fill_from = Vector2(0.5, 0.5)
+		_dot.fill_to = Vector2(1.0, 0.5)
+	return _dot
+
+
+static func _mat(color: Color, round_shape: bool = true) -> StandardMaterial3D:
+	var key := "%d|%s" % [color.to_rgba32(), round_shape]
 	if not _mats.has(key):
 		var m := StandardMaterial3D.new()
 		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -15,11 +74,14 @@ static func _mat(color: Color) -> StandardMaterial3D:
 		m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		if round_shape:
+			m.albedo_texture = _dot_texture()
 		_mats[key] = m
 	return _mats[key]
 
 
-static func _make(amount: int, lifetime: float, one_shot: bool, size: float, color: Color) -> GPUParticles3D:
+static func _make(amount: int, lifetime: float, one_shot: bool, size: float, color: Color,
+		round_shape: bool = true) -> GPUParticles3D:
 	var p := GPUParticles3D.new()
 	p.amount = amount
 	p.lifetime = lifetime
@@ -28,10 +90,49 @@ static func _make(amount: int, lifetime: float, one_shot: bool, size: float, col
 	p.randomness = 0.4
 	var q := QuadMesh.new()
 	q.size = Vector2(size, size)
-	q.material = _mat(color)
+	q.material = _mat(color, round_shape)
 	p.draw_pass_1 = q
 	p.process_material = ParticleProcessMaterial.new()
 	return p
+
+
+## Пласка п'ятикутна зірочка, зібрана в коді. Над приголомшеним героєм досі кружляли
+## ВОКСЕЛЬНІ зірки — по кілька кубиків кожна, і поруч із гладкими моделями вони читались
+## як уламки, а не як «в очах зірочки».
+static func star_mesh(color: Color, points: int = 5, inner_k: float = 0.46) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rim: Array[Vector3] = []
+	for i in points * 2:
+		var a := TAU * float(i) / float(points * 2) - PI * 0.5
+		var r := 0.5 if i % 2 == 0 else 0.5 * inner_k
+		rim.append(Vector3(cos(a) * r, sin(a) * r, 0.0))
+	for i in rim.size():
+		var j := (i + 1) % rim.size()
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(rim[i])
+		st.add_vertex(rim[j])
+	st.generate_normals()
+	var mesh := st.commit()
+	mesh.surface_set_material(0, _flat_mat(color))
+	return mesh
+
+
+## Матеріал пласкої фігурки: без освітлення (щоб колір був той самий під будь-яким світлом)
+## і білбордом — інакше зірочка з профілю зникала б у лінію.
+static func _flat_mat(color: Color) -> StandardMaterial3D:
+	var key := "flat|%d" % color.to_rgba32()
+	if not _mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.albedo_color = color
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+		# без цього білборд скидає базис разом із масштабом вузла — зірочка виходила
+		# на пів екрана, хоч вузол і просив 0,26
+		m.billboard_keep_scale = true
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_mats[key] = m
+	return _mats[key]
 
 
 static func _ramp(colors: Array) -> GradientTexture1D:
@@ -118,7 +219,7 @@ static func dust(parent: Node, pos: Vector3) -> void:
 
 ## Конфеті (станція, завдання, ріст).
 static func confetti(parent: Node, pos: Vector3, amount: int = 80) -> void:
-	var p := _make(amount, 2.4, true, 0.12, Palette.WHITE)
+	var p := _make(amount, 2.4, true, 0.12, Palette.WHITE, false)   # конфеті — паперові квадратики
 	var pm := p.process_material as ParticleProcessMaterial
 	pm.direction = Vector3(0, 1, 0)
 	pm.spread = 180.0
