@@ -6,5 +6,10 @@
     "yaw_deg": 0.0
   },
   "barrel": "res://assets/props/barrel.glb",
-  "cart_market": "res://assets/props/cart_market.glb"
+  "cart_market": "res://assets/props/cart_market.glb",
+  "fence_low": [
+    "res://assets/props/fence_low_1.glb",
+    "res://assets/props/fence_low_2.glb",
+    "res://assets/props/fence_low_3.glb"
+  ]
 }

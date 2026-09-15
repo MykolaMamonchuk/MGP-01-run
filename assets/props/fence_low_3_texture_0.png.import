@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://da1y6vsy11r7y"
-path.s3tc="res://.godot/imported/barrel_Image_1.jpg-8039232aa5dac52e137db07cbbb67e1a.s3tc.ctex"
+uid="uid://c6xscfldup6si"
+path.s3tc="res://.godot/imported/fence_low_3_texture_0.png-23135366a0b1d5f24c73c7d7559403ea.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "79b847738a9fecd3db035100dd9f184d"
+"md5": "5b48b28a3ca0a2cea76a6a0e0908e55e"
 }
 
 [deps]
 
-source_file="res://assets/props/barrel_Image_1.jpg"
-dest_files=["res://.godot/imported/barrel_Image_1.jpg-8039232aa5dac52e137db07cbbb67e1a.s3tc.ctex"]
+source_file="res://assets/props/fence_low_3_texture_0.png"
+dest_files=["res://.godot/imported/fence_low_3_texture_0.png-23135366a0b1d5f24c73c7d7559403ea.s3tc.ctex"]
 
 [params]
 

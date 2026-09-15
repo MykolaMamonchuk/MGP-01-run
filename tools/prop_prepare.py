@@ -21,6 +21,10 @@
         --out assets/props/barrel.glb --height 0.70
 
     --height  цільова висота, м (з таблиці пропсів). Без неї розмір не чіпається.
+    --box     ШxВxГ у метрах — бокс зіткнення зі світу. Модель вписується в нього ЦІЛКОМ,
+              зберігаючи пропорції. Надійніше за --height: паркан, натягнутий за висотою,
+              виходить ширшим за смугу (1,0 м) і залазить на сусідні — гравець бачить
+              перешкоду там, де насправді вільно.
     --origin  bottom (типово) | center | keep
     --yaw     довернути навколо вертикалі, градуси (якщо модель прийшла боком)
 """
@@ -37,8 +41,13 @@ def parse_args(argv):
     ap.add_argument("--in", dest="src", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--height", type=float, default=0.0)
+    ap.add_argument("--box", default="", help="ШxВxГ, м — вписати модель у бокс зіткнення")
     ap.add_argument("--origin", default="bottom", choices=["bottom", "center", "keep"])
     ap.add_argument("--yaw", type=float, default=0.0)
+    ap.add_argument("--tex-size", type=int, default=0,
+                    help="звести текстури до N×N. Генератор віддає 4096×4096 на кожну карту, "
+                         "а пропс 0,95 м займає на екрані сотню пікселів: різниці не видно, "
+                         "а пам'яті йде вдесятеро більше")
     return ap.parse_args(argv)
 
 
@@ -86,7 +95,21 @@ def main():
     import math
     yaw = math.radians(a.yaw)
     k = 1.0
-    if a.height > 0.0 and size[2] > 1e-6:
+    if a.box:
+        bw, bh, bd = [float(x) for x in a.box.lower().replace(",", ".").split("x")]
+        # Розмір задають ШИРИНА й ВИСОТА. Ширина — бо смуга в грі рівно 1,0 м, і модель,
+        # ширша за бокс, залазить на сусідню смугу: гравець бачить перешкоду там, де
+        # насправді вільно. Глибина в це не входить навмисно: бокси писали під геймплей,
+        # і в круглої бочки бокс 0,70 × 0,70 × 0,50 — не форма бочки, а «скільки метрів
+        # дороги вона займає». Вписати в нього по глибині означало б стиснути бочку до
+        # півметра й отримати ту саму ваду, тільки навпаки.
+        k = min(bw / max(size[0], 1e-6), bh / max(size[2], 1e-6))
+        print("  бокс %.2f × %.2f → коефіцієнт %.3f" % (bw, bh, k))
+        got_d = size[1] * k
+        if got_d > bd + 0.01:
+            print("  УВАГА: глибина моделі %.3f більша за бокс %.2f — крізь краї можна "
+                  "пройти. Або бокс замалий, або модель треба довернути (--yaw)" % (got_d, bd))
+    elif a.height > 0.0 and size[2] > 1e-6:
         k = a.height / size[2]
 
     for o in meshes:
@@ -124,6 +147,13 @@ def main():
                 v.co.z -= cz
             o.data.update()
         lo, hi, size = describe(meshes, "початок")
+
+    if a.tex_size > 0:
+        for im in bpy.data.images:
+            if im.size[0] > a.tex_size or im.size[1] > a.tex_size:
+                was = tuple(im.size)
+                im.scale(min(im.size[0], a.tex_size), min(im.size[1], a.tex_size))
+                print("  текстура %d×%d → %d×%d" % (was[0], was[1], im.size[0], im.size[1]))
 
     dst = os.path.abspath(os.path.expanduser(a.out))
     bpy.ops.export_scene.gltf(filepath=dst, export_format="GLB")

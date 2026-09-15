@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://da1y6vsy11r7y"
-path.s3tc="res://.godot/imported/barrel_Image_1.jpg-8039232aa5dac52e137db07cbbb67e1a.s3tc.ctex"
+uid="uid://bpc8esas1sqil"
+path.s3tc="res://.godot/imported/fence_low_1_normal.png-5195696ff563f7ad80c641ac4692b273.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "79b847738a9fecd3db035100dd9f184d"
+"md5": "4636246b568e8f6f338b4c9813a01464"
 }
 
 [deps]
 
-source_file="res://assets/props/barrel_Image_1.jpg"
-dest_files=["res://.godot/imported/barrel_Image_1.jpg-8039232aa5dac52e137db07cbbb67e1a.s3tc.ctex"]
+source_file="res://assets/props/fence_low_1_normal.png"
+dest_files=["res://.godot/imported/fence_low_1_normal.png-5195696ff563f7ad80c641ac4692b273.s3tc.ctex"]
 
 [params]
 
@@ -25,7 +25,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

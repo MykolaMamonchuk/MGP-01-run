@@ -3,22 +3,23 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bgpma7qxdl1ka"
-path="res://.godot/imported/barrel_Image_2.jpg-e706500b64d0174d6f4dc0f291ecc1a8.ctex"
+path.s3tc="res://.godot/imported/barrel_Image_2.jpg-e706500b64d0174d6f4dc0f291ecc1a8.s3tc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "3252056dfe8ada49046e660664d585f6"
+"md5": "13c12fdacc683f22246b3af2b4d2cbe6"
 }
 
 [deps]
 
 source_file="res://assets/props/barrel_Image_2.jpg"
-dest_files=["res://.godot/imported/barrel_Image_2.jpg-e706500b64d0174d6f4dc0f291ecc1a8.ctex"]
+dest_files=["res://.godot/imported/barrel_Image_2.jpg-e706500b64d0174d6f4dc0f291ecc1a8.s3tc.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
