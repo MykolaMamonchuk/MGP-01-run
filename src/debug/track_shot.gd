@@ -99,6 +99,23 @@ func _process(_delta: float) -> void:
 		return
 	_done = true
 	await RenderingServer.frame_post_draw
+	if OS.get_environment("DUMP") != "":
+		# скільки предметів кожного виду траса справді поклала в ряди — щоб черга на
+		# генерування моделей будувалась за фактом, а не за відчуттям «це, мабуть, помітне»
+		var per_layer := {}
+		for ids in _track._decor_ids:
+			for j in (ids as PackedInt32Array).size():
+				var id := (ids as PackedInt32Array)[j]
+				per_layer[id] = int(per_layer.get(id, 0)) + 1
+		var rows := []
+		for key in _track._decor_layer_of.keys():
+			var n := int(per_layer.get(int(_track._decor_layer_of[key]), 0))
+			if n > 0:
+				rows.append([n, String(key).split("|")[0].split("#")[0]])
+		rows.sort_custom(func(a, b): return a[0] > b[0])
+		for r in rows:
+			print("КІЛЬКІСТЬ %s %d" % [r[1], r[0]])
+
 	var out := OS.get_environment("OUT")
 	if out != "":
 		var img := get_viewport().get_texture().get_image()
