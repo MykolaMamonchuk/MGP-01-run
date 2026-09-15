@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://doxhjb4aq44pt"
-path.s3tc="res://.godot/imported/fence_rail_1_texture_0.png-82fb0712bc7abccf48e4ea9607653832.s3tc.ctex"
+uid="uid://dsyrepdjbctq0"
+path.s3tc="res://.godot/imported/fence_rail_1_texture_0_metallic_roughness.png-690366828a26d99c261ad8ed8d694cfd.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "09aeb193f4a2d4bb02a3d8100c74acd1"
+"md5": "7cbdaa29b2e81291e5d965663548ecb1"
 }
 
 [deps]
 
-source_file="res://assets/props/fence_rail_1_texture_0.png"
-dest_files=["res://.godot/imported/fence_rail_1_texture_0.png-82fb0712bc7abccf48e4ea9607653832.s3tc.ctex"]
+source_file="res://assets/props/3d/fence_rail_1_texture_0_metallic_roughness.png"
+dest_files=["res://.godot/imported/fence_rail_1_texture_0_metallic_roughness.png-690366828a26d99c261ad8ed8d694cfd.s3tc.ctex"]
 
 [params]
 

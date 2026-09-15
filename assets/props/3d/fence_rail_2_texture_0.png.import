@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ck2eexetuxwp3"
-path.s3tc="res://.godot/imported/fence_rail_2_texture_0.png-46959d1646890ff467e45966394cdba8.s3tc.ctex"
+path.s3tc="res://.godot/imported/fence_rail_2_texture_0.png-5c90256a9a18fa140aa46dacd29b7454.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -14,8 +14,8 @@ generator_parameters={
 
 [deps]
 
-source_file="res://assets/props/fence_rail_2_texture_0.png"
-dest_files=["res://.godot/imported/fence_rail_2_texture_0.png-46959d1646890ff467e45966394cdba8.s3tc.ctex"]
+source_file="res://assets/props/3d/fence_rail_2_texture_0.png"
+dest_files=["res://.godot/imported/fence_rail_2_texture_0.png-5c90256a9a18fa140aa46dacd29b7454.s3tc.ctex"]
 
 [params]
 

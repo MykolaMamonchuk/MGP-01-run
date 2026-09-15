@@ -108,9 +108,15 @@ static func _sprite_mesh(e: Dictionary) -> Mesh:
 	var tex := load(String(e.get("sprite", ""))) as Texture2D
 	if tex == null:
 		return null
+	# Розмір беремо В МЕТРАХ із самого запису, а не виводимо з пропорцій картинки: спрайт
+	# обрізано по силуету, тож його пропорції вже не ті, що в моделі. Для поручнів, які
+	# стикуються ланка в ланку, похибка в сантиметр — це щілина в кадрі.
 	var h := float(e.get("height", 1.0))
+	var w := float(e.get("width", 0.0))
+	if w <= 0.0:
+		w = h * float(tex.get_width()) / maxf(float(tex.get_height()), 1.0)
 	var quad := QuadMesh.new()
-	quad.size = Vector2(h * float(tex.get_width()) / maxf(float(tex.get_height()), 1.0), h)
+	quad.size = Vector2(w, h)
 	# початок унизу, як і в моделей: пропс ставиться на землю, а не тоне в ній наполовину
 	quad.center_offset = Vector3(0.0, h * 0.5, 0.0)
 	var m := StandardMaterial3D.new()
@@ -147,6 +153,7 @@ static func _entry(kind: String, variant: int = 0) -> Dictionary:
 		return {"path": String(d.get("path", "")),
 			"sprite": String(d.get("sprite", "")),
 			"height": float(d.get("height", 1.0)),
+			"width": float(d.get("width", 0.0)),
 			"billboard": bool(d.get("billboard", true)),
 			"scale": float(d.get("scale", 1.0)),
 			"yaw_deg": float(d.get("yaw_deg", 0.0))}

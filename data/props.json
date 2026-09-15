@@ -8,48 +8,83 @@
   "barrel": [
     {
       "sprite": "res://assets/sprites/barrel_1.png",
-      "height": 0.7
+      "width": 0.6261,
+      "height": 0.756
     },
     {
       "sprite": "res://assets/sprites/barrel_2.png",
-      "height": 0.7
+      "width": 0.6379,
+      "height": 0.756
     },
     {
       "sprite": "res://assets/sprites/barrel_3.png",
-      "height": 0.7
+      "width": 0.6615,
+      "height": 0.756
     }
   ],
   "cart_market": {
     "sprite": "res://assets/sprites/cart_market.png",
-    "height": 0.8
+    "width": 0.7695,
+    "height": 0.864
   },
   "fence_low": [
-    "res://assets/props/fence_low_1.glb",
-    "res://assets/props/fence_low_2.glb",
-    "res://assets/props/fence_low_3.glb"
+    {
+      "sprite": "res://assets/sprites/fence_low_1.png",
+      "width": 0.9939,
+      "height": 0.6012
+    },
+    {
+      "sprite": "res://assets/sprites/fence_low_2.png",
+      "width": 0.9939,
+      "height": 0.5611
+    },
+    {
+      "sprite": "res://assets/sprites/fence_low_3.png",
+      "width": 0.9939,
+      "height": 0.5611
+    }
   ],
   "fence_rail": [
-    "res://assets/props/fence_rail_1.glb",
-    "res://assets/props/fence_rail_2.glb",
-    "res://assets/props/fence_rail_3.glb"
+    {
+      "sprite": "res://assets/sprites/fence_rail_1.png",
+      "width": 1.0463,
+      "height": 0.4472,
+      "billboard": false
+    },
+    {
+      "sprite": "res://assets/sprites/fence_rail_2.png",
+      "width": 1.0463,
+      "height": 0.3038,
+      "billboard": false
+    },
+    {
+      "sprite": "res://assets/sprites/fence_rail_3.png",
+      "width": 1.0463,
+      "height": 0.3628,
+      "billboard": false
+    }
   ],
   "crate": [
     {
       "sprite": "res://assets/sprites/crate_1.png",
-      "height": 0.52
+      "width": 0.7324,
+      "height": 0.756
     },
     {
       "sprite": "res://assets/sprites/crate_2.png",
-      "height": 0.51
+      "width": 0.7324,
+      "height": 0.756
     },
     {
       "sprite": "res://assets/sprites/crate_3.png",
-      "height": 0.49
+      "width": 0.7324,
+      "height": 0.756
     }
   ],
   "puddle": {
     "sprite": "res://assets/sprites/puddle.png",
-    "height": 0.12,
+    "width": 0.8349,
+    "height": 0.4314,
     "billboard": false
   },
   "bridge_plank": {
@@ -60,11 +95,13 @@
   "bush_flower": [
     {
       "sprite": "res://assets/sprites/bush_flower_1.png",
-      "height": 0.5
+      "width": 0.6634,
+      "height": 0.6045
     },
     {
       "sprite": "res://assets/sprites/bush_flower_2.png",
-      "height": 0.5
+      "width": 0.3028,
+      "height": 0.3347
     }
   ]
 }

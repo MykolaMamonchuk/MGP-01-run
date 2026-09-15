@@ -32,6 +32,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ## звичайного режиму вистачило з відхиленням 0,3%, а пам'яті він бере вдвічі менше.
 HIGH_QUALITY = ("assets/models",)
 
+## Стеля роздільності при ІМПОРТІ. Саме так, а не переекспортом моделі: герої риговані, і
+## прогін .glb через Blender може перетасувати кістки, від яких залежить уся анімація.
+## Godot же просто зменшує картинку на вході, джерело лишається недоторканим.
+SIZE_LIMIT = {"assets/models": 1024}
+
 
 def main():
     changed = []
@@ -45,6 +50,9 @@ def main():
         out = text.replace("compress/mode=0", "compress/mode=2")
         if any(folder in path for folder in HIGH_QUALITY):
             out = out.replace("compress/high_quality=false", "compress/high_quality=true")
+        for folder, limit in SIZE_LIMIT.items():
+            if folder in path:
+                out = re.sub(r"process/size_limit=\d+", "process/size_limit=%d" % limit, out)
         # нормаль має свій канальний розклад: без цієї позначки стиснення псує їй освітлення
         if "_normal." in os.path.basename(path):
             out = out.replace("compress/normal_map=0", "compress/normal_map=2")

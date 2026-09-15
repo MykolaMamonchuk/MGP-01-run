@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://ble8eex3jvxjj"
-path.s3tc="res://.godot/imported/fence_low_1_texture_0_metallic_roughness.png-bafd07452dbcaf0944aa93c3be77b358.s3tc.ctex"
+uid="uid://gy3gf5lb84o0"
+path.s3tc="res://.godot/imported/fence_rail_1_normal.png-8441ac10fce9551efece3bc1bdfb46f6.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "1b7bf2196a9f7c0478eb5486fb96e436"
+"md5": "a39b6288da4ff5276824ccff14c40e3d"
 }
 
 [deps]
 
-source_file="res://assets/props/fence_low_1_texture_0_metallic_roughness.png"
-dest_files=["res://.godot/imported/fence_low_1_texture_0_metallic_roughness.png-bafd07452dbcaf0944aa93c3be77b358.s3tc.ctex"]
+source_file="res://assets/props/3d/fence_rail_1_normal.png"
+dest_files=["res://.godot/imported/fence_rail_1_normal.png-8441ac10fce9551efece3bc1bdfb46f6.s3tc.ctex"]
 
 [params]
 
@@ -25,7 +25,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

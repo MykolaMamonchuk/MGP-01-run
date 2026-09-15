@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bn72pc5x352no"
-path="res://.godot/imported/fence_low_1.glb-4db5fbb6b02844ae04def132edebb2b8.scn"
+uid="uid://cfwvemh7bxf0a"
+path="res://.godot/imported/fence_rail_3.glb-2672f9ed309248c4422513e69bec310b.scn"
 
 [deps]
 
-source_file="res://assets/props/fence_low_1.glb"
-dest_files=["res://.godot/imported/fence_low_1.glb-4db5fbb6b02844ae04def132edebb2b8.scn"]
+source_file="res://assets/props/3d/fence_rail_3.glb"
+dest_files=["res://.godot/imported/fence_rail_3.glb-2672f9ed309248c4422513e69bec310b.scn"]
 
 [params]
 
