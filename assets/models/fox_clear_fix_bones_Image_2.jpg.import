@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cfy10khanijsu"
-path.s3tc="res://.godot/imported/fox_clear_fix_bones_Image_2.jpg-ff3a38f971edc4f06ca5a685222c4b0c.s3tc.ctex"
+path.bptc="res://.godot/imported/fox_clear_fix_bones_Image_2.jpg-ff3a38f971edc4f06ca5a685222c4b0c.bptc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -15,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/fox_clear_fix_bones_Image_2.jpg"
-dest_files=["res://.godot/imported/fox_clear_fix_bones_Image_2.jpg-ff3a38f971edc4f06ca5a685222c4b0c.s3tc.ctex"]
+dest_files=["res://.godot/imported/fox_clear_fix_bones_Image_2.jpg-ff3a38f971edc4f06ca5a685222c4b0c.bptc.ctex"]
 
 [params]
 
 compress/mode=2
-compress/high_quality=false
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

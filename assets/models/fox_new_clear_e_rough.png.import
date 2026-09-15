@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c13c3q0bv2yt5"
-path="res://.godot/imported/fox_new_clear_e_rough.png-8d13ba9ceb65e3d93524dba636366364.ctex"
+path.bptc="res://.godot/imported/fox_new_clear_e_rough.png-8d13ba9ceb65e3d93524dba636366364.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "76c0789a1b2980b9e36de61419802bc0"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/fox_new_clear_e_rough.png"
-dest_files=["res://.godot/imported/fox_new_clear_e_rough.png-8d13ba9ceb65e3d93524dba636366364.ctex"]
+dest_files=["res://.godot/imported/fox_new_clear_e_rough.png-8d13ba9ceb65e3d93524dba636366364.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

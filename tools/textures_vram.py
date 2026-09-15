@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""prop_textures_vram.py — увімкнути стиснення в відеопам'яті для текстур пропсів.
+"""textures_vram.py — увімкнути стиснення в відеопам'яті для текстур моделей.
 
 Навіщо. Godot типово імпортує текстуру «без втрат»: у відеопам'яті вона лежить розпакованою,
 2048×2048 RGBA з мипмапами — це 22 МБ на КОЖНУ карту. У пропса їх три (колір, шорсткість,
@@ -15,7 +15,7 @@
 готовий файл лишається старим (перевірено: байт у байт). Тому скрипт ще й прибирає
 закешований результат.
 
-    python3 tools/prop_textures_vram.py
+    python3 tools/textures_vram.py
     /Applications/Godot.app/Contents/MacOS/Godot --headless --import
 """
 import glob
@@ -24,14 +24,27 @@ import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+## Герої йдуть у ЯКІСНОМУ режимі, пропси — у звичайному, і це не перестраховка.
+## Звичайне стиснення тримає колір грубо, і на м'яких градієнтах хутра з'являються смуги:
+## на черепасі середнє відхилення вийшло 8,4 при власному шумі знімка 1,3. Якісний режим
+## дав 4,96, а в зоопарку (нормальна ігрова відстань) — 0,97 при шумі 0,73, тобто вже
+## нерозрізненно. Пропсам це не потрібно: дерево й камінь градієнтів не мають, там
+## звичайного режиму вистачило з відхиленням 0,3%, а пам'яті він бере вдвічі менше.
+HIGH_QUALITY = ("assets/models",)
+
 
 def main():
     changed = []
-    for path in sorted(glob.glob(os.path.join(ROOT, "assets/props/*.import"))):
+    targets = []
+    for folder in ("assets/props", "assets/models"):
+        targets += sorted(glob.glob(os.path.join(ROOT, folder, "*.import")))
+    for path in targets:
         text = open(path, encoding="utf-8").read()
         if "CompressedTexture2D" not in text:
             continue
         out = text.replace("compress/mode=0", "compress/mode=2")
+        if any(folder in path for folder in HIGH_QUALITY):
+            out = out.replace("compress/high_quality=false", "compress/high_quality=true")
         # нормаль має свій канальний розклад: без цієї позначки стиснення псує їй освітлення
         if "_normal." in os.path.basename(path):
             out = out.replace("compress/normal_map=0", "compress/normal_map=2")
@@ -45,7 +58,7 @@ def main():
                 os.remove(stale)
 
     if not changed:
-        print("усі текстури пропсів уже стиснені")
+        print("усі текстури моделей уже стиснені")
         return
     print("увімкнено стиснення для %d текстур:" % len(changed))
     for name in changed:

@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://deixhrc187btw"
-path="res://.godot/imported/fox_meshy_Image_2.jpg-023018019c3881d5466324e4e4bb26d6.ctex"
+path.bptc="res://.godot/imported/fox_meshy_Image_2.jpg-023018019c3881d5466324e4e4bb26d6.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "91e232583f40b37b3d41dcb011529fbb"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/fox_meshy_Image_2.jpg"
-dest_files=["res://.godot/imported/fox_meshy_Image_2.jpg-023018019c3881d5466324e4e4bb26d6.ctex"]
+dest_files=["res://.godot/imported/fox_meshy_Image_2.jpg-023018019c3881d5466324e4e4bb26d6.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cmqkwhfvjtuwk"
-path="res://.godot/imported/turtle_mesh_texture_0.png-d701b3fd5cf575693f1d15af4079bf10.ctex"
+path.bptc="res://.godot/imported/turtle_mesh_texture_0.png-d701b3fd5cf575693f1d15af4079bf10.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "33e50073a943cdef29ea141642479566"
@@ -14,12 +15,12 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/turtle_mesh_texture_0.png"
-dest_files=["res://.godot/imported/turtle_mesh_texture_0.png-d701b3fd5cf575693f1d15af4079bf10.ctex"]
+dest_files=["res://.godot/imported/turtle_mesh_texture_0.png-d701b3fd5cf575693f1d15af4079bf10.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0

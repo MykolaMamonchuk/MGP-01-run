@@ -3,9 +3,10 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cxq002p5huc3y"
-path="res://.godot/imported/fox_new_clear_e_normal.jpg-4c9373e55fe75a7e5c989eea138391ae.ctex"
+path.bptc="res://.godot/imported/fox_new_clear_e_normal.jpg-4c9373e55fe75a7e5c989eea138391ae.bptc.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "460ca59bc4070804e2603e64a44699a0"
@@ -14,17 +15,17 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/fox_new_clear_e_normal.jpg"
-dest_files=["res://.godot/imported/fox_new_clear_e_normal.jpg-4c9373e55fe75a7e5c989eea138391ae.ctex"]
+dest_files=["res://.godot/imported/fox_new_clear_e_normal.jpg-4c9373e55fe75a7e5c989eea138391ae.bptc.ctex"]
 
 [params]
 
-compress/mode=0
-compress/high_quality=false
+compress/mode=2
+compress/high_quality=true
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
