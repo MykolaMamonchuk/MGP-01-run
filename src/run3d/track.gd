@@ -135,10 +135,6 @@ var _canal_sides: Array = []
 var _canal_water: Array[MeshInstance3D] = []
 var _canal_mats: Array[ShaderMaterial] = []
 var _canal_banks: Array[MeshInstance3D] = []
-## Тип поручнів (data/props.json може тримати кілька різних). Вибирається ОДИН РАЗ на світ,
-## а не на ланку: поручні тягнуться суцільно, і різні типи мають різну висоту (0,26 проти
-## 0,41 м) — вибір на кожен метр давав би огорожу, що стрибає вгору-вниз уздовж берега.
-var _rail_variant := 0
 var _bridges_every := 0
 ## Чи малювати обрив плато з боку [лівого, правого] — там, де канал, обриву нема.
 var _cliff_on := [true, true]
@@ -310,14 +306,7 @@ func _decor_layer(kind: String, override: Dictionary, variant: int = 0) -> int:
 	var mi := _make_canvas(prop_mesh if prop_mesh != null else VoxelBuilder.mesh(kind, override), 0, 16.0)
 	_decor_mm.append(mi)
 	_decor_layer_of[key] = _decor_mm.size() - 1
-	var made := _decor_mm.size() - 1
-	# Решту типів цього виду заводимо ОДРАЗУ, хоч їх поки ніхто не просив. Інакше кількість
-	# шарів залежала б від того, які типи випали випадково: той самий світ дав би то 38, то
-	# 39 шарів, і «чи не течуть шари» стало б неможливо перевірити.
-	for other in PropLibrary.variants(kind):
-		if other != variant:
-			_decor_layer(kind, override, other)
-	return made
+	return _decor_mm.size() - 1
 
 
 ## Матеріал для шарів із кольором на інстанс (покриття, край): колір бере з інстанса, не з матеріалу.
@@ -449,11 +438,8 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 
 ## Записати предмет у пачку ряду. z, поворот і фаза — випадкові, як було в кожного Critter3D.
 ## yaw ≥ 0 — фіксований поворот (орієнтири-арки мають дивитись на камеру, а не крутитись).
-## variant ≥ 0 — взяти САМЕ цей тип моделі замість випадкового. Потрібно там, де предмети
-## стоять суцільною стрічкою (поручні): випадковий тип на кожну ланку рве стрічку.
-func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0, variant: int = -1) -> void:
-	if variant < 0:
-		variant = PropLibrary.pick(kind)
+func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0) -> void:
+	var variant := PropLibrary.pick(kind)
 	ids.append(_decor_layer(kind, override, variant))
 	# Доведення моделі (data/props.json): згенерована модель майже ніколи не приходить одразу
 	# в потрібному розмірі й розвороті, а правити це в самому .glb довго. Для вокселя обидва
@@ -592,6 +578,10 @@ var season: Dictionary = {}
 func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: int = -1) -> void:
 	world = w.duplicate()
 	season = s
+	# Яка мапа — знати треба ДО першого вибору типу моделі: у виду може бути кілька різних
+	# (три бочки, троє поручнів), і на одній мапі йде рівно один із них. Інакше типи
+	# змішувались би на одній вулиці, а різняться вони й пропорціями, не лише малюнком.
+	PropLibrary.use_world(String(w.get("id", "")))
 	# море на всю ширину (Серфінг): дорога невидима, герой на дошці; старий режим Хвиля — теж вода під дорогою
 	_sea = bool(w.get("sea", false))
 	var is_water := _sea or String(w.get("mode", "run")) == "slide"
@@ -634,12 +624,11 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	# того ж світу «знаходив» нові види й плодив шари посеред гри
 	var lm_kinds: Array = world.get("landmarks", []) if typeof(world.get("landmarks")) == TYPE_ARRAY else []
 	for v in _props_side + _buildings_far + _far_filler + lm_kinds:
-		_decor_layer(String(v), {})
+		_decor_layer(String(v), {}, PropLibrary.pick(String(v)))
 	if not _canal_sides.is_empty() and _bridges_every > 0 and _voxel_exists("bridge_plank"):
 		_decor_layer("bridge_plank", {})
 	if not _canal_sides.is_empty() and PropLibrary.has("fence_rail"):
-		_rail_variant = PropLibrary.pick("fence_rail")
-		_decor_layer("fence_rail", {}, _rail_variant)
+		_decor_layer("fence_rail", {}, PropLibrary.pick("fence_rail"))
 	_far_left = _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])
 	_far_side = -1.0 if _rng.randf() < 0.5 else 1.0
 	_layout_canal()
@@ -754,7 +743,7 @@ func _decorate(row: Node3D) -> void:
 			# розвертаємо лицем до дороги: на лівому борті це +90°, на правому −90°
 			_add_decor(ids, data, "fence_rail", {},
 				side * (edge + c_offset - RAIL_INSET), 0.0, 1.0,
-				PI * 0.5 if side < 0.0 else PI * 1.5, _rail_variant)
+				PI * 0.5 if side < 0.0 else PI * 1.5)
 		if open and not _sea:
 			# ── відкрите узбіччя: трава одразу за дорогою, пропси, за ними другий план ──
 			var far_min := FAR_MIN

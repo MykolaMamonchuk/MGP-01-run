@@ -87,9 +87,7 @@ These repeat almost every metre of road; without them the level does not read as
 
 ## Several different models for one kind
 
-A town has more than one barrel, and the same barrel every ten metres reads as a bug rather
-than as a street. So a key may hold a **list** — these are different *types* of the same
-kind, and each instance picks its own:
+A key may hold a **list** — these are different *types* of the same kind:
 
 ```json
 "barrel": [
@@ -101,7 +99,12 @@ kind, and each instance picks its own:
 
 Naming: `barrel.glb` is the first type, then `barrel_2.glb`, `barrel_3.glb`. The suffix means
 a DIFFERENT TYPE (a different barrel) — not a variant of the same model and not a second
-attempt. Same for crates, rocks, bushes — anything a street has several of.
+attempt. Same for crates, rocks, bushes.
+
+**One map, one type.** Types differ in proportion as well as in look (bank rails come at
+0.26 m and at 0.41 m tall), so mixing them along one street reads as a bug. Variety belongs
+BETWEEN levels: the town gets its own barrels, the forest gets others. The choice is derived
+from the map name, so obstacles and decor always agree and it never changes mid-run.
 
 Level markers know nothing about types: the marker still just says `barrel`.
 

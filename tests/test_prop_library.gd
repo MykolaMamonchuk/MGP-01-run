@@ -105,7 +105,27 @@ func test_variant_out_of_range_falls_back() -> void:
 
 func test_pick_stays_inside_list() -> void:
 	PropLibrary.use({"barrel": ["res://a.glb", "res://b.glb", "res://c.glb"]})
-	for i in 40:
-		var v := PropLibrary.pick("barrel")
-		assert_between(v, 0, 2, "вибраний тип у межах списку")
+	for w in ["meadow", "forest", "city", "beach", "clouds"]:
+		PropLibrary.use_world(w)
+		assert_between(PropLibrary.pick("barrel"), 0, 2, "вибраний тип у межах списку")
 	assert_eq(PropLibrary.pick("nothing"), 0, "виду нема — нульовий тип")
+
+
+## Одна мапа — один тип. Це не оптимізація, а вимога вигляду: типи різняться пропорціями
+## (поручні бувають 0,26 і 0,41 м), і змішані на одній вулиці читаються як помилка.
+func test_one_map_keeps_one_type() -> void:
+	PropLibrary.use({"barrel": ["res://a.glb", "res://b.glb", "res://c.glb"]})
+	PropLibrary.use_world("meadow")
+	var first := PropLibrary.pick("barrel")
+	for i in 50:
+		assert_eq(PropLibrary.pick("barrel"), first, "тип не міняється в межах мапи")
+
+
+## …але МІЖ мапами типи мають різнитись, інакше решта моделей ніколи не потрапить у гру.
+func test_maps_differ_from_each_other() -> void:
+	PropLibrary.use({"barrel": ["res://a.glb", "res://b.glb", "res://c.glb"]})
+	var seen := {}
+	for w in ["meadow", "forest", "city", "beach", "clouds", "cave", "sky", "night"]:
+		PropLibrary.use_world(w)
+		seen[PropLibrary.pick("barrel")] = true
+	assert_gt(seen.size(), 1, "різні мапи беруть різні типи")
