@@ -100,6 +100,25 @@ def main():
     # ігнорує — модель, виправлена вузлом, приїхала б у гру такою ж кривою, як була.
     import math
     yaw = math.radians(a.yaw)
+    for o in meshes:
+        m = o.matrix_world
+        for v in o.data.vertices:
+            v.co = m @ v.co
+        o.matrix_basis.identity()
+        o.data.update()
+
+    if a.yaw != 0.0:
+        c, s_ = math.cos(yaw), math.sin(yaw)
+        for o in meshes:
+            for v in o.data.vertices:
+                x, y = v.co.x, v.co.y
+                v.co.x = x * c - y * s_
+                v.co.y = x * s_ + y * c
+            o.data.update()
+        lo, hi, size = describe(meshes, "поворот")
+
+    # Коефіцієнт рахуємо ПІСЛЯ повороту: --yaw 90 міняє ширину з глибиною місцями, і
+    # порахований до нього коефіцієнт узяв би не ту вісь.
     k = 1.0
     if a.width > 0.0 and size[0] > 1e-6:
         k = a.width / size[0]
@@ -120,23 +139,6 @@ def main():
                   "пройти. Або бокс замалий, або модель треба довернути (--yaw)" % (got_d, bd))
     elif a.height > 0.0 and size[2] > 1e-6:
         k = a.height / size[2]
-
-    for o in meshes:
-        m = o.matrix_world
-        for v in o.data.vertices:
-            v.co = m @ v.co
-        o.matrix_basis.identity()
-        o.data.update()
-
-    if a.yaw != 0.0:
-        c, s_ = math.cos(yaw), math.sin(yaw)
-        for o in meshes:
-            for v in o.data.vertices:
-                x, y = v.co.x, v.co.y
-                v.co.x = x * c - y * s_
-                v.co.y = x * s_ + y * c
-            o.data.update()
-        lo, hi, size = describe(meshes, "поворот")
 
     if k != 1.0:
         for o in meshes:

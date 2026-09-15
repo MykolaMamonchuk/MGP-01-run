@@ -5,7 +5,11 @@
     "scale": 1.0,
     "yaw_deg": 0.0
   },
-  "barrel": "res://assets/props/barrel.glb",
+  "barrel": [
+    "res://assets/props/barrel_1.glb",
+    "res://assets/props/barrel_2.glb",
+    "res://assets/props/barrel_3.glb"
+  ],
   "cart_market": "res://assets/props/cart_market.glb",
   "fence_low": [
     "res://assets/props/fence_low_1.glb",
@@ -16,5 +20,16 @@
     "res://assets/props/fence_rail_1.glb",
     "res://assets/props/fence_rail_2.glb",
     "res://assets/props/fence_rail_3.glb"
-  ]
+  ],
+  "crate": [
+    "res://assets/props/crate_1.glb",
+    "res://assets/props/crate_2.glb",
+    "res://assets/props/crate_3.glb"
+  ],
+  "puddle": "res://assets/props/puddle.glb",
+  "bridge_plank": {
+    "path": "res://assets/props/bridge_plank.glb",
+    "scale": 1.0,
+    "yaw_deg": -90.0
+  }
 }

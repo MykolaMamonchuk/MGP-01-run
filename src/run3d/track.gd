@@ -626,7 +626,7 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	for v in _props_side + _buildings_far + _far_filler + lm_kinds:
 		_decor_layer(String(v), {}, PropLibrary.pick(String(v)))
 	if not _canal_sides.is_empty() and _bridges_every > 0 and _voxel_exists("bridge_plank"):
-		_decor_layer("bridge_plank", {})
+		_decor_layer("bridge_plank", {}, PropLibrary.pick("bridge_plank"))
 	if not _canal_sides.is_empty() and PropLibrary.has("fence_rail"):
 		_decor_layer("fence_rail", {}, PropLibrary.pick("fence_rail"))
 	_far_left = _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])
