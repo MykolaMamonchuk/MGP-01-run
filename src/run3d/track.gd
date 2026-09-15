@@ -75,6 +75,8 @@ const BRIDGE_MARGIN := 0.4
 const BRIDGE_Y := 0.02
 ## Довжина вокселя bridge_plank уздовж Z (2,2 м) — після повороту на PI/2 це ширина настилу поперек каналу.
 const BRIDGE_BASE_W := 2.2
+## Поручні вздовж берега: наскільки ланка стоїть ближче до дороги за край води.
+const RAIL_INSET := 0.10
 
 var world: Dictionary = {}
 var lanes := 3
@@ -133,6 +135,10 @@ var _canal_sides: Array = []
 var _canal_water: Array[MeshInstance3D] = []
 var _canal_mats: Array[ShaderMaterial] = []
 var _canal_banks: Array[MeshInstance3D] = []
+## Тип поручнів (data/props.json може тримати кілька різних). Вибирається ОДИН РАЗ на світ,
+## а не на ланку: поручні тягнуться суцільно, і різні типи мають різну висоту (0,26 проти
+## 0,41 м) — вибір на кожен метр давав би огорожу, що стрибає вгору-вниз уздовж берега.
+var _rail_variant := 0
 var _bridges_every := 0
 ## Чи малювати обрив плато з боку [лівого, правого] — там, де канал, обриву нема.
 var _cliff_on := [true, true]
@@ -443,8 +449,11 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 
 ## Записати предмет у пачку ряду. z, поворот і фаза — випадкові, як було в кожного Critter3D.
 ## yaw ≥ 0 — фіксований поворот (орієнтири-арки мають дивитись на камеру, а не крутитись).
-func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0) -> void:
-	var variant := PropLibrary.pick(kind)
+## variant ≥ 0 — взяти САМЕ цей тип моделі замість випадкового. Потрібно там, де предмети
+## стоять суцільною стрічкою (поручні): випадковий тип на кожну ланку рве стрічку.
+func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0, variant: int = -1) -> void:
+	if variant < 0:
+		variant = PropLibrary.pick(kind)
 	ids.append(_decor_layer(kind, override, variant))
 	# Доведення моделі (data/props.json): згенерована модель майже ніколи не приходить одразу
 	# в потрібному розмірі й розвороті, а правити це в самому .glb довго. Для вокселя обидва
@@ -628,6 +637,9 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 		_decor_layer(String(v), {})
 	if not _canal_sides.is_empty() and _bridges_every > 0 and _voxel_exists("bridge_plank"):
 		_decor_layer("bridge_plank", {})
+	if not _canal_sides.is_empty() and PropLibrary.has("fence_rail"):
+		_rail_variant = PropLibrary.pick("fence_rail")
+		_decor_layer("fence_rail", {}, _rail_variant)
 	_far_left = _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])
 	_far_side = -1.0 if _rng.randf() < 0.5 else 1.0
 	_layout_canal()
@@ -735,6 +747,14 @@ func _decorate(row: Node3D) -> void:
 		if not _sea and _canal_sides.has(side) and _bridges_every > 0 and posmod(i, _bridges_every) == 0 \
 				and bridge_clears_road(edge, c_offset, c_width):
 			_add_bridge(ids, data, side * (edge + c_offset + c_width * 0.5), c_width)
+		# поручні вздовж берега: одна ланка на ряд. Ряд рівно 1,0 м, і модель зроблено такою ж
+		# (tools/prop_prepare.py --width 1.0), тож ланки стикуються в суцільну стрічку.
+		# На ряду з містком поручнів нема — інакше вони перегородили б прохід на нього.
+		if not _sea and _canal_sides.has(side) and PropLibrary.has("fence_rail") 				and not (_bridges_every > 0 and posmod(i, _bridges_every) == 0):
+			# розвертаємо лицем до дороги: на лівому борті це +90°, на правому −90°
+			_add_decor(ids, data, "fence_rail", {},
+				side * (edge + c_offset - RAIL_INSET), 0.0, 1.0,
+				PI * 0.5 if side < 0.0 else PI * 1.5, _rail_variant)
 		if open and not _sea:
 			# ── відкрите узбіччя: трава одразу за дорогою, пропси, за ними другий план ──
 			var far_min := FAR_MIN

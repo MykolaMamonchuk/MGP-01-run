@@ -11,5 +11,10 @@
     "res://assets/props/fence_low_1.glb",
     "res://assets/props/fence_low_2.glb",
     "res://assets/props/fence_low_3.glb"
+  ],
+  "fence_rail": [
+    "res://assets/props/fence_rail_1.glb",
+    "res://assets/props/fence_rail_2.glb",
+    "res://assets/props/fence_rail_3.glb"
   ]
 }

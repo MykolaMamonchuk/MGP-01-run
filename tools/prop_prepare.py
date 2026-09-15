@@ -42,6 +42,12 @@ def parse_args(argv):
     ap.add_argument("--out", required=True)
     ap.add_argument("--height", type=float, default=0.0)
     ap.add_argument("--box", default="", help="ШxВxГ, м — вписати модель у бокс зіткнення")
+    ap.add_argument("--width", type=float, default=0.0,
+                    help="ТОЧНА ширина в метрах. Для декору, що стикується (поручні вздовж "
+                         "берега, настил містка): ряд траси рівно 1,0 м, і секція мусить бути "
+                         "рівно такою ж, інакше між ланками лишаються щілини або вони "
+                         "налізають одна на одну. --box тут не годиться: він вписує, тобто "
+                         "може зменшити ще й по висоті, і рівний метр зникне")
     ap.add_argument("--origin", default="bottom", choices=["bottom", "center", "keep"])
     ap.add_argument("--yaw", type=float, default=0.0)
     ap.add_argument("--tex-size", type=int, default=0,
@@ -95,7 +101,10 @@ def main():
     import math
     yaw = math.radians(a.yaw)
     k = 1.0
-    if a.box:
+    if a.width > 0.0 and size[0] > 1e-6:
+        k = a.width / size[0]
+        print("  точна ширина %.3f → коефіцієнт %.3f" % (a.width, k))
+    elif a.box:
         bw, bh, bd = [float(x) for x in a.box.lower().replace(",", ".").split("x")]
         # Розмір задають ШИРИНА й ВИСОТА. Ширина — бо смуга в грі рівно 1,0 м, і модель,
         # ширша за бокс, залазить на сусідню смугу: гравець бачить перешкоду там, де
