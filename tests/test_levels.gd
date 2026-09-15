@@ -22,8 +22,13 @@ func before_each() -> void:
 	_worlds = RunScript.load_worlds()
 
 
+## Вид «існує», якщо його є чим намалювати. Справжня МОДЕЛЬ рахується нарівні з вокселем:
+## відколи є PropLibrary, вид цілком може жити тільки моделлю й не мати вокселя взагалі —
+## саме так і прийшов кущ. Без цього тест вимагав би заводити мертвий воксель-двійник
+## під кожну нову модель.
 func _voxel_ok(name: String) -> bool:
-	return FileAccess.file_exists("res://data/voxels/%s.json" % name) or ART_V15_VOXELS.has(name)
+	return FileAccess.file_exists("res://data/voxels/%s.json" % name) \
+		or PropLibrary.has(name) or ART_V15_VOXELS.has(name)
 
 
 func test_seventeen_levels_with_valid_worlds_and_lanes() -> void:

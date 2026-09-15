@@ -50,6 +50,11 @@ def parse_args(argv):
                          "може зменшити ще й по висоті, і рівний метр зникне")
     ap.add_argument("--origin", default="bottom", choices=["bottom", "center", "keep"])
     ap.add_argument("--yaw", type=float, default=0.0)
+    ap.add_argument("--no-rig", action="store_true",
+                    help="викинути скелет і вагові групи. Пропсам ріг не потрібен у принципі: "
+                         "він згинає суцільну шкіру, а ящик чи кущ або стоять, або розлітаються "
+                         "шматками — і те, й те робиться без нього. Натомість ріг тягне в файл "
+                         "десятки мегабайтів ваг на кожну вершину")
     ap.add_argument("--tex-size", type=int, default=0,
                     help="звести текстури до N×N. Генератор віддає 4096×4096 на кожну карту, "
                          "а пропс 0,95 м займає на екрані сотню пікселів: різниці не видно, "
@@ -89,6 +94,26 @@ def main():
     meshes = [o for o in bpy.data.objects if o.type == "MESH"]
     if not meshes:
         raise SystemExit("у файлі нема мешів")
+
+    if a.no_rig:
+        # Спершу прикладаємо трансформ арматури до вершин, а потім її прибираємо: інакше
+        # меш, який висить на кістці зі своїм поворотом, після видалення скелета ляже боком.
+        for o in meshes:
+            o.matrix_basis = o.matrix_world.copy()
+            o.parent = None
+            for m in list(o.modifiers):
+                if m.type == "ARMATURE":
+                    o.modifiers.remove(m)
+            o.vertex_groups.clear()
+            if o.data.shape_keys is not None:
+                o.shape_key_clear()
+        gone = [o for o in bpy.data.objects if o.type != "MESH"]
+        for o in gone:
+            bpy.data.objects.remove(o, do_unlink=True)
+        for act in list(bpy.data.actions):
+            bpy.data.actions.remove(act)
+        if gone:
+            print("  знято ріг: прибрано %d вузлів (скелет, анімації, вагові групи)" % len(gone))
 
     # У glTF вісь «вгору» — Y, і саме так модель прийшла; Blender імпортує її з поворотом,
     # тож міряємо по тій осі, що після імпорту дивиться вгору (Z у Blender).

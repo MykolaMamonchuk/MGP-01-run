@@ -230,6 +230,32 @@ func _ready() -> void:
 	level = lm.get_level(level_num)
 	_enter_world(String(level.get("world", "meadow")), true)
 	_enter_menu(true)
+	_demo_jump()
+
+
+## Швидкий вхід для показу й тестування: одразу в потрібний рівень потрібним героєм, без
+## меню, вибору героя й мапи.
+##
+## Навіщо. Щоб подивитись на один рівень, доводилось щоразу проходити три екрани. Коли
+## правку треба перевірити двадцять разів поспіль, це з'їдає більше часу, ніж сама правка,
+## і — гірше — спокушає перевіряти рідше, ніж треба.
+##
+##     LEVEL=1 godot res://src/run3d/run3d.tscn
+##     LEVEL=1 HERO=lys godot res://src/run3d/run3d.tscn
+##
+## Рівень відкривається навіть якщо не куплений: це вхід для показу, а не обхід прогресу
+## в самій грі — без змінної оточення все лишається як було.
+func _demo_jump() -> void:
+	var who := OS.get_environment("HERO")
+	if who != "" and heroes.has(who):
+		_apply_hero(who)
+	var lvl := OS.get_environment("LEVEL")
+	if lvl == "":
+		return
+	var num := clampi(int(lvl), 1, maxi(lm.count(), 1))
+	_demo_any_level = true
+	print("демо: одразу рівень ", num, " героєм ", hero.hero_id)
+	_start_level(num)
 
 
 # ---------- дані ----------
@@ -604,8 +630,13 @@ func _on_map_closed() -> void:
 
 
 ## Старт рівня num: біом, доріжки, складність, туторіал → відлік.
+## Показовий вхід пускає в будь-який рівень. Прапорець, а не правка прогресу: збереження
+## дитини лишається недоторканим, і без змінної оточення гра поводиться рівно як раніше.
+var _demo_any_level := false
+
+
 func _start_level(num: int) -> void:
-	if not lm.get_level(num).is_empty() and not lm.is_open(num):
+	if not _demo_any_level and not lm.get_level(num).is_empty() and not lm.is_open(num):
 		# рівень не куплений / попередній не пройдено (GDD v1.3 §3a) — на мапу, там купують за зірочки
 		_open_map()
 		return

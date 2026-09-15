@@ -31,5 +31,9 @@
     "path": "res://assets/props/bridge_plank.glb",
     "scale": 1.0,
     "yaw_deg": -90.0
-  }
+  },
+  "bush_flower": [
+    "res://assets/props/bush_flower_1.glb",
+    "res://assets/props/bush_flower_2.glb"
+  ]
 }
