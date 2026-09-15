@@ -165,7 +165,11 @@ func _ready() -> void:
 	side_mesh.size = Vector3(SIDE_W, 0.4, 1.0)
 	# центр смугастий: парні ряди одного кольору, непарні іншого — тому два MultiMesh
 	_mm_center = [_make_canvas(center_mesh, (ROWS + 1) / 2), _make_canvas(center_mesh, ROWS / 2)]
-	_mm_side = [_make_canvas(side_mesh, ROWS), _make_canvas(side_mesh, ROWS)]
+	# по ДВІ смуги на бік, а не одна плита: там, де вздовж дороги йде канал, між ними
+	# лишається проріз, і крізь нього нарешті видно воду. Досі канал існував у даних —
+	# вода, береги, містки — але плита узбіччя завтовшки 0,4 м накривала його зверху, і
+	# рівень «над річкою» виглядав як лужок із двома теракотовими смужками.
+	_mm_side = [_make_canvas(side_mesh, ROWS * 2), _make_canvas(side_mesh, ROWS * 2)]
 	_mm_center[0].material_override = Mats.solid(Palette.WORLD_GROUND)
 	_mm_center[1].material_override = Mats.solid(Palette.WORLD_GROUND_DARK)
 	var side_mat := Mats.solid(Palette.WORLD_SIDE)
@@ -514,10 +518,14 @@ func _sync_road() -> void:
 		var y := -0.2 * sy                     # локальний y полотна, помножений на масштаб ряду
 		(_mm_center[i % 2].multimesh as MultiMesh).set_instance_transform(i / 2,
 			Transform3D(Basis.from_scale(Vector3(_row_sx[i], sy, 1.0)), Vector3(0.0, y, z)))
-		(_mm_side[0].multimesh as MultiMesh).set_instance_transform(i,
-			Transform3D(Basis.from_scale(Vector3(float(_side_sx[0]), sy, 1.0)), Vector3(_row_lx[i], y, z)))
-		(_mm_side[1].multimesh as MultiMesh).set_instance_transform(i,
-			Transform3D(Basis.from_scale(Vector3(float(_side_sx[1]), sy, 1.0)), Vector3(_row_rx[i], y, z)))
+		for e in range(2):
+			var sign := -1.0 if e == 0 else 1.0
+			var cx: float = _row_lx[i] if e == 0 else _row_rx[i]
+			var half := SIDE_W * float(_side_sx[e]) * 0.5
+			for part in _side_strips(sign, cx, half):
+				(_mm_side[e].multimesh as MultiMesh).set_instance_transform(i * 2 + int(part["n"]),
+					Transform3D(Basis.from_scale(Vector3(float(part["sx"]), sy, 1.0)),
+						Vector3(float(part["x"]), y, z)))
 		# обрив плато: кожен наступний шар «цегли» нижчий і трохи вужчий — східці, як в арт-біблії
 		for k in range(CLIFF_LAYERS):
 			var cy := (-0.4 - CLIFF_STEP * (float(k) + 0.5)) * sy
@@ -931,6 +939,30 @@ func _layout_canal() -> void:
 				var cx: float = water.position.x + eside * width * 0.5
 				bank.position = Vector3(cx + eside * (BANK_W * 0.5 - 0.03 * float(k)),
 					-BANK_H * (float(k) + 0.5), water.position.z)
+
+
+## Розкласти узбіччя одного борту на смуги. Без каналу — одна смуга на всю ширину, друга
+## нульова. З каналом — смуга від дороги до води й смуга за водою, а між ними проріз.
+##
+## sign -1 лівий борт, +1 правий. cx — центр плити, half — її півширина (обидва вже з
+## урахуванням анімації зміни кількості смуг, тож проріз їде разом з узбіччям).
+## Повертає [{n, x, sx}]: n — номер інстанса в ряду, sx — масштаб по X (меш завширшки SIDE_W).
+func _side_strips(sign: float, cx: float, half: float) -> Array:
+	var full := {"n": 0, "x": cx, "sx": half * 2.0 / SIDE_W}
+	var hidden := {"n": 1, "x": cx, "sx": 0.0}
+	if _sea or not _canal_sides.has(sign):
+		return [full, hidden]
+	var road_edge := absf(cx) - half
+	var offset := float(_canal.get("offset", 2.0))
+	var width := float(_canal.get("width", 1.2))
+	var outer_w := half * 2.0 - offset - width
+	if offset <= 0.05 or outer_w <= 0.05:
+		# канал ширший за узбіччя або впритул до дороги — прорізати нема куди
+		return [full, hidden]
+	return [
+		{"n": 0, "x": sign * (road_edge + offset * 0.5), "sx": offset / SIDE_W},
+		{"n": 1, "x": sign * (road_edge + offset + width + outer_w * 0.5), "sx": outer_w / SIDE_W},
+	]
 
 
 ## Пташка перелітає дорогу час від часу.

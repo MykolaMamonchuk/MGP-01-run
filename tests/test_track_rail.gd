@@ -69,3 +69,29 @@ func test_no_canal_no_rail() -> void:
 	_track.rebuild(_world("forest"), false)          # canal.side == "none"
 	await wait_process_frames(2)
 	assert_eq(_rail_records().size(), 0, "без каналу поручнів нема")
+
+
+## Проріз в узбіччі під канал. Досі канал існував тільки в даних: вода, береги й містки
+## малювались, але плита узбіччя завтовшки 0,4 м накривала їх, і рівень «над річкою»
+## виглядав як лужок. Тут стережемо саме геометрію прорізу, а не сам факт води.
+func test_verge_opens_a_gap_for_the_canal() -> void:
+	_track.rebuild(_world("meadow"), false)          # канал з обох боків, offset 2.0 ширина 1.2
+	await wait_process_frames(2)
+	var parts := _track._side_strips(1.0, 1.5 + Track.SIDE_W * 0.5, Track.SIDE_W * 0.5)
+	assert_eq(parts.size(), 2, "дві смуги")
+	var inner: Dictionary = parts[0]
+	var outer: Dictionary = parts[1]
+	# смуга від дороги до води завширшки рівно offset
+	assert_almost_eq(float(inner["sx"]) * Track.SIDE_W, 2.0, 0.001, "внутрішня смуга = відступ каналу")
+	# між смугами лишається рівно ширина води
+	var inner_far: float = float(inner["x"]) + float(inner["sx"]) * Track.SIDE_W * 0.5
+	var outer_near: float = float(outer["x"]) - float(outer["sx"]) * Track.SIDE_W * 0.5
+	assert_almost_eq(outer_near - inner_far, 1.2, 0.001, "проріз завширшки з воду")
+
+
+func test_no_canal_keeps_the_verge_solid() -> void:
+	_track.rebuild(_world("forest"), false)          # canal.side == "none"
+	await wait_process_frames(2)
+	var parts := _track._side_strips(1.0, 1.5 + Track.SIDE_W * 0.5, Track.SIDE_W * 0.5)
+	assert_almost_eq(float(parts[0]["sx"]) * Track.SIDE_W, Track.SIDE_W, 0.001, "узбіччя суцільне")
+	assert_eq(float(parts[1]["sx"]), 0.0, "друга смуга не потрібна")

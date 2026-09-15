@@ -9,6 +9,7 @@
 ## Запуск:
 ##     WORLD=meadow OUT=/tmp/track.png godot res://src/debug/track_shot.tscn
 ##     WORLD=meadow VIEW=bank OUT=…    # камера збоку впритул до берега (стики поручнів)
+##     WORLD=meadow VIEW=top OUT=…     # згори: вода, береги, забудова — де що лежить
 ##     WORLD=meadow ADVANCE=17 OUT=…   # проїхати N метрів перед знімком
 extends Node3D
 
@@ -55,7 +56,13 @@ func _ready() -> void:
 		_track.advance(1.0)
 
 	var cam := Camera3D.new()
-	if OS.get_environment("VIEW") == "bank":
+	if OS.get_environment("VIEW") == "top":
+		# згори: одразу видно, що де лежить — вода, береги, забудова
+		cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+		cam.size = 16.0
+		cam.position = Vector3(0.0, 12.0, -4.0)
+		cam.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	elif OS.get_environment("VIEW") == "bank":
 		# впритул до берега й уздовж нього — саме так видно щілини між ланками
 		cam.position = Vector3(-4.6, 0.55, -6.0)
 		cam.rotation_degrees = Vector3(-6.0, -152.0, 0.0)

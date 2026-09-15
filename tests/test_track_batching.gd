@@ -44,8 +44,12 @@ func test_road_is_four_layers_covering_every_row() -> void:
 	var centre_even := (_track._mm_center[0].multimesh as MultiMesh).instance_count
 	var centre_odd := (_track._mm_center[1].multimesh as MultiMesh).instance_count
 	assert_eq(centre_even + centre_odd, Track.ROWS, "центр покриває всі ряди двома шарами (смугастість)")
+	# по ДВА інстанси на ряд: узбіччя розрізане на смугу до води й смугу за водою, а між
+	# ними проріз під канал. Без каналу друга смуга просто нульова — інстансів так само два,
+	# тобто пачка не залежить від того, чи є в світі вода
 	for mi in _track._mm_side:
-		assert_eq((mi.multimesh as MultiMesh).instance_count, Track.ROWS, "узбіччя — інстанс на ряд")
+		assert_eq((mi.multimesh as MultiMesh).instance_count, Track.ROWS * 2,
+			"узбіччя — дві смуги на ряд (проріз під канал)")
 
 
 func test_decor_layers_show_exactly_what_rows_hold() -> void:
