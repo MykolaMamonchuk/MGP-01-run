@@ -59,13 +59,18 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		# спершу бібліотека пропсів: є справжня модель для цього виду — беремо її меш,
 		# нема — лишається воксель (див. src/run3d/prop_library.gd). Саме МЕШ, а не готовий
 		# вузол сцени: нижче обведення бере `_mesh.mesh`, а анімації крутять сам MeshInstance3D.
-		var prop_name := String(def.get("voxel", kind))
-		var prop_mesh := PropLibrary.mesh(prop_name)
+		# `prop` — ЦІЛЬОВА модель, `voxel` — те, чим малюємо, поки її нема. Поля різні
+		# навмисно: світ уже перетемовано (пеньок → ящик, вулик → бочка), а моделей ще нема,
+		# і якби `voxel` одразу вказував на нову назву, VoxelBuilder малював би рожевий куб
+		# «файлу не знайдено». Щойно модель з'явиться в data/props.json під іменем із `prop` —
+		# вона підміняє воксель сама, без правок у даних світу.
+		var voxel_name := String(def.get("voxel", kind))
+		var prop_mesh := PropLibrary.mesh(String(def.get("prop", voxel_name)))
 		if prop_mesh != null:
 			_mesh = MeshInstance3D.new()
 			_mesh.mesh = prop_mesh
 		else:
-			_mesh = VoxelBuilder.instance(prop_name)
+			_mesh = VoxelBuilder.instance(voxel_name)
 		_mesh.position.y = y
 		_base_scale = Vector3.ONE * float(def.get("scale", 1.0))
 		_mesh.scale = _base_scale

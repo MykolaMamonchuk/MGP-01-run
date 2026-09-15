@@ -1,48 +1,258 @@
 {
-  "_note": "Лужок. walls_near/walls_far — стіни світу біля дороги (ближні — кожен ряд, впритул), landmarks — арки/вежі-орієнтири кожні 28–30 рядів, cliff — три шари «цегли» обриву плато, cliff_water — вода внизу (арт-біблія), fog_density — туман світу. obstacles.shape — силует із data/obstacle_shapes.json.",
-  "id": "meadow",
-  "name_uk": "Лужок",
-  "mode": "run",
-  "sky": "#9BDDFF",
-  "sky_evening": "#F7B58A",
-  "ground": "#7CC46B",
-  "ground_dark": "#5FA553",
-  "side": "#6DB35E",
-  "far": "#A8DCA0",
-  "accent": "#F06292",
-  "cliff": ["#C9784F", "#A55B3A", "#7A4128"],
-  "cliff_water": "#2FB7D9",
-  "seam": "#4C7C43",
-  "fog_density": 0.012,
-  "decor": ["flower", "flower", "bush", "mushroom"],
-  "decor_big": ["tree", "fence", "bush", "haycart", "beehive"],
-  "walls_near": ["fence", "bush", "wall_hedge", "haycart", "beehive", "mushroom", "tree"],
-  "walls_far": ["tree", "haycart"],
-  "walls_far_scale": [1.4, 2.0],
-  "landmarks": ["arch_terracotta", "tower_terracotta", "gate_wood"],
-  "roadside": "open",
-  "road_surface": "slabs",
-  "canal": {"side": "both", "offset": 2.0, "width": 1.2},
-  "bridges_every": 9,
-  "props_side": ["mushroom_red", "bush_cube", "crate", "barrel", "fence_low", "flower_yellow", "flower_pink", "hay_bale", "rock_grey"],
-  "buildings_far": ["house_red", "house_terra", "house_straw", "well", "tree_round", "pine_3"],
-  "canopy": false,
-  "tier2": false,
-  "critters": ["bunny"],
-  "birds": ["bird"],
-  "decor_colors": ["#F06292", "#FFF176", "#BA68C8", "#FF8A65"],
-  "music": "meadow",
-  "camera": {"pos": [0.0, 3.8, 4.6], "look": [0.0, 0.5, -5.0], "fov": 52, "ortho": false},
-  "obstacles": {
-    "stump":       {"voxel": "stump",       "action": "jump", "tumble": true,  "y": 0.0,  "box": [0.7, 0.7, 0.7],  "anim": "breathe", "shape": "low_bar",    "marker": "none"},
-    "branch":      {"voxel": "branch",      "action": "duck", "tumble": true,  "y": 1.05, "box": [1.1, 0.4, 0.3],  "anim": "sway",    "shape": "high_frame"},
-    "puddle":      {"voxel": "puddle",      "action": "any",  "tumble": false, "y": 0.0,  "box": [0.8, 0.2, 0.6],  "anim": "wobble",  "shape": "low_bar",    "marker": "none"},
-    "bush":        {"voxel": "bush",        "action": "any",  "tumble": false, "y": 0.0,  "box": [0.8, 0.5, 0.6],  "anim": "breathe", "shape": "low_bar",    "marker": "none"},
-    "fence":       {"voxel": "fence",       "action": "jump", "tumble": true,  "y": 0.0,  "box": [0.95, 0.7, 0.3], "anim": "wobble",  "shape": "low_bar"},
-    "beehive":     {"voxel": "beehive",     "action": "side", "tumble": true,  "y": 0.0,  "box": [0.7, 0.7, 0.5],  "anim": "bob",     "shape": "x_box",      "marker": "none"},
-    "cow":         {"voxel": "cow",         "action": "side", "tumble": true,  "y": 0.0,  "box": [0.8, 0.6, 0.5],  "anim": "breathe", "shape": "critter"},
-    "haycart":     {"voxel": "haycart",     "action": "side", "tumble": true,  "y": 0.0,  "box": [0.8, 0.8, 0.5],  "anim": "wobble",  "shape": "vehicle",    "vehicle_voxel": "haycart"},
-    "xbox":        {"voxel": "xbox_red",    "action": "side", "tumble": true,  "y": 0.0,  "box": [0.75, 1.0, 0.6], "shape": "x_box"},
-    "clothesline": {"voxel": "clothesline", "action": "duck", "tumble": true,  "y": 1.0,  "box": [1.2, 0.5, 0.3],  "anim": "sway",    "shape": "high_frame"}
+ "_note": "Світ 1 — річкове містечко (рішення 15.09.2026, референс docs/refs/want/world+items+atmosphere/…riverside…). Доріжка між двома каналами, поперек — дерев'яні містки. Поле `prop` у перешкодах — ЦІЛЬОВА модель, `voxel` — чим малюємо, поки її нема; черга генерації — docs/tasks/props.md.",
+ "id": "meadow",
+ "name_uk": "Містечко над річкою",
+ "mode": "run",
+ "sky": "#9BDDFF",
+ "sky_evening": "#F7B58A",
+ "ground": "#7CC46B",
+ "ground_dark": "#5FA553",
+ "side": "#6DB35E",
+ "far": "#A8DCA0",
+ "accent": "#F06292",
+ "cliff": [
+  "#C9784F",
+  "#A55B3A",
+  "#7A4128"
+ ],
+ "cliff_water": "#2FB7D9",
+ "seam": "#4C7C43",
+ "fog_density": 0.012,
+ "decor": [
+  "flower",
+  "flower",
+  "bush",
+  "mushroom"
+ ],
+ "decor_big": [
+  "tree",
+  "fence",
+  "bush",
+  "haycart",
+  "beehive"
+ ],
+ "walls_near": [
+  "fence",
+  "bush",
+  "wall_hedge",
+  "haycart",
+  "beehive",
+  "mushroom",
+  "tree"
+ ],
+ "walls_far": [
+  "tree",
+  "haycart"
+ ],
+ "walls_far_scale": [
+  1.4,
+  2.0
+ ],
+ "landmarks": [
+  "arch_terracotta",
+  "tower_terracotta",
+  "gate_wood"
+ ],
+ "roadside": "open",
+ "road_surface": "slabs",
+ "canal": {
+  "side": "both",
+  "offset": 2.0,
+  "width": 1.2
+ },
+ "bridges_every": 9,
+ "props_side": [
+  "mushroom_red",
+  "bush_cube",
+  "crate",
+  "barrel",
+  "fence_low",
+  "flower_yellow",
+  "flower_pink",
+  "hay_bale",
+  "rock_grey"
+ ],
+ "buildings_far": [
+  "house_red",
+  "house_terra",
+  "house_straw",
+  "well",
+  "tree_round",
+  "pine_3"
+ ],
+ "canopy": false,
+ "tier2": false,
+ "critters": [
+  "bunny"
+ ],
+ "birds": [
+  "bird"
+ ],
+ "decor_colors": [
+  "#F06292",
+  "#FFF176",
+  "#BA68C8",
+  "#FF8A65"
+ ],
+ "music": "meadow",
+ "camera": {
+  "pos": [
+   0.0,
+   3.8,
+   4.6
+  ],
+  "look": [
+   0.0,
+   0.5,
+   -5.0
+  ],
+  "fov": 52,
+  "ortho": false
+ },
+ "obstacles": {
+  "stump": {
+   "voxel": "stump",
+   "action": "jump",
+   "tumble": true,
+   "y": 0.0,
+   "box": [
+    0.7,
+    0.7,
+    0.7
+   ],
+   "anim": "breathe",
+   "shape": "low_bar",
+   "marker": "none",
+   "prop": "crate"
+  },
+  "branch": {
+   "voxel": "branch",
+   "action": "duck",
+   "tumble": true,
+   "y": 1.05,
+   "box": [
+    1.1,
+    0.4,
+    0.3
+   ],
+   "anim": "sway",
+   "shape": "high_frame",
+   "prop": "banner_line"
+  },
+  "puddle": {
+   "voxel": "puddle",
+   "action": "any",
+   "tumble": false,
+   "y": 0.0,
+   "box": [
+    0.8,
+    0.2,
+    0.6
+   ],
+   "anim": "wobble",
+   "shape": "low_bar",
+   "marker": "none",
+   "prop": "puddle"
+  },
+  "bush": {
+   "voxel": "bush",
+   "action": "any",
+   "tumble": false,
+   "y": 0.0,
+   "box": [
+    0.8,
+    0.5,
+    0.6
+   ],
+   "anim": "breathe",
+   "shape": "low_bar",
+   "marker": "none",
+   "prop": "bush_flower"
+  },
+  "fence": {
+   "voxel": "fence",
+   "action": "jump",
+   "tumble": true,
+   "y": 0.0,
+   "box": [
+    0.95,
+    0.7,
+    0.3
+   ],
+   "anim": "wobble",
+   "shape": "low_bar",
+   "prop": "fence_low"
+  },
+  "beehive": {
+   "voxel": "beehive",
+   "action": "side",
+   "tumble": true,
+   "y": 0.0,
+   "box": [
+    0.7,
+    0.7,
+    0.5
+   ],
+   "anim": "bob",
+   "shape": "x_box",
+   "marker": "none",
+   "prop": "barrel"
+  },
+  "cow": {
+   "voxel": "cow",
+   "action": "side",
+   "tumble": true,
+   "y": 0.0,
+   "box": [
+    0.8,
+    0.6,
+    0.5
+   ],
+   "anim": "breathe",
+   "shape": "critter",
+   "prop": "goose"
+  },
+  "haycart": {
+   "voxel": "haycart",
+   "action": "side",
+   "tumble": true,
+   "y": 0.0,
+   "box": [
+    0.8,
+    0.8,
+    0.5
+   ],
+   "anim": "wobble",
+   "shape": "vehicle",
+   "vehicle_voxel": "haycart",
+   "prop": "cart_market"
+  },
+  "xbox": {
+   "voxel": "xbox_red",
+   "action": "side",
+   "tumble": true,
+   "y": 0.0,
+   "box": [
+    0.75,
+    1.0,
+    0.6
+   ],
+   "shape": "x_box",
+   "prop": "xbox_red"
+  },
+  "clothesline": {
+   "voxel": "clothesline",
+   "action": "duck",
+   "tumble": true,
+   "y": 1.0,
+   "box": [
+    1.2,
+    0.5,
+    0.3
+   ],
+   "anim": "sway",
+   "shape": "high_frame",
+   "prop": "clothesline"
   }
+ }
 }

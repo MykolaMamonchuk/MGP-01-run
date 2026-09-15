@@ -11,6 +11,16 @@ func after_each() -> void:
 	PropLibrary.reload()
 
 
+## Дані світу читаємо файлом, а не через Run3D: у run3d.gd немає class_name, тож із тестів
+## він не видний, та й тест ДАНИХ не повинен залежати від ігрового коду.
+func _world(id: String) -> Dictionary:
+	var f := FileAccess.open("res://data/worlds/%s.json" % id, FileAccess.READ)
+	assert_not_null(f, "світ %s читається" % id)
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
 func _mesh_of(n: Node) -> MeshInstance3D:
 	for c in n.get_children():
 		if c is MeshInstance3D:
@@ -71,3 +81,35 @@ func test_model_wins_over_voxel_when_present() -> void:
 
 	PropLibrary.use({})
 	assert_null(PropLibrary.node_for("star"), "моделі нема — віддає null, і виклик бере воксель")
+
+
+## Перетемування світу 1: `prop` — цільова модель, `voxel` — чим малюємо, поки її нема.
+## Якби ці поля злили в одне, VoxelBuilder малював би рожевий куб «файлу не знайдено»
+## для чотирьох видів, моделей яких ще не існує (cart_market, bush_flower, banner_line, goose).
+func test_world_one_obstacles_name_their_target_model() -> void:
+	var world := _world("meadow")
+	var obs: Dictionary = world.get("obstacles", {})
+	assert_false(obs.is_empty(), "світ 1 має перешкоди")
+
+	var with_target := 0
+	for kind in obs.keys():
+		var def: Dictionary = obs[kind]
+		if not def.has("prop"):
+			continue
+		with_target += 1
+		# воксель мусить існувати ЗАВЖДИ — інакше до появи моделі буде рожевий куб
+		var voxel := String(def.get("voxel", kind))
+		assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % voxel),
+			"%s: запасний воксель %s на місці" % [kind, voxel])
+	assert_eq(with_target, 10, "десять перешкод першої черги мають названу цільову модель")
+
+
+## І сам шов: коли модель зʼявиться під іменем із `prop`, вона має підмінити воксель.
+func test_target_model_wins_when_it_appears() -> void:
+	var stump: Dictionary = _world("meadow")["obstacles"]["stump"]
+	assert_eq(String(stump.get("prop", "")), "crate", "пеньок цілиться в дерев'яний ящик")
+
+	PropLibrary.use({"crate": "res://vendor/cartoon_eye_3d/CartoonEye3D.tscn"})
+	assert_not_null(PropLibrary.mesh("crate"), "модель ящика знайдена — саме вона й малюватиметься")
+	PropLibrary.use({})
+	assert_null(PropLibrary.mesh("crate"), "моделі нема — лишається воксель пенька")
