@@ -433,11 +433,16 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 ## yaw ≥ 0 — фіксований поворот (орієнтири-арки мають дивитись на камеру, а не крутитись).
 func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0) -> void:
 	ids.append(_decor_layer(kind, override))
+	# Доведення моделі (data/props.json): згенерована модель майже ніколи не приходить одразу
+	# в потрібному розмірі й розвороті, а правити це в самому .glb довго. Для вокселя обидва
+	# значення типово 1.0 / 0°, тож нічого не змінюється.
+	var tw := PropLibrary.tweak(kind)
+	var extra_yaw := deg_to_rad(float(tw["yaw_deg"]))
 	data.append(x)
 	data.append(y)
 	data.append(randf_range(-0.4, 0.4) if yaw < 0.0 else 0.0)
-	data.append(randf() * TAU if yaw < 0.0 else yaw)
-	data.append(s)
+	data.append((randf() * TAU if yaw < 0.0 else yaw) + extra_yaw)
+	data.append(s * float(tw["scale"]))
 	# фазу зсуваємо на поточний час, щоб у мить появи вона була такою ж, як у старого Critter3D
 	data.append(randf() * 10.0 - _decor_t)
 

@@ -32,9 +32,31 @@
 Виду нема в `props.json` або файл відсутній — малюється воксель, як і раніше. Тобто список
 нижче можна закривати по одному пропсу, і гра лишається робочою на кожному кроці.
 
+### Розмір моделі можна не вгадувати
+
+Габарити в таблиці — це **бокси зіткнень у грі**, а не вимога до самого `.glb`. Модель має
+мати правильні ПРОПОРЦІЇ; точний розмір і розворот доводяться в `data/props.json`:
+
+```json
+"crate": {"path": "res://assets/props/crate.glb", "scale": 1.3, "yaw_deg": 90.0}
+```
+
+`scale` домножується до масштабу зі світу, `yaw_deg` додається до повороту. Працює і для
+перешкод, і для декору. Тобто якщо модель приїхала вдвічі більшою або лежить боком — це
+правиться одним числом, без переекспорту.
+
 ### Промпт для генерації
 
-Береться ДОСЛІВНО з `docs/refs/README.md` §0 — міняється лише перше речення. Ключове:
+Береться ДОСЛІВНО, міняється лише перше речення (канонічне джерело — `docs/refs/README.md` §0):
+
+> A cute &lt;об'єкт&gt;, chunky low-poly toy, soft rounded edges, simple readable shapes.
+> Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly,
+> gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens,
+> turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel
+> magical accents. Single clean silhouette, slightly exaggerated for gameplay readability.
+> Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished.
+> **No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.**
+ Ключове:
 **чарівний казковий світ, м'який low-poly**, і обов'язковий негативний хвіст
 «no voxels, no cubes, no blocky or pixelated geometry». Без нього генератор збивається
 на кубики — саме так виглядає все, що зараз у грі, і саме це ми прибираємо.

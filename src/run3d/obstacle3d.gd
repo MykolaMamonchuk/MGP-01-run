@@ -72,8 +72,11 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		else:
 			_mesh = VoxelBuilder.instance(voxel_name)
 		_mesh.position.y = y
-		_base_scale = Vector3.ONE * float(def.get("scale", 1.0))
+		# доведення моделі з data/props.json поверх масштабу зі світу (для вокселя — 1.0 / 0°)
+		var tw := PropLibrary.tweak(String(def.get("prop", voxel_name)))
+		_base_scale = Vector3.ONE * float(def.get("scale", 1.0)) * float(tw["scale"])
 		_mesh.scale = _base_scale
+		_mesh.rotation.y += deg_to_rad(float(tw["yaw_deg"]))
 		add_child(_mesh)
 		# обведення: той самий меш, трохи роздутий, чорний, лицьові грані відсічені; дитина меша — повторює анімації
 		var outline := MeshInstance3D.new()

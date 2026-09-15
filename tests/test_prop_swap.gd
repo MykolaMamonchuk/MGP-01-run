@@ -113,3 +113,25 @@ func test_target_model_wins_when_it_appears() -> void:
 	assert_not_null(PropLibrary.mesh("crate"), "модель ящика знайдена — саме вона й малюватиметься")
 	PropLibrary.use({})
 	assert_null(PropLibrary.mesh("crate"), "моделі нема — лишається воксель пенька")
+
+
+## Доведення моделі (scale / yaw_deg у data/props.json) має СПРАВДІ застосовуватись.
+## Довго воно існувало лише в PropLibrary й нікуди не доходило: у props.json можна було
+## написати будь-який масштаб, і нічого не мінялось.
+func test_model_scale_and_yaw_reach_the_obstacle() -> void:
+	var def := {"voxel": "stump", "prop": "crate", "box": [0.7, 0.7, 0.7], "action": "jump"}
+
+	PropLibrary.use({})
+	var plain := Obstacle3D.new()
+	add_child_autofree(plain)
+	plain.setup("stump", def, 0, true)
+	var base: float = plain._mesh.scale.x
+
+	PropLibrary.use({"crate": {"path": "res://vendor/cartoon_eye_3d/CartoonEye3D.tscn",
+		"scale": 2.0, "yaw_deg": 90.0}})
+	var tuned := Obstacle3D.new()
+	add_child_autofree(tuned)
+	tuned.setup("stump", def, 0, true)
+
+	assert_almost_eq(tuned._mesh.scale.x, base * 2.0, 0.001, "масштаб із props.json застосувався")
+	assert_almost_eq(tuned._mesh.rotation.y, deg_to_rad(90.0), 0.001, "і поворот теж")
