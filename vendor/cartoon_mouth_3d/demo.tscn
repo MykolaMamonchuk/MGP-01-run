@@ -1,0 +1,47 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://vendor/cartoon_mouth_3d/CartoonMouth3DIntegrated.tscn" id="1"]
+[ext_resource type="Script" path="res://vendor/cartoon_mouth_3d/demo.gd" id="2"]
+
+[sub_resource type="Environment" id="Environment_demo"]
+background_mode = 1
+background_color = Color(0.10, 0.12, 0.16, 1)
+ambient_light_source = 3
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 1.15
+
+[sub_resource type="SphereMesh" id="Sphere_head"]
+radial_segments = 48
+rings = 24
+height = 2.7
+radius = 1.35
+
+[sub_resource type="StandardMaterial3D" id="Mat_head"]
+albedo_color = Color(0.96, 0.51, 0.22, 1)
+roughness = 0.88
+
+[node name="MouthIntegratedDemo" type="Node3D"]
+script = ExtResource("2")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_demo")
+
+[node name="Head" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0, -0.95)
+scale = Vector3(1.12, 1.0, 0.86)
+mesh = SubResource("Sphere_head")
+material_override = SubResource("Mat_head")
+
+[node name="CartoonMouth3DIntegrated" parent="." instance=ExtResource("1")]
+position = Vector3(0, -0.38, 0.50)
+scale = Vector3(0.72, 0.72, 0.72)
+socket_color = Color(0.96, 0.51, 0.22, 1)
+embed_depth = 0.18
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 0, 4.8)
+current = true
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-32, -28, 0)
+light_energy = 1.4

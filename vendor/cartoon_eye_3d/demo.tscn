@@ -1,0 +1,45 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://vendor/cartoon_eye_3d/CartoonEye3D.tscn" id="1"]
+[ext_resource type="Script" path="res://vendor/cartoon_eye_3d/demo.gd" id="2"]
+
+[sub_resource type="Environment" id="Environment_demo"]
+background_mode = 1
+background_color = Color(0.08, 0.10, 0.14, 1)
+ambient_light_source = 3
+ambient_light_color = Color(1, 1, 1, 1)
+ambient_light_energy = 1.15
+
+[sub_resource type="StandardMaterial3D" id="Mat_head"]
+albedo_color = Color(0.95, 0.48, 0.20, 1)
+roughness = 0.85
+
+[sub_resource type="SphereMesh" id="Sphere_head"]
+radial_segments = 48
+rings = 24
+height = 2.5
+radius = 1.25
+
+[node name="Eye3DDemo" type="Node3D"]
+script = ExtResource("2")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_demo")
+
+[node name="Head" type="MeshInstance3D" parent="."]
+position = Vector3(0, 0, -0.78)
+scale = Vector3(1.15, 1.0, 0.85)
+mesh = SubResource("Sphere_head")
+material_override = SubResource("Mat_head")
+
+[node name="CartoonEye3D" parent="." instance=ExtResource("1")]
+position = Vector3(0, 0.05, 0.38)
+scale = Vector3(0.78, 0.90, 0.78)
+
+[node name="Camera3D" type="Camera3D" parent="."]
+position = Vector3(0, 0, 4.6)
+current = true
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="."]
+rotation_degrees = Vector3(-30, -25, 0)
+light_energy = 1.45

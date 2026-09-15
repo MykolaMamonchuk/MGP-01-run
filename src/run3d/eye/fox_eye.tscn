@@ -1,0 +1,13 @@
+[gd_scene format=3 uid="uid://oj5uhy21kqir"]
+
+[ext_resource type="PackedScene" uid="uid://sv13bxl407e4" path="res://src/run3d/eye/cartoon_eye.tscn" id="1"]
+
+[node name="FoxEye" unique_id=306173024 instance=ExtResource("1")]
+transform = Transform3D(0.9998477, -0.017452406, 0, 0.017452406, 0.9998477, 0, 0, 0, 1, 0, 0, 0)
+eye_scale = Vector2(0.236, 0.237)
+iris_scale = 0.63
+pupil_scale = 0.44999999999999996
+eye_rotation = 1.0
+highlight_scale = 0.8999999999999999
+ball_depth = 0.24
+eyelid_cover = 0.3

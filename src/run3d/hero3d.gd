@@ -66,6 +66,13 @@ const GAIT_TAIL_YAW := HeroRig.GAIT_TAIL_YAW       ## відмах хвоста 
 ## оберт ±0,5 рад із поверненням за 0,5 с, 3 зірочки над головою 1,2 с, невразливість 1,5 с.
 const HIT_EYE_SCALE := 1.4
 const HIT_PUPIL_SCALE := 0.6
+## ShaderEye (vendor/cartoon_eye/, на пробі) — плаский квад 1×1,25; на відміну від CartoonEye
+## тут нема пресетного eye_scale, тож розмір ока задаємо масштабом вузла напряму. Число
+## підібране так, щоб вийшло приблизно як фінальний розмір ока лиса на CartoonEye.
+const SHADER_EYE_BASE_SIZE := 0.21
+## Те саме для 3D-рота: mouth_width = 1.0 у компоненті означає «уся ширина рота», тож у
+## координатах обличчя це приблизно те, чим був старий рот-коробочка (0,1 завширшки).
+const MOUTH_3D_BASE_SIZE := 0.14
 const HIT_SIDE_LANES := 0.5
 const HIT_SPIN := 0.5
 const HIT_STARS := 3
@@ -89,6 +96,19 @@ const ANIM_NAMES := ["idle", "run", "sprint", "limp", "duck", "jump", "rocket",
 const PROFILE_KEYS := ["leg_amp", "leg_freq", "bob_amp", "body_pitch", "body_y", "head_pitch",
 	"ears", "tail", "limp_leg", "shake", "spin_y", "hop", "leg_spread"]
 const HIT_ANIM_SEC := 0.5         ## скільки триває поза удару
+## Спотикання: тіло клюєть носом уперед і вирівнюється. Без цього удар читався як «крутнуло
+## навколо осі», а не як «перечепився» — хоча в грі це саме перечеплення об перешкоду.
+const STUMBLE_PITCH := 0.55       ## на скільки клюнути носом, рад
+const STUMBLE_EASE := 3.2         ## як швидко вирівнюється (частка за секунду)
+## Зміна доріжки: підскок убік із доворотом носа. Раніше був лише нахил корпусу — рух
+## читався як «з'їхав», а не як «перестрибнув на сусідню доріжку».
+const LANE_HOP := 0.075           ## висота підскоку, м
+const LANE_YAW := 0.30            ## доворот носа в бік нової доріжки, рад
+## Стрибок: ноги підбираються на зльоті й тягнуться донизу перед приземленням, ніс іде
+## за рухом. Статична поза в повітрі читалась як «злетів колодою».
+const JUMP_PITCH := 0.26
+const JUMP_LEG_TUCK := 0.5        ## розмах лапок на самому верху
+const JUMP_LEG_REACH := 1.2       ## і перед приземленням
 const WAVE_ANIM_SEC := 1.6
 ## Привітання (ті самі числа й у HeroRig): герой ЗВОДИТЬСЯ ДИБКИ на задні лапки.
 ## ВСЕ ТІЛО обертається навколо ЗАДНІХ ЛАПОК НА ЗЕМЛІ (WAVE_PIVOT) на WAVE_PITCH; задні
@@ -98,8 +118,9 @@ const WAVE_ANIM_SEC := 1.6
 ## Скелетний герой робить рівно те саме, тільки обертає вузол моделі (HeroRig._place_root) —
 ## жодних «кісток тазу», бо ієрархія в кожного ригу своя (див. docs/MEMORY.md).
 ## У НАШИХ ЗНАКАХ: + оберт лапки — мах УПЕРЕД, + WAVE_PITCH — перед УГОРУ, + head_pitch — морда ВНИЗ.
-const WAVE_LIFT := -1.2           ## передня права («привіт») — середина розмаху, рад
-const WAVE_LIFT_SWING := 0.2      ## розмах помаху вгору-вниз: WAVE_LIFT ± це (−1,4 … −1,0)
+const WAVE_LIFT := 1.2           ## передня права («привіт») — середина розмаху, рад.
+## + = лапка УПЕРЕД, до камери (14.09.2026: було −1.2 — махала назад)
+const WAVE_LIFT_SWING := 0.2      ## розмах помаху вгору-вниз: WAVE_LIFT ± це (1,0 … 1,4)
 const WAVE_LIFT_TUCK := -0.6      ## передня ліва просто підібгана, рад
 const WAVE_PITCH := HeroRig.WAVE_PITCH   ## на скільки задирається перед, рад (≈50°)
 ## Навколо ЧОГО крутиться дибка (координати тіла): ЗАДНІ ЛАПКИ НА ЗЕМЛІ (y = 0). Раніше
@@ -176,6 +197,10 @@ const CHARGE_WINDUP_DIP := -0.09  ## наскільки присідає в за
 ## додатна половина синуса крізь smoothstep (HeroRig.dance_bounce), а передні лапки не
 ## клацають на біт, а ПЕРЕКОЧУЮТЬ вагу за DANCE_LEG_EASE (HeroRig.dance_leg_weight).
 const DANCE_SEC := 3.0
+## Танець ще й похитує корпусом убік — без крену він читався як «герой просто обертається».
+## Частота втричі вища за виляння, щоб рух був бадьорий, а не сонний.
+const DANCE_ROLL := 0.14
+const DANCE_ROLL_BEATS := 3.0
 const DANCE_BPS := 1.5            ## бітів на секунду (танець)
 const DANCE_LEG_EASE := HeroRig.DANCE_LEG_EASE   ## перекочування ваги між передніми лапками, с
 const DANCE_HOP := 0.04           ## висота підскоку на біт, м (було 0,06 — лапки відривались)
@@ -279,6 +304,8 @@ var _accent_node: GPUParticles3D
 var _gait_phase := 0.0
 var _slide_dust_t := 0.0           ## пилюка з боків під час ковзання (присід)
 var _dance_t := 0.0                ## секунд від початку танцю (з нього виляння ±DANCE_YAW)
+var _stumble := 0.0                ## поточний «клювок» носом уперед (спотикання), рад
+var _lane_tween: Tween
 var _sprint_trail: GPUParticles3D  ## слід спринту (лише якщо в слоті "trail" нічого нема)
 ## Поза «лише для показу» (debug-прев'ю): профіль стану застосований, а геймплейних наслідків
 ## нема — не летимо, не радіємо, не сиплемо пилюку (див. preview_pose).
@@ -289,7 +316,17 @@ var _vy := 0.0
 var _y := 0.0
 var _tilt := 0.0
 var _t := 0.0
+## Як саме кліпнути. BOTH — обома; SEQUENCE — одне за одним із затримкою; WINK — одним оком.
+enum BlinkKind { BOTH, WINK, SEQUENCE }
+
+const BLINK_CLOSE_SEC := 0.06
+const BLINK_OPEN_SEC := 0.08
+const BLINK_SEQUENCE_GAP := 0.09        # наскільки друге око відстає від першого
+const HAPPY_EYE_SQUASH := 0.42          # радісне око — сплюснуте, але ще читається
+const GAZE_DRIFT := 0.22                # наскільки очі самі «блукають», коли герой біжить прямо
+
 var _blink_t := 0.0
+var _gaze_drift_t := 0.0
 var _next_blink := 3.0
 var _look_t := 0.0
 var _yawn_t := 0.0
@@ -308,9 +345,53 @@ var _head: Node3D                    # шарнір голови (шия)
 ## героя це вузол рига, стиснутий під ширину справжньої морди (див. HeroRig.face_anchor).
 var _face_root: Node3D
 var _face: Node3D
+## `rig_face.eye_spread` (типово 1.0) — окремий від `scale` множник ГОРИЗОНТАЛЬНОГО
+## розльоту очей: у fox_meshy авто-масштаб обличчя (за шириною голови) і реальна відстань
+## між очима моделі не пропорційні — самого "scale" не вистачає рознести очі, не роздувши
+## їх самих понад міру.
+var _eye_spread := 1.0
+## `rig_face.eye_y` — висота ока В КООРДИНАТАХ ОБЛИЧЧЯ. Формула посадки (rig_face.y) рахує
+## її від коробки голови, а та на Meshy-моделях буває перекошена — тоді простіше задати прямо.
+var _eye_y := 0.225
+## `rig_face.x` — зсув УСЬОГО обличчя вбік. Потрібен там, де коробка голови перекошена
+## (Meshy-моделі часто несиметричні) і формула саджає обличчя повз морду.
+var _face_x := 0.0
+## `rig_face.eye_size` — множник розміру самого ока (не чіпає посадку, на відміну від scale).
+## Число — однаково по всіх осях; список [x, y, z] — окремо, щоб зробити око круглішим під
+## круглу очницю моделі (типове наше око — високий овал під воксельну голову).
+var _eye_size := Vector3.ONE
+## `rig_face.eye_z` — наскільки втопити око В ЧЕРЕП. Без цього кулька сидить на поверхні й
+## з бокових ракурсів читається як опукла «риб'яча» лінза.
+var _eye_z := 0.0
+## `rig_face.eye_yaw` — розворот кожного ока НАЗОВНІ, у градусах (додатне — назовні,
+## відʼємне — всередину). Було лише `layout: "side"` — жорсткі ±90° і більше нічого; для
+## дельфіна чи черепахи потрібне якраз проміжне: очі на боках голови, але не рівно вбік.
+var _eye_yaw := 0.0
+## `rig_face.cheek_y` — наскільки щічка нижча за око (типово 0.105, як було завжди).
+var _cheek_y := 0.105
+## `rig_face.cheeks` — чи малювати НАШ рум'янець. У героя, чия текстура вже має намальовані
+## щічки (так у fox_clear), наші лягали б поверх і читались як друга пара плям.
+var _cheeks := true
+## `rig_face.iris` — множник райдужки й зіниці окремо від білка. Типове наше око майже все
+## темне (райдужка — 84 % білка): на маленькому воксельному оці це читалось, а на великому
+## оці рига перетворюється на суцільну темну пляму без білого.
+var _iris := 1.0
 var _eyes: Array[Node3D] = []
-var _pupils: Array[MeshInstance3D] = []
+## Вузли CartoonEye.IrisPivot — райдужка+зіниця+блики їдуть разом (погляд, реакція на удар).
+var _pupils: Array[Node3D] = []
+## Куди зараз дивляться очі (-1..1), згладжено. Саме зміщення обмежує CartoonEye.max_look_offset.
+var _look_x := 0.0
 var _mouth: MeshInstance3D
+## Вендорний 3D-рот (vendor/cartoon_mouth_3d), якщо героєві заданий rig_face.mouth_scene.
+## Коли він є — стара коробочка _mouth не малюється зовсім, а всі вирази (усмішка, подив,
+## позіхання) ідуть через _mouth_* нижче, які вміють і те, й те.
+var _mouth3d: CartoonMouth3DIntegrated
+## Доведення рота під конкретну морду (rig_face.mouth_y / mouth_z / mouth_size). У лиса
+## писок виступає далеко вперед за площину обличчя, тож рот доводиться окремо висувати —
+## інакше він (як і стара коробочка до нього) просто сидить усередині морди.
+var _mouth_off_y := 0.0
+var _mouth_off_z := 0.0
+var _mouth_size := 1.0
 var _parts: Array[Node3D] = []      # рухомі частини: вуха + хвіст
 var _ears: Array[Node3D] = []
 var _ear_base: Array[Vector3] = []  # базовий поворот вуха (розхил / звисання)
@@ -468,6 +549,7 @@ func set_hero(id: String, hero_color: Color, feat: String = "fox") -> void:
 	_meshes.clear()
 	_eyes.clear()
 	_pupils.clear()
+	_mouth3d = null          # старий рот піде разом зі старим _body, посилання не тягнемо
 	_parts.clear()
 	_ears.clear()
 	_ear_base.clear()
@@ -526,6 +608,21 @@ func rig() -> HeroRig:
 	return _rig
 
 
+## Підмінити текстуру-скін (та сама 3D-модель, інша картинка на тій самій UV-розгортці) —
+## лише для героїв із "rig_texture": true. skin_id — ключ у полі "skins" heroes.json цього
+## героя, напр. {"violet": "res://assets/models/fox_meshy_Image_0_skin_violet.jpg"}.
+## false — нема рига, героя без rig_texture, або такого skin_id нема в даних.
+func set_skin(skin_id: String) -> bool:
+	if _rig == null:
+		return false
+	var def := resolve_def(defs(), hero_id)
+	var skins: Dictionary = def.get("skins", {})
+	var path := String(skins.get(skin_id, ""))
+	if path == "":
+		return false
+	return _rig.apply_skin_texture(path)
+
+
 ## Кольори зон героя: o — основний, d — темніший (животик), c — крем (морда),
 ## k — темне (носик/копитця), i — рожева серединка вуха, e — зовнішній бік вуха (ще темніший
 ## за d), t — кінчик хвоста/чубчик, u — ОСНОВА чубчика (темніше золото: обідок черепа між
@@ -563,6 +660,29 @@ func _build_rig(def: Dictionary) -> bool:
 	var r := HeroRig.new()
 	if not r.build(_body, def, _hero_colors()):
 		return false
+	var face_cfg = def.get("rig_face", {})
+	_eye_spread = float((face_cfg as Dictionary).get("eye_spread", 1.0)) if typeof(face_cfg) == TYPE_DICTIONARY else 1.0
+	_eye_y = float((face_cfg as Dictionary).get("eye_y", 0.225)) if typeof(face_cfg) == TYPE_DICTIONARY else 0.225
+	_face_x = float((face_cfg as Dictionary).get("x", 0.0)) if typeof(face_cfg) == TYPE_DICTIONARY else 0.0
+	_eye_size = Vector3.ONE
+	_eye_z = 0.0
+	_eye_yaw = 0.0
+	if typeof(face_cfg) == TYPE_DICTIONARY:
+		var es = (face_cfg as Dictionary).get("eye_size", 1.0)
+		if typeof(es) == TYPE_ARRAY and (es as Array).size() >= 3:
+			_eye_size = Vector3(float(es[0]), float(es[1]), float(es[2]))
+		else:
+			_eye_size = Vector3.ONE * float(es)
+		_eye_z = float((face_cfg as Dictionary).get("eye_z", 0.0))
+		_eye_yaw = float((face_cfg as Dictionary).get("eye_yaw", 0.0))
+		_mouth_off_y = float((face_cfg as Dictionary).get("mouth_y", 0.0))
+		_mouth_off_z = float((face_cfg as Dictionary).get("mouth_z", 0.0))
+		_mouth_size = float((face_cfg as Dictionary).get("mouth_size", 1.0))
+		_iris = float((face_cfg as Dictionary).get("iris", 1.0))
+		_cheek_y = float((face_cfg as Dictionary).get("cheek_y", 0.105))
+		_cheeks = bool((face_cfg as Dictionary).get("cheeks", true))
+	# ніс і рот тримаються тієї самої відстані під очима, що й завжди (0,175)
+	_mouth_y = _eye_y - 0.175
 	_rig = r
 	for m in r.mesh_instances():
 		_meshes.append(m)
@@ -580,9 +700,14 @@ func _build_rig(def: Dictionary) -> bool:
 		_head.name = "Head"
 		_head.position = Vector3(0.0, NECK_Y, NECK_Z)
 		_body.add_child(_head)
-	# "rig_texture": модель уже має власне обличчя (Meshy-текстура) — не малюємо своє
-	# поверх, інакше вийдуть подвійні очі
-	if not r.has_own_texture():
+	# "rig_texture": у моделі вже є ЗАПЕЧЕНІ в текстуру очі, але вони мертві — не кліпають і
+	# не ворушаться. Тому для таких героїв робимо дві речі: (1) стираємо запечені очі прямо в
+	# .jpg (заливка кольором хутра по колу — див. docs/MEMORY.md), (2) вмикаємо наше живе
+	# обличчя тут. Прапорець "rig_face_overlay": true означає «цього героя вже пройдено обидва
+	# кроки»: без стертої текстури вийдуть ДВІ пари очей, без підігнаних rig_face.x/eye_y/
+	# eye_spread/eye_size наші очі сядуть повз очниці (у fox формула за коробкою голови
+	# промахувалась на пів морди — коробка в Meshy-моделей буває перекошена).
+	if not r.has_own_texture() or bool(def.get("rig_face_overlay", false)):
 		_build_face()
 	return true
 
@@ -827,14 +952,64 @@ func _dome(size: Vector3, c: Color, pos: Vector3, parent: Node3D) -> MeshInstanc
 
 ## Обличчя живе на голові (координати голови): великі очі з бліком у темних западинах вокселя,
 ## щічки й рот на кремовій морді.
+## Сцена ока: пресет героя (`rig_face.eye_scene`) або базове CartoonEye. Пресети —
+## src/run3d/eye/*.tscn: та сама сцена з іншими типовими значеннями (кругліше/вужче око,
+## більша чи менша райдужка), щоб новому звіряті брати найближчий і лише трохи доводити.
+func _eye_scene() -> PackedScene:
+	var path := String(_face_cfg_value("eye_scene", CartoonEye.BASE_SCENE))
+	if not ResourceLoader.exists(path):
+		push_warning("Hero3D: нема сцени ока %s — беру базову" % path)
+		path = CartoonEye.BASE_SCENE
+	return load(path) as PackedScene
+
+
+## Рот: або вендорний 3D-компонент (rig_face.mouth_scene), або стара темна коробочка.
+## Компонент сам виставляє собі z (position.z = surface_offset - embed_depth, бо він
+## «вгризається» в морду), тож саджаємо його не напряму, а у власний вузол-сокет — той і
+## тримає нашу позицію на морді. Плюс розворот на PI: компонент, як і CartoonEye3D,
+## будується вперед у +Z, а наше обличчя дивиться в −Z.
+func _build_mouth(face_z: float) -> void:
+	var path := String(_face_cfg_value("mouth_scene", ""))
+	if path != "" and ResourceLoader.exists(path):
+		var scene := load(path) as PackedScene
+		var m := scene.instantiate() if scene != null else null
+		if m is CartoonMouth3DIntegrated:
+			var socket := Node3D.new()
+			socket.name = "MouthSocket"
+			socket.position = Vector3(0.0, _mouth_y + _mouth_off_y, face_z + _mouth_off_z)
+			socket.rotation.y = PI
+			socket.scale = Vector3.ONE * MOUTH_3D_BASE_SIZE * _mouth_size
+			_face.add_child(socket)
+			_mouth3d = m as CartoonMouth3DIntegrated
+			# Сокет рота — кольором тієї плями, НА ЯКІЙ рот сидить. У лиса (і взагалі скрізь,
+			# де є belly_color) це світлий кремовий писок, а не руде хутро: з кольором хутра
+			# сокет прорізав у писку жовтогарячі сходинки навколо рота.
+			_mouth3d.socket_color = _belly_c if _belly_c.a > 0.0 else color
+			socket.add_child(_mouth3d)
+			return
+		if m != null:
+			m.queue_free()
+		push_warning("Hero3D: %s — не CartoonMouth3DIntegrated, беру стару коробочку" % path)
+	_mouth = _box(Vector3(0.1, 0.03, 0.02), Palette.HERO_MOUTH,
+		Vector3(0.0, _mouth_y + _mouth_off_y, face_z + _mouth_off_z), _face)
+
+
+## Значення з rig_face героя (рядок або число) з дефолтом.
+func _face_cfg_value(key: String, fallback: Variant) -> Variant:
+	var def := resolve_def(defs(), hero_id)
+	var cfg = def.get("rig_face", {})
+	if typeof(cfg) != TYPE_DICTIONARY:
+		return fallback
+	return (cfg as Dictionary).get(key, fallback)
+
+
 func _build_face() -> void:
 	_face = Node3D.new()
 	_face.name = "Face"
 	# у скелетного героя обличчя сідає у власний вузол рига (стиснутий під морду), у решти — на голову
 	var face_parent := _face_root if _face_root != null and is_instance_valid(_face_root) else _head
 	face_parent.add_child(_face)
-	var eye_pale := Palette.H_CREAM
-	var pupil := Palette.HERO_EYE
+	_face.position.x = _face_x
 	var face_z := -HEAD_HALF_D - 0.01
 	# кінь (і будь-яка довга морда) дивиться БОКАМИ голови, а не передньою гранню:
 	# `rig_face.layout: "side"` у heroes.json → очі на боках черепа, розвернуті назовні.
@@ -845,31 +1020,81 @@ func _build_face() -> void:
 	var spot: Dictionary = _rig.face_side_spot() if side_eyes else {}
 	var side_w := float(spot.get("half_w", 0.0))
 	var side_z := float(spot.get("z", face_z))
+	var eye_scene := _eye_scene()
 	for side in [-1.0, 1.0]:
-		var eye := Node3D.new()
+		# `as Node3D`, НЕ `as CartoonEye`: rig_face.eye_scene може вказувати й на вендорний
+		# ShaderEye (vendor/cartoon_eye/, на пробі) — кастити напряму в CartoonEye означало б
+		# null для нього. Тип-специфічне налаштування — нижче, окремо для кожної реалізації.
+		var eye := eye_scene.instantiate() as Node3D
 		if side_eyes:
 			eye.position = Vector3(side * side_w, 0.225, side_z)
 			eye.rotation.y = -side * PI * 0.5      # локальний «перед» ока дивиться назовні
 		else:
-			eye.position = Vector3(side * 0.15, 0.225, face_z)
+			eye.position = Vector3(side * 0.15 * _eye_spread, _eye_y, face_z + _eye_z)
+		# розворот назовні поверх обраної розкладки: знак той самий, що й у layout "side"
+		# (там це рівно -side * 90°), тож eye_yaw = 90 дає ту саму бічну посадку плавно
+		eye.rotation.y += -side * deg_to_rad(_eye_yaw)
+		if eye is CartoonEye:
+			var ce := eye as CartoonEye
+			# rig_face.eye_size / iris — МНОЖНИКИ поверх пресета (типово 1.0, тобто пресет як
+			# є): пресет задає стиль ока, а героєві лишається дрібне доведення під його морду
+			ce.eye_scale = ce.eye_scale * Vector2(_eye_size.x, _eye_size.y)
+			# z — опуклість білка: у CartoonEye це частка ширини (ball_depth), а не окрема вісь
+			ce.ball_depth = clampf(ce.ball_depth * _eye_size.z, 0.05, 1.0)
+			ce.iris_scale = clampf(ce.iris_scale * _iris, 0.1, 1.0)
+			# повіка (якщо пресет її просить) — кольором шерсті ЦЬОГО героя, а не якимось
+			# фіксованим тоном у пресеті: одна сцена ока годиться для всіх, лид підлаштовується сам
+			if ce.eyelid_cover > 0.001:
+				ce.eyelid_color = color.darkened(0.08)
+		elif eye is ShaderEye:
+			var se := eye as ShaderEye
+			se.auto_blink = false     # кліпанням керує Hero3D._blink() централізовано, не сам ShaderEye
+			se.scale = Vector3.ONE * SHADER_EYE_BASE_SIZE * ((_eye_size.x + _eye_size.y) * 0.5)
+			se.iris_size = clampf(se.iris_size * _iris, 0.2, 0.95)
+			se.sclera_color = Palette.H_CREAM
+			se.rim_color = Palette.HERO_IRIS.darkened(0.55)
+			se.iris_color = Palette.HERO_IRIS
+			se.pupil_color = Palette.HERO_EYE
+		elif eye is CartoonEye3D:
+			var e3 := eye as CartoonEye3D
+			# вендорний компонент побудований під «перед = +Z» (райдужка, повіки й сокет
+			# відкладаються в плюс), а наше обличчя дивиться в −Z (див. face_z нижче нуля).
+			# Без цього розвороту вся начинка ока заїжджала всередину голови, і лишалась
+			# сама куля білка. Додавання PI коректне й для бічних очей (−PI/2 → +PI/2).
+			e3.rotation.y += PI
+			# одне з двох очей — дзеркальне, щоб зіниці й блики дивились ВСЕРЕДИНУ, до носа.
+			# Пресет описує лише одне око; без цього обидва вели блик в один бік і морда
+			# виходила косоока (видно було на лисі поруч із оленям, у якого так і зроблено).
+			e3.mirrored = side > 0.0
+			e3.auto_blink = false     # знову ж: кліпання центральне, з Hero3D._blink()
+			e3.scale = Vector3.ONE * SHADER_EYE_BASE_SIZE
+			# тут rig_face.eye_size лягає ПО ОСЯХ як слід: x/y — пропорції ока, а z нарешті
+			# знову значить те, що й підписано в лабораторії, — ОПУКЛІСТЬ. Глибину самої кулі
+			# лишаємо пресетові, а z вирішує, наскільки куля втоплена в голову: 1.0 — перед
+			# ока врівень із гранню обличчя, більше — визирає дужче, менше — тоне глибше.
+			e3.eye_width *= _eye_size.x
+			e3.eye_height *= _eye_size.y
+			e3.embed_depth = e3.eye_depth * 0.5 * (2.0 - clampf(_eye_size.z, 0.2, 1.8))
+			e3.iris_size = clampf(e3.iris_size * _iris, 0.2, 0.95)
+			e3.sclera_color = Palette.H_CREAM
+			e3.iris_color = Palette.HERO_IRIS
+			e3.pupil_color = Palette.HERO_EYE
+			# сокет і повіки — ТОЧНО кольором шерсті героя, без затемнення: сокет ховає шов,
+			# де куля входить у голову, а повіки в спокої стоять на краю ока і мусять просто
+			# зливатися з мордою (затемнені — читались як дві брудні плями над оком і під ним)
+			e3.socket_color = color
+			e3._capture_expression_base()   # база для set_surprised() — уже з нашими пропорціями
 		_face.add_child(eye)
-		_dome_glossy(Vector3(0.105, 0.185, 0.05), eye_pale, Vector3.ZERO, eye)
-		# райдужка — тонке тепле кільце між білком і зіницею (референс: Meshy fox-texture
-		# показує велику темну зіницю з лише вузьким краєм брунатної райдужки, не чорну
-		# крапку впритул до білка)
-		_dome_glossy(Vector3(0.088, 0.163, 0.045), Palette.HERO_IRIS, Vector3(0.0, 0.0, -0.012), eye)
-		var p := _dome_glossy(Vector3(0.075, 0.15, 0.04), pupil, Vector3(0.0, 0.0, -0.02), eye)
-		# блики — діти eye, а НЕ пупила: p має нерівномірний scale (форма еліпса), і будь-яка
-		# дитина під ним теж масштабувалась би тим самим вектором, стискаючись у невидиму
-		# цятку. eye scale лишається (1,1,1), тож розмір/позиція тут прямі метри. Два блики
-		# (великий знизу-зліва, малий згори-справа), як на референсі — не один по центру.
-		_dome_glossy(Vector3(0.045, 0.045, 0.03), Color.WHITE, Vector3(-0.025, -0.03, -0.045), eye)
-		_dome_glossy(Vector3(0.022, 0.022, 0.02), Color.WHITE, Vector3(0.02, 0.045, -0.04), eye)
 		_eyes.append(eye)
-		_pupils.append(p)
+		if eye is CartoonEye:
+			_pupils.append((eye as CartoonEye).iris_pivot())
+		elif eye is CartoonEye3D:
+			_pupils.append((eye as CartoonEye3D).iris_pivot)
 		# щічка: бліда підкладка (ширша пляма) + кораловий кружечок зверху — на референсі
 		# рум'янець лежить на власній світлішій ділянці шкіри, а не просто на основному хутрі
-		var cheek_pos := Vector3(side * 0.2, 0.12, face_z + 0.01)
+		if not _cheeks:
+			continue          # рум'янець уже намальований у текстурі героя
+		var cheek_pos := Vector3(side * 0.2 * _eye_spread, _eye_y - _cheek_y, face_z + 0.01)
 		var cheek_base_pos := cheek_pos
 		if side_eyes:
 			cheek_pos = Vector3(side * side_w, 0.12, side_z - 0.07)
@@ -883,16 +1108,73 @@ func _build_face() -> void:
 	_dome(Vector3(0.032, 0.024, 0.022), Palette.HERO_NOSE, Vector3(0.0, _mouth_y + 0.05, face_z + 0.01), _face)
 	# рот лишається на ПЕРЕДНІЙ грані морди, нижче — і при бічних очах теж (усмішка/подив
 	# розтягують саме його — див. _smile()/hit_reaction())
-	_mouth = _box(Vector3(0.1, 0.03, 0.02), Palette.HERO_MOUTH, Vector3(0.0, _mouth_y, face_z), _face)
+	_build_mouth(face_z)
 	_eye_scale_y = 0.55 if feature == "sleepy" else 1.0
 	for e in _eyes:
-		e.scale.y = _eye_scale_y
+		_eye_set_lid(e, _eye_scale_y)
+
+
+# ---------- одна точка входу для ВСІХ реалізацій ока ----------
+# У проєкті живуть три: наш CartoonEye (src/run3d/eye/, кулі), вендорний ShaderEye
+# (vendor/cartoon_eye/, плаский квад+шейдер) і вендорний CartoonEye3D (vendor/cartoon_eye_3d/,
+# справжня 3D-геометрія з сокетом і повіками). Який саме дістанеться героєві — вирішує
+# rig_face.eye_scene у heroes.json, тож `_eyes` тримає просто Node3D. Замість `if eye is ...`
+# на кожному з половини десятка місць коду — три невеличкі точки входу нижче.
+
+## Повіка/кліпання. value — те саме число, яким колись рулили e.scale.y напряму: 0 — зовсім
+## заплющено, _eye_scale_y — звично розплющено. У обох вендорних це blink_amount
+## (0 — розплющено, 1 — заплющено, тобто напрямок протилежний).
+func _eye_set_lid(e: Node3D, value: float) -> void:
+	var closed := clampf(1.0 - value / maxf(_eye_scale_y, 0.001), 0.0, 1.0)
+	if e is CartoonEye:
+		(e as CartoonEye).scale.y = value
+	elif e is ShaderEye:
+		(e as ShaderEye).blink_amount = closed
+	elif e is CartoonEye3D:
+		(e as CartoonEye3D).blink_amount = closed
+
+
+## Погляд у бік dir (-1..1 по x). Обидва вендорні ведуть той самий напрям через look_at_offset().
+func _eye_gaze(e: Node3D, dir: Vector2) -> void:
+	if e is CartoonEye:
+		(e as CartoonEye).look_at_dir(dir)
+	elif e is ShaderEye:
+		(e as ShaderEye).look_at_offset(dir)
+	elif e is CartoonEye3D:
+		(e as CartoonEye3D).look_at_offset(dir)
+
+
+## Комічний «шок» на удар: у CartoonEye — сам масштаб ока (HIT_EYE_SCALE) + окремо зіниці
+## (_pupils). У вендорних окремого масштабу ока нема — там це один виклик «здивований/
+## нейтральний» (більше око, менша зіниця), решту робить сам компонент.
+func _eye_set_surprised(e: Node3D, on: bool) -> void:
+	if e is CartoonEye:
+		(e as CartoonEye).scale = Vector3(HIT_EYE_SCALE, HIT_EYE_SCALE, 1.0) if on \
+			else Vector3(1.0, _eye_scale_y, 1.0)
+	elif e is ShaderEye:
+		var se := e as ShaderEye
+		if on:
+			se.set_expression_surprised()
+		else:
+			se.set_expression_neutral()
+	elif e is CartoonEye3D:
+		var e3 := e as CartoonEye3D
+		if on:
+			e3.set_surprised()
+		else:
+			e3.set_neutral()
 
 
 # ---------- словник анімацій (GDD v1.6 §5) ----------
 
 ## Чиста функція: моторний профіль стану. Один словник керує ОБОМА тілами —
 ## воксельним (Hero3D._process) і скелетним (HeroRig.animate). Ключі — PROFILE_KEYS.
+## Де ми у стрибку: 0 — щойно відштовхнулись і летимо вгору, 0,5 — верхівка, 1 — падаємо
+## з повною швидкістю. З цього числа й ноги (підібрані вгорі, витягнуті перед землею), і ніс.
+static func jump_fall_k(vy: float, v_max: float) -> float:
+	return clampf(0.5 - vy / maxf(v_max, 0.001) * 0.5, 0.0, 1.0)
+
+
 static func profile_for(a: Anim) -> Dictionary:
 	var p := {
 		"leg_amp": 0.05, "leg_freq": IDLE_CADENCE_HZ, "bob_amp": 0.0, "body_pitch": 0.0,
@@ -918,6 +1200,9 @@ static func profile_for(a: Anim) -> Dictionary:
 				"body_y": SLIDE_BODY_Y, "head_pitch": SLIDE_HEAD_PITCH,
 				"ears": "back", "tail": "straight"}, true)
 		Anim.JUMP:
+			# leg_amp тут лише БАЗА: у польоті його щокадру перебиває _process, бо ноги
+			# мають залежати від вертикальної швидкості (підбираються на зльоті, тягнуться
+			# донизу перед приземленням), а profile_for() статичний і стану героя не бачить
 			p.merge({"leg_amp": 0.9, "leg_freq": 0.0, "ears": "up", "tail": "up"}, true)
 		Anim.ROCKET:
 			# leg_amp тут — це РОЗМАХ ПОХИТУВАННЯ біля фіксованої пози «вниз-назад»
@@ -1349,7 +1634,25 @@ func change_lane(dir: int) -> bool:
 		return false
 	lane = next
 	x_target = float(lane) * LANE_W
+	_lane_flourish(dir)
 	return true
+
+
+## Підскок убік: тіло підстрибує й довертає ніс у бік нової доріжки, вуха смикаються.
+## Сам зсув по x веде _process (лерп до x_target) — тут лише те, що робить рух «живим».
+## У танці не втручаємось: там `_body.rotation.y` веде саме танець, і ми б із ним билися.
+func _lane_flourish(dir: int) -> void:
+	if tumbling or anim_state == Anim.DANCE or _body == null:
+		return
+	_flap(0.5)
+	if _lane_tween != null and _lane_tween.is_valid():
+		_lane_tween.kill()
+	_lane_tween = create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
+	_lane_tween.tween_property(_body, "position:y", LANE_HOP, 0.10).set_trans(Tween.TRANS_QUAD)
+	_lane_tween.parallel().tween_property(_body, "rotation:y", -float(dir) * LANE_YAW, 0.10)
+	_lane_tween.tween_property(_body, "position:y", 0.0, 0.17) \
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_lane_tween.parallel().tween_property(_body, "rotation:y", 0.0, 0.20).set_trans(Tween.TRANS_BACK)
 
 
 func snap_to_lane() -> void:
@@ -1549,12 +1852,15 @@ func hit_reaction(dir: int = 0) -> void:
 	tumbling = true
 	ducking = false
 	_hold_anim(Anim.HIT, HIT_ANIM_SEC)
+	_stumble = STUMBLE_PITCH     # клюнув носом уперед — це перечеплення, а не просто оберт
 	# очі великі, зіниці меншають, рот «О»
 	for e in _eyes:
-		e.scale = Vector3(HIT_EYE_SCALE, HIT_EYE_SCALE, 1.0)
+		_eye_set_surprised(e, true)
 	for p in _pupils:
 		p.scale = Vector3(HIT_PUPIL_SCALE, HIT_PUPIL_SCALE, 1.0)
-	if is_instance_valid(_mouth):
+	if is_instance_valid(_mouth3d):
+		_mouth3d.open()          # рот «О» — у 3D-рота це реальна нижня щелепа
+	elif is_instance_valid(_mouth):
 		_mouth.scale = Vector3(1.6, 2.4, 1.0)
 		_mouth.position.y = _mouth_y - 0.01
 	# відкинуло вбік на пів доріжки (у межах дороги)
@@ -1585,8 +1891,11 @@ func _hit_stars() -> void:
 	ring.position = Vector3(0.0, HEAD_TOP + 0.22, 0.0)
 	add_child(ring)
 	for i in range(HIT_STARS):
-		var s := VoxelBuilder.instance("star")
-		s.scale = Vector3.ONE * 0.4
+		# пласка зірочка з FX, а не воксельна модель: та була з кубиків і читалась як уламки
+		var s := MeshInstance3D.new()
+		s.mesh = FX.star_mesh(Palette.STAR)
+		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		s.scale = Vector3.ONE * 0.19
 		var a := TAU * float(i) / float(HIT_STARS)
 		s.position = Vector3(cos(a) * 0.32, sin(a * 2.0) * 0.05, sin(a) * 0.32)
 		ring.add_child(s)
@@ -1601,10 +1910,12 @@ func _end_tumble() -> void:
 	tumbling = false
 	# обличчя назад: очі, зіниці, рот
 	for e in _eyes:
-		e.scale = Vector3(1.0, _eye_scale_y, 1.0)
+		_eye_set_surprised(e, false)
 	for p in _pupils:
 		p.scale = Vector3.ONE
-	if is_instance_valid(_mouth):
+	if is_instance_valid(_mouth3d):
+		_mouth3d.neutral()
+	elif is_instance_valid(_mouth):
 		_mouth.scale = Vector3.ONE
 		_mouth.position.y = _mouth_y
 	# після відкидання герой стоїть на найближчій доріжці
@@ -1684,8 +1995,9 @@ func wave_hello() -> void:
 	_blink_tween = null
 	_blink_t = 0.0
 	_set_eyes_closed(false)
-	for p in _pupils:
-		p.position.x = 0.0
+	_look_x = 0.0
+	for e in _eyes:
+		_eye_gaze(e, Vector2.ZERO)
 	_smile(_wave_t)
 	AudioMgr.voice("hello")
 
@@ -1767,6 +2079,12 @@ func _flap(strength: float) -> void:
 
 ## Широка усмішка, піднята вгору — не сумна. Очі не чіпаємо (див. _happy).
 func _smile(seconds: float) -> void:
+	if is_instance_valid(_mouth3d):
+		_mouth3d.smile()
+		get_tree().create_timer(seconds).timeout.connect(func():
+			if is_instance_valid(_mouth3d):
+				_mouth3d.neutral())
+		return
 	if not is_instance_valid(_mouth):
 		return
 	_mouth.scale = Vector3(1.8, 2.5, 1.0)
@@ -1782,16 +2100,24 @@ func _smile(seconds: float) -> void:
 ## Для привітання НЕ годиться — там примружені очі читаються як сердиті, тому wave_hello()
 ## кличе саму лише _smile().
 func _happy(seconds: float) -> void:
-	_set_eyes_closed(true)
+	_set_eyes_squash(HAPPY_EYE_SQUASH)
 	_smile(seconds)
 	get_tree().create_timer(seconds).timeout.connect(func():
 		if is_instance_valid(self):
-			_set_eyes_closed(false))
+			_set_eyes_squash(1.0))
 
 
 func _set_eyes_closed(closed: bool) -> void:
 	for e in _eyes:
-		e.scale.y = 0.12 if closed else _eye_scale_y
+		_eye_set_lid(e, 0.12 if closed else _eye_scale_y)
+
+
+## Сплющити очі по вертикалі: 1.0 — звичайні, менше — радісні щілинки. На відміну від
+## _set_eyes_closed(true) (сон: очі заплющені геть) тут око лишається ВИДИМИМ і читається
+## як усмішка очима, а не як «замружився».
+func _set_eyes_squash(k: float) -> void:
+	for e in _eyes:
+		_eye_set_lid(e, _eye_scale_y * clampf(k, 0.05, 1.0))
 
 
 func _process(delta: float) -> void:
@@ -1852,11 +2178,16 @@ func _process(delta: float) -> void:
 			_face_lock_t = 0.0          # удар сильніший за привітання: очі-блюдця лишаються
 		else:
 			for e in _eyes:
-				e.scale.y = _eye_scale_y
-	# очі дивляться в бік повороту (у замкненому обличчі — строго прямо)
-	var look_x := 0.0 if _face_lock_t > 0.0 else clampf((x_target - position.x) * 0.12, -0.035, 0.035)
-	for p in _pupils:
-		p.position.x = lerpf(p.position.x, look_x, minf(1.0, delta * 8.0))
+				_eye_set_lid(e, _eye_scale_y)
+	# Очі дивляться в бік повороту. Плюс тихий дрейф: коли герой просто біжить прямо, погляд
+	# ледь блукає — інакше зіниці й блики стоять як намальовані, і ока не видно живим. Дві
+	# несумірні синусоїди, щоб дрейф не читався як маятник.
+	_gaze_drift_t += delta
+	var drift := (sin(_gaze_drift_t * 0.7) * 0.62 + sin(_gaze_drift_t * 0.31 + 1.3) * 0.38) * GAZE_DRIFT
+	var look_x := 0.0 if _face_lock_t > 0.0 else clampf((x_target - position.x) * 3.4 + drift, -1.0, 1.0)
+	_look_x = lerpf(_look_x, look_x, minf(1.0, delta * 8.0))
+	for e in _eyes:
+		_eye_gaze(e, Vector2(_look_x, 0.0))
 	# кліпання
 	_blink_t += delta
 	if _blink_t > _next_blink and _face_lock_t <= 0.0:
@@ -1868,12 +2199,21 @@ func _process(delta: float) -> void:
 		_yawn_t += delta
 		if _yawn_t > 7.0:
 			_yawn_t = 0.0
-			_mouth.scale = Vector3(1.2, 3.5, 1.0)
-			get_tree().create_timer(0.7).timeout.connect(func(): _mouth.scale = Vector3.ONE)
+			if is_instance_valid(_mouth3d):
+				_mouth3d.open(0.5)      # позіхання — повільніше відкриття
+				get_tree().create_timer(0.7).timeout.connect(func():
+					if is_instance_valid(_mouth3d):
+						_mouth3d.close())
+			elif is_instance_valid(_mouth):
+				_mouth.scale = Vector3(1.2, 3.5, 1.0)
+				get_tree().create_timer(0.7).timeout.connect(func(): _mouth.scale = Vector3.ONE)
 	if _wave_t > 0.0:
 		_wave_t -= delta
 	# стійка дибки привітання: вхід і вихід за WAVE_EASE (лінійно, без стрибків)
 	_wave_blend = move_toward(_wave_blend, 1.0 if _wave_t > 0.0 else 0.0, delta / WAVE_EASE)
+	# спотикання вирівнюється саме, за STUMBLE_EASE
+	if _stumble != 0.0:
+		_stumble = move_toward(_stumble, 0.0, delta * STUMBLE_EASE)
 	# танець рахує власний час — від нього виляння ±DANCE_YAW із поверненням у нуль
 	if anim_state == Anim.DANCE:
 		_dance_t += delta
@@ -1894,6 +2234,12 @@ func _process(delta: float) -> void:
 	# моторний профіль стану — з нього живуть і лапки, і тіло, і голова, і вуха, і хвіст
 	var prof := _profile()
 	# ЗАМАХ правимо просто в профілі — тоді обидва тіла (вокселі й кістки) сідають однаково
+	# Стрибок: 0 на самому верху злету, 1 перед приземленням. Ноги підбираються вгорі й
+	# тягнуться донизу перед землею, ніс іде за рухом — без цього герой злітає колодою.
+	if anim_state == Anim.JUMP and is_airborne():
+		var fall := jump_fall_k(_vy, jump_velocity * jump_scale)
+		prof["leg_amp"] = lerpf(JUMP_LEG_TUCK, JUMP_LEG_REACH, fall)
+		prof["body_pitch"] = float(prof["body_pitch"]) + lerpf(-JUMP_PITCH, JUMP_PITCH, fall)
 	var crouch := charge_crouch(_charge_wind_t)
 	if crouch > 0.0:
 		prof["body_y"] = float(prof["body_y"]) + CHARGE_WINDUP_DIP * crouch
@@ -2106,7 +2452,9 @@ func _process(delta: float) -> void:
 		var target_scale := Vector3.ONE
 		var body_y := float(prof["body_y"])
 		var body_z := 0.0
-		var lean_x := float(prof["body_pitch"])
+		# спотикання додається ДО нахилу профілю, а не тvíном по тій самій осі: _process
+		# щокадру лерпить rotation.x до цілі, і твін просто перетирався б
+		var lean_x := float(prof["body_pitch"]) + _stumble
 		# привітання: ті самі числа, що в профілі WAVE, але через бленд — так у стійку
 		# дибки входимо й виходимо за WAVE_EASE, а не стрибком на зміні стану
 		if _wave_blend > 0.001:
@@ -2168,7 +2516,9 @@ func _process(delta: float) -> void:
 		# ковзання ще й ледь похитує корпусом з боку в бік — інакше поза мертва;
 		# на кроці корпус КРЕНИТЬ на частоті циклу (те саме робить таз рига)
 		_body.rotation.z = sin(_t * TAU * SLIDE_ROLL_HZ) * SLIDE_ROLL * _duck_blend \
-			+ (sin(phase) * GAIT_HIP_ROLL if galloping else 0.0)
+			+ (sin(phase) * GAIT_HIP_ROLL if galloping else 0.0) \
+			+ (sin(TAU * _dance_t / DANCE_SEC * DANCE_ROLL_BEATS) * DANCE_ROLL \
+				if anim_state == Anim.DANCE else 0.0)
 		# копитця на підлозі: нахили (спринт, дибки, підскоки) крутять тіло навколо ЙОГО центру
 		# й топлять лапки — додаємо підйом ДО ЦІЛІ лерпа (а не поверх нього, інакше тіло
 		# ганялося б саме за собою). Рахується після нахилу — з нього ж і береться базис
@@ -2254,11 +2604,58 @@ func _ear_twitch() -> void:
 	tw.tween_property(e, "rotation:z", base.z, 0.25).set_trans(Tween.TRANS_ELASTIC)
 
 
-func _blink() -> void:
+## БУВ ДАВНІЙ БАГ: `.parallel()` на КОЖНОМУ вічку (і на першому теж) — а Tween трактує
+## `.parallel()` на першому тюінері кроку як «нуль тривалості», тож кліпання завжди
+## відбувалось МИТТЄВО (одним кадром) замість плавного твіна за 0,06+0,08с. `.parallel()`
+## ставимо лише З ДРУГОГО ока — перше вічко починає крок звичайним tween_property().
+## Властивість і напрямок різні для CartoonEye (scale:y, менше — заплющено) і ShaderEye
+## (blink_amount, БІЛЬШЕ — заплющено) — тому не один tween_property на всі очі, а по одному
+## на кожне, з властивою йому парою (властивість, ціль).
+func _blink(kind: int = -1, speed: float = -1.0) -> void:
+	if _eyes.is_empty():
+		return
+	if kind < 0:
+		kind = _random_blink_kind()
+	if speed <= 0.0:
+		speed = randf_range(0.7, 1.5)
+	var close_t := BLINK_CLOSE_SEC * speed
+	var open_t := BLINK_OPEN_SEC * speed
+	var wink_eye := randi() % _eyes.size()
+
 	var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	_blink_tween = tw
-	for e in _eyes:
-		tw.parallel().tween_property(e, "scale:y", 0.08, 0.06)
-	tw.chain()
-	for e in _eyes:
-		tw.parallel().tween_property(e, "scale:y", _eye_scale_y, 0.08)
+	var started := false
+	for i in _eyes.size():
+		if kind == BlinkKind.WINK and i != wink_eye:
+			continue          # підморгування: друге око лишається розплющеним
+		var e := _eyes[i]
+		var delay := BLINK_SEQUENCE_GAP * speed * float(i) if kind == BlinkKind.SEQUENCE else 0.0
+		# `.parallel()` на ПЕРШОМУ твінері кроку дає крок нульової тривалості — колись на
+		# цьому кліпання не працювало взагалі. Тому перший твінер завжди звичайний, а далі
+		# все паралельно, і хто коли починає, вирішує set_delay().
+		if started:
+			tw.parallel()
+		_tween_blink(tw, e, true, close_t).set_delay(delay)
+		started = true
+		tw.parallel()
+		_tween_blink(tw, e, false, open_t).set_delay(delay + close_t)
+
+
+## Одне око — одна пара (властивість, ціль): у CartoonEye це scale:y (менше — заплющено),
+## у вендорних — blink_amount (більше — заплющено). Напрямки протилежні, тож не один
+## tween_property на всі очі, а по одному на кожне.
+func _tween_blink(tw: Tween, e: Node3D, closed: bool, dur: float) -> PropertyTweener:
+	if e is ShaderEye or e is CartoonEye3D:
+		return tw.tween_property(e, "blink_amount", 1.0 if closed else 0.0, dur)
+	return tw.tween_property(e, "scale:y", 0.08 if closed else _eye_scale_y, dur)
+
+
+## Здебільшого кліпає обома, зрідка — по черзі або підморгує одним. Саме ця нерівність і
+## робить морду живою: однакове кліпання раз на N секунд читається як механізм.
+func _random_blink_kind() -> int:
+	var r := randf()
+	if r < 0.70:
+		return BlinkKind.BOTH
+	if r < 0.90:
+		return BlinkKind.SEQUENCE
+	return BlinkKind.WINK
