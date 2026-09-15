@@ -11,9 +11,13 @@
 ##     WORLD=meadow VIEW=bank OUT=…    # камера збоку впритул до берега (стики поручнів)
 ##     WORLD=meadow VIEW=top OUT=…     # згори: вода, береги, забудова — де що лежить
 ##     WORLD=meadow ADVANCE=17 OUT=…   # проїхати N метрів перед знімком
+##     WORLD=meadow SEED=7 OUT=…       # інша розкладка декору (типово жереб сталий)
 extends Node3D
 
-const SIZE := 900
+## Кадр як у гри: 16:9. Квадратна обрізка викидала б саме краї, а в референсі забудова
+## стоїть саме там — і порівняння міряло б не те.
+const OUT_W := 1152
+const OUT_H := 648
 
 var _track: Track
 var _frames := 0
@@ -24,7 +28,7 @@ func _ready() -> void:
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
 	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.53, 0.72, 0.87)
+	e.background_color = Palette.W_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_color = Color.WHITE
 	e.ambient_light_energy = 0.75
@@ -37,6 +41,14 @@ func _ready() -> void:
 
 	_track = Track.new()
 	add_child(_track)
+	# ВІДТВОРЮВАНІСТЬ. Track робить _rng.randomize(), тож кожен прогін розставляв декор
+	# інакше, і знімок гуляв сам по собі — на забудові до 7 відсоткових пунктів. Порівнювати
+	# «до і після» на такому знімку неможливо: зміна тоне в перестановці кущів. Сідаємо на
+	# сталий жереб (і глобальний теж — _decorate бере і randf(), і _rng).
+	var s_env := OS.get_environment("SEED")
+	var seed_v := int(s_env) if s_env != "" else 20260915
+	seed(seed_v)
+	_track._rng.seed = seed_v
 
 	var name := OS.get_environment("WORLD")
 	if name.is_empty():
@@ -48,7 +60,11 @@ func _ready() -> void:
 		return
 	var parsed = JSON.parse_string(f.get_as_text())
 	f.close()
-	_track.rebuild(parsed if typeof(parsed) == TYPE_DICTIONARY else {}, false)
+	var w: Dictionary = parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+	# небо бере колір зі СВІТУ, а не зашите в знімок: інакше поле sky у world.json ніяк не
+	# впливало б на те, чим ми міряємо схожість, і тюнити його було б неможливо
+	e.background_color = Palette.of(w.get("sky"), Palette.W_SKY)
+	_track.rebuild(w, false)
 
 	# проїхати трохи: перший ряд щойно викладено, а стики видно на вже перевкладених
 	var adv := OS.get_environment("ADVANCE")
@@ -68,8 +84,10 @@ func _ready() -> void:
 		cam.rotation_degrees = Vector3(-6.0, -152.0, 0.0)
 		cam.fov = 55.0
 	else:
-		cam.position = Vector3(0.0, 3.4, 4.2)
-		cam.rotation_degrees = Vector3(-20.0, 0.0, 0.0)
+		# рівно та сама камера, що в грі (src/run3d/run3d.tscn, CameraRig/Camera3D) —
+		# інакше порівняння з референсом міряло б ракурс, а не рівень
+		cam.position = Vector3(0.0, 3.4, 5.6)
+		cam.rotation_degrees = Vector3(-25.2, 0.0, 0.0)
 		cam.fov = 62.0
 	add_child(cam)
 	cam.current = true
@@ -84,9 +102,11 @@ func _process(_delta: float) -> void:
 	var out := OS.get_environment("OUT")
 	if out != "":
 		var img := get_viewport().get_texture().get_image()
-		var side: int = mini(img.get_width(), img.get_height())
-		img = img.get_region(Rect2i((img.get_width() - side) / 2, (img.get_height() - side) / 2, side, side))
-		img.resize(SIZE, SIZE, Image.INTERPOLATE_LANCZOS)
+		# ріжемо по ширині до 16:9, а не до квадрата
+		var w := img.get_width()
+		var h: int = mini(img.get_height(), int(float(w) * float(OUT_H) / float(OUT_W)))
+		img = img.get_region(Rect2i(0, (img.get_height() - h) / 2, w, h))
+		img.resize(OUT_W, OUT_H, Image.INTERPOLATE_LANCZOS)
 		img.save_png(out)
 		print("знімок: ", out)
 	get_tree().quit()

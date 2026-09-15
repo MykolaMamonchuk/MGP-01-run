@@ -32,13 +32,12 @@
     "beehive"
   ],
   "walls_near": [
-    "fence",
-    "bush",
-    "wall_hedge",
-    "haycart",
-    "beehive",
-    "mushroom",
-    "tree"
+    "wall_house",
+    "barn",
+    "house_small",
+    "kiosk",
+    "awning_stall",
+    "fountain"
   ],
   "walls_far": [
     "tree",
@@ -51,24 +50,27 @@
   "landmarks": [
     "arch_terracotta",
     "tower_terracotta",
-    "gate_wood"
+    "gate_wood",
+    "mill"
   ],
   "roadside": "open",
   "road_surface": "slabs",
   "canal": {
     "side": "both",
-    "offset": 2.0,
-    "width": 1.2
+    "offset": 1.5,
+    "width": 2.2
   },
   "bridges_every": 9,
   "props_side": [
     "mushroom_red",
     "bush_cube",
     "crate",
+    "crate",
     "barrel",
     "fence_low",
     "flower_yellow",
     "flower_pink",
+    "hay_bale",
     "hay_bale",
     "rock_grey"
   ],
@@ -76,9 +78,12 @@
     "house_red",
     "house_terra",
     "house_straw",
-    "well",
-    "tree_round",
-    "pine_3"
+    "house_teal",
+    "city_house_a",
+    "city_house_b",
+    "hut",
+    "mill",
+    "well"
   ],
   "canopy": false,
   "tier2": false,
