@@ -85,6 +85,26 @@ These repeat almost every metre of road; without them the level does not read as
 
 ---
 
+## Several different models for one kind
+
+A town has more than one barrel, and the same barrel every ten metres reads as a bug rather
+than as a street. So a key may hold a **list** — these are different *types* of the same
+kind, and each instance picks its own:
+
+```json
+"barrel": [
+  "res://assets/props/barrel.glb",
+  "res://assets/props/barrel_2.glb",
+  {"path": "res://assets/props/barrel_3.glb", "scale": 1.1}
+]
+```
+
+Naming: `barrel.glb` is the first type, then `barrel_2.glb`, `barrel_3.glb`. The suffix means
+a DIFFERENT TYPE (a different barrel) — not a variant of the same model and not a second
+attempt. Same for crates, rocks, bushes — anything a street has several of.
+
+Level markers know nothing about types: the marker still just says `barrel`.
+
 ## Putting a finished model into the game
 
 1. Save it as `assets/props/<id>.glb` — the `id` is the heading name above.

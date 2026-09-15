@@ -65,7 +65,11 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		# «файлу не знайдено». Щойно модель з'явиться в data/props.json під іменем із `prop` —
 		# вона підміняє воксель сама, без правок у даних світу.
 		var voxel_name := String(def.get("voxel", kind))
-		var prop_mesh := PropLibrary.mesh(String(def.get("prop", voxel_name)))
+		var prop_name := String(def.get("prop", voxel_name))
+		# тип вибираємо ОДИН раз на екземпляр: меш і доведення мусять бути від тієї самої
+		# моделі (див. PropLibrary.pick)
+		var variant := PropLibrary.pick(prop_name)
+		var prop_mesh := PropLibrary.mesh(prop_name, variant)
 		if prop_mesh != null:
 			_mesh = MeshInstance3D.new()
 			_mesh.mesh = prop_mesh
@@ -73,7 +77,7 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 			_mesh = VoxelBuilder.instance(voxel_name)
 		_mesh.position.y = y
 		# доведення моделі з data/props.json поверх масштабу зі світу (для вокселя — 1.0 / 0°)
-		var tw := PropLibrary.tweak(String(def.get("prop", voxel_name)))
+		var tw := PropLibrary.tweak(prop_name, variant)
 		_base_scale = Vector3.ONE * float(def.get("scale", 1.0)) * float(tw["scale"])
 		_mesh.scale = _base_scale
 		_mesh.rotation.y += deg_to_rad(float(tw["yaw_deg"]))

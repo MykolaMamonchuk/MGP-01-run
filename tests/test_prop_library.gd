@@ -75,3 +75,37 @@ func test_node_for_returns_null_when_no_model() -> void:
 func test_node_for_returns_null_for_broken_path() -> void:
 	PropLibrary.use({"tree": "res://assets/props/нема_такого.glb"})
 	assert_null(PropLibrary.node_for("tree"), "шлях є, а файлу нема — так само null, а не помилка")
+
+
+## Кілька РІЗНИХ типів під одним ключем (три бочки). Перевіряємо саме те, заради чого це
+## зроблено: типи не змішуються між собою — меш і доведення завжди від однієї моделі.
+func test_variants_counts_list() -> void:
+	PropLibrary.use({"barrel": ["res://a.glb", "res://b.glb", "res://c.glb"]})
+	assert_eq(PropLibrary.variants("barrel"), 3, "три типи бочки")
+	assert_eq(PropLibrary.variants("cart"), 0, "виду нема — типів нуль")
+	PropLibrary.use({"cart": "res://one.glb"})
+	assert_eq(PropLibrary.variants("cart"), 1, "один шлях рядком — один тип")
+
+
+func test_tweak_is_per_variant() -> void:
+	PropLibrary.use({"barrel": [
+		{"path": "res://a.glb", "scale": 1.0},
+		{"path": "res://b.glb", "scale": 2.5, "yaw_deg": 90.0}]})
+	assert_eq(float(PropLibrary.tweak("barrel", 0)["scale"]), 1.0, "доведення першого типу")
+	assert_eq(float(PropLibrary.tweak("barrel", 1)["scale"]), 2.5, "доведення другого типу")
+	assert_eq(float(PropLibrary.tweak("barrel", 1)["yaw_deg"]), 90.0, "поворот другого типу")
+
+
+## Номер за межами списку не має валити малювання: props.json можуть перечитати між тим,
+## як тип вибрали, і тим, як його малюють.
+func test_variant_out_of_range_falls_back() -> void:
+	PropLibrary.use({"barrel": [{"path": "res://a.glb", "scale": 1.5}]})
+	assert_eq(float(PropLibrary.tweak("barrel", 7)["scale"]), 1.5, "береться перший тип")
+
+
+func test_pick_stays_inside_list() -> void:
+	PropLibrary.use({"barrel": ["res://a.glb", "res://b.glb", "res://c.glb"]})
+	for i in 40:
+		var v := PropLibrary.pick("barrel")
+		assert_between(v, 0, 2, "вибраний тип у межах списку")
+	assert_eq(PropLibrary.pick("nothing"), 0, "виду нема — нульовий тип")

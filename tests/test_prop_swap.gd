@@ -153,4 +153,9 @@ func test_real_model_reaches_the_obstacle_in_game() -> void:
 	var o := Obstacle3D.new()
 	add_child_autofree(o)
 	o.setup("beehive", def, 0, true)
-	assert_eq(o._mesh.mesh, barrel, "перешкода малюється мешем МОДЕЛІ, а не вокселя")
+	# бочок у props.json кілька РІЗНИХ типів, і екземпляр бере свій — тож звіряємо не з
+	# однією моделлю, а з набором: вимога тут «не воксель, а якась із бочок»
+	var all_barrels: Array = []
+	for i in maxi(PropLibrary.variants("barrel"), 1):
+		all_barrels.append(PropLibrary.mesh("barrel", i))
+	assert_true(all_barrels.has(o._mesh.mesh), "перешкода малюється мешем МОДЕЛІ, а не вокселя")

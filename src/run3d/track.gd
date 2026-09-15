@@ -287,19 +287,31 @@ func _make_canvas(mesh: Mesh, count: int, height := 6.0, colors := false) -> Mul
 
 ## Шар під конкретний вид вокселя; створюється при першій появі й лишається (порожній нічого не коштує).
 ## Матеріал уже вшитий у меш VoxelBuilder, тож material_override не потрібен.
-func _decor_layer(kind: String, override: Dictionary) -> int:
+## variant — номер типу моделі (data/props.json може тримати кілька різних моделей на вид).
+## Кожен тип отримує СВІЙ шар: MultiMesh малює один меш на пачку, тож змішати їх в одному
+## шарі неможливо — це не обмеження, яке варто обходити, а те, як влаштоване пакетне малювання.
+func _decor_layer(kind: String, override: Dictionary, variant: int = 0) -> int:
 	var key := kind if override.is_empty() else kind + "|" + JSON.stringify(override)
+	if variant > 0:
+		key += "#%d" % variant
 	if _decor_layer_of.has(key):
 		return int(_decor_layer_of[key])
 	# спершу питаємо бібліотеку пропсів: якщо для цього виду вже є СПРАВЖНЯ модель, беремо
 	# її меш, а воксель лишається запасним варіантом (див. src/run3d/prop_library.gd).
 	# Розкладка рівнів при цьому не міняється — `kind` той самий.
-	var prop_mesh := PropLibrary.mesh(kind)
+	var prop_mesh := PropLibrary.mesh(kind, variant)
 	# декор вищий за дорогу (крона на 3,2 м) і ширший — свій AABB
 	var mi := _make_canvas(prop_mesh if prop_mesh != null else VoxelBuilder.mesh(kind, override), 0, 16.0)
 	_decor_mm.append(mi)
 	_decor_layer_of[key] = _decor_mm.size() - 1
-	return _decor_mm.size() - 1
+	var made := _decor_mm.size() - 1
+	# Решту типів цього виду заводимо ОДРАЗУ, хоч їх поки ніхто не просив. Інакше кількість
+	# шарів залежала б від того, які типи випали випадково: той самий світ дав би то 38, то
+	# 39 шарів, і «чи не течуть шари» стало б неможливо перевірити.
+	for other in PropLibrary.variants(kind):
+		if other != variant:
+			_decor_layer(kind, override, other)
+	return made
 
 
 ## Матеріал для шарів із кольором на інстанс (покриття, край): колір бере з інстанса, не з матеріалу.
@@ -432,11 +444,12 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 ## Записати предмет у пачку ряду. z, поворот і фаза — випадкові, як було в кожного Critter3D.
 ## yaw ≥ 0 — фіксований поворот (орієнтири-арки мають дивитись на камеру, а не крутитись).
 func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0) -> void:
-	ids.append(_decor_layer(kind, override))
+	var variant := PropLibrary.pick(kind)
+	ids.append(_decor_layer(kind, override, variant))
 	# Доведення моделі (data/props.json): згенерована модель майже ніколи не приходить одразу
 	# в потрібному розмірі й розвороті, а правити це в самому .glb довго. Для вокселя обидва
 	# значення типово 1.0 / 0°, тож нічого не змінюється.
-	var tw := PropLibrary.tweak(kind)
+	var tw := PropLibrary.tweak(kind, variant)
 	var extra_yaw := deg_to_rad(float(tw["yaw_deg"]))
 	data.append(x)
 	data.append(y)

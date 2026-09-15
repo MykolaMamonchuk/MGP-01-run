@@ -14,7 +14,13 @@
 ##
 ## Формат data/props.json:
 ##   {"tree": "res://assets/props/tree_oak.glb",
-##    "rock": {"path": "res://assets/props/rock_a.glb", "scale": 1.2, "yaw_deg": 90.0}}
+##    "rock": {"path": "res://assets/props/rock_a.glb", "scale": 1.2, "yaw_deg": 90.0},
+##    "barrel": ["res://assets/props/barrel.glb", "res://assets/props/barrel_2.glb"]}
+##
+## Список під одним ключем — це РІЗНІ ТИПИ того самого виду: не бочка й та сама бочка, а
+## три несхожі бочки. Вулиця, забудована однією моделлю через кожні десять метрів, читається
+## як помилка, а не як містечко. Кожен екземпляр бере свій тип сам, розкладка рівнів при
+## цьому не знає про жоден із них — у маркері як був `barrel`, так і лишається.
 class_name PropLibrary
 extends RefCounted
 
@@ -50,12 +56,39 @@ static func reload() -> void:
 			_map[String(k)] = (parsed as Dictionary)[k]
 
 
-static func _entry(kind: String) -> Dictionary:
+## Скільки типів у виду. 0 — моделі нема взагалі, малюється воксель.
+static func variants(kind: String) -> int:
+	if not _loaded:
+		reload()
+	if not _map.has(kind):
+		return 0
+	var v = _map[kind]
+	if typeof(v) == TYPE_ARRAY:
+		return (v as Array).size()
+	return 1
+
+
+## Витягнути випадковий тип. Окремою функцією, бо виклик мусить вибрати ОДИН РАЗ і далі
+## питати меш і доведення з тим самим номером: два незалежні randi() дали б меш від однієї
+## бочки, а масштаб від іншої.
+static func pick(kind: String) -> int:
+	var n := variants(kind)
+	return 0 if n <= 1 else randi() % n
+
+
+static func _entry(kind: String, variant: int = 0) -> Dictionary:
 	if not _loaded:
 		reload()
 	if not _map.has(kind):
 		return {}
 	var v = _map[kind]
+	if typeof(v) == TYPE_ARRAY:
+		var arr := v as Array
+		if arr.is_empty():
+			return {}
+		# номер за межами списку — не помилка: тип міг зникнути з props.json між вибором
+		# і малюванням (reload у редакторі). Краще перша модель, ніж порожній екран.
+		v = arr[clampi(variant, 0, arr.size() - 1)]
 	if typeof(v) == TYPE_STRING:
 		return {"path": String(v), "scale": 1.0, "yaw_deg": 0.0}
 	if typeof(v) == TYPE_DICTIONARY:
@@ -67,14 +100,14 @@ static func _entry(kind: String) -> Dictionary:
 
 
 ## Чи є для цього виду справжня модель (і чи файл на місці).
-static func has(kind: String) -> bool:
-	var e := _entry(kind)
+static func has(kind: String, variant: int = 0) -> bool:
+	var e := _entry(kind, variant)
 	return not e.is_empty() and String(e["path"]) != "" and ResourceLoader.exists(String(e["path"]))
 
 
 ## Масштаб/поворот, які треба домножити до тих, що вже задані маркером.
-static func tweak(kind: String) -> Dictionary:
-	var e := _entry(kind)
+static func tweak(kind: String, variant: int = 0) -> Dictionary:
+	var e := _entry(kind, variant)
 	if e.is_empty():
 		return {"scale": 1.0, "yaw_deg": 0.0}
 	return {"scale": float(e["scale"]), "yaw_deg": float(e["yaw_deg"])}
@@ -84,18 +117,19 @@ static func tweak(kind: String) -> Dictionary:
 ##
 ## Беремо ПЕРШИЙ MeshInstance3D зі сцени: пропси з Meshy — це один меш з одним матеріалом.
 ## Матеріал лишається в самому меші, тож MultiMesh малює його без material_override.
-static func mesh(kind: String) -> Mesh:
-	if _mesh_cache.has(kind):
-		return _mesh_cache[kind]
-	if not has(kind):
+static func mesh(kind: String, variant: int = 0) -> Mesh:
+	var key := "%s#%d" % [kind, variant]
+	if _mesh_cache.has(key):
+		return _mesh_cache[key]
+	if not has(kind, variant):
 		return null
-	var scene := load(String(_entry(kind)["path"])) as PackedScene
+	var scene := load(String(_entry(kind, variant)["path"])) as PackedScene
 	if scene == null:
 		return null
 	var root := scene.instantiate()
 	var found := _first_mesh(root)
 	root.queue_free()
-	_mesh_cache[kind] = found
+	_mesh_cache[key] = found
 	return found
 
 
@@ -117,8 +151,8 @@ static func _first_mesh(node: Node) -> Mesh:
 ##
 ## palette_override тут нема: він перефарбовує лише воксель (VoxelBuilder.instance), моделі
 ## завжди йдуть у своєму кольорі — виклик, що передає override у фолбек, сам про це нагадує.
-static func node_for(kind: String) -> MeshInstance3D:
-	var m := mesh(kind)
+static func node_for(kind: String, variant: int = 0) -> MeshInstance3D:
+	var m := mesh(kind, variant)
 	if m == null:
 		return null
 	var mi := MeshInstance3D.new()
