@@ -394,7 +394,9 @@ func _refresh(instant: bool) -> void:
 		# кожен прев'ю носить лише СВОЄ спорядження (нічого чужого не «перетікає»)
 		Shop.apply_to(p)
 		var target := Vector3.ONE * (1.0 if i == index else 0.78)
-		p.set_locked_look(not _unlocked(String(ids[i])))
+		# усі герої в каруселі завжди кольорові — сірий "привид" зайвий, поки відкриваємо
+		# заблокованих через домівки/зірки й так видно з підказки-замка над кнопкою "Обрати"
+		p.set_locked_look(false)
 		if instant:
 			p.scale = target
 		else:

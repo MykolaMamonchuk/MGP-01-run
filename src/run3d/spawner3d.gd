@@ -252,12 +252,18 @@ func advance(dist: float, total_distance_m: Variant = null) -> void:
 		_gap_left = maxf(_next_gap(), _min_next_gap)
 
 
-## Задати авторський список перешкод рівня (Phase 1 level-authoring plumbing): records —
-## масив {z_m, kind, lane, override, ...} від LevelTimeline.extract(), відсортований за z_m.
+## Задати авторський список перешкод рівня одним махом (стирає попередній): records —
+## масив {z_m, kind, lane, override, ...} від LevelTimeline.extract(). Курсор — з нуля.
 func set_authored_obstacles(records: Array) -> void:
-	_authored_obstacles = records.duplicate()
+	clear_authored_obstacles()
+	add_authored_obstacles(records)
+
+
+## Дозавантажити ще перешкод до вже наявного списку (LevelChunkLoader — наступний чанк рівня):
+## на відміну від set_ курсор НЕ скидається, уже застосовані записи лишаються пройденими.
+func add_authored_obstacles(records: Array) -> void:
+	_authored_obstacles.append_array(records)
 	_authored_obstacles.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
-	_authored_cursor = 0
 	_authored_active = true
 
 
