@@ -1,0 +1,57 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+
+[node name="LevelLayout" type="Node3D"]
+
+[node name="M156_decor_fence" type="Node3D" parent="." index="0"]
+script = ExtResource("1")
+role = "decor"
+kind = "fence"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -750.0)
+
+[node name="M78_obstacle_balloons" type="Node3D" parent="." index="1"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloons"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -751.2)
+
+[node name="M157_decor_umbrella" type="Node3D" parent="." index="2"]
+script = ExtResource("1")
+role = "decor"
+kind = "umbrella"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -760.0)
+
+[node name="M79_obstacle_fountain" type="Node3D" parent="." index="3"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "fountain"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -760.6)
+
+[node name="M80_obstacle_bench" type="Node3D" parent="." index="4"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bench"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -770.0)
+
+[node name="M158_decor_cart" type="Node3D" parent="." index="5"]
+script = ExtResource("1")
+role = "decor"
+kind = "cart"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -770.0)
+
+[node name="M81_obstacle_lamp" type="Node3D" parent="." index="6"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "lamp"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -779.4)
+
+[node name="M159_decor_fountain" type="Node3D" parent="." index="7"]
+script = ExtResource("1")
+role = "decor"
+kind = "fountain"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -780.0)

@@ -1,0 +1,44 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+
+[node name="LevelLayout" type="Node3D"]
+
+[node name="M164_decor_star" type="Node3D" parent="." index="0"]
+script = ExtResource("1")
+role = "decor"
+kind = "star"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -750.0)
+
+[node name="M87_obstacle_balloon" type="Node3D" parent="." index="1"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloon"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -754.5)
+
+[node name="M165_decor_planet" type="Node3D" parent="." index="2"]
+script = ExtResource("1")
+role = "decor"
+kind = "planet"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -760.0)
+
+[node name="M88_obstacle_cloud" type="Node3D" parent="." index="3"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "cloud"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -763.0)
+
+[node name="M166_decor_cloud" type="Node3D" parent="." index="4"]
+script = ExtResource("1")
+role = "decor"
+kind = "cloud"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -770.0)
+
+[node name="M89_obstacle_bridge" type="Node3D" parent="." index="5"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bridge"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -771.4)

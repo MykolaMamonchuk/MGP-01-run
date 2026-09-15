@@ -3,7 +3,7 @@
 class_name Rainbow3D
 extends Node3D
 
-const COLORS := ["#FF5252", "#FFA726", "#FFEE58", "#66BB6A", "#42A5F5", "#AB47BC"]
+const COLORS := Palette.RAINBOW
 const RADIUS := 1.15
 
 var lane := 0
@@ -21,7 +21,7 @@ func _ready() -> void:
 		t.ring_segments = 8
 		mi.mesh = t
 		var m := StandardMaterial3D.new()
-		m.albedo_color = Color(String(COLORS[i]))
+		m.albedo_color = COLORS[i]
 		m.roughness = 0.9
 		m.emission_enabled = true
 		m.emission = m.albedo_color

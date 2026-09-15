@@ -12,7 +12,10 @@ var _dir := 1.0
 
 func setup(k: String, palette_override: Dictionary = {}) -> void:
 	kind = k
-	_mesh = VoxelBuilder.instance(k, palette_override)
+	# palette_override перефарбовує лише воксель — коли для виду вже є модель, ігнорується
+	_mesh = PropLibrary.node_for(k)
+	if _mesh == null:
+		_mesh = VoxelBuilder.instance(k, palette_override)
 	add_child(_mesh)
 	match kind:
 		"bird":

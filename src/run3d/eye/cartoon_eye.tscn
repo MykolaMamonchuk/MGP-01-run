@@ -1,0 +1,6 @@
+[gd_scene format=3 uid="uid://sv13bxl407e4"]
+
+[ext_resource type="Script" uid="uid://de12ukuhq6cfe" path="res://src/run3d/eye/cartoon_eye.gd" id="1"]
+
+[node name="CartoonEye" type="Node3D"]
+script = ExtResource("1")

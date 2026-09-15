@@ -23,18 +23,18 @@ func setup(lanes: int) -> void:
 		var n := 6
 		var seg_h := POLE_H / float(n)
 		for i in range(n):
-			var c := Color("#8D6E63") if i % 2 == 0 else Color("#A1887F")
+			var c := Palette.GATE_POST if i % 2 == 0 else Palette.GATE_POST_ALT
 			var b := Mats.box(Vector3(0.24, seg_h, 0.24), c)
 			b.position.y = seg_h * (float(i) + 0.5)
 			pole.add_child(b)
-		var cap := Mats.box(Vector3(0.34, 0.16, 0.34), Color("#FFD54F"))
+		var cap := Mats.box(Vector3(0.34, 0.16, 0.34), Palette.GATE_CAP)
 		cap.position.y = POLE_H + 0.08
 		pole.add_child(cap)
 		add_child(pole)
 		# прапорець на верхівці — розвернутий назовні
 		var flag := Node3D.new()
 		flag.position = Vector3(side * half, POLE_H + 0.3, 0.0)
-		var f := Mats.box(Vector3(0.5, 0.3, 0.04), Color("#69F0AE") if side < 0.0 else Color("#40C4FF"))
+		var f := Mats.box(Vector3(0.5, 0.3, 0.04), Palette.GATE_FLAG_LEFT if side < 0.0 else Palette.GATE_FLAG_RIGHT)
 		f.position.x = side * 0.3
 		flag.add_child(f)
 		add_child(flag)
@@ -46,7 +46,7 @@ func setup(lanes: int) -> void:
 	var segs := maxi(6, lanes * 2)
 	var seg_w := (half * 2.0) / float(segs)
 	for i in range(segs):
-		var c := Color("#FF5252") if i % 2 == 0 else Color("#FFFFFF")
+		var c := Palette.GATE_CHECKER if i % 2 == 0 else Palette.GATE_CHECKER_ALT
 		var b := Mats.box(Vector3(seg_w, 0.5, 0.08), c)
 		b.position.x = -half + seg_w * (float(i) + 0.5)
 		_banner.add_child(b)

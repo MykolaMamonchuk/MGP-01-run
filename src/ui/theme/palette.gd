@@ -1,0 +1,351 @@
+## ЄДИНЕ ДЖЕРЕЛО КОЛЬОРІВ ГРИ (дизайн-токени).
+## Правило: у жодному іншому .gd не має бути літерала "#RRGGBB" — лише Palette.ІМ'Я.
+## Це стереже тест tests/test_palette.gd.
+##
+## Файл має три шари, і кожен використовує лише попередній:
+##   1) ШКАЛА  — сирі відтінки, назва описує вигляд (GOLD, WOOD), не призначення;
+##   2) РОЛІ   — призначення (BTN_PRIMARY, TEXT_HINT, WORLD_GROUND); беруться зі шкали;
+##   3) НАБОРИ — готові градієнти/списки для частинок і веселки.
+## Змінюєте вигляд гри — правите ролі; додаєте новий відтінок — спершу у шкалу.
+##
+## Кольори з data/*.json (світи, герої, предмети) — це дані, а не токени:
+## читайте їх через Palette.of(значення, ЗАПАСНИЙ_ТОКЕН), щоб запасний варіант теж був звідси.
+class_name Palette
+extends RefCounted
+
+# ─────────────────────────────── 1. ШКАЛА ───────────────────────────────
+
+# жовті / золоті / кремові
+const SUN := Color("#FFEE58")
+const LEMON := Color("#FFF176")
+const LEMON_PALE := Color("#FFF59D")
+const HONEY := Color("#FDD835")
+const GOLD := Color("#FFD54F")
+const GOLD_BRIGHT := Color("#FFD740")
+const GOLD_DEEP := Color("#F9A825")
+const AMBER := Color("#FFCA28")
+const AMBER_DEEP := Color("#FFB300")
+const AMBER_DARK := Color("#FF8F00")
+const CREAM := Color("#FFF8E1")
+const CREAM_WARM := Color("#FFF3C4")
+const CREAM_STONE := Color("#FFF3D6")
+const SAND := Color("#F5E6B8")
+const SAND_DEEP := Color("#FFE0A3")
+
+# помаранчеві / червоні
+const ORANGE := Color("#FFA726")
+const APRICOT := Color("#FFB84D")
+const PEACH := Color("#FFC59A")
+const PEACH_DEEP := Color("#F7B58A")
+const CORAL := Color("#FF8A65")
+const CORAL_DEEP := Color("#FF7043")
+const CORAL_PALE := Color("#FF9E80")
+const EMBER := Color("#D84315")
+const RED := Color("#EF5350")
+const RED_BRIGHT := Color("#FF5252")
+const RED_PALE := Color("#FF8A80")
+const RED_DARK := Color("#C62828")
+
+# рожеві / фіолетові
+const PINK := Color("#F06292")
+const PINK_DEEP := Color("#EC407A")
+const PINK_BRIGHT := Color("#FF80AB")
+const PINK_PALE := Color("#F8BBD0")
+const PURPLE := Color("#AB47BC")
+const ORCHID := Color("#CE93D8")
+const MAGENTA := Color("#E040FB")
+const LAVENDER := Color("#B39DDB")
+const INDIGO := Color("#5C6BC0")
+const INDIGO_DEEP := Color("#283593")
+
+# зелені
+const GREEN := Color("#66BB6A")
+const GREEN_DEEP := Color("#43A047")
+const GREEN_STEM := Color("#388E3C")
+const GREEN_FOREST := Color("#2E7D32")
+const GREEN_PALE := Color("#A5D6A7")
+const MINT := Color("#69F0AE")
+const LIME := Color("#C6FF00")
+const GRASS := Color("#7CC46B")
+const GRASS_SIDE := Color("#6DB35E")
+const GRASS_DARK := Color("#5FA553")
+
+# сині / бірюзові
+const BLUE := Color("#42A5F5")
+const BLUE_LIGHT := Color("#90CAF9")
+const BLUE_PALE := Color("#B3E5FC")
+const BLUE_MIST := Color("#E3F2FD")
+const BLUE_HAZE := Color("#E1F5FE")
+const SKY := Color("#9BDDFF")
+const SKY_SEA := Color("#6EC1F5")
+const ICE := Color("#8ED1FC")
+const AZURE := Color("#40C4FF")
+const WATER := Color("#4FC3F7")
+const WATER_DEEP := Color("#29B6F6")
+const CYAN := Color("#26C6DA")
+const CYAN_PALE := Color("#80DEEA")
+
+# дерево / нейтральні
+const WOOD := Color("#8D6E63")
+const WOOD_LIGHT := Color("#A1887F")
+const WOOD_MID := Color("#795548")
+const WOOD_DARK := Color("#5D4037")
+const ESPRESSO := Color("#3E2723")
+const SLATE := Color("#90A4AE")
+const SLATE_DEEP := Color("#607D8B")
+const SLATE_DARK := Color("#37474F")
+const SLATE_PALE := Color("#ECEFF1")
+const STEEL := Color("#B0BEC5")
+const STEEL_PALE := Color("#CFD8DC")
+const GREY := Color("#9E9E9E")
+const GREY_DARK := Color("#616161")
+const INK := Color("#263238")
+const INK_SOFT := Color("#222831")
+const WHITE := Color.WHITE
+const CLEAR := Color(0, 0, 0, 0)
+
+# арт-біблія v1.5 (GDD §3, Додаток Д) — відтінки світу, злитка та героїв.
+# Це шкала: назви W_/H_ фіксовані брифом етапу 6, ними користуються всі агенти.
+const W_GRASS := Color("#7DC242")        ## трава узбіччя
+const W_GRASS_SHADOW := Color("#5E9E33") ## тінь трави, бік тайла
+const W_WOOD := Color("#C4813F")         ## дошка, планка містка
+const W_WOOD_DARK := Color("#8F5A2A")    ## темна смуга дошки
+const W_CRATE := Color("#D9A05B")        ## ящик
+const W_ROOF_RED := Color("#D9503A")     ## дах червоний
+const W_ROOF_TERRA := Color("#C56A3A")   ## дах теракотовий
+const W_ROOF_TEAL := Color("#3E9A8F")    ## дах бірюзовий
+const W_ROOF_STRAW := Color("#C9A45C")   ## дах солом'яний
+const W_WALL := Color("#F1E4C8")         ## стіна будиночка
+const W_BEAM := Color("#7A4A2A")         ## фахверкова балка
+const W_ROCK := Color("#9AA5B1")         ## валун, камінь
+const W_WATER := Color("#38B6E0")        ## вода каналу
+const W_BANK_1 := Color("#C9784F")       ## берег каналу: верхній шар
+const W_BANK_2 := Color("#A55B3A")       ## берег каналу: середній шар
+const W_BANK_3 := Color("#7A4128")       ## берег каналу: нижній шар
+const W_SLAB := Color("#E9CF8A")         ## пісочна плита дороги
+const W_SLAB_DARK := Color("#D9B96F")    ## темна плита / шов
+const W_COBBLE := Color("#CFC8B8")       ## брук міста
+const W_SKY := Color("#BFE3F7")          ## небо світу
+const INGOT := Color("#F5C43C")          ## злиток
+const INGOT_EDGE := Color("#C98A12")     ## грань злитка
+const H_CREAM := Color("#F6E3C2")        ## мордочка/животик героя
+const H_DARK := Color("#4A2C2A")         ## носик, копитця, обвідка героя
+const H_ACC_PINK := Color("#F04F86")     ## акцент героя: рожевий
+const H_ACC_VIOLET := Color("#6B4FBF")   ## акцент героя: фіолетовий
+const H_ACC_TEAL := Color("#3FC1B0")     ## акцент героя: бірюзовий
+const H_ACC_YELLOW := Color("#F6C445")   ## акцент героя: жовтий
+
+# риг-стилі (RigStyles) — пастельна палітра єдинорога й веселка гриви/хвоста скелетних героїв.
+const RIG_ROSE := Color("#FF5E7E")
+const RIG_TANGERINE := Color("#FFA94D")
+const RIG_BUTTER := Color("#FFE66D")
+const RIG_LEAF := Color("#7CE38B")
+const RIG_SKY := Color("#5DC8F5")
+const RIG_VIOLET := Color("#B18CFF")
+const RIG_BELLY_LILAC := Color("#F3EEF8")   ## бузково-білий животик
+const RIG_MUZZLE_BLUSH := Color("#FBE9F0")  ## рожево-білий писок
+const RIG_MANE_PINK := Color("#F48FB1")     ## перший пояс гриви/хвоста
+const RIG_MANE_CORAL := Color("#FF9E7A")    ## другий пояс гриви/хвоста
+const RIG_ACCENT_AMBER := Color("#FFB36B")  ## рідкі акцентні грані гриви + друга смуга рога
+const RIG_HOOF_TEAL := Color("#5CC8B8")     ## копитце fl/br, права латка
+const RIG_HOOF_MINT := Color("#7ED9A0")     ## копитце fr/bl, ліва латка
+const RIG_HEART_LAVENDER := Color("#E9B7F2")## сердечко на грудях (застаріле — див. RIG_DIAMOND_YELLOW)
+const RIG_SPARKLE := Color("#FFF6B0")       ## блідо-жовта зірочка-блискітка
+## Арт-вектор glossy toy (вересень 2026, want/characters/unicorn-texture.png): тіло
+## єдинорога тепер смарагдово-бірюзове, а не біле — «сердечко»/латки стали жовтими ромбами.
+const RIG_UNICORN_BODY := Color("#2FB6B0")  ## основний колір тіла (був WHITE)
+const RIG_UNICORN_BELLY := Color("#4ED0A8") ## животик — світліший м'ятний відтінок тіла
+const RIG_HORN_GOLD := Color("#E8C468")     ## перша смуга рога (був H_CREAM)
+const RIG_DIAMOND_YELLOW := Color("#F0DE6A")## жовті ромби на грудях/лапках (замість сердечка)
+
+# ─────────────────────────────── 2. РОЛІ ────────────────────────────────
+
+# текст
+const TEXT := INK                        ## звичайна підпис-мітка на світлому
+const TEXT_LIGHT := CREAM                ## підпис на темному/кольоровому тлі
+const TEXT_TITLE := WHITE                ## заголовок з обведенням
+const TEXT_OUTLINE := ESPRESSO           ## обведення заголовка
+const TEXT_HINT := LEMON                 ## підказка «Тапни!»
+const TEXT_SHADOW := Color(0, 0, 0, 0.35)
+
+# кнопки (одна роль = один намір, не «синя кнопка»)
+const BTN_PRIMARY := GREEN               ## головна дія: Біжимо!, Далі!, Обрати
+const BTN_NAV := BLUE                    ## навігація: ‹ ›, Мапа, вкладки
+const BTN_HEROES := ORANGE               ## герої / купити
+const BTN_SHOP := PURPLE                 ## крамниця
+const BTN_BACK := WOOD                   ## назад
+const BTN_SETTINGS := SLATE              ## службова кнопка
+
+# поверхні
+const PANEL := CREAM                     ## паперова панель, картка предмета
+const SHADOW := Color(0, 0, 0, 0.25)     ## тінь кнопки/панелі
+const STICK := Color(1, 1, 1, 0.9)       ## джойстик під пальцем
+const STICK_KNOB := APRICOT
+
+# значення й стани
+const STAR := GOLD
+const STAR_EDGE := GOLD_DEEP
+const HEART := RED_BRIGHT
+const HEART_EMPTY := Color(0.6, 0.6, 0.6, 0.7)
+const LOCKED := GREY                     ## закритий рівень/герой
+const ITEM_EQUIPPED := GREEN             ## рамка: одягнуто
+const ITEM_OWNED := BLUE_LIGHT           ## рамка: куплено
+const ITEM_PLAIN := STEEL_PALE           ## рамка: ще не куплено
+const TAB_ACTIVE := CREAM
+const PROGRESS := GREEN                  ## дуга прогресу в жесті
+
+# спалахи-повідомлення HUD
+const FLASH_REWARD := GOLD               ## +зірочки, новий рівень
+const FLASH_GO := MINT                   ## Біжимо!
+const FLASH_COUNT := LEMON               ## 3-2-1
+const FLASH_RETRY := CORAL               ## Ще раз!, Фініш близько!
+const FLASH_WIDTH := CYAN_PALE           ## Ширше!/Вужче!
+const LEVEL_DONE := CORAL_DEEP           ## «Ура! Рівень N»
+
+# мапа світів
+const MAP_SEA := SKY_SEA
+const MAP_ISLAND_EDGE := WOOD
+const MAP_ISLAND_SAND := SAND
+const MAP_STONE := CREAM_STONE
+const MAP_LABEL := ESPRESSO
+const MAP_PAPER := CREAM
+const MAP_BADGE_FLASH := RED_PALE       ## плашка ціни блимає: «не вистачає зірочок»
+const MAP_BADGE_BG := Color(0.24, 0.15, 0.14, 0.92)
+const MAP_BADGE_EDGE := Color(0, 0, 0, 0.35)
+const MAP_NODE_AHEAD := Color(0.75, 0.7, 0.68, 0.55)   ## камінці стежки за поточним вузлом
+const LOCK_BODY := CREAM
+const LOCK_HOLE := GREY_DARK
+const MARKER_SHADOW := Color(0, 0, 0, 0.2)
+const EYE_WHITE := WHITE
+
+# ілюстрації іконок (src/ui/components/icons.gd) — назва каже, ЩО малюємо, а не яким відтінком
+const ICON_EDGE := ESPRESSO              ## спільна темна обвідка іконок
+const ICON_PAPER := CREAM                ## аркуш мапи, крапки характеристик
+const ICON_METAL := SLATE_PALE           ## шестірня
+const ICON_METAL_HOLE := SLATE_DEEP
+const ICON_ADULT := INDIGO
+const ICON_KID := CORAL
+const ICON_HAND := WHITE
+const ICON_HAND_EDGE := SLATE_DARK
+const ICON_MOON := CREAM_WARM
+const ICON_MOON_BACK := Color(0.05, 0.05, 0.2, 1.0)
+const ICON_SIGN := WATER                 ## щит станції
+const ICON_SIGN_DOT := WHITE
+const ICON_POLE := WOOD
+const ICON_TREE_TRUNK := WOOD_MID
+const ICON_TREE_CROWN := GREEN_FOREST
+const ICON_TREE_LEAF := GREEN_DEEP
+const ICON_SUN := SUN
+const ICON_WAVE := WATER_DEEP
+const ICON_BEACH := SAND_DEEP
+const ICON_MEADOW := GRASS
+const ICON_STEM := GREEN_STEM
+const ICON_PETAL := PINK
+const ICON_FLOWER_EYE := LEMON
+const ICON_GESTURE := LEMON               ## пальчик/стрілка підказки жесту
+const ICON_MISSING := STEEL               ## перекреслене коло «нема воксела»
+const ICON_GLASS := BLUE_PALE             ## скельця окулярів
+const ICON_SCARF := RED
+const ICON_SCARF_KNOT := RED_DARK
+const ICON_HAT_BAND := RED
+const ICON_MAP_START := GREEN             ## кружечок «звідки» на мапі-глифі
+const ICON_MAP_END := RED                 ## кружечок «куди»
+const ICON_MAP_PATH := WOOD
+const ICON_FLAG := RED                    ## прапорець «пройдено»
+const ICON_EVENT := CYAN                  ## промінчики події
+const ICON_EVENT_CORE := WHITE
+
+# характеристики героя (GDD v1.3 §5)
+const STAT_HEART := RED
+const STAT_MAGNET_N := RED                ## північний полюс магніта
+const STAT_MAGNET_S := BLUE               ## південний
+const STAT_MAGNET_TIP := STEEL            ## сірі наконечники
+const STAT_SPEED := GOLD                  ## блискавка
+const STAT_LUCK := ORCHID                 ## чотирикутна зірка
+const STAT_DOT_EMPTY := Color(1, 1, 1, 0.25)
+
+# 3D: герой
+const HERO_DEFAULT := APRICOT            ## запасний колір героя (data/heroes.json)
+## Референс (Meshy fox-texture, 13.09.2026): зіниця тепла темно-коричнева, НЕ холодний
+## сіро-синій INK_SOFT — з чорним/синім оком герой читався мертвим пластиком, а не звіром.
+const HERO_EYE := Color("#2E0D08")
+const HERO_IRIS := Color("#8F5025")      ## тонке кільце райдужки між білком і зіницею
+const HERO_CHEEK := Color("#FC8366")     ## кораловий рум'янець (кружечок)
+const HERO_CHEEK_BASE := Color("#FCA7BC") ## бліда підкладка під рум'янцем — сама пляма ширша
+const HERO_NOSE := Color("#2E0D08")      ## носик — той самий тон, що й зіниця
+const HERO_MOUTH := WOOD_DARK
+const HERO_SHIELD := AZURE
+const HERO_GLOW := LEMON                 ## Ліхтарик
+const HERO_GHOST := GREY                 ## невразливість після удару
+const FRIEND_DEFAULT := ICE
+
+# 3D: світ (запасні значення для data/worlds/*.json)
+const WORLD_GROUND := GRASS
+const WORLD_GROUND_DARK := GRASS_DARK
+const WORLD_SIDE := GRASS_SIDE
+const WORLD_ACCENT := PINK               ## акцент світу: двері Розвилки, вузли мапи
+const WORLD_WATER := WATER
+const WORLD_WATER_DARK := WATER_DEEP
+const SKY_DAY := SKY
+const SKY_EVENING := PEACH_DEEP
+const SKY_NIGHT := INDIGO_DEEP
+const SUN_EVENING := PEACH
+const GROUND_TINT_NONE := WHITE          ## сезон без підфарбовування
+
+# 3D: об'єкти траси
+const TIER2_PLATFORM := WOOD_LIGHT
+const TIER2_EDGE := WOOD
+const TIER2_RAIL := GOLD
+const GATE_POST := WOOD
+const GATE_POST_ALT := WOOD_LIGHT
+const GATE_CAP := GOLD
+const GATE_FLAG_LEFT := MINT
+const GATE_FLAG_RIGHT := AZURE
+const GATE_CHECKER := RED_BRIGHT
+const GATE_CHECKER_ALT := WHITE
+const OBSTACLE_STRIPE := RED
+const OBSTACLE_STRIPE_ALT := WHITE
+const SPLASH_WATER := BLUE_LIGHT
+const SPLASH_GRASS := GREEN_PALE
+const PICKUP_DEFAULT := WHITE            ## запасний колір пікапа (data/pickups.json)
+
+# ─────────────────────────────── 3. НАБОРИ ──────────────────────────────
+
+## Веселка (rainbow3d): шість смуг згори вниз.
+const RAINBOW: Array[Color] = [RED_BRIGHT, ORANGE, SUN, GREEN, BLUE, PURPLE]
+
+## Кольори літер заголовка меню — по одній на літеру «Біжи-біжи».
+const TITLE_LETTERS: Array[Color] = [CORAL_DEEP, AMBER, GREEN, BLUE, PURPLE, PINK_DEEP, CYAN, ORANGE, WOOD]
+
+## Сектори колеса призів.
+const WHEEL_SECTORS: Array[Color] = [BLUE, GREEN, AMBER, RED, CYAN, ORANGE, PURPLE, PINK_DEEP]
+
+## Веселка гриви й хвоста скелетних героїв (RigStyles.rainbow) — пастельніша за RAINBOW.
+const RIG_RAINBOW: Array[Color] = [RIG_ROSE, RIG_TANGERINE, RIG_BUTTER, RIG_LEAF, RIG_SKY, RIG_VIOLET]
+
+## Градієнти частинок (FX._ramp).
+const RAMP_CONFETTI: Array[Color] = [RED_BRIGHT, GOLD_BRIGHT, MINT, AZURE, MAGENTA, CORAL_PALE]
+const RAMP_SPARKLE: Array[Color] = [WHITE, LEMON_PALE, GOLD]
+const RAMP_HEARTS: Array[Color] = [PINK_BRIGHT, PINK_PALE]
+
+## Градієнти атмосфери світу/сезону за видом (FX.ambient).
+const RAMP_AMBIENT := {
+	"petals": [PINK_PALE, WHITE, PINK],
+	"leaves": [AMBER_DARK, EMBER, HONEY],
+	"snow": [WHITE, BLUE_MIST],
+	"glints": [WHITE, BLUE_PALE],
+	"fireflies": [LEMON_PALE, LIME],
+	"rain": [BLUE_PALE, BLUE_HAZE],
+	"stars": [WHITE, LEMON_PALE, LAVENDER],
+}
+
+# ────────────────────────────── 4. ПОМІЧНИКИ ────────────────────────────
+
+## Колір із даних: рядок "#RRGGBB" з JSON або запасний токен, якщо ключа/значення нема.
+## Некоректний рядок теж дає запасний — дані з диска не мають ронити гру.
+static func of(value: Variant, fallback: Color) -> Color:
+	if typeof(value) == TYPE_STRING and Color.html_is_valid(String(value)):
+		return Color(String(value))
+	if value is Color:
+		return value
+	return fallback

@@ -1,0 +1,129 @@
+## Знімок ТРАСИ зі світом і декором — щоб приймати декор, який тягнеться вздовж дороги,
+## очима, а не здогадом. У грі не використовується.
+##
+## Навіщо. prop_shot показує пропс сам по собі: чи він правильного розміру й чи не лежить
+## боком. Але декор на кшталт поручнів уздовж берега має ще одну вимогу, якої на окремому
+## пропсі не видно взагалі — ЛАНКИ МУСЯТЬ СТИКУВАТИСЬ. Щілина в 5 см між секціями на знімку
+## одного пропса невидима, а на трасі перетворює огорожу на пунктир.
+##
+## Запуск:
+##     WORLD=meadow OUT=/tmp/track.png godot res://src/debug/track_shot.tscn
+##     WORLD=meadow VIEW=bank OUT=…    # камера збоку впритул до берега (стики поручнів)
+##     WORLD=meadow VIEW=top OUT=…     # згори: вода, береги, забудова — де що лежить
+##     WORLD=meadow ADVANCE=17 OUT=…   # проїхати N метрів перед знімком
+##     WORLD=meadow SEED=7 OUT=…       # інша розкладка декору (типово жереб сталий)
+extends Node3D
+
+## Кадр як у гри: 16:9. Квадратна обрізка викидала б саме краї, а в референсі забудова
+## стоїть саме там — і порівняння міряло б не те.
+const OUT_W := 1152
+const OUT_H := 648
+
+var _track: Track
+var _frames := 0
+var _done := false
+
+
+func _ready() -> void:
+	var env := WorldEnvironment.new()
+	var e := Environment.new()
+	e.background_mode = Environment.BG_COLOR
+	e.background_color = Palette.W_SKY
+	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	e.ambient_light_color = Color.WHITE
+	e.ambient_light_energy = 0.75
+	env.environment = e
+	add_child(env)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-46.0, 150.0, 0.0)
+	sun.light_energy = 1.1
+	add_child(sun)
+
+	_track = Track.new()
+	add_child(_track)
+	# ВІДТВОРЮВАНІСТЬ. Track робить _rng.randomize(), тож кожен прогін розставляв декор
+	# інакше, і знімок гуляв сам по собі — на забудові до 7 відсоткових пунктів. Порівнювати
+	# «до і після» на такому знімку неможливо: зміна тоне в перестановці кущів. Сідаємо на
+	# сталий жереб (і глобальний теж — _decorate бере і randf(), і _rng).
+	var s_env := OS.get_environment("SEED")
+	var seed_v := int(s_env) if s_env != "" else 20260915
+	seed(seed_v)
+	_track._rng.seed = seed_v
+
+	var name := OS.get_environment("WORLD")
+	if name.is_empty():
+		name = "meadow"
+	var f := FileAccess.open("res://data/worlds/%s.json" % name, FileAccess.READ)
+	if f == null:
+		push_error("track_shot: нема res://data/worlds/%s.json" % name)
+		get_tree().quit()
+		return
+	var parsed = JSON.parse_string(f.get_as_text())
+	f.close()
+	var w: Dictionary = parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+	# небо бере колір зі СВІТУ, а не зашите в знімок: інакше поле sky у world.json ніяк не
+	# впливало б на те, чим ми міряємо схожість, і тюнити його було б неможливо
+	e.background_color = Palette.of(w.get("sky"), Palette.W_SKY)
+	_track.rebuild(w, false)
+
+	# проїхати трохи: перший ряд щойно викладено, а стики видно на вже перевкладених
+	var adv := OS.get_environment("ADVANCE")
+	for i in int(adv) if adv != "" else 6:
+		_track.advance(1.0)
+
+	var cam := Camera3D.new()
+	if OS.get_environment("VIEW") == "top":
+		# згори: одразу видно, що де лежить — вода, береги, забудова
+		cam.projection = Camera3D.PROJECTION_ORTHOGONAL
+		cam.size = 16.0
+		cam.position = Vector3(0.0, 12.0, -4.0)
+		cam.rotation_degrees = Vector3(-90.0, 0.0, 0.0)
+	elif OS.get_environment("VIEW") == "bank":
+		# впритул до берега й уздовж нього — саме так видно щілини між ланками
+		cam.position = Vector3(-4.6, 0.55, -6.0)
+		cam.rotation_degrees = Vector3(-6.0, -152.0, 0.0)
+		cam.fov = 55.0
+	else:
+		# рівно та сама камера, що в грі (src/run3d/run3d.tscn, CameraRig/Camera3D) —
+		# інакше порівняння з референсом міряло б ракурс, а не рівень
+		cam.position = Vector3(0.0, 3.4, 5.6)
+		cam.rotation_degrees = Vector3(-25.2, 0.0, 0.0)
+		cam.fov = 62.0
+	add_child(cam)
+	cam.current = true
+
+
+func _process(_delta: float) -> void:
+	_frames += 1
+	if _frames < 16 or _done:
+		return
+	_done = true
+	await RenderingServer.frame_post_draw
+	if OS.get_environment("DUMP") != "":
+		# скільки предметів кожного виду траса справді поклала в ряди — щоб черга на
+		# генерування моделей будувалась за фактом, а не за відчуттям «це, мабуть, помітне»
+		var per_layer := {}
+		for ids in _track._decor_ids:
+			for j in (ids as PackedInt32Array).size():
+				var id := (ids as PackedInt32Array)[j]
+				per_layer[id] = int(per_layer.get(id, 0)) + 1
+		var rows := []
+		for key in _track._decor_layer_of.keys():
+			var n := int(per_layer.get(int(_track._decor_layer_of[key]), 0))
+			if n > 0:
+				rows.append([n, String(key).split("|")[0].split("#")[0]])
+		rows.sort_custom(func(a, b): return a[0] > b[0])
+		for r in rows:
+			print("КІЛЬКІСТЬ %s %d" % [r[1], r[0]])
+
+	var out := OS.get_environment("OUT")
+	if out != "":
+		var img := get_viewport().get_texture().get_image()
+		# ріжемо по ширині до 16:9, а не до квадрата
+		var w := img.get_width()
+		var h: int = mini(img.get_height(), int(float(w) * float(OUT_H) / float(OUT_W)))
+		img = img.get_region(Rect2i(0, (img.get_height() - h) / 2, w, h))
+		img.resize(OUT_W, OUT_H, Image.INTERPOLATE_LANCZOS)
+		img.save_png(out)
+		print("знімок: ", out)
+	get_tree().quit()

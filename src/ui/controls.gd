@@ -14,28 +14,6 @@ var _stick: StickView
 var _hint: Label
 
 
-class StickView:
-	extends Control
-	var offset := Vector2.ZERO
-	var radius := 78.0
-	func _init() -> void:
-		mouse_filter = Control.MOUSE_FILTER_IGNORE
-		size = Vector2(radius * 2.6, radius * 2.6)
-		pivot_offset = size * 0.5
-		visible = false
-	func _draw() -> void:
-		var c := size * 0.5
-		draw_circle(c, radius, Color(1, 1, 1, 0.18))
-		draw_arc(c, radius, 0.0, TAU, 48, Color(1, 1, 1, 0.55), 6.0, true)
-		# чотири мітки-напрямки
-		for a in [0.0, PI * 0.5, PI, PI * 1.5]:
-			var p := c + Vector2(cos(a), sin(a)) * (radius - 14.0)
-			draw_circle(p, 6.0, Color(1, 1, 1, 0.5))
-		var knob := c + offset.limit_length(radius * 0.8)
-		draw_circle(knob, 30.0, Color(1, 1, 1, 0.9))
-		draw_circle(knob, 22.0, Color("#FFB84D"))
-
-
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = 4
@@ -53,7 +31,7 @@ func _ready() -> void:
 	_arrows.offset_bottom = -28
 	_arrows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_arrows)
-	var c := Color("#42A5F5")
+	var c := Palette.BTN_NAV
 	_arrow("↑", c, Vector2(BTN + 12, 0), "swipe_up")
 	_arrow("←", c, Vector2(0, BTN + 12), "swipe_left")
 	_arrow("↓", c, Vector2(BTN + 12, BTN + 12), "swipe_down", true)

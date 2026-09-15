@@ -1,0 +1,15 @@
+{
+  "_note": "Хатинка: теракотові стіни, зелений дах, віконця (арт-біблія — храмики із зеленими дахами).",
+  "size": 0.16,
+  "palette": {"t": "#C9784F", "m": "#A55B3A", "d": "#7A4128", "g": "#2E7D32", "h": "#43A047", "y": "#FFF176", "w": "#8D6E63"},
+  "layers": [
+    ["ddddd", "ddddd", "ddddd", "ddddd", "ddddd"],
+    ["ttwtt", "t...t", "t...t", "t...t", "ttttt"],
+    ["tywyt", "t...t", "y...y", "t...t", "tytyt"],
+    ["ttttt", "t...t", "t...t", "t...t", "ttttt"],
+    ["mmmmm", "mmmmm", "mmmmm", "mmmmm", "mmmmm"],
+    ["ggggg", "ggggg", "ggggg", "ggggg", "ggggg"],
+    [".ghg.", ".ggg.", ".ghg.", ".ggg.", ".ghg."],
+    ["..g..", "..g..", "..g..", "..g..", "..g.."]
+  ]
+}

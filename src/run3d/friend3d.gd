@@ -1,4 +1,9 @@
 ## Друг-пухнастик: біжить поруч, займає сусідню доріжку із запізненням, стрибає разом, потім тікає вперед.
+## На дорозі він ЗАВЖДИ ОДИН і не частіше ніж раз на EventSpawner.FRIEND_COOLDOWN — сторожі там.
+## Тіло друга — ДЕШЕВІ ВОКСЕЛІ, а не скелетна модель: id "friend" у heroes.json нема, тож
+## Hero3D.resolve_def дає порожній опис → частини за замовчуванням (Hero3D.DEFAULT_PARTS)
+## і жодного .glb. Не додавати "friend" у heroes.json з полем "rig": кожен друг тягнув би
+## за собою цілу модель зі скелетом.
 class_name Friend3D
 extends Node3D
 
@@ -10,11 +15,11 @@ var _leaving := false
 var _t := 0.0
 
 
-func setup(h: Hero3D, color_hex: String, seconds: float, feat: String = "ears") -> void:
+func setup(h: Hero3D, friend_color: Color, seconds: float, feat: String = "ears") -> void:
 	hero = h
 	_puppet = Hero3D.new()
 	add_child(_puppet)
-	_puppet.set_hero("friend", color_hex, feat)
+	_puppet.set_hero("friend", friend_color, feat)
 	_puppet.scale = Vector3.ONE * 0.85
 	_puppet.set_running(true)
 	position = Vector3(hero.position.x + (1.0 if hero.position.x <= 0.0 else -1.0), 0.0, -0.9)

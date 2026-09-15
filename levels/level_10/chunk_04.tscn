@@ -1,0 +1,63 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+
+[node name="LevelLayout" type="Node3D"]
+
+[node name="M117_decor_buoy" type="Node3D" parent="." index="0"]
+script = ExtResource("1")
+role = "decor"
+kind = "buoy"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -600.0)
+
+[node name="M54_obstacle_ball" type="Node3D" parent="." index="1"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "ball"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -602.0)
+
+[node name="M118_decor_rock" type="Node3D" parent="." index="2"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -610.0)
+
+[node name="M55_obstacle_seaweed" type="Node3D" parent="." index="3"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "seaweed"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -612.8)
+
+[node name="M119_decor_crab" type="Node3D" parent="." index="4"]
+script = ExtResource("1")
+role = "decor"
+kind = "crab"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -620.0)
+
+[node name="M56_obstacle_rock" type="Node3D" parent="." index="5"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rock"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -623.6)
+
+[node name="M120_decor_star" type="Node3D" parent="." index="6"]
+script = ExtResource("1")
+role = "decor"
+kind = "star"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -630.0)
+
+[node name="M57_obstacle_crab" type="Node3D" parent="." index="7"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "crab"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -634.4)
+
+[node name="M121_decor_shell" type="Node3D" parent="." index="8"]
+script = ExtResource("1")
+role = "decor"
+kind = "shell"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -640.0)

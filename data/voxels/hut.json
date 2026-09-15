@@ -1,0 +1,14 @@
+{
+  "_note": "Хижка (Ліс): зруб із колод, віконце, зелений дах.",
+  "size": 0.16,
+  "palette": {"w": "#8D6E63", "d": "#5D4037", "g": "#2E7D32", "h": "#43A047", "y": "#FFF176"},
+  "layers": [
+    ["ddddd", "ddddd", "ddddd", "ddddd", "ddddd"],
+    ["ww.ww", "w...w", "w...w", "w...w", "wwwww"],
+    ["wwyww", "w...w", "y...y", "w...w", "wwwww"],
+    ["ddddd", "d...d", "d...d", "d...d", "ddddd"],
+    ["ggggg", "ggggg", "ggggg", "ggggg", "ggggg"],
+    [".ghg.", ".ggg.", ".ghg.", ".ggg.", ".ghg."],
+    ["..g..", "..g..", "..g..", "..g..", "..g.."]
+  ]
+}

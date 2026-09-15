@@ -9,7 +9,7 @@ signal map_pressed
 signal settings_pressed
 
 const TITLE := "Біжи-біжи"
-const LETTER_COLORS := ["#FF7043", "#FFCA28", "#66BB6A", "#42A5F5", "#AB47BC", "#EC407A", "#26C6DA", "#FFA726", "#8D6E63"]
+const LETTER_COLORS := Palette.TITLE_LETTERS
 
 var _root: Control
 var _title_box: HBoxContainer
@@ -47,13 +47,13 @@ func _ready() -> void:
 		slot.custom_minimum_size = Vector2(72 if ch != "-" else 40, 130)
 		slot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		_title_box.add_child(slot)
-		var l := UIKit.title(ch, 104, Color(String(LETTER_COLORS[i % LETTER_COLORS.size()])))
+		var l := UIKit.title(ch, 104, LETTER_COLORS[i % LETTER_COLORS.size()])
 		l.set_anchors_preset(Control.PRESET_FULL_RECT)
 		slot.add_child(l)
 		_bounce_letter(l, i)
 		i += 1
 
-	_subtitle = UIKit.title("дорога-пригода для малят", 30, Color("#FFF8E1"))
+	_subtitle = UIKit.title("дорога-пригода для малят", 30, Palette.TEXT_LIGHT)
 	_subtitle.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_subtitle.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_subtitle.offset_top = 170
@@ -70,7 +70,7 @@ func _ready() -> void:
 	_buttons.offset_bottom = -48
 	_root.add_child(_buttons)
 
-	_play = UIKit.button("Біжимо!", Color("#66BB6A"), Vector2(420, 150), 62)
+	_play = UIKit.button("Біжимо!", Palette.BTN_PRIMARY, Vector2(420, 150), 62)
 	_play.pressed.connect(func(): AudioMgr.sfx("ui_play"); play_pressed.emit())
 	_buttons.add_child(_play)
 	# рядок «Герої» + «Мапа»
@@ -79,10 +79,10 @@ func _ready() -> void:
 	_row.add_theme_constant_override("separation", 20)
 	_row.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_buttons.add_child(_row)
-	_heroes = UIKit.button("Герої", Color("#FFA726"), Vector2(280, 104), 42)
+	_heroes = UIKit.button("Герої", Palette.BTN_HEROES, Vector2(280, 104), 42)
 	_heroes.pressed.connect(func(): AudioMgr.sfx("ui_tap"); heroes_pressed.emit())
 	_row.add_child(_heroes)
-	_map = UIKit.button("Мапа", Color("#42A5F5"), Vector2(280, 104), 42)
+	_map = UIKit.button("Мапа", Palette.BTN_NAV, Vector2(280, 104), 42)
 	_map.pressed.connect(func(): AudioMgr.sfx("ui_tap"); map_pressed.emit())
 	var glyph := Icons.MapGlyph.new(56.0)
 	glyph.position = Vector2(22, 24)
@@ -90,7 +90,7 @@ func _ready() -> void:
 	_row.add_child(_map)
 
 	# шестірня «Налаштування» — кругла сіра, праворуч угорі під зірочками
-	_settings = UIKit.button("", Color("#90A4AE"), Vector2(88, 88), 20)
+	_settings = UIKit.button("", Palette.BTN_SETTINGS, Vector2(88, 88), 20)
 	_settings.tooltip_text = "Налаштування"
 	for st in ["normal", "hover", "pressed"]:
 		var sb := _settings.get_theme_stylebox(st)
@@ -108,7 +108,7 @@ func _ready() -> void:
 	_settings.add_child(gear)
 	_root.add_child(_settings)
 
-	_hint = UIKit.title("торкнись героя — він зрадіє", 24, Color("#FFF8E1"))
+	_hint = UIKit.title("торкнись героя — він зрадіє", 24, Palette.TEXT_LIGHT)
 	_hint.set_anchors_preset(Control.PRESET_CENTER_LEFT)
 	_hint.grow_vertical = Control.GROW_DIRECTION_BOTH
 	_hint.offset_left = 40

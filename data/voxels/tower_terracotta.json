@@ -1,0 +1,19 @@
+{
+  "_note": "Теракотова вежа із зеленим дахом (арт-біблія): 1,0 × 3,0 × 1,0 м — точка сходу збоку дороги.",
+  "size": 0.25,
+  "palette": {"t": "#C9784F", "m": "#A55B3A", "d": "#7A4128", "g": "#7CC46B", "k": "#3E2723"},
+  "layers": [
+    ["dddd", "dddd", "dddd", "dddd"],
+    ["dddd", "dddd", "dddd", "dddd"],
+    ["mmmm", "m..m", "m..m", "mmmm"],
+    ["mkkm", "m..m", "m..m", "mkkm"],
+    ["mmmm", "m..m", "m..m", "mmmm"],
+    ["tttt", "t..t", "t..t", "tttt"],
+    ["tkkt", "t..t", "t..t", "tkkt"],
+    ["tttt", "t..t", "t..t", "tttt"],
+    ["tttt", "tttt", "tttt", "tttt"],
+    ["gggg", "gggg", "gggg", "gggg"],
+    ["....", ".gg.", ".gg.", "...."],
+    ["....", ".kk.", ".kk.", "...."]
+  ]
+}

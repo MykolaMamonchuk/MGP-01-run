@@ -1,0 +1,107 @@
+{
+  "_note": "kind -> справжня модель замість згенерованого вокселя. Ключ той самий, що й у data/voxels/<kind>.json та в маркерах levels/*, тож розкладку рівнів міняти не треба. Значення — шлях рядком, {path, scale, yaw_deg}, або СПИСОК таких: список означає кілька РІЗНИХ типів одного виду (три несхожі бочки), і кожен екземпляр бере свій. Виду тут нема (чи файл відсутній) — малюється воксель, як і раніше. Значення може задавати СПРАЙТ замість моделі: {sprite, height, billboard} — дощечка з картинкою замість геометрії, 3–6 КБ замість мегабайтів. Список того, що варто згенерувати, — docs/tasks/props.md",
+  "_приклад": {
+    "path": "res://assets/props/tree_oak.glb",
+    "scale": 1.0,
+    "yaw_deg": 0.0
+  },
+  "barrel": [
+    {
+      "sprite": "res://assets/sprites/barrel_1.png",
+      "width": 0.6261,
+      "height": 0.756
+    },
+    {
+      "sprite": "res://assets/sprites/barrel_2.png",
+      "width": 0.6379,
+      "height": 0.756
+    },
+    {
+      "sprite": "res://assets/sprites/barrel_3.png",
+      "width": 0.6615,
+      "height": 0.756
+    }
+  ],
+  "cart_market": {
+    "sprite": "res://assets/sprites/cart_market.png",
+    "width": 0.7695,
+    "height": 0.864
+  },
+  "fence_low": [
+    {
+      "sprite": "res://assets/sprites/fence_low_1.png",
+      "width": 0.9939,
+      "height": 0.6012
+    },
+    {
+      "sprite": "res://assets/sprites/fence_low_2.png",
+      "width": 0.9939,
+      "height": 0.5611
+    },
+    {
+      "sprite": "res://assets/sprites/fence_low_3.png",
+      "width": 0.9939,
+      "height": 0.5611
+    }
+  ],
+  "fence_rail": [
+    {
+      "sprite": "res://assets/sprites/fence_rail_1.png",
+      "width": 1.0463,
+      "height": 0.4472,
+      "billboard": false
+    },
+    {
+      "sprite": "res://assets/sprites/fence_rail_2.png",
+      "width": 1.0463,
+      "height": 0.3038,
+      "billboard": false
+    },
+    {
+      "sprite": "res://assets/sprites/fence_rail_3.png",
+      "width": 1.0463,
+      "height": 0.3628,
+      "billboard": false
+    }
+  ],
+  "crate": [
+    {
+      "sprite": "res://assets/sprites/crate_1.png",
+      "width": 0.7324,
+      "height": 0.756
+    },
+    {
+      "sprite": "res://assets/sprites/crate_2.png",
+      "width": 0.7324,
+      "height": 0.756
+    },
+    {
+      "sprite": "res://assets/sprites/crate_3.png",
+      "width": 0.7324,
+      "height": 0.756
+    }
+  ],
+  "puddle": {
+    "sprite": "res://assets/sprites/puddle.png",
+    "width": 0.8349,
+    "height": 0.4314,
+    "billboard": false
+  },
+  "bridge_plank": {
+    "path": "res://assets/props/bridge_plank.glb",
+    "scale": 1.0,
+    "yaw_deg": -90.0
+  },
+  "bush_flower": [
+    {
+      "sprite": "res://assets/sprites/bush_flower_1.png",
+      "width": 0.6634,
+      "height": 0.6045
+    },
+    {
+      "sprite": "res://assets/sprites/bush_flower_2.png",
+      "width": 0.3028,
+      "height": 0.3347
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://chrv7ytaygv5q"]
+
+[ext_resource type="Script" uid="uid://c64v4bv4folw2" path="res://vendor/cartoon_eye/shader_eye.gd" id="1_script"]
+[ext_resource type="Shader" uid="uid://c42xq36kjhhbk" path="res://vendor/cartoon_eye/shader_eye.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ceowi"]
+resource_local_to_scene = true
+render_priority = 0
+shader = ExtResource("2_shader")
+shader_parameter/sclera_color = Color(1, 0.98, 0.95, 1)
+shader_parameter/rim_color = Color(0.2, 0.12941177, 0.101960786, 1)
+shader_parameter/iris_color = Color(0.41960785, 0.23921569, 0.14901961, 1)
+shader_parameter/pupil_color = Color(0.105882354, 0.05490196, 0.039215688, 1)
+shader_parameter/highlight_color = Color(1, 1, 1, 1)
+shader_parameter/eye_width = 1.0
+shader_parameter/eye_height = 1.0
+shader_parameter/iris_size = 0.67
+shader_parameter/pupil_size = 0.55
+shader_parameter/gaze = Vector2(0, 0)
+shader_parameter/big_highlight_pos = Vector2(-0.28, -0.28)
+shader_parameter/big_highlight_size = 0.13
+shader_parameter/small_highlight_pos = Vector2(0.3, 0.28)
+shader_parameter/small_highlight_size = 0.055
+shader_parameter/rim_size = 0.035
+shader_parameter/blink = 0.0
+shader_parameter/softness = 0.018
+
+[sub_resource type="QuadMesh" id="QuadMesh_eye"]
+size = Vector2(1, 1)
+
+[node name="ShaderEye" type="Node3D" unique_id=1060210496]
+script = ExtResource("1_script")
+
+[node name="EyeSurface" type="MeshInstance3D" parent="." unique_id=1696016569]
+material_override = SubResource("ShaderMaterial_ceowi")
+cast_shadow = 0
+mesh = SubResource("QuadMesh_eye")

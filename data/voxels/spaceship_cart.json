@@ -1,0 +1,13 @@
+{
+  "_note": "Візок-ракета (Хмаринки) — «транспорт» другого ярусу: сріблястий корпус, ілюмінатор, плавці.",
+  "size": 0.15,
+  "palette": {"s": "#CFD8DC", "m": "#B0BEC5", "g": "#81D4FA", "r": "#EF5350", "k": "#37474F"},
+  "layers": [
+    [".....", "k...k", "k...k", ".....", "k...k", "k...k", "....."],
+    ["mmmmm", "mmmmm", "mmmmm", "mmmmm", "mmmmm", "mmmmm", "mmmmm"],
+    ["sssss", "sggss", "sssss", "sggss", "sssss", "sggss", "sssss"],
+    ["sssss", "sssss", "sssss", "sssss", "sssss", "sssss", "sssss"],
+    ["r...r", "sssss", "sssss", "sssss", "sssss", "sssss", "r...r"],
+    [".....", ".sss.", ".sss.", ".sss.", ".sss.", ".sss.", "....."]
+  ]
+}

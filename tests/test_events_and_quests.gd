@@ -26,18 +26,36 @@ func test_events_data_shape() -> void:
 		assert_true(e.has("id") and e.has("modes") and e.has("weights"), "%s: id/modes/weights" % e.get("id", "?"))
 
 
+## Друг на дорозі — рівно один і не частіше ніж раз на FRIEND_COOLDOWN
+## (playtest 09.09: колона з десятка однакових друзів на одній доріжці).
+func test_friend_has_a_cooldown() -> void:
+	assert_gte(EventSpawner.FRIEND_COOLDOWN, 20.0, "мінімум 20 с між друзями")
+	var es := EventSpawner.new()
+	add_child_autofree(es)
+	assert_true(es.friend_allowed(), "спочатку друга покликати можна")
+	# подія «друг» триває менше за кулдаун — інакше сторож нічого не стереже
+	for e in _events:
+		if String(e.get("id", "")) == "friend":
+			assert_lte(float(e.get("duration", 0.0)), EventSpawner.FRIEND_COOLDOWN,
+				"друг іде раніше, ніж мине кулдаун")
+
+
 func test_pick_respects_mode() -> void:
-	for i in 30:
-		var e := EventSpawner.pick(_events, "mid", "hop", _rng)
-		if e.is_empty():
-			continue
-		assert_true((e["modes"] as Array).has("hop"), "у Стрибках лише події для hop: %s" % e["id"])
+	for m in ["surf", "scooter"]:
+		var picked := 0
+		for i in 30:
+			var e := EventSpawner.pick(_events, "mid", m, _rng)
+			if e.is_empty():
+				continue
+			picked += 1
+			assert_true((e["modes"] as Array).has(m), "у режимі %s лише події для нього: %s" % [m, e["id"]])
+		assert_gt(picked, 0, "для режиму %s є події" % m)
 
 
 func test_pick_skips_zero_weight_and_todo() -> void:
 	for i in 40:
-		var e := EventSpawner.pick(_events, "young", "hop", _rng)
-		assert_false(e.get("id", "") == "bridge", "«міст падає» не для young і не реалізовано")
+		var e := EventSpawner.pick(_events, "young", "run", _rng)
+		assert_false(e.get("id", "") == "bridge", "«міст падає» (вага 0 для young) не випадає")
 	for i in 40:
 		var e := EventSpawner.pick(_events, "older", "run", _rng)
 		assert_false(e.get("id", "") == "dragonfly", "бабка (вага 0 для older) не випадає")

@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3 uid="uid://cib5qjm42rfic"]
+
+[ext_resource type="PackedScene" path="res://vendor/cartoon_eye_3d/CartoonEye3D.tscn" id="1"]
+
+[node name="FoxEye3D" instance=ExtResource("1")]
+eye_width = 1.0
+eye_height = 1.0
+eye_depth = 0.34
+embed_depth = 0.1
+socket_thickness = 0.055
+socket_scale = 1.18
+iris_size = 0.63
+iris_surface_offset = 0.012
+iris_offset = Vector2(-0.05, 0.0)
+pupil_offset = Vector2(-0.04, 0.035)
+pupil_size = 0.66
+big_highlight_size = 0.3
+big_highlight_offset = Vector2(-0.175, 0.2)
+small_highlight_size = 0.093
+small_highlight_offset = Vector2(0.255, -0.235)
+
+[node name="UpperLid" parent="." index="4"]
+visible = false
+
+[node name="LowerLid" parent="." index="5"]
+visible = false

@@ -16,3 +16,11 @@ signal world_changed(world_id: String)          # Розвилка: обрано
 signal mini_event_started(event_id: String)
 signal mini_event_finished(event_id: String)
 signal quest_completed(quest_id: String, reward: int)
+# v1.3: життя, пікапи, перегравання рівня
+signal hearts_changed(hearts: int)                   # серця героя змінились (втрата/сердечко/скидання)
+signal pickup_started(kind: String, seconds: float)  # підібрано пікап із тривалістю (0 — миттєвий)
+signal pickup_ended(kind: String)                    # дія пікапа закінчилась (час або щит поглинув удар)
+signal level_restarted(level: int)                   # ЗАСТАРІЛО (v1.4): рівень більше не перезапускається, сигнал лишився для сумісності
+# v1.4: гра без програшу — сорока краде злитки замість перезапуску
+signal coins_stolen(amount: int)                     # сорока забрала стільки злитків рівня
+signal multiplier_changed(mult: int)                 # змінився множник злитків
