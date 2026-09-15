@@ -92,6 +92,41 @@ static func pick(kind: String) -> int:
 	return absi(hash(_world_key + "|" + kind)) % n
 
 
+## СПРАЙТ замість моделі. Ціль — мобільний додаток, а пропс із текстурою 2048×2048 важить
+## мегабайти заради кадру, де він займає сотню пікселів. Спрайт коштує 3–6 КБ і малюється
+## тим самим MultiMesh, що й модель, тож ні розкладка рівнів, ні пакетне малювання не
+## змінюються — міняється лише те, ЩО лежить у шарі.
+##
+## Формат у data/props.json:
+##   "barrel": {"sprite": "res://assets/sprites/barrel_1.png", "height": 0.70}
+##   "fence_rail": {"sprite": "…", "height": 0.41, "billboard": false}
+##
+## billboard (типово true) — дощечка довертається до камери навколо вертикалі. Це правильно
+## для окремих предметів: бочка, ящик, кущ виглядають однаково з будь-якого боку. Для того,
+## що ТЯГНЕТЬСЯ вздовж чогось (поручні, настил містка), довертання все зіпсує — там false.
+static func _sprite_mesh(e: Dictionary) -> Mesh:
+	var tex := load(String(e.get("sprite", ""))) as Texture2D
+	if tex == null:
+		return null
+	var h := float(e.get("height", 1.0))
+	var quad := QuadMesh.new()
+	quad.size = Vector2(h * float(tex.get_width()) / maxf(float(tex.get_height()), 1.0), h)
+	# початок унизу, як і в моделей: пропс ставиться на землю, а не тоне в ній наполовину
+	quad.center_offset = Vector3(0.0, h * 0.5, 0.0)
+	var m := StandardMaterial3D.new()
+	m.albedo_texture = tex
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED   # світло вже вмальоване в спрайт
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+	m.alpha_scissor_threshold = 0.5      # без сортування прозорості — на телефоні це дорого
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	if bool(e.get("billboard", true)):
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
+		# БЕЗ цього Godot скидає масштаб інстанса, і всі пропси стають однакового розміру
+		m.billboard_keep_scale = true
+	quad.material = m
+	return quad
+
+
 static func _entry(kind: String, variant: int = 0) -> Dictionary:
 	if not _loaded:
 		reload()
@@ -110,6 +145,9 @@ static func _entry(kind: String, variant: int = 0) -> Dictionary:
 	if typeof(v) == TYPE_DICTIONARY:
 		var d := v as Dictionary
 		return {"path": String(d.get("path", "")),
+			"sprite": String(d.get("sprite", "")),
+			"height": float(d.get("height", 1.0)),
+			"billboard": bool(d.get("billboard", true)),
 			"scale": float(d.get("scale", 1.0)),
 			"yaw_deg": float(d.get("yaw_deg", 0.0))}
 	return {}
@@ -118,7 +156,12 @@ static func _entry(kind: String, variant: int = 0) -> Dictionary:
 ## Чи є для цього виду справжня модель (і чи файл на місці).
 static func has(kind: String, variant: int = 0) -> bool:
 	var e := _entry(kind, variant)
-	return not e.is_empty() and String(e["path"]) != "" and ResourceLoader.exists(String(e["path"]))
+	if e.is_empty():
+		return false
+	var spr := String(e.get("sprite", ""))
+	if spr != "":
+		return ResourceLoader.exists(spr)
+	return String(e["path"]) != "" and ResourceLoader.exists(String(e["path"]))
 
 
 ## Масштаб/поворот, які треба домножити до тих, що вже задані маркером.
@@ -139,7 +182,12 @@ static func mesh(kind: String, variant: int = 0) -> Mesh:
 		return _mesh_cache[key]
 	if not has(kind, variant):
 		return null
-	var scene := load(String(_entry(kind, variant)["path"])) as PackedScene
+	var e := _entry(kind, variant)
+	if String(e.get("sprite", "")) != "":
+		var q := _sprite_mesh(e)
+		_mesh_cache[key] = q
+		return q
+	var scene := load(String(e["path"])) as PackedScene
 	if scene == null:
 		return null
 	var root := scene.instantiate()

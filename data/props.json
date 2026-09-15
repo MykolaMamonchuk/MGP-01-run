@@ -1,16 +1,28 @@
 {
-  "_note": "kind -> справжня модель замість згенерованого вокселя. Ключ той самий, що й у data/voxels/<kind>.json та в маркерах levels/*, тож розкладку рівнів міняти не треба. Значення — шлях рядком, {path, scale, yaw_deg}, або СПИСОК таких: список означає кілька РІЗНИХ типів одного виду (три несхожі бочки), і кожен екземпляр бере свій. Виду тут нема (чи файл відсутній) — малюється воксель, як і раніше. Список того, що варто згенерувати, — docs/tasks/props.md",
+  "_note": "kind -> справжня модель замість згенерованого вокселя. Ключ той самий, що й у data/voxels/<kind>.json та в маркерах levels/*, тож розкладку рівнів міняти не треба. Значення — шлях рядком, {path, scale, yaw_deg}, або СПИСОК таких: список означає кілька РІЗНИХ типів одного виду (три несхожі бочки), і кожен екземпляр бере свій. Виду тут нема (чи файл відсутній) — малюється воксель, як і раніше. Значення може задавати СПРАЙТ замість моделі: {sprite, height, billboard} — дощечка з картинкою замість геометрії, 3–6 КБ замість мегабайтів. Список того, що варто згенерувати, — docs/tasks/props.md",
   "_приклад": {
     "path": "res://assets/props/tree_oak.glb",
     "scale": 1.0,
     "yaw_deg": 0.0
   },
   "barrel": [
-    "res://assets/props/barrel_1.glb",
-    "res://assets/props/barrel_2.glb",
-    "res://assets/props/barrel_3.glb"
+    {
+      "sprite": "res://assets/sprites/barrel_1.png",
+      "height": 0.7
+    },
+    {
+      "sprite": "res://assets/sprites/barrel_2.png",
+      "height": 0.7
+    },
+    {
+      "sprite": "res://assets/sprites/barrel_3.png",
+      "height": 0.7
+    }
   ],
-  "cart_market": "res://assets/props/cart_market.glb",
+  "cart_market": {
+    "sprite": "res://assets/sprites/cart_market.png",
+    "height": 0.8
+  },
   "fence_low": [
     "res://assets/props/fence_low_1.glb",
     "res://assets/props/fence_low_2.glb",
@@ -22,18 +34,37 @@
     "res://assets/props/fence_rail_3.glb"
   ],
   "crate": [
-    "res://assets/props/crate_1.glb",
-    "res://assets/props/crate_2.glb",
-    "res://assets/props/crate_3.glb"
+    {
+      "sprite": "res://assets/sprites/crate_1.png",
+      "height": 0.52
+    },
+    {
+      "sprite": "res://assets/sprites/crate_2.png",
+      "height": 0.51
+    },
+    {
+      "sprite": "res://assets/sprites/crate_3.png",
+      "height": 0.49
+    }
   ],
-  "puddle": "res://assets/props/puddle.glb",
+  "puddle": {
+    "sprite": "res://assets/sprites/puddle.png",
+    "height": 0.12,
+    "billboard": false
+  },
   "bridge_plank": {
     "path": "res://assets/props/bridge_plank.glb",
     "scale": 1.0,
     "yaw_deg": -90.0
   },
   "bush_flower": [
-    "res://assets/props/bush_flower_1.glb",
-    "res://assets/props/bush_flower_2.glb"
+    {
+      "sprite": "res://assets/sprites/bush_flower_1.png",
+      "height": 0.5
+    },
+    {
+      "sprite": "res://assets/sprites/bush_flower_2.png",
+      "height": 0.5
+    }
   ]
 }
