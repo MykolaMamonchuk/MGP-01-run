@@ -291,8 +291,12 @@ func _decor_layer(kind: String, override: Dictionary) -> int:
 	var key := kind if override.is_empty() else kind + "|" + JSON.stringify(override)
 	if _decor_layer_of.has(key):
 		return int(_decor_layer_of[key])
+	# спершу питаємо бібліотеку пропсів: якщо для цього виду вже є СПРАВЖНЯ модель, беремо
+	# її меш, а воксель лишається запасним варіантом (див. src/run3d/prop_library.gd).
+	# Розкладка рівнів при цьому не міняється — `kind` той самий.
+	var prop_mesh := PropLibrary.mesh(kind)
 	# декор вищий за дорогу (крона на 3,2 м) і ширший — свій AABB
-	var mi := _make_canvas(VoxelBuilder.mesh(kind, override), 0, 16.0)
+	var mi := _make_canvas(prop_mesh if prop_mesh != null else VoxelBuilder.mesh(kind, override), 0, 16.0)
 	_decor_mm.append(mi)
 	_decor_layer_of[key] = _decor_mm.size() - 1
 	return _decor_mm.size() - 1
@@ -372,14 +376,21 @@ static func bridge_clears_road(edge: float, offset: float, width: float) -> bool
 	return center - bridge_deck_len(width) * 0.5 > edge
 
 
-## Задати авторський таймлайн рівня (Phase 1 level-authoring plumbing): decor/buildings —
+## Задати авторський таймлайн рівня одним махом (стирає попередній): decor/buildings —
 ## масиви записів {z_m, x_m, y_m, kind, override, yaw_deg, scale} від LevelTimeline.extract().
-## Сортуємо за z_m — _decorate() потім лінійно фільтрує по вікну одного ряду (~1 м), запис
-## авторського рівня невеликий, тож зайвого коштує копійки. Викликати ДО першого advance()/rebuild().
+## Викликати ДО першого advance()/rebuild().
 func set_authored_timeline(decor: Array, buildings: Array) -> void:
-	_authored_decor = decor.duplicate()
+	clear_authored_timeline()
+	add_authored_timeline(decor, buildings)
+
+
+## Дозавантажити ще декору/будівель до вже наявного таймлайну (LevelChunkLoader — наступний
+## чанк рівня). Сортуємо за z_m — _decorate() лінійно фільтрує по вікну одного ряду (~1 м),
+## запис одного чанку невеликий, тож зайвого коштує копійки.
+func add_authored_timeline(decor: Array, buildings: Array) -> void:
+	_authored_decor.append_array(decor)
 	_authored_decor.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
-	_authored_buildings = buildings.duplicate()
+	_authored_buildings.append_array(buildings)
 	_authored_buildings.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
 	_authored_active = true
 

@@ -56,7 +56,16 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 	# у bounding box гілки враховуємо висоту підвісу
 	_box_y = y
 	if with_mesh:
-		_mesh = VoxelBuilder.instance(String(def.get("voxel", kind)))
+		# спершу бібліотека пропсів: є справжня модель для цього виду — беремо її меш,
+		# нема — лишається воксель (див. src/run3d/prop_library.gd). Саме МЕШ, а не готовий
+		# вузол сцени: нижче обведення бере `_mesh.mesh`, а анімації крутять сам MeshInstance3D.
+		var prop_name := String(def.get("voxel", kind))
+		var prop_mesh := PropLibrary.mesh(prop_name)
+		if prop_mesh != null:
+			_mesh = MeshInstance3D.new()
+			_mesh.mesh = prop_mesh
+		else:
+			_mesh = VoxelBuilder.instance(prop_name)
 		_mesh.position.y = y
 		_base_scale = Vector3.ONE * float(def.get("scale", 1.0))
 		_mesh.scale = _base_scale
