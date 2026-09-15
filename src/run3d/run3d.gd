@@ -891,6 +891,10 @@ func _process(delta: float) -> void:
 		track.advance(dist, level_distance_m)
 		spawner.advance(dist, level_distance_m)
 		_chunk_loader.update(level_distance_m)
+	# камера живе разом із героєм: кладеться в поворот, відстає на маневрі, провисає під
+	# стрибком. Сигнал один — скільки героєві лишилось до своєї доріжки (див. CameraRig.drive)
+	camera_rig.drive(delta, hero.position.x, hero.x_target - hero.position.x,
+		hero.vy(), Hero3D.LANE_W)
 	spawner.check(delta)
 	events_spawner.tick(delta)
 	_hint(delta)
@@ -1064,6 +1068,7 @@ func _release_assist_duck() -> void:
 ## Падіння героя — тряска камери.
 func on_tumble() -> void:
 	camera_rig.shake(0.1)
+	camera_rig.punch(1.0)
 
 
 ## Злитки під час бігу йдуть у лічильник рівня (у SaveService — на фініші); поза бігом (подарунок, колесо) — одразу.

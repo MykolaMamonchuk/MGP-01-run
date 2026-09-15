@@ -16,8 +16,85 @@ const DOF_NEAR_DISTANCE := 2.2
 const DOF_NEAR_TRANSITION := 1.2
 const DOF_AMOUNT := 0.06
 
+## ЖИВА КАМЕРА під час бігу. Досі камера стояла нерухомо, і весь рух був у самому герої:
+## він стрибав убік, а кадр лишався як прибитий. Через це зміна доріжки читалась як
+## «персонаж посунувся», а не як «ми повернули».
+##
+## Три речі роблять рух відчутним, і всі три беруться з ОДНОГО сигналу — наскільки герой
+## ще не доїхав до своєї доріжки (`x_target - x`). Він сам собою спалахує на початку
+## маневру й згасає наприкінці, тобто вже має потрібну форму, і окремих таймерів не треба.
+##   - крен: кадр кладеться в поворот, як велосипедист;
+##   - запізнення: камера йде за героєм не миттєво, тож він на мить зміщується в кадрі;
+##   - довертання: ніс камери трохи йде в бік маневру.
+## Спотикання й падіння додають ривок полем зору — кадр «зітхає», а потім вирівнюється.
+##
+## Усе це живе на САМОМУ РИГУ, а не на камері: пресет світу сидить у трансформі камери й
+## переїжджає твінами, тож писати туди ще й покадровий рух означало б із ними битися.
+const LEAN_ROLL := 0.13           ## максимальний крен у поворот, рад
+const LEAN_YAW := 0.05            ## максимальне довертання носа, рад
+const FOLLOW_LAG := 0.55          ## яку частку зсуву героя камера НЕ повторює одразу
+const FOLLOW_EASE := 7.0          ## як швидко наздоганяє, частка за секунду
+const RISE_LAG := 0.22            ## наскільки камера провисає під стрибком героя
+const FOV_PUNCH := 5.0            ## ривок поля зору на спотиканні, градуси
+const FOV_EASE := 4.5
+
 var _tw: Tween
 var _shake_tw: Tween
+var _lean := 0.0
+var _follow_x := 0.0
+var _rise := 0.0
+var _fov_extra := 0.0
+var _base_fov := 0.0
+
+
+## Крен від «недоїханого» зсуву. Пропорція, а не поріг: маленький доворот дає маленький
+## нахил, тож камера не смикається на дрібницях. Знак такий, щоб кадр лягав У бік повороту.
+static func lean_for(pull: float, lane_w: float) -> float:
+	return -clampf(pull / maxf(lane_w, 0.001), -1.0, 1.0) * LEAN_ROLL
+
+
+## Куди камера стоїть по x: не там, де герой, а позаду нього на частку зсуву. Саме через це
+## герой на мить «випереджає» кадр, і маневр видно, а не лише відчувається.
+static func follow_for(hero_x: float, pull: float) -> float:
+	return hero_x + pull * FOLLOW_LAG
+
+
+## Покадровий рух камери. delta — крок, hero_x — де герой зараз, pull — скільки йому ще
+## лишилось до своєї доріжки, vy — вертикальна швидкість, lane_w — ширина доріжки.
+func drive(delta: float, hero_x: float, pull: float, vy: float, lane_w: float) -> void:
+	if _tw != null and _tw.is_valid():
+		return               # пресет саме переїжджає — не заважаємо твінам
+	var k := clampf(delta * FOLLOW_EASE, 0.0, 1.0)
+	_lean = lerpf(_lean, lean_for(pull, lane_w), k)
+	_follow_x = lerpf(_follow_x, follow_for(hero_x, pull), k)
+	_rise = lerpf(_rise, -clampf(vy, 0.0, 6.0) * RISE_LAG, k)
+	position.x = _follow_x
+	position.y = _rise
+	rotation.z = _lean
+	rotation.y = _lean * (LEAN_YAW / LEAN_ROLL)
+	if _fov_extra != 0.0:
+		_fov_extra = move_toward(_fov_extra, 0.0, delta * FOV_EASE)
+		if cam.projection == Camera3D.PROJECTION_PERSPECTIVE and _base_fov > 0.0:
+			cam.fov = _base_fov + _fov_extra
+
+
+## Ривок поля зору: кадр на мить «зітхає». Чіпляється до спотикання й падіння.
+func punch(strength: float = 1.0) -> void:
+	if _base_fov <= 0.0:
+		_base_fov = cam.fov
+	_fov_extra = FOV_PUNCH * clampf(strength, 0.0, 2.0)
+
+
+## Повернути камеру в спокій (кінець забігу, меню): інакше крен лишився б висіти.
+func settle() -> void:
+	_lean = 0.0
+	_follow_x = 0.0
+	_rise = 0.0
+	_fov_extra = 0.0
+	position = Vector3.ZERO
+	rotation = Vector3.ZERO
+	if _base_fov > 0.0 and cam.projection == Camera3D.PROJECTION_PERSPECTIVE:
+		cam.fov = _base_fov
 
 
 ## Увімкнути/вимкнути розмиття планів (налаштування «fx_blur»).
@@ -88,3 +165,4 @@ func _set_projection(ortho: bool, preset: Dictionary) -> void:
 	else:
 		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 		cam.fov = float(preset.get("fov", 62.0))
+		_base_fov = cam.fov          # ривок поля зору рахується від пресета, а не від себе
