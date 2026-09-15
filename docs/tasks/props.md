@@ -248,4 +248,4 @@ godot --headless --path . -s addons/gut/gut_cmdln.gd -gconfig=tests/.gutconfig.j
 рівно як раніше, а зламаний шлях у `props.json` не роняє гру.
 
 Подивитись рівень: `godot --path .` і пройти перший рівень. Окремо на пропс —
-`VOXEL=<ім'я> godot res://src/debug/voxel_preview.tscn`.
+`VOXEL=<ім'я> godot res://src/debug/model_preview.tscn`.

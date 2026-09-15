@@ -31,7 +31,10 @@ static func glow_material() -> StandardMaterial3D:
 
 
 func _ready() -> void:
-	_mesh = VoxelBuilder.instance("star")
+	# спершу бібліотека пропсів (справжня модель), нема — воксель, як раніше
+	_mesh = PropLibrary.node_for("star")
+	if _mesh == null:
+		_mesh = VoxelBuilder.instance("star")
 	_mesh.rotation.x = PI * 0.5   # плоска зірка стоїть вертикально
 	_mesh.material_override = glow_material()
 	if value > 1:

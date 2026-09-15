@@ -14,7 +14,7 @@
 | `perf/` | Сцена заміру FPS (Godot) |
 | `../src/debug/face_shot.tscn` | Знімок морди героя анфас + тісний кроп ока: `OUT=/tmp/face.png HERO=lys godot res://src/debug/face_shot.tscn` |
 | `../src/debug/zoo.tscn` | Усі звірята в ряд, живі, спільні клавіші: `godot res://src/debug/zoo.tscn` (`ZOO=all` — ще й воксельні, `ZOO=lys,olen` — вибірка, `OUT=/tmp/zoo.png` — знімок і вихід) |
-| `../src/debug/voxel_preview.tscn` | Показати один воксель у порожній сцені: `VOXEL=<ім'я> godot res://src/debug/voxel_preview.tscn` |
+| `../src/debug/model_preview.tscn` | Показати героя зі скелетним ригом (`RIG=<ім'я>`) або, як запасний варіант, один воксель у порожній сцені: `VOXEL=<ім'я> godot res://src/debug/model_preview.tscn` |
 | `shots/` | Сцена автознімків (Godot) |
 
 ## Воксельний пайплайн
@@ -52,7 +52,7 @@ blender --background --python tools/rig_fix.py -- \
 
 # 3. переімпортувати й глянути
 godot --headless --import
-RIG=unicorn godot res://src/debug/voxel_preview.tscn
+RIG=unicorn godot res://src/debug/model_preview.tscn
 ```
 
 `--merge-into parent` — віддати ваги батькові видаленої кістки; `--legs` — свій список
@@ -76,7 +76,7 @@ python3 tools/voxelize.py docs/refs/models/fox_voxel.glb --exact --name fox_voxe
     --height 0.98 --out data/voxels --vox docs/refs/models/out/
 
 # 3. глянути в грі, не чіпаючи heroes.json
-VOXEL=fox_voxel godot res://src/debug/voxel_preview.tscn
+VOXEL=fox_voxel godot res://src/debug/model_preview.tscn
 ```
 
 Що робить `--exact`:

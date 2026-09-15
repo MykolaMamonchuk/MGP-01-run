@@ -525,7 +525,10 @@ func _ready() -> void:
 	_shadow.scale = Vector3(0.95, 1.0, 1.5)
 	add_child(_shadow)
 
-	_vehicle = VoxelBuilder.instance("shell")
+	# спершу бібліотека пропсів (справжня модель), нема — воксель, як раніше
+	_vehicle = PropLibrary.node_for("shell")
+	if _vehicle == null:
+		_vehicle = VoxelBuilder.instance("shell")
 	_vehicle.position.y = -0.05
 	_vehicle.visible = false
 	add_child(_vehicle)

@@ -1106,7 +1106,7 @@ def main_exact(opts, model: Path) -> int:
         _emit(opts, {"whole": sym}, palette, {"whole": size},
               {"whole": f"Ціла воксельна модель. VoxelBuilder.instance(\"{name}\")."},
               sym, name_of=lambda _k: name, vox_name=name)
-        print(f"\nПодивитись у грі:\n  VOXEL={name} godot res://src/debug/voxel_preview.tscn")
+        print(f"\nПодивитись у грі:\n  VOXEL={name} godot res://src/debug/model_preview.tscn")
         return 0
 
     labels, info = segment(occ, size, opts)

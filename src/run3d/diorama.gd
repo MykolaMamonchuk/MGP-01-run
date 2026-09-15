@@ -326,9 +326,9 @@ func _build_props(w: Dictionary) -> void:
 	]
 	for i in range(spots.size()):
 		var vname := String(pool[i % pool.size()])
-		if not FileAccess.file_exists("res://data/voxels/%s.json" % vname):
+		var mi := _prop_mesh_or_null(vname)
+		if mi == null:
 			continue
-		var mi := VoxelBuilder.instance(vname)
 		mi.position = spots[i]
 		mi.rotation.y = float(i) * 0.7
 		_island.add_child(mi)
@@ -348,9 +348,9 @@ func _build_edge_props() -> void:
 	]
 	for i in range(EDGE_PROPS.size()):
 		var vname := String(EDGE_PROPS[i])
-		if not FileAccess.file_exists("res://data/voxels/%s.json" % vname):
+		var mi := _prop_mesh_or_null(vname)
+		if mi == null:
 			continue
-		var mi := VoxelBuilder.instance(vname)
 		mi.position = spots[i % spots.size()]
 		mi.rotation.y = float(i) * 1.1
 		_island.add_child(mi)
@@ -359,11 +359,29 @@ func _build_edge_props() -> void:
 ## Сорока кружляє над островом (декор; та сама модель, що й антагоніст у бігу).
 func _build_magpie() -> void:
 	_magpie = null
-	if not FileAccess.file_exists("res://data/voxels/magpie.json"):
+	var mi := _prop_mesh_or_null("magpie")
+	if mi == null:
 		return
-	var mi := VoxelBuilder.instance("magpie")
 	_island.add_child(mi)
 	_magpie = mi
+
+
+## Меш пропса — модель, якщо є, інакше воксель (той самий kind). Для місць без гейту на
+## файл: kind точно є в data/voxels/*.json (будівлі-ділянки, ціна-злиток у _ghost).
+func _prop_mesh(kind: String) -> MeshInstance3D:
+	var mi := PropLibrary.node_for(kind)
+	return mi if mi != null else VoxelBuilder.instance(kind)
+
+
+## Те саме, але для пропсів декору, чий воксель не гарантовано є (data/voxels/<kind>.json
+## могло не доїхати) — тоді, як і раніше, не малюємо нічого замість падати.
+func _prop_mesh_or_null(kind: String) -> MeshInstance3D:
+	var mi := PropLibrary.node_for(kind)
+	if mi != null:
+		return mi
+	if not FileAccess.file_exists("res://data/voxels/%s.json" % kind):
+		return null
+	return VoxelBuilder.instance(kind)
 
 
 # ---------- ділянки й будівлі ----------
@@ -387,7 +405,7 @@ func _build_plots() -> void:
 		var is_ghost := false
 		var def := {}
 		if i < owned.size():
-			var mi := VoxelBuilder.instance(String(owned[i]))
+			var mi := _prop_mesh(String(owned[i]))
 			holder.add_child(mi)
 		else:
 			_pad(holder)
@@ -409,7 +427,7 @@ func _pad(holder: Node3D) -> void:
 func _ghost(holder: Node3D, def: Dictionary) -> void:
 	var ghost := Node3D.new()
 	holder.add_child(ghost)
-	var mi := VoxelBuilder.instance(String(def.get("voxel", "")))
+	var mi := _prop_mesh(String(def.get("voxel", "")))
 	mi.material_override = VoxelBuilder.material_alpha(0.4)
 	ghost.add_child(mi)
 	# пунктир рамки: по два штрихи на бік
@@ -430,7 +448,7 @@ func _ghost(holder: Node3D, def: Dictionary) -> void:
 			ghost.add_child(dash)
 	# ціна: злиток + число, обличчям до камери
 	var price := int(def.get("price", 0))
-	var ingot := VoxelBuilder.instance("ingot")
+	var ingot := _prop_mesh("ingot")
 	ingot.position = Vector3(-0.28, 1.15, 0.0)
 	ingot.scale = Vector3.ONE * 1.2
 	ghost.add_child(ingot)

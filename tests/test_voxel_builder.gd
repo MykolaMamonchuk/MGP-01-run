@@ -45,7 +45,7 @@ func test_mesh_is_centered_on_xz_and_stands_on_ground() -> void:
 	assert_almost_eq(aabb.position.y, 0.0, 0.001, "стоїть на y = 0")
 
 
-## Файли, які НЕ йдуть у гру — лише довідковий дамп для src/debug/voxel_preview.gd
+## Файли, які НЕ йдуть у гру — лише довідковий дамп для src/debug/model_preview.gd
 ## (ціла модель tools/voxelize.py, потрібна дрібна сітка для порівняння з референсом).
 ## Бюджет ≤ 600 вокселів стереже те, що реально інстансується в грі (герой по частинах,
 ## перешкоди, декор) — не debug-артефакти.

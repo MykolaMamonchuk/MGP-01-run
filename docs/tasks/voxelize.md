@@ -185,11 +185,11 @@ python3 tools/voxelize.py docs/refs/models/fox_voxel.glb --exact --name fox_voxe
 Найшвидше — не чіпаючи `data/heroes.json`:
 
 ```bash
-godot res://src/debug/voxel_preview.tscn                    # типово fox_voxel
-VOXEL=fox_voxel godot res://src/debug/voxel_preview.tscn    # будь-яке ім'я з data/voxels
+godot res://src/debug/model_preview.tscn                    # типово fox_voxel
+VOXEL=fox_voxel godot res://src/debug/model_preview.tscn    # будь-яке ім'я з data/voxels
 ```
 
-`src/debug/voxel_preview.gd` — крихітна debug-сцена (камера + сонце + повільний оберт),
+`src/debug/model_preview.gd` — крихітна debug-сцена (камера + сонце + повільний оберт),
 у грі не використовується. Esc — вийти. Якщо файлу нема, VoxelBuilder покаже рожевий кубик.
 
 ### 4. Якщо треба саме герой, а не ціла модель

@@ -76,7 +76,11 @@ func setup(k: String) -> void:
 	kind = k
 	def = def_of(k)
 	var color := Palette.of(def.get("color"), Palette.PICKUP_DEFAULT)
-	_mesh = VoxelBuilder.instance(String(def.get("voxel", k)))
+	var voxel := String(def.get("voxel", k))
+	# спершу бібліотека пропсів (справжня модель), нема — воксель, як раніше
+	_mesh = PropLibrary.node_for(voxel)
+	if _mesh == null:
+		_mesh = VoxelBuilder.instance(voxel)
 	var m := StandardMaterial3D.new()
 	m.vertex_color_use_as_albedo = true
 	m.roughness = 0.5

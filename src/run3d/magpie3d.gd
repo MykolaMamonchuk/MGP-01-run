@@ -64,14 +64,20 @@ func set_skin(kind: String) -> void:
 		c.queue_free()
 	_sack = null
 	var voxel := String(SKINS.get(kind, SKINS["magpie"]))
-	_body.add_child(VoxelBuilder.instance(voxel))
+	_body.add_child(_prop_or_voxel(voxel))
 	# торбинка зі злитками — під черевцем, майже непомітна, поки не вкрала
 	_sack = Node3D.new()
 	_sack.name = "Sack"
 	_sack.position = Vector3(0.0, -0.16, 0.1)
 	_sack.scale = Vector3.ONE * 0.6
-	_sack.add_child(VoxelBuilder.instance("sack_gold"))
+	_sack.add_child(_prop_or_voxel("sack_gold"))
 	_body.add_child(_sack)
+
+
+## Модель пропса, якщо вже є, інакше воксель — див. src/run3d/prop_library.gd.
+func _prop_or_voxel(kind: String) -> MeshInstance3D:
+	var mi := PropLibrary.node_for(kind)
+	return mi if mi != null else VoxelBuilder.instance(kind)
 
 
 func max_lane() -> int:

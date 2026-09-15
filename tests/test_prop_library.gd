@@ -55,3 +55,23 @@ func test_entry_may_be_a_string_or_a_dict_with_tweaks() -> void:
 func test_underscore_keys_are_comments_not_props() -> void:
 	PropLibrary.reload()
 	assert_false(PropLibrary.has("_note"), "_note — не вид пропса")
+
+
+## node_for() — спільний хелпер для дев'яти місць (Tier2Segment, Ingot3D, Critter3D, …),
+## які раніше самі писали "мій MeshInstance3D із мешем моделі, або нічого".
+func test_node_for_returns_mesh_instance_when_model_exists() -> void:
+	PropLibrary.use({"tree": HERO_MESH})
+	var mi := PropLibrary.node_for("tree")
+	assert_not_null(mi, "модель є — маємо готовий MeshInstance3D")
+	assert_not_null(mi.mesh, "і в ньому вже стоїть меш моделі")
+	mi.free()
+
+
+func test_node_for_returns_null_when_no_model() -> void:
+	PropLibrary.use({})
+	assert_null(PropLibrary.node_for("tree"), "моделі нема — виклик бере VoxelBuilder.instance() сам")
+
+
+func test_node_for_returns_null_for_broken_path() -> void:
+	PropLibrary.use({"tree": "res://assets/props/нема_такого.glb"})
+	assert_null(PropLibrary.node_for("tree"), "шлях є, а файлу нема — так само null, а не помилка")

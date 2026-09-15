@@ -110,12 +110,17 @@ static func _first_mesh(node: Node) -> Mesh:
 	return null
 
 
-## Готовий вузол — для перешкод (Obstacle3D), яким потрібні власні трансформи й анімація.
-## null — моделі нема, кличте VoxelBuilder.instance() як раніше.
-static func instance(kind: String) -> Node3D:
-	if not has(kind):
+## Готовий MeshInstance3D пропса — той самий вигляд, що й у VoxelBuilder.instance(), лише
+## з мешем моделі замість вокселя. null — моделі нема, виклик бере VoxelBuilder.instance()
+## сам (шаблон "є модель — беремо її, нема — воксель" повторювався б у десятку місць:
+## Tier2Segment, Ingot3D, Critter3D, Star3D, Magpie3D, Dragonfly3D, Pickup3D, Diorama, Hero3D).
+##
+## palette_override тут нема: він перефарбовує лише воксель (VoxelBuilder.instance), моделі
+## завжди йдуть у своєму кольорі — виклик, що передає override у фолбек, сам про це нагадує.
+static func node_for(kind: String) -> MeshInstance3D:
+	var m := mesh(kind)
+	if m == null:
 		return null
-	var scene := load(String(_entry(kind)["path"])) as PackedScene
-	if scene == null:
-		return null
-	return scene.instantiate() as Node3D
+	var mi := MeshInstance3D.new()
+	mi.mesh = m
+	return mi

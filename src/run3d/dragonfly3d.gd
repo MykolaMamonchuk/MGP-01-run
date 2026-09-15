@@ -13,7 +13,9 @@ var _life := 6.0
 func setup(sp: Spawner3D, seconds: float) -> void:
 	spawner = sp
 	_life = seconds
-	add_child(VoxelBuilder.instance("dragonfly"))
+	# спершу бібліотека пропсів (справжня модель), нема — воксель, як раніше
+	var mi := PropLibrary.node_for("dragonfly")
+	add_child(mi if mi != null else VoxelBuilder.instance("dragonfly"))
 	position = Vector3(0.0, 1.4, -3.5)
 
 

@@ -34,13 +34,13 @@ godot .        # відкрити редактор, дочекатись «Impor
 ## 1. Подивитись у прев'ю (найшвидше, без гри)
 
 ```bash
-RIG=fox_no_voxel godot res://src/debug/voxel_preview.tscn
+RIG=fox_no_voxel godot res://src/debug/model_preview.tscn
 ```
 
 У консолі одразу друкується найважливіше:
 
 ```
-voxel_preview RIG=fox_no_voxel, герой 'lys'
+model_preview RIG=fox_no_voxel, герой 'lys'
   кістки моделі (27):
     Hips
     Spine
@@ -168,7 +168,7 @@ voxel_preview RIG=fox_no_voxel, герой 'lys'
 Ті самі клавіші працюють і для **воксельного** героя, без моделі:
 
 ```bash
-HERO=olen godot res://src/debug/voxel_preview.tscn
+HERO=olen godot res://src/debug/model_preview.tscn
 ```
 
 Обидва тіла (вокселі й кістки) анімуються **з одного моторного профілю** —
@@ -312,7 +312,7 @@ godot .        # відкрити один раз, дочекатись «Import
 ### 1. Прев'ю
 
 ```bash
-RIG=unicorn godot res://src/debug/voxel_preview.tscn
+RIG=unicorn godot res://src/debug/model_preview.tscn
 ```
 
 Героя `odn` прев'ю знаходить саме за полем `rig` — ім'я писати не треба.
@@ -476,7 +476,7 @@ z −21 — рівно там, де задні лапки, — і тримают
 
 ```bash
 godot --headless --import
-RIG=unicorn godot res://src/debug/voxel_preview.tscn
+RIG=unicorn godot res://src/debug/model_preview.tscn
 ```
 
 У прев'ю має статись таке: у дампі кісток пасом `Bone_025…023` / `Bone_028…026` більше

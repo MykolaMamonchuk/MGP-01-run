@@ -80,8 +80,11 @@ func setup_vehicle(lane: int, body_voxel: String, len_cells: float) -> void:
 	length = clampf(len_cells, 6.0, 10.0)
 	var cx := float(lane) * Hero3D.LANE_W
 	var width := Hero3D.LANE_W - 0.1
-	# кузов: воксель біома, розтягнутий під доріжку, висоту ярусу й довжину
-	var body := VoxelBuilder.instance(body_voxel)
+	# кузов: модель, якщо вже є (PropLibrary), інакше воксель біома — розтягнутий під
+	# доріжку, висоту ярусу й довжину
+	var body := PropLibrary.node_for(body_voxel)
+	if body == null:
+		body = VoxelBuilder.instance(body_voxel)
 	_fit(body, Vector3(width, H, length))
 	body.position = Vector3(cx, 0.0, length * 0.5)
 	add_child(body)
@@ -94,8 +97,10 @@ func setup_vehicle(lane: int, body_voxel: String, len_cells: float) -> void:
 		var rail := Mats.box(Vector3(0.06, 0.1, length), RAIL_COLOR)
 		rail.position = Vector3(cx + side * (width * 0.5 - 0.03), H + 0.17, length * 0.5)
 		add_child(rail)
-	# пандус спереду: воксель «ramp», розтягнутий на всю висоту кузова
-	var ramp := VoxelBuilder.instance("ramp")
+	# пандус спереду: модель «ramp», якщо є, інакше воксель — розтягнутий на всю висоту кузова
+	var ramp := PropLibrary.node_for("ramp")
+	if ramp == null:
+		ramp = VoxelBuilder.instance("ramp")
 	_fit(ramp, Vector3(width, H, RAMP))
 	# воксель «ramp» росте вглиб (+z), а героєві треба низький край до себе — розвертаємо
 	ramp.rotation.y = PI

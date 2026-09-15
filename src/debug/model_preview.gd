@@ -1,14 +1,15 @@
-## Debug-сцена: показує ОДИН воксель із data/voxels у порожній кімнаті — або цілого героя
-## зі скелетним ригом. У грі не використовується.
+## Debug-сцена: показує ЦІЛОГО героя зі скелетним ригом (`RIG=`) — або, як запасний
+## варіант, поки нема моделі, один воксель із data/voxels у порожній кімнаті. У грі не
+## використовується.
 ## Потрібна, щоб швидко глянути на щойно згенеровану модель (tools/voxelize.py --exact)
 ## чи на .glb-рига, не чіпаючи data/heroes.json.
 ##
 ## Запуск:
-##     godot res://src/debug/voxel_preview.tscn                          # fox_voxel
-##     VOXEL=fox_voxel godot res://src/debug/voxel_preview.tscn          # будь-яке ім'я з data/voxels
-##     RIG=fox_no_voxel godot res://src/debug/voxel_preview.tscn         # герой зі скелетом (біжить)
-##     RIG=fox_no_voxel HERO=lys godot res://src/debug/voxel_preview.tscn
-##     HERO=olen godot res://src/debug/voxel_preview.tscn                # ВОКСЕЛЬНИЙ герой (без RIG)
+##     godot res://src/debug/model_preview.tscn                          # fox_voxel
+##     VOXEL=fox_voxel godot res://src/debug/model_preview.tscn          # будь-яке ім'я з data/voxels
+##     RIG=fox_no_voxel godot res://src/debug/model_preview.tscn         # герой зі скелетом (біжить)
+##     RIG=fox_no_voxel HERO=lys godot res://src/debug/model_preview.tscn
+##     HERO=olen godot res://src/debug/model_preview.tscn                # ЗАПАСНИЙ (воксельний) герой, без RIG
 ##
 ## У режимі героя (RIG= або HERO=): пробіл — стрибок, D — присід (утримувати), H — удар,
 ## W — привітатись, R — зупинити/пустити біг, M — підсвітити знайдені бічні нарости
@@ -73,7 +74,7 @@ func _ready() -> void:
 	_pivot.name = "Pivot"
 	add_child(_pivot)
 	_pivot.add_child(VoxelBuilder.instance(voxel))
-	print("voxel_preview: %s  (VOXEL=<ім'я> — інший воксель, RIG=<ім'я> — герой зі скелетом, Esc — вийти)" % voxel)
+	print("model_preview: %s  (VOXEL=<ім'я> — інший воксель, RIG=<ім'я> — герой зі скелетом, Esc — вийти)" % voxel)
 
 
 ## Живий герой у прев'ю. rig ≠ "" — шукаємо героя з цим ригом (id із HERO сильніший);
@@ -101,7 +102,7 @@ func _build_hero_preview(rig: String) -> void:
 	_hero.rotation.y = PI          # мордою до камери
 
 	# основний колір друкуємо як є: у меші має бути рівно він, без «вибілення»
-	print("voxel_preview %s герой '%s', основний колір #%s" % [
+	print("model_preview %s герой '%s', основний колір #%s" % [
 		("RIG=%s," % rig) if rig != "" else "воксельний",
 		id, Palette.of(def2.get("color"), Palette.HERO_DEFAULT).to_html(false)])
 	if rig == "":
@@ -109,7 +110,7 @@ func _build_hero_preview(rig: String) -> void:
 		print(KEYS_LINE)
 		return
 	if not HeroRig.rig_exists(rig):
-		push_warning("voxel_preview: нема %s — скопіюй .glb (див. docs/tasks/rig.md)" % HeroRig.rig_path(rig))
+		push_warning("model_preview: нема %s — скопіюй .glb (див. docs/tasks/rig.md)" % HeroRig.rig_path(rig))
 		print("  ФАЙЛУ НЕМА: %s — показую воксельні частини" % HeroRig.rig_path(rig))
 		print(KEYS_LINE)
 		return
@@ -123,7 +124,7 @@ func _build_hero_preview(rig: String) -> void:
 		if _hero.set_skin(skin):
 			print("  скін: %s" % skin)
 		else:
-			push_warning("voxel_preview: скін '%s' не знайдено в heroes.json (поле \"skins\") або герой не rig_texture" % skin)
+			push_warning("model_preview: скін '%s' не знайдено в heroes.json (поле \"skins\") або герой не rig_texture" % skin)
 	print("  кістки моделі (%d), позиції спокою в см (перед героя = -z):" % r.bone_names().size())
 	for line in r.bone_dump():
 		print("    %s" % line)

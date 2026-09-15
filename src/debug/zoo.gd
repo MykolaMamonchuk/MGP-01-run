@@ -74,7 +74,7 @@ func _build_world() -> void:
 	add_child(floor_mi)
 
 
-## Кого показувати: типово всі, хто має .glb (воксельних видно й так у voxel_preview).
+## Кого показувати: типово всі, хто має .glb (воксельних видно й так у model_preview).
 func _wanted_ids() -> Array:
 	var want := OS.get_environment("ZOO")
 	var defs := Hero3D.defs()

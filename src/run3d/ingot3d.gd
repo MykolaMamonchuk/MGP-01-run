@@ -39,7 +39,11 @@ func is_big() -> bool:
 
 
 func _ready() -> void:
-	_mesh = VoxelBuilder.instance("ingot_big" if is_big() else "ingot")
+	var kind := "ingot_big" if is_big() else "ingot"
+	# спершу бібліотека пропсів (справжня модель), нема — воксель, як раніше
+	_mesh = PropLibrary.node_for(kind)
+	if _mesh == null:
+		_mesh = VoxelBuilder.instance(kind)
 	_mesh.material_override = glow_material()
 	if value == 2:
 		_mesh.scale = Vector3.ONE * 1.25   # подвійний злиток на даху — помітніший

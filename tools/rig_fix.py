@@ -459,7 +459,7 @@ def main():
 
     export(dst)
     print("  записано: %s (%.1f КБ)" % (dst, os.path.getsize(dst) / 1024.0))
-    print("  далі: godot --headless --import  і  RIG=unicorn godot res://src/debug/voxel_preview.tscn")
+    print("  далі: godot --headless --import  і  RIG=unicorn godot res://src/debug/model_preview.tscn")
 
 
 if __name__ == "__main__":
