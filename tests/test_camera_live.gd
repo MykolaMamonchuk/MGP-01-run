@@ -83,3 +83,46 @@ func test_jump_makes_the_camera_sag() -> void:
 	for i in 20:
 		rig.drive(0.016, 0.0, 0.0, 4.0, 1.0)     # герой іде вгору
 	assert_lt(rig.position.y, -0.01, "камера відстала по висоті")
+
+
+## Незалежність від частоти кадрів. Формула «lerp на delta × швидкість» дає РІЗНИЙ результат
+## на різній частоті: на слабкому пристрої камера наздоганяла б помітно повільніше, і гра
+## відчувалась би інакше, ніж на швидкому. Тут перевіряємо, що за однаковий ЧАС камера
+## доходить туди ж, хай там скільки кадрів у цей час вклалось.
+func test_motion_does_not_depend_on_frame_rate() -> void:
+	var slow := _rig()
+	var fast := _rig()
+	await wait_process_frames(1)
+	for i in 15:                       # 15 кадрів по 1/30 с = пів секунди
+		slow.drive(1.0 / 30.0, 0.0, 1.0, 0.0, 1.0)
+	for i in 60:                       # 60 кадрів по 1/120 с = ті самі пів секунди
+		fast.drive(1.0 / 120.0, 0.0, 1.0, 0.0, 1.0)
+	assert_almost_eq(slow.rotation.z, fast.rotation.z, 0.004, "крен однаковий на 30 і 120 кадрах")
+	assert_almost_eq(slow.position.x, fast.position.x, 0.02, "і супровід теж")
+
+
+## Менша дитина — спокійніша камера. Це не косметика: кадр, що хилиться, малюкові читається
+## як «щось поїхало», а не як поворот.
+func test_younger_child_gets_a_calmer_camera() -> void:
+	var calm := _rig()
+	var lively := _rig()
+	await wait_process_frames(1)
+	calm.intensity = 0.55
+	lively.intensity = 1.0
+	for i in 40:
+		calm.drive(0.016, 0.0, 1.0, 3.0, 1.0)
+		lively.drive(0.016, 0.0, 1.0, 3.0, 1.0)
+	assert_lt(absf(calm.rotation.z), absf(lively.rotation.z), "крен м'якший")
+	assert_lt(absf(calm.position.y), absf(lively.position.y), "провисання під стрибком менше")
+	assert_lt(absf(calm.position.x), absf(lively.position.x), "і камера менше відстає")
+
+
+## Нульова сила означає повністю спокійну камеру — запасний варіант, якщо дитині зле від руху.
+func test_zero_intensity_keeps_the_camera_still() -> void:
+	var rig := _rig()
+	await wait_process_frames(1)
+	rig.intensity = 0.0
+	for i in 40:
+		rig.drive(0.016, 0.0, 1.0, 5.0, 1.0)
+	assert_almost_eq(rig.rotation.z, 0.0, 0.001, "крену нема")
+	assert_almost_eq(rig.position.y, 0.0, 0.001, "провисання нема")

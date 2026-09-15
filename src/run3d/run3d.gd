@@ -310,6 +310,8 @@ func _apply_profile(profile_name: String) -> void:
 	base_speed = float(profile.get("speed", 4.0))
 	speed = base_speed
 	hero.jump_velocity = float(profile.get("jump_velocity", 7.5))
+	# камера рухається тим спокійніше, чим менша дитина (див. CameraRig.intensity)
+	camera_rig.intensity = float(profile.get("camera_life", 1.0))
 	if mode:
 		mode.profile = profile
 		spawner.profile = profile

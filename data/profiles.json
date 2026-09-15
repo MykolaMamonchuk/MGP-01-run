@@ -3,8 +3,19 @@
   "young": {
     "speed": 2.8,
     "jump_velocity": 7.2,
-    "obstacle_interval": [3.0, 5.0],
-    "obstacle_types": ["stump", "puddle", "rock", "crab", "tree", "cloud", "bench"],
+    "obstacle_interval": [
+      3.0,
+      5.0
+    ],
+    "obstacle_types": [
+      "stump",
+      "puddle",
+      "rock",
+      "crab",
+      "tree",
+      "cloud",
+      "bench"
+    ],
     "auto_assist_chance": 0.6,
     "star_magnet": 1.5,
     "first_hit_forgiven": true,
@@ -12,41 +23,99 @@
     "power_auto": true,
     "session_minutes": 10,
     "hint_after_sec": 5,
-    "worlds": ["meadow", "forest", "beach"],
+    "worlds": [
+      "meadow",
+      "forest",
+      "beach"
+    ],
     "max_lanes": 5,
     "skip_map": true,
     "fork_options": 2,
-    "event_interval": [20.0, 30.0]
+    "event_interval": [
+      20.0,
+      30.0
+    ],
+    "camera_life": 0.55
   },
   "mid": {
     "speed": 3.5,
     "jump_velocity": 7.6,
-    "obstacle_interval": [1.8, 3.0],
-    "obstacle_types": ["stump", "branch", "puddle", "tree", "bridge", "rock", "crab", "bench", "lamp", "cloud"],
+    "obstacle_interval": [
+      1.8,
+      3.0
+    ],
+    "obstacle_types": [
+      "stump",
+      "branch",
+      "puddle",
+      "tree",
+      "bridge",
+      "rock",
+      "crab",
+      "bench",
+      "lamp",
+      "cloud"
+    ],
     "auto_assist_chance": 0.2,
     "star_magnet": 1.0,
     "first_hit_forgiven": false,
     "power_auto": false,
     "session_minutes": 15,
     "hint_after_sec": 6,
-    "worlds": ["meadow", "forest", "beach", "city", "clouds"],
+    "worlds": [
+      "meadow",
+      "forest",
+      "beach",
+      "city",
+      "clouds"
+    ],
     "fork_options": 2,
-    "event_interval": [20.0, 30.0]
+    "event_interval": [
+      20.0,
+      30.0
+    ],
+    "camera_life": 0.8
   },
   "older": {
     "speed": 4.2,
     "jump_velocity": 8.0,
-    "obstacle_interval": [1.2, 2.2],
-    "obstacle_types": ["stump", "branch", "puddle", "bush", "tree", "bridge", "hedgehog", "rock", "crab", "bench", "lamp", "cloud"],
+    "obstacle_interval": [
+      1.2,
+      2.2
+    ],
+    "obstacle_types": [
+      "stump",
+      "branch",
+      "puddle",
+      "bush",
+      "tree",
+      "bridge",
+      "hedgehog",
+      "rock",
+      "crab",
+      "bench",
+      "lamp",
+      "cloud"
+    ],
     "auto_assist_chance": 0.0,
     "star_magnet": 1.0,
     "first_hit_forgiven": false,
     "power_auto": false,
     "session_minutes": 20,
     "hint_after_sec": 8,
-    "worlds": ["meadow", "forest", "beach", "city", "clouds"],
+    "worlds": [
+      "meadow",
+      "forest",
+      "beach",
+      "city",
+      "clouds"
+    ],
     "fork_options": 3,
-    "event_interval": [25.0, 35.0]
+    "event_interval": [
+      25.0,
+      35.0
+    ],
+    "camera_life": 1.0
   },
   "age_adapt": {
     "min_obstacles": 8,

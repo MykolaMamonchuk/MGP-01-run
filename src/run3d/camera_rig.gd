@@ -40,6 +40,10 @@ const FOV_EASE := 4.5
 
 var _tw: Tween
 var _shake_tw: Tween
+## Сила руху камери від віку дитини. Трирічному той самий крен, що бадьорить шестирічного,
+## заважає: кадр, який хилиться, малюкові читається як «щось поїхало», а не як поворот.
+## Береться з data/profiles.json (camera_life), тож підкрутити можна без правки коду.
+var intensity := 1.0
 var _lean := 0.0
 var _follow_x := 0.0
 var _rise := 0.0
@@ -64,10 +68,14 @@ static func follow_for(hero_x: float, pull: float) -> float:
 func drive(delta: float, hero_x: float, pull: float, vy: float, lane_w: float) -> void:
 	if _tw != null and _tw.is_valid():
 		return               # пресет саме переїжджає — не заважаємо твінам
-	var k := clampf(delta * FOLLOW_EASE, 0.0, 1.0)
-	_lean = lerpf(_lean, lean_for(pull, lane_w), k)
-	_follow_x = lerpf(_follow_x, follow_for(hero_x, pull), k)
-	_rise = lerpf(_rise, -clampf(vy, 0.0, 6.0) * RISE_LAG, k)
+	# Згладжування НЕ через delta * швидкість: така формула дає різний результат на різній
+	# частоті кадрів — на слабкому пристрої камера наздоганяла б помітно повільніше, і гра
+	# відчувалась би інакше. Експонента дає той самий рух за той самий ЧАС, хай там скільки
+	# кадрів у нього вклалось.
+	var k := 1.0 - exp(-FOLLOW_EASE * delta)
+	_lean = lerpf(_lean, lean_for(pull, lane_w) * intensity, k)
+	_follow_x = lerpf(_follow_x, lerpf(hero_x, follow_for(hero_x, pull), intensity), k)
+	_rise = lerpf(_rise, -clampf(vy, 0.0, 6.0) * RISE_LAG * intensity, k)
 	position.x = _follow_x
 	position.y = _rise
 	rotation.z = _lean
@@ -82,7 +90,7 @@ func drive(delta: float, hero_x: float, pull: float, vy: float, lane_w: float) -
 func punch(strength: float = 1.0) -> void:
 	if _base_fov <= 0.0:
 		_base_fov = cam.fov
-	_fov_extra = FOV_PUNCH * clampf(strength, 0.0, 2.0)
+	_fov_extra = FOV_PUNCH * clampf(strength, 0.0, 2.0) * intensity
 
 
 ## Повернути камеру в спокій (кінець забігу, меню): інакше крен лишився б висіти.
