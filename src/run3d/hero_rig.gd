@@ -1199,10 +1199,49 @@ func build(parent: Node3D, def: Dictionary, colors: Dictionary) -> bool:
 	_prepare_axes()
 	_calibrate_signs()
 	_build_anchors(verts)
+	if OS.has_environment("RIG") and OS.has_environment("EYE_UV"):
+		_debug_eye_uv(verts, OS.get_environment("EYE_UV"))
 	_ready = true
 	if OS.is_stdout_verbose():
 		print_verbose("HeroRig %s: кістки %s" % [rig, _bones])
 	return true
+
+
+## ТИМЧАСОВА діагностика (RIG=… EYE_UV="cx,cy,r" у частках 0..1 текстури): знаходить
+## вершини, чиє UV потрапляє в коло навколо (cx,cy), і друкує fy (частку висоти head_box) —
+## те саме число, яке йде в rig_zones.rig_face.y, щоб посадити намальоване обличчя рівно на
+## запечену анатомію моделі, а не на типове значення 0.65.
+func _debug_eye_uv(verts: Dictionary, spec: String) -> void:
+	var parts := spec.split(",")
+	if parts.size() < 3:
+		return
+	var ecx := float(parts[0])
+	var ecy := float(parts[1])
+	var er := float(parts[2])
+	var head_box2 := head_box_of(verts["role_box"])
+	var sum := Vector3.ZERO
+	var n := 0
+	for md in (verts["per_mesh"] as Array):
+		for sd in ((md as Dictionary).get("surfaces", []) as Array):
+			var arrs: Array = (sd as Dictionary)["arrays"]
+			if arrs.size() <= Mesh.ARRAY_TEX_UV or arrs[Mesh.ARRAY_TEX_UV] == null:
+				continue
+			var uvs: PackedVector2Array = arrs[Mesh.ARRAY_TEX_UV]
+			var mpos2: PackedVector3Array = (sd as Dictionary)["model"]
+			for v in range(uvs.size()):
+				var du := uvs[v].x - ecx
+				var dv := uvs[v].y - ecy
+				if du * du + dv * dv <= er * er:
+					sum += mpos2[v]
+					n += 1
+	if n == 0:
+		print("EYE_UV: жодна вершина не влучила в коло (%s)" % spec)
+		return
+	var centroid := sum / float(n)
+	var loc := local_of(centroid, head_box2, _front)
+	var global_c := _model.global_transform * centroid
+	print("EYE_UV %s: %d вершин, центроїд(модель)=%s, fy=%.3f fx=%.3f fz=%.3f, global=%s (head_box=%s)" % [
+		spec, n, centroid, loc.y, loc.x, loc.z, global_c, head_box2])
 
 
 ## Ролі кісток: імена → геометрія → ручні `rig_bones` з даних (найвищий пріоритет).
@@ -2173,6 +2212,33 @@ func has_own_texture() -> bool:
 	return _has_own_texture
 
 
+## Підмінити текстуру-картинку скіна (той самий меш/UV, інша картинка з diskу) — для
+## rig_texture-героїв: скін = альтернативний .jpg/.png на ту саму розгортку, тому нового
+## Meshy-меша генерувати не треба. Дублюємо матеріал на кожен MeshInstance3D, щоб не
+## зачепити спільний ресурс .glb (інший інстанс героя лишається з оригінальною текстурою).
+## false — не rig_texture герой, текстура не завантажилась, або мешів нема.
+func apply_skin_texture(tex_path: String) -> bool:
+	if not _has_own_texture or _meshes.is_empty():
+		return false
+	var tex := load(tex_path) as Texture2D
+	if tex == null:
+		push_warning("HeroRig: скін-текстура не знайдена: %s" % tex_path)
+		return false
+	var applied := false
+	for m in _meshes:
+		for s in range(m.mesh.get_surface_count()):
+			var mat := m.get_surface_override_material(s)
+			if mat == null:
+				mat = m.mesh.surface_get_material(s)
+			if not (mat is BaseMaterial3D):
+				continue
+			var dup := (mat as BaseMaterial3D).duplicate() as BaseMaterial3D
+			dup.albedo_texture = tex
+			m.set_surface_override_material(s, dup)
+			applied = true
+	return applied
+
+
 ## Ім'я стилю розмальовки («unicorn») або "" — для прев'ю й тестів.
 func style_name() -> String:
 	return _style_name
@@ -2707,6 +2773,16 @@ const EAR_POSE := {"up": -0.25, "back": 0.35, "down": 0.8, "free": 0.0}
 const SHAKE_HZ := 20.0
 const SHAKE_AMP := 0.02
 const DANCE_BPS := 1.5          ## біт танцю повільніший (було 2,0): рух читається спокійніше
+## Наскільки таз бере на себе кут танцю. Саме цей доворот і дає той «згин», заради якого
+## танець і робився: голова веде в один бік, круп відстає — тіло вигинається дугою.
+##
+## Було знизили до 0,22: на старій моделі лиса (fox_clear_fix_bones) кут лічився двічі —
+## Hero3D і так крутить усю модель через `_body.rotation.y`, — і скіннутий зад зрізало
+## навскіс. Але то була вада ТІЄЇ моделі. Нинішня (fox_new_clear) тримає повний кут без
+## жодного розриву — перевірено покадрово на всьому такті, — тож згин повернуто.
+##
+## Якщо на новому герої зад раптом попливе — знижуй саме це число, а не кут танцю.
+const DANCE_HIP_TWIST := 1.0
 const DANCE_HOP := 0.04         ## підскок танцю нижчий, ніж був (0,06): задні лапки не відриваються
 const DANCE_SEC := 3.0
 ## Скільки секунд передні лапки ПЕРЕКОЧУЮТЬ вагу з однієї на другу (без клацання на біт).
@@ -2732,8 +2808,10 @@ const TAIL_IDLE_HZ := 1.2
 ##   • голова доверстує контр-нахилом WAVE_HEAD_PITCH — морда дивиться в камеру;
 ##   • вуха вгору, хвіст донизу (це вже режими профілю WAVE).
 ## Числа — ті самі, що в Hero3D (дублі навмисно, див. вище).
-const WAVE_LIFT := -1.2       ## передня права («привіт») — середина розмаху, рад
-const WAVE_LIFT_SWING := 0.2  ## розмах помаху вгору-вниз: WAVE_LIFT ± це (−1,4 … −1,0)
+const WAVE_LIFT := 1.2       ## передня права («привіт») — середина розмаху, рад.
+## + = лапка УПЕРЕД, до камери (14.09.2026: було −1.2, і герой махав назад — глядач бачив
+## лише спину лапки)
+const WAVE_LIFT_SWING := 0.2  ## розмах помаху вгору-вниз: WAVE_LIFT ± це (1,0 … 1,4)
 const WAVE_LIFT_TUCK := -0.6  ## передня ліва просто підібгана, рад
 ## НА СКІЛЬКИ ЗАДИРАЄТЬСЯ ПЕРЕД, рад (≈50°). Це кут оберту ВСІЄЇ МОДЕЛІ навколо X через
 ## задні копита, і знак тут ГЕОМЕТРИЧНИЙ, а не «профільний»: + = перед УГОРУ (той самий
@@ -2960,7 +3038,8 @@ func animate(delta: float, s: Dictionary) -> void:
 		# танець: виляння ±spin_y навколо вертикалі (ліворуч — назад — праворуч — назад
 		# за DANCE_SEC). Кут АБСОЛЮТНИЙ, а не накопичений: коли танець урвали на середині,
 		# наступний кадр уже ставить кістку рівно, і герой не лишається розвернутим
-		_spin_y = sin(TAU * dance_t / DANCE_SEC) * float(prof.get("spin_y", 0.0)) if dancing else 0.0
+		_spin_y = sin(TAU * dance_t / DANCE_SEC) * float(prof.get("spin_y", 0.0)) \
+			* DANCE_HIP_TWIST if dancing else 0.0
 		# знак «+ = ніс УГОРУ» виміряний у build(); у профілі body_pitch навпаки («+ = ніс униз»),
 		# тому кут іде з мінусом
 		var hip_pitch := sin(phase * 2.0) * 0.02 if galloping else 0.0

@@ -854,7 +854,16 @@ func test_lys_has_rig_and_path_is_well_formed() -> void:
 	var lys: Dictionary = all.get("lys", {})
 	assert_false(lys.is_empty(), "герой lys є в даних")
 	var rig := String(lys.get("rig", ""))
-	assert_eq(rig, "fox_meshy", "лисеня перейшло на текстуровану Meshy-модель (13.09.2026)")
+	# 14.09.2026: модель замінено на fox_clear — ту саму, але БЕЗ запечених у текстурі очей,
+	# бо очі й рот тепер малює наша накладка (rig_face.eye_scene/mouth_scene), і намальовані
+	# очі просвічували б крізь неї. Скелет інший (25 кісток замість 30) — звідси й нові
+	# Bone-номери в rig_bones нижче.
+	# 15.09.2026: рудий лис на моделі fox_new_clear. Її риг найкращий з усіх, що були —
+	# ЧОТИРИ суглоби на лапу (стегно на висоті 0.4, а не біля підлоги) і хвіст із пʼяти
+	# кісток. Меш ми НЕ чіпаємо: він складається з 76 окремих панелей, і будь-яке
+	# згладжування рве шви (перевірено, зіпсували одну модель). Очі стерті лише з карт —
+	# рельєфу в геометрії там 0,6 см, і під нашою накладкою його не видно.
+	assert_eq(rig, "fox_new_clear", "лисеня на новій моделі з чотирисуглобовими лапами")
 	assert_true(bool(lys.get("rig_texture", false)),
 		"rig_texture: власна текстура моделі, HeroRig._paint()/Hero3D._build_face() пропускаються")
 	var path := HeroRig.rig_path(rig)
@@ -867,8 +876,12 @@ func test_lys_has_rig_and_path_is_well_formed() -> void:
 	var bones: Dictionary = lys.get("rig_bones", {})
 	for role in ["hips", "spine", "neck", "head", "ear_l", "ear_r", "fl", "fr", "bl", "br", "tail"]:
 		assert_true(bones.has(role), "роль %s задана руками" % role)
-	assert_eq(String(lys.get("accent", "")), "#F8DEBD", "акцент лисеняти — кремовий кінчик хвоста (з референс-текстури Meshy)")
-	assert_eq(String(lys.get("mark", "")), "#FF8F73", "колір позначки лишився в даних (про запас)")
+	assert_eq(String(lys.get("color", "")), "#E0812E", "хутро — руде")
+	assert_eq(String(lys.get("belly_color", "")), "#F8DEBD", "кремовий писок")
+	assert_eq(String(lys.get("accent", "")), "#F8DEBD", "акцент — кремовий кінчик хвоста")
+	var face_cfg: Dictionary = lys.get("rig_face", {})
+	assert_false(bool(face_cfg.get("cheeks", true)),
+		"свій рум'янець не малюємо: у текстурі fox_clear він уже є")
 	# референс fox-texture.png не має торбинки взагалі: детектор бічних наростів на грубому
 	# low-poly тулубі ловив випадкові горбики замість неї — вимкнено (13.09.2026, MEMORY.md)
 	var zones := HeroRig.zones_of(lys)
@@ -887,7 +900,7 @@ func test_unicorn_hero_data() -> void:
 	assert_eq(String(odn.get("name_uk", "")), "Єдиноріг")
 	assert_eq(String(odn.get("rig", "")), "unicorn_mesh", "тіло — текстурована Meshy-модель (13.09.2026)")
 	assert_true(bool(odn.get("rig_texture", false)), "rig_texture: власна текстура, стиль розмальовки більше не потрібен")
-	assert_eq(int(odn.get("order", -1)), 6, "сьомий у каруселі")
+	assert_eq(int(odn.get("order", -1)), 2, "третій у каруселі (14.09.2026: pes/zai/kit/med без моделі прибрані, order перенумеровано без дірок)")
 	assert_eq(String(odn.get("rig_front", "")), "", "напрям не заданий руками — рахується евристикою")
 	assert_true(odn.has("parts"), "воксельні частини лишились запасним варіантом")
 	assert_eq(String(odn.get("accent", "")), "#E8C468", "акцент — золото рога")
@@ -947,13 +960,12 @@ func test_rig_exists_is_safe_for_garbage() -> void:
 	assert_false(HeroRig.rig_exists("немає_такої_моделі"))
 
 
-## Герой без поля "rig" лишається воксельним — тіло Hero3D не змінилось.
-func test_other_heroes_stay_voxel() -> void:
+## Усі п'ятеро активних героїв мають справжню Meshy-модель (14.09.2026: pes/zai/kit/med
+## прибрані з каруселі — залишились воксельними без моделі, повернуться, коли з'являться моделі
+## й для них; дані лишились у git-історії heroes.json).
+func test_all_active_heroes_have_a_real_rig() -> void:
 	var all := Hero3D.defs()
-	for id in ["pes", "zai", "kit", "med"]:
+	for id in HeroSelect.order_ids(all):
 		var def: Dictionary = all.get(id, {})
-		assert_false(def.is_empty(), "%s є в даних" % id)
-		assert_eq(String(def.get("rig", "")), "", "%s: без рига, малюється вокселями" % id)
-	# оленя отримало іменований риг (fawn.glb) у вересні 2026, а потім текстуровану
-	# Meshy-модель (fawn_mesh.glb, 13.09.2026) — з тих пір воно тут не воксельне
+		assert_false(String(def.get("rig", "")).is_empty(), "%s: усі активні герої тепер на текстурованих моделях" % id)
 	assert_eq(String(all.get("olen", {}).get("rig", "")), "fawn_mesh", "олень: текстурована модель fawn_mesh.glb")

@@ -326,10 +326,11 @@ func test_wave_rears_up() -> void:
 	assert_eq(String(p["tail"]), "down", "у дибках хвіст донизу")
 	assert_almost_eq(float(p["leg_amp"]), absf(Hero3D.WAVE_LIFT), 0.0001,
 		"leg_amp — РОЗМАХ лапки-«привіт» (знак у самій константі)")
-	assert_lt(Hero3D.WAVE_LIFT, Hero3D.WAVE_LIFT_TUCK,
-		"лапка, що махає, звисає нижче за підібгану другу")
-	assert_between(Hero3D.WAVE_LIFT - Hero3D.WAVE_LIFT_SWING, -1.45, -1.35, "нижня межа помаху ≈ −1,4")
-	assert_between(Hero3D.WAVE_LIFT + Hero3D.WAVE_LIFT_SWING, -1.05, -0.95, "верхня межа помаху ≈ −1,0")
+	# 14.09.2026: знак перевернуто — лапка махає ВПЕРЕД (до камери), а не назад
+	assert_gt(Hero3D.WAVE_LIFT, Hero3D.WAVE_LIFT_TUCK,
+		"лапка, що махає, винесена вперед; друга просто підібгана під себе")
+	assert_between(Hero3D.WAVE_LIFT - Hero3D.WAVE_LIFT_SWING, 0.95, 1.05, "нижня межа помаху ≈ 1,0")
+	assert_between(Hero3D.WAVE_LIFT + Hero3D.WAVE_LIFT_SWING, 1.35, 1.45, "верхня межа помаху ≈ 1,4")
 	assert_almost_eq(Hero3D.WAVE_HZ, 3.0, 0.0001, "махає 3 рази на секунду")
 	assert_gt(Hero3D.WAVE_EASE, 0.0, "у позу входимо й виходимо плавно")
 	assert_almost_eq(Hero3D.WAVE_EASE, 0.3, 0.0001)
