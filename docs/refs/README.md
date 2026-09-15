@@ -3,40 +3,58 @@
 **Канонічна версія — Confluence:** https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/2621441/
 (правити там; цей файл лишається в репо повністю, бо агенти читають арт-біблію локально).
 
-## 0. Арт-вектор гри (оновлено 2026-09-12): low-poly toy, а НЕ voxel
+## 0. Арт-вектор гри (оновлено 2026-09-15): чарівний казковий світ, low-poly toy
 
-**Гра більше не воксельна.** Розділи нижче («Арт-біблія, частина 1/2») описують СТАРИЙ
-ізометрично-вокселний напрям (`want/lucid-origin_*`, кубічні блоки-плитки) — вони лишаються як
-історична дослідницька довідка (композиція камери, HUD-мінімум, читабельність перешкод усе ще
-чинні), але опис МАТЕРІАЛУ й ГЕОМЕТРІЇ («стосики блоків», «вокселі», «плитка») більше не наш
-візуальний стиль. Нові герої й світ — **м'який ручний low-poly**: гладкі згладжені грані
-(«chunky toy»), а не воксельні кубики.
+**Гра не воксельна.** Ні герої, ні світ, ні пропси, ні іконки. Вокселі лишились у проєкті
+лише як РЕНДЕР-СИСТЕМА, яку ми зараз послідовно замінюємо (див. «Міграція» нижче) — це
+технічний борг, а не стиль.
 
-**Референс-промпт для генерації моделей** (використовується для всіх нових героїв і пропів,
-дослівно, з заміною першого речення на конкретного персонажа):
+**Наш світ — чарівний казковий.** М'який ручний low-poly («chunky toy»): гладкі згладжені
+грані, прості читабельні силуети, ніяких кубиків і східців. Річкове містечко з каналами й
+дерев'яними містками, будиночки з черепицею, але з казковим присмаком — світні грибочки,
+теплі ліхтарики, легке сяйво, дрібна магія в деталях. Затишно, тепло, без похмурості.
 
-> A cute unicorn character, short blocky limbs, expressive eyes and a small satchel, chunky
-> low-poly toy, soft edges, cubic head. If the character is a four-legged animal, keep it clearly
-> quadrupedal, standing on four legs with a natural animal posture. Do not make it humanoid,
-> upright, or bipedal unless explicitly requested. Children's premium 3D game art with a soft
-> handcrafted low-poly world and chunky toy-like geometry. Use bright saturated colors, emerald
-> greens, turquoise blues, warm brown wood, soft gray stone, cheerful yellow, pink, orange and
-> pastel accents. Keep shapes simple, clean, readable and slightly exaggerated for gameplay. Soft
-> ambient lighting, gentle shadows, subtle depth of field, cozy cheerful atmosphere,
-> family-friendly, playful and polished, no photorealism, no real[istic textures — обрізано в
-> джерелі].
+**Референс-промпт для генерації моделей.** Береться ДОСЛІВНО для всіх нових героїв, NPC і
+пропсів; міняється лише перше речення (що саме генеруємо):
 
-**Чому це важливо для рига.** «Quadrupedal, standing on four legs» у промпті — це не побажання,
-а вимога: `HeroRig` (`src/run3d/hero_rig.gd`) архітектурно вміє РІВНО чотирилапих тварин
-(ролі `fl/fr/bl/br`). Вересень 2026: новий fox.glb прийшов дворуким/стоячим (плюшева поза, а не
-біг на чотирьох) — не проходить; dolphine.glb прийшов без ніг узагалі (стоїть на плавнику, як на
-ходулі) — теж не проходить. Обидва чекають переекспорту з дотриманням промпту вище. unicorn/
-turtle/fawn (`docs/tasks/rig.md`) — приклади моделей, що дотримались вимоги й успішно
-заригувались.
+> A cute <об'єкт>, chunky low-poly toy, soft rounded edges, simple readable shapes.
+> Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly,
+> gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens,
+> turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel
+> magical accents. Single clean silhouette, slightly exaggerated for gameplay readability.
+> Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished.
+> **No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic
+> textures.**
 
-**Технічне уточнення:** `VoxelBuilder`/`data/voxels/*.json` (README.md, `docs/stage6_brief.md`)
-лишається як РЕНДЕР-СИСТЕМА для дрібних пропів, іконок крамниці й запасного тіла героя, поки
-`.glb`-риг не готовий, — це код, не арт-напрям, і його ніхто не видаляє.
+Останнє речення — не формальність: саме воно відсікає старий напрям, і без нього генератор
+збивається на кубики.
+
+**Для чотирилапих героїв** дописуємо до першого речення:
+
+> If the character is a four-legged animal, keep it clearly quadrupedal, standing on four
+> legs with a natural animal posture, legs clearly apart. Do not make it humanoid, upright,
+> or bipedal.
+
+Це не побажання, а вимога рига: `HeroRig` (`src/run3d/hero_rig.gd`) архітектурно вміє рівно
+чотирилапих (ролі `fl/fr/bl/br`). Вересень 2026: fox.glb прийшов стоячим на двох — не
+проходить; dolphine.glb без ніг узагалі — теж. unicorn/turtle/fawn (`docs/tasks/rig.md`) —
+приклади моделей, що дотримались вимоги.
+
+**Текстури.** Для героїв текстуру з генератора НЕ беремо — кольорові зони в нас свої
+(перефарбування, аксесуари, стилі). Для статики — будинків, пропсів, декору — текстура
+з генератора підходить і їде разом із `.glb`.
+
+**Міграція з вокселів (у процесі).** `VoxelBuilder` + `data/voxels/*.json` поки малюють
+пропси, іконки крамниці й запасні тіла героїв. Замінюються по одному через
+`src/run3d/prop_library.gd`: модель кладеться в `assets/props/`, дописується рядок у
+`data/props.json` — і той самий `kind` починає малюватись моделлю. Розкладку рівнів це не
+чіпає. Коли жодне посилання не лишиться, `VoxelBuilder` і `data/voxels/` видаляються.
+Список і черга — `docs/tasks/props.md`.
+
+**Історична довідка.** Розділи нижче («Арт-біблія, частина 1/2») писались під старий
+ізометрично-воксельний напрям. Чинними лишаються **композиція, камера, HUD, читабельність
+перешкод і ПАЛІТРА**; опис матеріалу й геометрії («стосики блоків», «вокселі», «плитка»)
+більше не наш.
 
 Джерело: `wants-examaple/…_frames/` — ~1 500 кадрів (1 кадр ≈ 1,2 с) з 31-хв відео. Ігри в порядку появи:
 Subway Surfers (001–140) · Minion Rush (141–365) · Temple Run Legends (367–575) · Sonic Dash+ (577–828) ·

@@ -1,13 +1,13 @@
 # Етап 6 (v0.9.0) — спільний бриф для агентів
 
-Godot 4.7, GDScript 4, Mobile renderer. Godot **не можна запустити** — пишемо обережний валідний код, коментарі в коді короткі українською. Тести — GUT (`tests/*.gd`, `extends GutTest`, `func test_*`). Кольори у `src/` — тільки через `Palette` (`src/ui/theme/palette.gd`), hex-літерали лише в palette.gd (тест `test_palette.gd`). Вокселі — JSON у `data/voxels/*.json`, будує `VoxelBuilder` (`addons/mgp_core/voxel/`).
+Godot 4.7, GDScript 4, Mobile renderer. Godot **не можна запустити** — пишемо обережний валідний код, коментарі в коді короткі українською. Тести — GUT (`tests/*.gd`, `extends GutTest`, `func test_*`). Кольори у `src/` — тільки через `Palette` (`src/ui/theme/palette.gd`), hex-літерали лише в palette.gd (тест `test_palette.gd`). Арт-напрям — м'який low-poly у чарівному казковому світі, НЕ воксель (`docs/refs/README.md` §0). `VoxelBuilder` (`addons/mgp_core/voxel/`) і `data/voxels/*.json` — тимчасовий рендер, який замінюється моделями через `PropLibrary`/`data/props.json`.
 
 Обов'язково прочитати: `docs/MEMORY.md` (уроки — Meshy-чекліст, sRGB, процес), `README.md`, `docs/CHANGELOG.md` (верх), `docs/refs/README.md` (розділи «Арт-біблія ч.1» і «ч.2 — БАЗА»), референси-картинки `docs/refs/want/world+items+atmosphere/*.jpg` і `docs/refs/want/characters/*.jpg` (дивитись через Read — вони визначають вигляд).
 
 ## Що вже є (v0.8.0)
 - Світ рухається на героя (+Z), `Track` — пул рядів + MultiMesh (дорога/декор/кліфи), `walls_near`, `landmarks`, кліфи з `world.cliff`, вода `cliff_water`.
 - `Spawner3D` — перешкоди (`Obstacle3D` shape/marker), `Ingot3D`, `Tier2Segment`, пікапи, `spawn_obstacle_kind`.
-- `Hero3D` — тіло-воксель + окремі очі/рот/риса/лапки; API: `set_hero(id,color,feature)`, `set_accessory(slot,voxel,opts)`, `set_hat`, `hit_reaction`, `tumble`, `duck`, `jump`, `hearts`, `face_camera`, `wave_hello`, `stop_fly`, `set_shield`.
+- `Hero3D` — тіло (модель `.glb` за `rig`, запасний варіант — сітка з `data/voxels/`) + окремі очі/рот/риса/лапки; API: `set_hero(id,color,feature)`, `set_accessory(slot,voxel,opts)`, `set_hat`, `hit_reaction`, `tumble`, `duck`, `jump`, `hearts`, `face_camera`, `wave_hello`, `stop_fly`, `set_shield`.
 - `CameraRig.apply(preset: Dictionary{pos,look,fov,ortho}, duration)`, пресети `PRESET_MENU`, `PRESET_HEROES`; світи мають `camera.pos/look/fov`.
 - `Diorama` (`src/run3d/diorama.gd`) — острів 3×3, `data/buildings.json`.
 - Стан гри у `run3d.gd`: MENU → HOME → COUNTDOWN → RUN → FINISH → HOME.
@@ -22,6 +22,6 @@ Godot 4.7, GDScript 4, Mobile renderer. Godot **не можна запустит
 ## Правила співпраці
 - Кожен агент править **лише свої файли** (список у завданні). Нові Palette-токени додає **тільки агент A** у `palette.gd` — інші використовують імена з таблиці нижче (A створює їх першим ділом, у перші хвилини):
   `Palette.W_GRASS, W_GRASS_SHADOW, W_WOOD, W_WOOD_DARK, W_CRATE, W_ROOF_RED, W_ROOF_TERRA, W_ROOF_TEAL, W_ROOF_STRAW, W_WALL, W_BEAM, W_ROCK, W_WATER, W_BANK_1, W_BANK_2, W_BANK_3, W_SLAB, W_SLAB_DARK, W_COBBLE, W_SKY, INGOT, INGOT_EDGE, H_CREAM, H_DARK, H_ACC_PINK, H_ACC_VIOLET, H_ACC_TEAL, H_ACC_YELLOW`.
-  У JSON-вокселях hex дозволено (палітра вокселя).
+  У JSON-сітках `data/voxels/` hex дозволено (їхня власна палітра).
 - API інших модулів не міняти; якщо треба нове — додати метод, старі лишити.
 - У кінці: дописати пункти в `docs/CHANGELOG.md` під `## 0.9.0 (у роботі)` (створити секцію, якщо нема), тести на свої чисті функції/дані, короткий звіт: файли, нове API, припущення.
