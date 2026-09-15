@@ -98,3 +98,33 @@ func test_clear_authored_timeline_restores_procedural_decor() -> void:
 	_track.rebuild(_world("meadow"), false)
 	await wait_process_frames(2)
 	assert_gt(_records(), 60, "після clear_authored_timeline() лужок знову засаджений випадковим декором")
+
+
+## add_authored_timeline() — LevelChunkLoader дозавантажує наступний чанк "на ходу": попередні
+## записи не зникають, нові додаються поверх (обидва — той самий шлях _add_decor()/_decorate()).
+func test_add_authored_timeline_appends_without_clearing_existing() -> void:
+	_track.set_authored_timeline(_flat_records(4), [])
+	_track.add_authored_timeline(_flat_records(3, 4.0, "mushroom"), [])
+	_track.rebuild(_world("meadow"), false)
+	await wait_process_frames(2)
+	assert_eq(_records(), 7, "4 із set_ + 3 із add_ — усі 7 на місці")
+	assert_eq(_visible(), 7)
+
+
+## Записи наступного чанку лежать ДАЛІ за поточне вікно рядів — з'являються щойно ряди
+## перевкладаються настільки, щоб дістати до їхнього z_m (той самий wrap, що й основний тест).
+func test_add_authored_timeline_new_records_appear_after_wrap() -> void:
+	_track.set_authored_timeline(_flat_records(2), [])   # z_m 0, 4 — у початковому вікні
+	_track.rebuild(_world("meadow"), false)
+	await wait_process_frames(2)
+	assert_eq(_records(), 2)
+	var far := [{"z_m": 100.0, "x_m": 0.5, "y_m": 0.0, "kind": "flower", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}]
+	_track.add_authored_timeline(far, [])
+	assert_eq(_records(), 2, "далекий запис ще не потрапив у жоден ряд одразу після дозавантаження")
+	# вікно рядів — приблизно [distance-5.5, distance+38.5] (44 ряди): на distance=100 у вікні
+	# лише z_m=100 (стартові 0/4 давно проскочили позаду й перевклались під нові записи —
+	# так само, як і будь-який процедурний декор, це не стосується add_authored_timeline)
+	for i in range(100):
+		_track.advance(1.0)
+	await wait_process_frames(2)
+	assert_eq(_records(), 1, "далекий запис із дозавантаженого чанку з'явився у своєму ряду")

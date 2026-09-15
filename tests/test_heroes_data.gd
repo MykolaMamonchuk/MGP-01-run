@@ -62,7 +62,7 @@ func test_each_hero_shape() -> void:
 		var t := String((h.get("unlock", {}) as Dictionary).get("type", ""))
 		assert_true(t in ["start", "home"], "%s: у звірят каруселі лише start або home, а не %s" % [key, t])
 	orders.sort()
-	assert_eq(orders, [0, 1, 2, 3, 4, 5, 6, 7, 8], "order — 0..8 без дірок (дев'ять звірят у каруселі)")
+	assert_eq(orders, [0, 1, 2, 3, 4], "order — 0..4 без дірок (п'ять звірят на моделях у каруселі)")
 
 
 func test_growth_stages_increase() -> void:

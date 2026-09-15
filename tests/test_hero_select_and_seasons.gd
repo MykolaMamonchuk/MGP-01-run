@@ -10,7 +10,7 @@ func before_each() -> void:
 
 func test_order_ids_skips_service_keys_and_sorts() -> void:
 	var ids := HeroSelect.order_ids(_heroes)
-	assert_eq(ids.size(), 9, "9 звірят у каруселі (+ дельфін, черепаха; старі пухнастики — legacy, їх не показуємо)")
+	assert_eq(ids.size(), 5, "5 звірят на текстурованих моделях у каруселі (pes/zai/kit/med без моделі прибрані, старі пухнастики — legacy, їх не показуємо)")
 	assert_eq(ids[0], "lys", "стартовий герой перший")
 	assert_false(ids.has("puf"), "старий пухнастик лишився в даних, але не в каруселі")
 	assert_false(ids.has("growth"))

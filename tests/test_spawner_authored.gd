@@ -88,3 +88,25 @@ func test_clear_authored_obstacles_restores_random_behavior() -> void:
 	for i in range(200):
 		_spawner.advance(0.1)
 	assert_gt(_obstacles().size(), 0, "після clear_authored_obstacles() спавнер знову випадковий")
+
+
+## add_authored_obstacles() — LevelChunkLoader дозавантажує наступний чанк рівня "на ходу":
+## курсор НЕ скидається (уже застосовані записи не спавняться вдруге), нові записи
+## доступні одразу після виклику.
+func test_add_authored_obstacles_does_not_reset_cursor() -> void:
+	_spawner.set_authored_obstacles([{"z_m": 34.0, "kind": "stump", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	_spawner.advance(0.0)   # перший поріг (34-34=0) — спавниться негайно
+	assert_eq(_obstacles().size(), 1, "перша перешкода вже застосована курсором")
+	_spawner.add_authored_obstacles([{"z_m": 1000.0, "kind": "branch", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	assert_eq(_obstacles().size(), 1, "дозавантаження далекого запису не спавнить його негайно й не чіпає вже пройдене")
+
+
+func test_add_authored_obstacles_spawns_new_chunk_records_at_their_distance() -> void:
+	_spawner.set_authored_obstacles([{"z_m": 34.0, "kind": "stump", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	_spawner.advance(0.0)
+	_spawner.add_authored_obstacles([{"z_m": 40.0, "kind": "branch", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	_spawner.advance(5.0)   # distance_m = 5.0 — поріг другого запису (40-34=6) ще не настав
+	assert_eq(_obstacles().size(), 1, "запис із дозавантаженого чанку ще до свого порогу")
+	_spawner.advance(1.0)   # distance_m = 6.0
+	assert_eq(_obstacles().size(), 2, "запис із дозавантаженого чанку з'явився рівно на порозі")
+	assert_eq(_obstacles()[1].kind, "branch")

@@ -8,8 +8,12 @@
 | `vox2json.py` | Зворотно: MagicaVoxel `.vox` → `data/voxels/<name>.json` |
 | `test_voxelize.py` | Тести конвертера на синтетичному звірятку (`python3 tools/test_voxelize.py`) |
 | `rig_fix.py` | Blender headless: прибрати зайві кістки з ригнутого `.glb` і віддати їхні ваги сусідній кістці (`--list` — тільки дамп дерева з вершинами) |
+| `mesh_smooth_uv.py` | Blender headless: прибрати з моделі деталь, задану рамкою в ТЕКСТУРІ (Meshy іноді ліпить очі просто в геометрію). Уміє підмінити базову текстуру / normal / roughness, а за потреби й розгладити меш. **Типово бери `--no-geometry`**: «опуклість» деталі зазвичай малює normal map, а не геометрія, і різати меш із багатьох окремих панелей означає рвати шви |
+| `eye_similarity.py` | Порівняти рендер ока з референсною текстурою числами (`python3 tools/eye_similarity.py наше.png референс.png`) — див. skill `visual-check` |
 | `palette_hero.json` | Палітра героя `{символ: #hex}` для `vox2json.py --palette` |
 | `perf/` | Сцена заміру FPS (Godot) |
+| `../src/debug/face_shot.tscn` | Знімок морди героя анфас + тісний кроп ока: `OUT=/tmp/face.png HERO=lys godot res://src/debug/face_shot.tscn` |
+| `../src/debug/zoo.tscn` | Усі звірята в ряд, живі, спільні клавіші: `godot res://src/debug/zoo.tscn` (`ZOO=all` — ще й воксельні, `ZOO=lys,olen` — вибірка, `OUT=/tmp/zoo.png` — знімок і вихід) |
 | `../src/debug/voxel_preview.tscn` | Показати один воксель у порожній сцені: `VOXEL=<ім'я> godot res://src/debug/voxel_preview.tscn` |
 | `shots/` | Сцена автознімків (Godot) |
 

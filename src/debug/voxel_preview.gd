@@ -118,6 +118,12 @@ func _build_hero_preview(rig: String) -> void:
 		print("  риг не зібрався (нема Skeleton3D?) — показую воксельні частини")
 		print(KEYS_LINE)
 		return
+	var skin := OS.get_environment("SKIN")
+	if skin != "":
+		if _hero.set_skin(skin):
+			print("  скін: %s" % skin)
+		else:
+			push_warning("voxel_preview: скін '%s' не знайдено в heroes.json (поле \"skins\") або герой не rig_texture" % skin)
 	print("  кістки моделі (%d), позиції спокою в см (перед героя = -z):" % r.bone_names().size())
 	for line in r.bone_dump():
 		print("    %s" % line)

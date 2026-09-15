@@ -62,7 +62,7 @@ func test_progress_grows_monotonically() -> void:
 # ---------- дані героїв ----------
 
 func test_every_animal_hero_has_a_power() -> void:
-	assert_gt(_animals.size(), 6, "у каруселі семеро звірят")
+	assert_gt(_animals.size(), 4, "у каруселі п'ятеро звірят")
 	for id in _animals.keys():
 		var p = (_animals[id] as Dictionary).get("power", null)
 		assert_true(typeof(p) == TYPE_DICTIONARY, "%s: має бути словник power" % id)
@@ -81,13 +81,17 @@ func test_power_fields_are_in_range() -> void:
 		assert_eq(String(p.get("voice", "")), "power_%s" % pid, "%s: рядок озвучки за id" % id)
 
 
+## 14.09.2026: pes/zai/kit/med (без моделі) прибрані з каруселі — їхні сили
+## (dog_sniff/bunny_double/cat_lives/bear_hug) лишились непризначеними в POWER_IDS,
+## чекають на повернення героїв із моделями. Тому не всі POWER_IDS мають знайтись
+## серед активних звірят — лише унікальність серед тих, хто є.
 func test_powers_are_unique() -> void:
 	var seen := {}
 	for id in _animals.keys():
 		var pid := String(((_animals[id] as Dictionary).get("power", {}) as Dictionary).get("id", ""))
+		assert_true(pid in POWER_IDS, "%s: сила «%s» має бути в POWER_IDS" % [id, pid])
 		assert_false(seen.has(pid), "сила «%s» повторюється у двох героїв" % pid)
 		seen[pid] = id
-	assert_eq(seen.size(), POWER_IDS.size(), "кожна сила зі списку комусь дісталась")
 
 
 func test_legacy_heroes_have_no_power() -> void:
