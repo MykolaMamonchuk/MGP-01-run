@@ -94,6 +94,13 @@ func _process(_delta: float) -> void:
 	var out := OS.get_environment("OUT")
 	if out != "":
 		strip.save_png(out)
+		# Скільки МЕТРІВ покриває картинка. Без цього числа розмір дощечки доводилось би
+		# виводити з пропорцій обрізаного файлу, а це вже не той самий розмір, що в моделі:
+		# для поручнів, які стикуються ланка в ланку, похибка в сантиметр дає щілину в кадрі.
+		var meta := FileAccess.open(out.get_basename() + ".json", FileAccess.WRITE)
+		if meta != null:
+			meta.store_string(JSON.stringify({"span_m": span, "size_px": size}))
+			meta.close()
 		print("спрайт: ", out, "  ", strip.get_width(), "×", strip.get_height())
 	get_tree().quit()
 
@@ -105,7 +112,10 @@ func _bounds(node: Node) -> AABB:
 		var mi := c as MeshInstance3D
 		if mi == null or mi.mesh == null:
 			continue
-		var a := mi.get_aabb()
+		# AABB у СВІТОВИХ координатах: get_aabb() дає локальний, а імпорт glTF може лишити
+		# на вузлах свій поворот. Через це габарит виходив на кілька відсотків меншим за
+		# справжній, і поручні, яким треба рівно метр, отримували 1,046 — тобто щілину.
+		var a := mi.global_transform * mi.get_aabb()
 		out = a if first else out.merge(a)
 		first = false
 	return out

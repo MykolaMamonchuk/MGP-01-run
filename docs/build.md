@@ -28,12 +28,30 @@
 ```sh
 G=/Applications/Godot.app/Contents/MacOS/Godot
 "$G" --headless --export-pack macOS /tmp/game.pck
-for p in docs/ tools/ tests/ addons/gut src/debug; do
-  printf "%-12s %s\n" "$p" "$(strings -a /tmp/game.pck | grep -c "res://$p")"
+for p in docs/ tools/ tests/ addons/gut/ src/debug/ assets/props/3d/; do
+  printf "%-20s %s\n" "$p" "$(strings -a /tmp/game.pck | grep -cF "$p")"
 done
 ```
-Усі числа мусять бути нулями. Це швидше й надійніше, ніж дивитись на розмір файлу: пакет
-може схуднути з іншої причини, а одна зайва тека — ні.
+
+**Шукати треба БЕЗ префікса `res://`.** Покажчик у `.pck` зберігає шляхи як `data/props.json`,
+а не `res://data/props.json`, тож перевірка з префіксом дає нуль завжди — і на тому, що
+виключено, і на тому, що на місці. На цьому легко зробити хибний висновок в обидва боки:
+спершу «все чисто», потім «дані не потрапляють у збірку». Обидва рази неправда.
+
+Ненульовий результат ще не означає вади: це може бути текст усередині скриптів (коментарі
+з посиланнями на документацію теж їдуть у збірку разом із джерелом). Дивись, ЩО саме
+знайшлось: `strings -a /tmp/game.pck | grep -F "docs/"`.
+
+Протилежна перевірка не менш важлива — що потрібне на місці:
+
+```sh
+for p in data/props.json data/heroes.json data/worlds/meadow.json levels/level_01/chunk_00.tscn; do
+  printf "%-38s %s\n" "$p" "$(strings -a /tmp/game.pck | grep -cF "$p")"
+done
+```
+
+Числа в першій перевірці мусять бути нулями (або пояснюваними текстом у скриптах), у
+другій — ненульовими.
 
 ## Пропси в 2D
 

@@ -53,7 +53,9 @@ def render(name, size, out_png):
 
 def shrink(png, colors):
     from PIL import Image
+    import json
     im = Image.open(png).convert("RGBA")
+    full_px = im.size[0]
     # Обрізаємо порожнечу: спрайт має щільно облягати силует, інакше половина пікселів
     # (і ваги) йде на прозоре тло.
     box = im.getbbox()
@@ -61,6 +63,16 @@ def shrink(png, colors):
         im = im.crop(box)
     q = im.quantize(colors=colors, method=Image.FASTOCTREE)
     q.save(png, optimize=True)
+
+    # Перераховуємо розмір у метрах ПІСЛЯ обрізання: Godot знає, скільки метрів покривав
+    # цілий кадр, а скільки лишилось — залежить від того, що ми відрізали. Пишемо поруч,
+    # щоб гра брала точний розмір, а не вгадувала його з пропорцій.
+    side = png[:-4] + ".json"
+    if os.path.exists(side):
+        meta = json.load(open(side, encoding="utf-8"))
+        mpp = float(meta["span_m"]) / float(full_px)
+        json.dump({"w_m": round(im.size[0] * mpp, 4), "h_m": round(im.size[1] * mpp, 4)},
+                  open(side, "w", encoding="utf-8"))
     return im.size
 
 
