@@ -29,8 +29,11 @@ const SIDE_W := 8.0
 const SEA_W := 60.0
 const CANOPY_Y := 3.2
 const CANOPY_SCALE := 2.5
-## Один предмет декору: x, y, z (у межах ряду), поворот навколо y, масштаб, фаза «дихання».
-const DECOR_STRIDE := 6
+## Один предмет декору: x, y, z-дрож, поворот навколо y, масштаб, фаза «дихання» і окремий
+## масштаб-«розтяг» уздовж локальної осі Z ДО повороту (у більшості декору — 1.0, нічого не
+## міняє; для настилу містка — саме він видовжує дошку під ширший канал, а X/Y лишає як є,
+## щоб місток не товщав і не вищав разом з довжиною, див. _add_bridge()).
+const DECOR_STRIDE := 7
 ## Обрив плато: три шари «цегли» по 0,4 м під узбіччями (разом 1,2 м).
 const CLIFF_LAYERS := 3
 const CLIFF_STEP := 0.4
@@ -59,13 +62,23 @@ const TILE_LIFT := 0.01
 const EDGE_W := 0.3
 const EDGE_OVERLAP := 0.15
 ## Відкриті світи: пропси в смузі PROP_NEAR–PROP_FAR від краю (у 0–0,3 м не кладемо нічого),
-## будинки другим планом — у смузі FAR_MIN–FAR_MAX, через FAR_EVERY рядів, боки чергуються.
+## будинки другим планом — у смузі FAR_MIN–FAR_MAX, через FAR_EVERY рядів, НЕЗАЛЕЖНО на
+## кожному борті (див. _far_left) — на референсі забудова стоїть суцільно по обидва боки
+## одразу за каналом, а не через ряд то ліворуч, то праворуч.
 const PROP_NEAR := 0.3
 const PROP_FAR := 1.4
-const PROP_CHANCE := 0.35
+const PROP_CHANCE := 0.65
 const FAR_MIN := 2.5
-const FAR_MAX := 4.5
-const FAR_EVERY := [4, 6]
+const FAR_MAX := 6.0
+const FAR_EVERY := [2, 3]
+## Будинки другого плану — великі й близькі, як на референсі (закривають горизонт),
+## а не дрібні цятки на обрії. Заповнювач (дерева між будинками) — трохи менший.
+## Перевірено на знімку: менший діапазон (1.4, 1.9) насправді ГІРШИЙ — забудова рідшає,
+## неба знову більше (18% замість 14%). На самому референсі великі будівлі теж обрізані
+## краєм кадру впритул до камери — це не хиба перспективи, це і є потрібна щільна забудова.
+const FAR_BUILD_SCALE := [1.7, 2.4]
+const FAR_FILLER_SCALE := [1.3, 1.9]
+const FAR_FILLER_CHANCE := 0.75
 ## Канал: вода занурена на CANAL_DEPTH, береги — три тонкі теракотові шари.
 const CANAL_DEPTH := 0.35
 const BANK_H := 0.14
@@ -142,8 +155,9 @@ var _cliff_on := [true, true]
 var _props_side: Array = []
 var _buildings_far: Array = []
 var _far_filler: Array = []
-var _far_left := 0
-var _far_side := 1.0
+## Лічильники до наступної будівлі другого плану — окремо для лівого й правого борту
+## (індекс 0/1), щоб забудова росла на обох боках незалежно й щільно, а не по черзі через ряд.
+var _far_left := [0, 0]
 var _rng := RandomNumberGenerator.new()
 var _voxel_exists_cache: Dictionary = {}
 var _water: MeshInstance3D
@@ -442,7 +456,10 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 
 ## Записати предмет у пачку ряду. z, поворот і фаза — випадкові, як було в кожного Critter3D.
 ## yaw ≥ 0 — фіксований поворот (орієнтири-арки мають дивитись на камеру, а не крутитись).
-func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0) -> void:
+## stretch — додатковий масштаб ЛИШЕ вздовж локальної осі Z ДО повороту на yaw (за
+## замовчуванням 1.0 — нічого не міняє). Треба, щоб видовжити предмет уздовж одного виміру,
+## не роздуваючи решту: настилу містка ширший канал дає довшу дошку, а не товщу й вищу.
+func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0, stretch: float = 1.0) -> void:
 	var variant := PropLibrary.pick(kind)
 	ids.append(_decor_layer(kind, override, variant))
 	# Доведення моделі (data/props.json): згенерована модель майже ніколи не приходить одразу
@@ -457,6 +474,7 @@ func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, o
 	data.append(s * float(tw["scale"]))
 	# фазу зсуваємо на поточний час, щоб у мить появи вона була такою ж, як у старого Critter3D
 	data.append(randf() * 10.0 - _decor_t)
+	data.append(stretch)
 
 
 ## Переносить декор у буфери шарів. Те саме «дихання», що робив Critter3D._process:
@@ -493,7 +511,8 @@ func _sync_decor(delta: float) -> void:
 			var breathe := 1.0 + sin(t * 1.6 + x) * 0.02
 			var tilt := sin(t * 1.2 + z) * 0.02
 			var sc := d[o + 4]
-			var basis := Basis(Vector3.UP, d[o + 3]).scaled(Vector3(sc, sc, sc)) * Basis(Vector3(0, 0, 1), tilt).scaled(Vector3(1.0, breathe, 1.0))
+			var stretch := d[o + 6]   # розтяг лише по локальній Z до повороту (див. _add_decor) — 1.0 для звичайного декору
+			var basis := Basis(Vector3.UP, d[o + 3]).scaled(Vector3(sc, sc, sc * stretch)) * Basis(Vector3(0, 0, 1), tilt).scaled(Vector3(1.0, breathe, 1.0))
 			basis = Basis.from_scale(Vector3(1.0, sy_row, 1.0)) * basis
 			var b := ids[j]
 			(_decor_mm[b].multimesh as MultiMesh).set_instance_transform(used[b], Transform3D(basis, Vector3(x, sy_row * d[o + 1], z_row + z)))
@@ -637,8 +656,7 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 		_decor_layer("bridge_plank", {}, PropLibrary.pick("bridge_plank"))
 	if not _canal_sides.is_empty() and PropLibrary.has("fence_rail"):
 		_decor_layer("fence_rail", {}, PropLibrary.pick("fence_rail"))
-	_far_left = _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])
-	_far_side = -1.0 if _rng.randf() < 0.5 else 1.0
+	_far_left = [_rng.randi_range(FAR_EVERY[0], FAR_EVERY[1]), _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])]
 	_layout_canal()
 	# ближні стіни: список світу + будівлі, добудовані дитиною в діорамі
 	_near_pool = [] if is_open(world) else _near_wall_pool()
@@ -729,14 +747,6 @@ func _decorate(row: Node3D) -> void:
 	var open := is_open(world)
 	var c_offset := float(_canal.get("offset", 2.0))
 	var c_width := float(_canal.get("width", 1.2))
-	# будинок другого плану: раз на 4–6 рядів, боки чергуються (горизонт не «дірявий»)
-	var far_row := false
-	if open and not _buildings_far.is_empty():
-		_far_left -= 1
-		if _far_left <= 0:
-			_far_left = _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])
-			_far_side = -_far_side
-			far_row = true
 	for side in [-1.0, 1.0]:
 		if _sea_side != 0 and signf(float(side)) == signf(float(_sea_side)):
 			continue
@@ -756,18 +766,32 @@ func _decorate(row: Node3D) -> void:
 			# ── відкрите узбіччя: трава одразу за дорогою, пропси, за ними другий план ──
 			var far_min := FAR_MIN
 			if _canal_sides.has(side):
-				far_min = maxf(FAR_MIN, c_offset + c_width + 0.3)
+				# найближче за каналом — трохи щільніше до води, ніж було: на референсі забудова
+				# стоїть одразу за берегом, а не в окремій смузі за пів метра до нього
+				far_min = maxf(FAR_MIN, c_offset + c_width + 0.15)
 			if not _props_side.is_empty() and _rng.randf() < PROP_CHANCE:
 				_add_decor(ids, data, String(_props_side[_rng.randi() % _props_side.size()]), {},
 					prop_x(side, edge, _rng), 0.0, 1.0)
-			if far_row and side == _far_side:
+			# будинок другого плану: НЕЗАЛЕЖНИЙ лічильник на кожен борт (_far_left), а не спільний
+			# зі стороною, що чергується, — так забудова щільно стоїть по обидва боки одночасно,
+			# а не через ряд то ліворуч, то праворуч (референс: суцільна стіна будинків з обох боків).
+			var sidx := 0 if side < 0.0 else 1
+			var far_row := false
+			if not _buildings_far.is_empty():
+				_far_left[sidx] -= 1
+				if _far_left[sidx] <= 0:
+					_far_left[sidx] = _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])
+					far_row = true
+			if far_row:
 				_add_decor(ids, data, String(_buildings_far[_rng.randi() % _buildings_far.size()]), {},
-					side * (edge + _rng.randf_range(far_min, FAR_MAX)), 0.0, _rng.randf_range(1.1, 1.4),
+					side * (edge + _rng.randf_range(far_min, FAR_MAX)), 0.0,
+					_rng.randf_range(FAR_BUILD_SCALE[0], FAR_BUILD_SCALE[1]),
 					0.0 if side > 0.0 else PI)
-			elif not _far_filler.is_empty() and _rng.randf() < 0.5:
-				# заповнювач між будинками — дерева, щоб горизонт був закритий
+			elif not _far_filler.is_empty() and _rng.randf() < FAR_FILLER_CHANCE:
+				# заповнювач між будинками — дерева, щоб горизонт лишався закритим і в проміжках
 				_add_decor(ids, data, String(_far_filler[_rng.randi() % _far_filler.size()]), {},
-					side * (edge + _rng.randf_range(far_min, FAR_MAX)), 0.0, _rng.randf_range(1.0, 1.5))
+					side * (edge + _rng.randf_range(far_min, FAR_MAX)), 0.0,
+					_rng.randf_range(FAR_FILLER_SCALE[0], FAR_FILLER_SCALE[1]))
 			if not critters.is_empty() and randf() < 0.12:
 				var cr_open := Critter3D.new()
 				cr_open.position = Vector3(side * (edge + randf_range(0.6, 1.4)), 0.0, randf_range(-0.4, 0.4))
@@ -836,7 +860,11 @@ func _decorate(row: Node3D) -> void:
 func _add_bridge(ids: PackedInt32Array, data: PackedFloat32Array, x: float, width: float) -> void:
 	var deck := bridge_deck_len(width)
 	if _voxel_exists("bridge_plank"):
-		_add_decor(ids, data, "bridge_plank", {}, x, BRIDGE_Y, deck / BRIDGE_BASE_W, PI * 0.5)
+		# розтягуємо ЛИШЕ довжину прольоту (stretch, локальна Z до повороту на PI/2), а не
+		# ввесь настил (s=1.0): раніше `deck / BRIDGE_BASE_W` йшло в ізотропний масштаб, і
+		# ширший канал робив місток не лише довшим, а й вищим і товщим — на знімку він виходив
+		# велетнем на пів екрана, хоча на референсі містки пласкі й низькі.
+		_add_decor(ids, data, "bridge_plank", {}, x, BRIDGE_Y, 1.0, PI * 0.5, deck / BRIDGE_BASE_W)
 		return
 	var key := "bridge_box|%.2f" % deck
 	var layer := -1
@@ -853,6 +881,7 @@ func _add_bridge(ids: PackedInt32Array, data: PackedFloat32Array, x: float, widt
 	data.append(0.0)
 	data.append(1.0)
 	data.append(randf() * 10.0 - _decor_t)
+	data.append(1.0)   # stretch — довжину вже задано розміром мешу, розтягувати вдруге не треба
 
 
 ## Ближні стіни світу + будівлі, які дитина добудувала в діорамі

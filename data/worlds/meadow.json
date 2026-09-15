@@ -32,12 +32,12 @@
     "beehive"
   ],
   "walls_near": [
-    "wall_house",
+    "house_terra",
+    "house_red",
     "barn",
     "house_small",
     "kiosk",
-    "awning_stall",
-    "fountain"
+    "awning_stall"
   ],
   "walls_far": [
     "tree",
