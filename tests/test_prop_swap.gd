@@ -135,3 +135,22 @@ func test_model_scale_and_yaw_reach_the_obstacle() -> void:
 
 	assert_almost_eq(tuned._mesh.scale.x, base * 2.0, 0.001, "масштаб із props.json застосувався")
 	assert_almost_eq(tuned._mesh.rotation.y, deg_to_rad(90.0), 0.001, "і поворот теж")
+
+
+## Наскрізна перевірка ланцюга: світ каже «вулик цілиться в бочку» → у props.json є модель
+## бочки → Obstacle3D мусить малювати САМЕ ЇЇ, а не воксель вулика. Доти перевіряли лише
+## кінці ланцюга окремо, і розрив посередині ніхто б не помітив.
+func test_real_model_reaches_the_obstacle_in_game() -> void:
+	PropLibrary.reload()                       # справжній data/props.json
+	var barrel := PropLibrary.mesh("barrel")
+	if barrel == null:
+		pass_test("моделі бочки ще нема — крок пропущено")
+		return
+
+	var def: Dictionary = _world("meadow")["obstacles"]["beehive"]
+	assert_eq(String(def.get("prop", "")), "barrel", "вулик цілиться в бочку")
+
+	var o := Obstacle3D.new()
+	add_child_autofree(o)
+	o.setup("beehive", def, 0, true)
+	assert_eq(o._mesh.mesh, barrel, "перешкода малюється мешем МОДЕЛІ, а не вокселя")

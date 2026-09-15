@@ -1,4 +1,10 @@
 {
   "_note": "kind -> справжня модель замість згенерованого вокселя. Ключ той самий, що й у data/voxels/<kind>.json та в маркерах levels/*, тож розкладку рівнів міняти не треба. Значення — або шлях рядком, або {path, scale, yaw_deg}. Виду тут нема (чи файл відсутній) — малюється воксель, як і раніше. Список того, що варто згенерувати, — docs/tasks/props.md",
-  "_приклад": {"path": "res://assets/props/tree_oak.glb", "scale": 1.0, "yaw_deg": 0.0}
+  "_приклад": {
+    "path": "res://assets/props/tree_oak.glb",
+    "scale": 1.0,
+    "yaw_deg": 0.0
+  },
+  "barrel": "res://assets/props/barrel.glb",
+  "cart_market": "res://assets/props/cart_market.glb"
 }

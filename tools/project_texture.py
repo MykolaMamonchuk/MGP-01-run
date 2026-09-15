@@ -54,6 +54,8 @@ def parse_args(argv):
     ap.add_argument("--mirror", action="store_true")
     ap.add_argument("--fit", default="cover", choices=["cover", "contain"])
     ap.add_argument("--vertex-colors", dest="vcol", action="store_true")
+    ap.add_argument("--no-bleed", dest="bleed", action="store_false",
+                    help="не розтягувати колір об'єкта на фон (тоді фон тече на невидимі боки)")
     ap.add_argument("--no-autocrop", dest="autocrop", action="store_false",
                     help="не шукати силует, підганяти меш до ВСІЄЇ картинки (майже завжди гірше)")
     return ap.parse_args(argv)
@@ -79,6 +81,39 @@ def subject_box(img):
     pad = 0.01
     return (max(xs.min() / w - pad, 0.0), max(ys.min() / h - pad, 0.0),
             min(xs.max() / w + pad, 1.0), min(ys.max() / h + pad, 1.0))
+
+
+## Розтягнути колір об'єкта на фон. Проєкція неминуче зачіпає й ті боки, яких на картинці
+## не видно, — і вони брали б колір ФОНУ: у концепту візка фон чорний, тож задній бік навісу
+## виходив чорним. Кілька проходів «розмазування» замінюють фон найближчим кольором об'єкта,
+## і невидимі боки отримують хоча б правдоподібний відтінок замість діри.
+def bleed_background(img, passes=48):
+    import numpy as np
+    w, h = img.size
+    a = np.array(img.pixels[:], dtype="float32").reshape(h, w, 4)
+    rgb = a[:, :, :3]
+    srgb = np.clip(rgb, 0.0, 1.0) ** (1.0 / 2.2)
+    corners = np.concatenate([srgb[:8, :8].reshape(-1, 3), srgb[:8, -8:].reshape(-1, 3),
+                              srgb[-8:, :8].reshape(-1, 3), srgb[-8:, -8:].reshape(-1, 3)])
+    bg = np.median(corners, axis=0)
+    known = np.abs(srgb - bg).sum(axis=2) > 0.25
+    out = rgb.copy()
+    out[~known] = 0.0
+    for _ in range(passes):
+        if known.all():
+            break
+        k = known.astype("float32")[..., None]
+        acc = np.zeros_like(out)
+        cnt = np.zeros((h, w, 1), dtype="float32")
+        for dy, dx in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            acc += np.roll(out * k, (dy, dx), axis=(0, 1))
+            cnt += np.roll(k, (dy, dx), axis=(0, 1))
+        fill = (cnt[..., 0] > 0) & (~known)
+        out[fill] = (acc[fill] / np.maximum(cnt[fill], 1e-6))
+        known = known | fill
+    a[:, :, :3] = out
+    img.pixels[:] = a.reshape(-1).tolist()
+    print("  фон розтягнуто на %d проходів" % passes)
 
 
 def bounds(objs):
@@ -121,6 +156,8 @@ def main():
     img.pack()
     if a.autocrop:
         bx0, by0, bx1, by1 = subject_box(img)
+        if a.bleed:
+            bleed_background(img)
         print("  силует на картинці: x %.3f..%.3f  y %.3f..%.3f" % (bx0, bx1, by0, by1))
     else:
         bx0, by0, bx1, by1 = 0.0, 0.0, 1.0, 1.0
