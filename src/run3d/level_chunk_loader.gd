@@ -32,6 +32,14 @@ var _done := false             ## усі чанки рівня вже заван
 ## Почати стрімінг рівня num: визначає чанкований рівень це чи старий суцільний файл, вантажить
 ## перший чанк (або весь рівень) синхронно — так само, як і раніше, гравець стартує з готовими
 ## першими записами. track/spawner — куди зливати LevelTimeline.extract().
+## Спавнер може бути null — так його передає знімальний інструмент src/debug/track_shot.gd,
+## якому потрібен лише декор рівня, без перешкод. Раніше це валило виклик і знімок робився
+## без половини даних, мовчки: помилка друкувалась у консоль, а картинка виглядала цілою.
+func _clear_obstacles() -> void:
+	if _spawner != null:
+		_spawner.clear_authored_obstacles()
+
+
 func start(num: int, track: Track, spawner: Spawner3D) -> void:
 	_num = num
 	_track = track
@@ -42,11 +50,11 @@ func start(num: int, track: Track, spawner: Spawner3D) -> void:
 	_chunked = DirAccess.dir_exists_absolute(_folder_path())
 	if not _chunked and not ResourceLoader.exists(_flat_path()):
 		track.clear_authored_timeline()
-		spawner.clear_authored_obstacles()
+		_clear_obstacles()
 		_done = true
 		return
 	track.clear_authored_timeline()
-	spawner.clear_authored_obstacles()
+	_clear_obstacles()
 	if _chunked:
 		_load_next_chunk()
 	else:
@@ -114,4 +122,5 @@ func _apply(packed: PackedScene) -> void:
 	# два масиви (decor, buildings), тож зливаємо їх тут, а не плодимо ширший API.
 	var decor: Array = extracted.get("decor", []) + extracted.get("landmarks", []) + extracted.get("walls_near", [])
 	_track.add_authored_timeline(decor, extracted.get("buildings", []))
-	_spawner.add_authored_obstacles(extracted.get("obstacles", []))
+	if _spawner != null:
+		_spawner.add_authored_obstacles(extracted.get("obstacles", []))

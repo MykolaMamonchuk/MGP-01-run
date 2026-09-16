@@ -90,6 +90,14 @@ const FAR_EVERY := [4, 6]
 const FAR_BUILD_SCALE := [1.1, 1.4]
 const FAR_FILLER_SCALE := [1.0, 1.5]
 const FAR_FILLER_CHANCE := 0.5
+## Порожній проміжок уздовж траси між двома групами дрібниць на одному боці (референс:
+## купка — трава — купка, а не суцільна стрічка предметів). Без цього prop_chance/prop_chance2
+## з даних світу (0,65/0,4 у містечка) кидають майже щоряду, і узбіччя виглядає заставленим
+## навіть коли жодна купка сама по собі не перекривається.
+const PROP_GROUP_GAP := [0.7, 1.5]
+## Запас між сусідніми будівлями другого плану ПОНАД їхні реальні половини глибини (з мешів):
+## щільно, як на референсі, але не крізь стіни одна одної.
+const FAR_GAP_MIN := 0.3
 ## Канал: вода занурена на CANAL_DEPTH, береги — три тонкі теракотові шари.
 const CANAL_DEPTH := 0.35
 const BANK_H := 0.14
@@ -178,6 +186,13 @@ var _canal_rocks: Array = []
 ## Лічильники до наступної будівлі другого плану — окремо для лівого й правого борту
 ## (індекс 0/1), щоб забудова росла на обох боках незалежно й щільно, а не по черзі через ряд.
 var _far_left := [0, 0]
+## До якої абсолютної відстані траси (_row_distance_m) кожен борт «зайнятий» — попередня
+## будівля другого плану ще не скінчилась по Z. [ліворуч, праворуч]; рахується від РЕАЛЬНОЇ
+## половини глибини щойно поставленої моделі (_kind_half_extent), а не з орієнтовної константи.
+var _far_clear := [0.0, 0.0]
+## Те саме для груп дрібниць на узбіччі (props_side): до якої відстані бік «зайнятий»
+## поточною купкою — щоб між купками лишалась порожня трава (див. PROP_GROUP_GAP).
+var _prop_clear := [0.0, 0.0]
 var _rng := RandomNumberGenerator.new()
 var _voxel_exists_cache: Dictionary = {}
 var _water: MeshInstance3D
@@ -692,6 +707,8 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	if not _canal_sides.is_empty() and PropLibrary.has("fence_rail"):
 		_decor_layer("fence_rail", {}, PropLibrary.pick("fence_rail"))
 	_far_left = [_rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1])), _rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1]))]
+	_far_clear = [0.0, 0.0]
+	_prop_clear = [0.0, 0.0]
 	_layout_canal()
 	# ближні стіни: список світу + будівлі, добудовані дитиною в діорамі
 	_near_pool = [] if is_open(world) else _near_wall_pool()
@@ -822,45 +839,94 @@ func _decorate(row: Node3D) -> void:
 				# добавки будинок у півтора метра завширшки, поставлений рівно на краю води,
 				# половиною висів над каналом — саме це й було видно в грі.
 				far_min = maxf(_d("far_min", FAR_MIN), c_offset + c_width + 0.15 + BUILD_HALF_W)
+			var sidx := 0 if side < 0.0 else 1
 			# відступ першого предмета від краю дороги — потрібен, щоб другий ліг поруч, а не в нього
 			var first_x := _rng.randf_range(PROP_NEAR, minf(PROP_FAR, c_offset - 0.35) if _canal_sides.has(side) else PROP_FAR)
-			if not _props_side.is_empty() and _rng.randf() < _d("prop_chance", PROP_CHANCE):
-				_add_decor(ids, data, String(_props_side[_rng.randi() % _props_side.size()]), {},
-					side * (edge + first_x), 0.0, 1.0)
+			var bank_far: float = maxf(PROP_NEAR + 0.2, c_offset - 0.35) if _canal_sides.has(side) else PROP_FAR
+			var first_kind := ""
+			# Групи дрібниць мають ЧЕРГУВАТИСЯ з порожньою травою (референс: купка — проміжок —
+			# купка), а не встеляти берег суцільно. prop_chance/prop_chance2 з даних світу (у
+			# містечка — 0,65/0,4) кидають майже щоряду, і без цієї паузи порожньої трави не
+			# траплялось узагалі. _prop_clear[sidx] — до якої точки траси цей бік «зайнятий»
+			# поточною купкою (див. PROP_GROUP_GAP).
+			var cluster_ok: bool = _row_distance_m[i] >= float(_prop_clear[sidx])
+			if cluster_ok and not _props_side.is_empty() and _rng.randf() < _d("prop_chance", PROP_CHANCE):
+				first_kind = String(_props_side[_rng.randi() % _props_side.size()])
+				_add_decor(ids, data, first_kind, {}, side * (edge + first_x), 0.0, 1.0)
 			# другий, рідший кидок у тій самій смузі 0,3–1,4 м: на референсі дрібниці стоять
 			# купками (кущ упритул до ящика, ящик упритул до бочки) — з одним кидком на ряд
 			# узбіччя лишалось «травою з цятками» навіть коли кожна цятка й випадала.
-			if not _props_side.is_empty() and _rng.randf() < _d("prop_chance2", PROP_CHANCE2):
-				# Другий предмет — ПОРУЧ із першим, але не в ньому. Раніше обидва кидки брали
-				# ту саму смугу, і два предмети регулярно лягали в одну точку: ящик усередині
-				# ящика. Просто відсунути смугу далі теж не можна — там уже вода, і предмети
-				# попливли б. Тому зсуваємось від першого на відстань предмета й тримаємось
-				# берега: від краю дороги до самої води.
-				var bank_far: float = maxf(PROP_NEAR + 0.2, c_offset - 0.35) if _canal_sides.has(side) else PROP_FAR
-				var second := first_x + (0.5 if _rng.randf() < 0.5 else -0.5)
-				second = clampf(second, PROP_NEAR, bank_far)
-				_add_decor(ids, data, String(_props_side[_rng.randi() % _props_side.size()]), {},
-					side * (edge + second), 0.0, 1.0)
+			var second_placed := false
+			if cluster_ok and not _props_side.is_empty() and _rng.randf() < _d("prop_chance2", PROP_CHANCE2):
+				var second_kind := String(_props_side[_rng.randi() % _props_side.size()])
+				var second: float
+				if first_kind == "":
+					# самотній другий кидок — першого немає, тож нема від чого відсовуватись
+					second = _rng.randf_range(PROP_NEAR, bank_far)
+				else:
+					# Другий предмет — ПОРУЧ із першим, але не в ньому. Раніше зсув був
+					# фіксованих 0,5 м, а пропси бувають і по 0,95 м завширшки (fence_low) —
+					# два кидки регулярно лягали в одну точку: ящик усередині ящика. Тепер
+					# зсув — сума половин ширини ОБОХ конкретних пропсів (з їхніх мешів, див.
+					# _kind_half_extent), а якщо смуга 0,3–1,4 м вужча за цю суму — кладемо
+					# як можна далі в той бік, де більше місця, замість половинного зсуву,
+					# що завжди перекривався.
+					var need := _kind_half_radius(first_kind) + _kind_half_radius(second_kind)
+					var left_room := first_x - PROP_NEAR
+					var right_room := bank_far - first_x
+					var dir := 1.0 if right_room >= left_room else -1.0
+					var off := minf(need, maxf(left_room, right_room))
+					second = clampf(first_x + dir * off, PROP_NEAR, bank_far)
+				_add_decor(ids, data, second_kind, {}, side * (edge + second), 0.0, 1.0)
+				second_placed = true
+			if first_kind != "" or second_placed:
+				_prop_clear[sidx] = _row_distance_m[i] + _rng.randf_range(PROP_GROUP_GAP[0], PROP_GROUP_GAP[1])
 			# будинок другого плану: НЕЗАЛЕЖНИЙ лічильник на кожен борт (_far_left), а не спільний
 			# зі стороною, що чергується, — так забудова щільно стоїть по обидва боки одночасно,
 			# а не через ряд то ліворуч, то праворуч (референс: суцільна стіна будинків з обох боків).
-			var sidx := 0 if side < 0.0 else 1
 			var far_row := false
+			var b_kind := ""
+			var b_scale := 1.0
+			var b_half := Vector2.ZERO
 			if not _buildings_far.is_empty():
 				_far_left[sidx] -= 1
 				if _far_left[sidx] <= 0:
-					_far_left[sidx] = _rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1]))
-					far_row = true
+					b_kind = String(_buildings_far[_rng.randi() % _buildings_far.size()])
+					b_scale = _rng.randf_range(_d2("build_scale", FAR_BUILD_SCALE)[0], _d2("build_scale", FAR_BUILD_SCALE)[1])
+					# реальна половина розмірів САМЕ цієї моделі на цьому масштабі: константа
+					# BUILD_HALF_W знає лише орієнтовний розмір, а сарай на найбільшому масштабі
+					# вдвічі ширший за колодязь — перевіряти треба факт (мешу шару), не здогад.
+					b_half = _kind_half_extent(b_kind) * b_scale
+					if _row_distance_m[i] - b_half.y >= _far_clear[sidx]:
+						far_row = true
+						_far_left[sidx] = _rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1]))
+					else:
+						# попередня будівля на цьому боці ще не скінчилась по Z — не палимо
+						# лічильник навмання, а пробуємо знову вже наступного ряду
+						_far_left[sidx] = 1
 			if far_row:
-				_add_decor(ids, data, String(_buildings_far[_rng.randi() % _buildings_far.size()]), {},
-					side * (edge + _rng.randf_range(far_min, _d("far_max", FAR_MAX))), 0.0,
-					_rng.randf_range(_d2("build_scale", FAR_BUILD_SCALE)[0], _d2("build_scale", FAR_BUILD_SCALE)[1]),
+				var b_lo := far_min
+				if _canal_sides.has(side):
+					b_lo = maxf(_d("far_min", FAR_MIN), c_offset + c_width + 0.15 + b_half.x)
+				var b_hi := maxf(b_lo, _d("far_max", FAR_MAX))
+				_add_decor(ids, data, b_kind, {},
+					side * (edge + _rng.randf_range(b_lo, b_hi)), 0.0, b_scale,
 					0.0 if side > 0.0 else PI)
+				# наступна будівля на цьому боці — не раніше, ніж ця скінчиться по Z (+ зазор):
+				# інакше сарай і будинок поруч проростають одне в одне.
+				_far_clear[sidx] = _row_distance_m[i] + b_half.y + FAR_GAP_MIN
 			elif not _far_filler.is_empty() and _rng.randf() < _d("filler_chance", FAR_FILLER_CHANCE):
-				# заповнювач між будинками — дерева, щоб горизонт лишався закритим і в проміжках
-				_add_decor(ids, data, String(_far_filler[_rng.randi() % _far_filler.size()]), {},
-					side * (edge + _rng.randf_range(far_min, _d("far_max", FAR_MAX))), 0.0,
-					_rng.randf_range(_d2("filler_scale", FAR_FILLER_SCALE)[0], _d2("filler_scale", FAR_FILLER_SCALE)[1]))
+				# заповнювач між будинками — дерева, щоб горизонт лишався закритим і в проміжках.
+				# Дерево на найбільшому масштабі (у містечка — до 1,9) не вужче за будинок — та
+				# сама перевірка реальної половини ширини, щоб крона не звисала над каналом.
+				var f_kind := String(_far_filler[_rng.randi() % _far_filler.size()])
+				var f_scale := _rng.randf_range(_d2("filler_scale", FAR_FILLER_SCALE)[0], _d2("filler_scale", FAR_FILLER_SCALE)[1])
+				var f_half := _kind_half_extent(f_kind) * f_scale
+				var f_lo := far_min
+				if _canal_sides.has(side):
+					f_lo = maxf(_d("far_min", FAR_MIN), c_offset + c_width + 0.15 + f_half.x)
+				var f_hi := maxf(f_lo, _d("far_max", FAR_MAX))
+				_add_decor(ids, data, f_kind, {}, side * (edge + _rng.randf_range(f_lo, f_hi)), 0.0, f_scale)
 			if not critters.is_empty() and randf() < 0.12:
 				var cr_open := Critter3D.new()
 				cr_open.position = Vector3(side * (edge + randf_range(0.6, 1.4)), 0.0, randf_range(-0.4, 0.4))
@@ -1004,6 +1070,31 @@ func _filter_voxels(list: Variant) -> Array:
 		if typeof(v) == TYPE_STRING and _kind_exists(String(v)):
 			out.append(String(v))
 	return out
+
+
+## Половина розмірів моделі виду вздовж локальних X/Z (ДО масштабу з маркера) — з мешу
+## її шару декору. Орієнтовні константи (BUILD_HALF_W тощо) не знають фактичних пропорцій
+## конкретної моделі: сарай і колодязь різняться вдвічі, а поручні (fence_low) ширші за
+## ящик. _decor_layer() тут не створює нового шару — він уже підготовлений заздалегідь
+## (rebuild() проходить усі види props_side/buildings_far/far_filler один раз), тож це
+## лише кешоване читання властивості мешу, не диск.
+func _kind_half_extent(kind: String) -> Vector2:
+	var layer := _decor_layer(kind, {}, PropLibrary.pick(kind))
+	var mesh := (_decor_mm[layer].multimesh as MultiMesh).mesh
+	if mesh == null:
+		return Vector2(BUILD_HALF_W, BUILD_HALF_W)
+	var sz := mesh.get_aabb().size
+	return Vector2(sz.x * 0.5, sz.z * 0.5)
+
+
+## Консервативна «половина радіуса» виду — більша з половин X/Z. Пропси на узбіччі
+## отримують ВИПАДКОВИЙ поворот (_add_decor, yaw < 0 → randf()*TAU), тож наперед не відомо,
+## яка сторона мешу ляже впоперек смуги — беремо гірший випадок (по діагоналі майже
+## квадратна скриня «дотягується» на 40% далі, ніж по своїй короткій стороні), щоб зазор
+## між двома пропсами рятував і тоді, коли обидва розвернуло довгою віссю назустріч.
+func _kind_half_radius(kind: String) -> float:
+	var half := _kind_half_extent(kind)
+	return maxf(half.x, half.y)
 
 
 ## Канал уздовж дороги: вода, занурена на CANAL_DEPTH, і три шари теракотових берегів на кожному борті.
