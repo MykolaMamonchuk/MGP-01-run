@@ -21,9 +21,13 @@ void vertex() {
 void fragment() {
 	vec3 c = mix(color.rgb, color_light.rgb, smoothstep(0.3, 1.0, crest));
 	// піна на гребенях + тонкі відблиски, що біжать
-	float foam = smoothstep(0.78, 1.0, crest);
-	float streak = smoothstep(0.96, 1.0, sin(wpos.y * 6.0 + wpos.x * 2.5 + TIME * 3.0));
-	c = mix(c, vec3(1.0), clamp(foam * 0.8 + streak * 0.35, 0.0, 1.0));
+	// М'якші й рідші відблиски. Було: smoothstep(0.96, 1.0) — вузьке вікно дає СМУГУ з
+	// різким краєм, і на ігровій відстані вона вмикається-вимикається між кадрами, читаючись
+	// як миготіння. Ширше вікно робить блиск плавним, а менша сила прибирає чисто білий
+	// колір, від якого вода виглядала як пластик.
+	float foam = smoothstep(0.72, 1.0, crest);
+	float streak = smoothstep(0.80, 1.0, sin(wpos.y * 3.0 + wpos.x * 1.6 + TIME * 1.6));
+	c = mix(c, color_light.rgb, clamp(foam * 0.55 + streak * 0.22, 0.0, 1.0));
 	ALBEDO = c;
 	ROUGHNESS = 0.35;
 	SPECULAR = 0.5;
