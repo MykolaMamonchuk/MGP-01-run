@@ -528,11 +528,15 @@ func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, o
 	var extra_yaw := deg_to_rad(float(tw["yaw_deg"]))
 	data.append(x)
 	data.append(y)
-	data.append(randf_range(-0.4, 0.4) if yaw < 0.0 else 0.0)
-	data.append((randf() * TAU if yaw < 0.0 else yaw) + extra_yaw)
+	# Зсув і поворот беруть ВЛАСНИЙ генератор траси, а не глобальний. Глобальний ділиться з
+	# усім, що в грі кидає жереб за таймером — зокрема з пташкою, що перелітає дорогу. Через
+	# це та сама ділянка діставала різні повороти залежно від того, коли саме пролетіла
+	# пташка: предмети не зникали, але «переверталися», і в русі це читається як тремтіння.
+	data.append(_rng.randf_range(-0.4, 0.4) if yaw < 0.0 else 0.0)
+	data.append((_rng.randf() * TAU if yaw < 0.0 else yaw) + extra_yaw)
 	data.append(s * float(tw["scale"]))
 	# фазу зсуваємо на поточний час, щоб у мить появи вона була такою ж, як у старого Critter3D
-	data.append(randf() * 10.0 - _decor_t)
+	data.append(_rng.randf() * 10.0 - _decor_t)
 	data.append(stretch)
 
 
@@ -1042,7 +1046,7 @@ func _add_bridge(ids: PackedInt32Array, data: PackedFloat32Array, x: float, widt
 	data.append(0.0)
 	data.append(0.0)
 	data.append(1.0)
-	data.append(randf() * 10.0 - _decor_t)
+	data.append(_rng.randf() * 10.0 - _decor_t)
 	data.append(1.0)   # stretch — довжину вже задано розміром мешу, розтягувати вдруге не треба
 
 
@@ -1160,7 +1164,16 @@ func _layout_canal() -> void:
 		_canal_mats[s].set_shader_parameter("color", wc)
 		_canal_mats[s].set_shader_parameter("color_light", wc.lightened(0.35))
 		# береги: по три шари з обох бортів каналу, нижчий шар — темніший і трохи далі всередину
-		var banks: Array[Color] = [Palette.W_BANK_1, Palette.W_BANK_2, Palette.W_BANK_3]
+		# Береги — три тонкі смужки по 18 см. Під гострим кутом (а дальній берег видно саме
+		# так) така смужка займає менше пікселя, і її яскравий теракотовий колір щокадру то
+		# потрапляє в піксель, то ні: лінія «кишить». Саме це замовник позначив на знімку.
+		# Прибрати геометрію не можна — вона й формує борт каналу, — тож гасимо КОНТРАСТ:
+		# зміщуємо колір до трави, і мерехтіння стає непомітним, бо мерехтіти вже нічому.
+		var grass := Palette.of(world.get("ground"), Palette.WORLD_GROUND)
+		var banks: Array[Color] = [
+			Palette.W_BANK_1.lerp(grass, 0.45),
+			Palette.W_BANK_2.lerp(grass, 0.35),
+			Palette.W_BANK_3.lerp(grass, 0.25)]
 		for e in range(2):
 			var eside := -1.0 if e == 0 else 1.0
 			for k in range(CLIFF_LAYERS):
