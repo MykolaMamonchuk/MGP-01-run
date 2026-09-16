@@ -19,3 +19,7 @@ export_credentials.cfg
 # Python-інструменти (tools/voxelize.py)
 /tools/.venv/
 __pycache__/
+# Вивід Godot Movie Maker (--write-movie): кадри m00000000.png і доріжка m.wav лягають
+# просто в корінь проєкту. Це сміття від профілювання, а не частина гри.
+/m*.png
+/m.wav
