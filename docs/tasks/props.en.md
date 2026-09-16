@@ -219,3 +219,97 @@ other voxel combined.
 ### 12. `well` (2 in frame)
 
 > A cute round stone well with a small wooden roof, a rope and a hanging bucket, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+
+## What is still needed — as of 16.09.2026
+
+**Eight kinds already came from you** and are in the game: `barrel` ×3, `crate` ×3,
+`fence_low` ×3, `fence_rail` ×3, `cart_market` ×3, `bush_flower` ×2, `bridge_plank`,
+`puddle`.
+
+Everything else is currently a **placeholder** built by script (`tools/make_house.py`,
+`tools/make_nature.py`): geometry from primitives, no textures. It holds the style and the
+weight, but it is not real art. Measured: placeholders are **56% of the items on screen**
+(668 of 1187 across all five worlds).
+
+The order below is by MEASURED count on screen, not by feel. The first four close a third
+of everything visible.
+
+| # | `kind` | items on screen | types worth making | what it is |
+|---|---|---|---|---|
+| 1 | `tree_round + tree` | 130 | 3 | round leafy tree |
+| 2 | `wall_house` | 95 | 3 | tall street house |
+| 3 | `bush` | 75 | 2 | bush |
+| 4 | `flower` | 65 | 3 | flower |
+| 5 | `mushroom` | 57 | 2 | mushroom |
+| 6 | `pine_3` | 40 | 2 | pine tree |
+| 7 | `wall_tree_tall` | 39 | 2 | tall background tree |
+| 8 | `rock` | 85 | 3 | rock |
+| 9 | `awning_stall` | 12 | 2 | market stall |
+| 10 | `hut` | 11 | 2 | cottage |
+| 11 | `kiosk` | 9 | 1 | corner kiosk |
+| 12 | `hay_bale` | 8 | 2 | hay bale |
+| 13 | `goose` | 4 | 1 | goose · **rig: quadruped, legs apart** |
+| 14 | `mill` | 3 | 1 | windmill |
+
+**"Types worth making"** is how many DIFFERENT models of one kind make sense: a map draws a
+single type, so three trees mean three distinct towns, not three trees on one street.
+
+Generator settings and the processing pipeline are earlier in this file. Drop files into
+`docs/refs/incoming/<kind>/` — they swap in with no code changes.
+
+### 1. `tree_round + tree` — round leafy tree (130 on screen)
+
+> A cute round leafy tree with a chunky brown trunk and a soft rounded crown in two tones of green, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 2. `wall_house` — tall street house (95 on screen)
+
+> A cute tall two-storey riverside townhouse with a steep red tile roof, cream plaster walls with dark timber framing, shuttered windows with flower boxes and a striped awning over the door, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 3. `bush` — bush (75 on screen)
+
+> A cute rounded leafy bush in two tones of green, dense and soft, no flowers, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 4. `flower` — flower (65 on screen)
+
+> A cute single cheerful flower with a slim green stem, two small leaves and rounded petals, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 5. `mushroom` — mushroom (57 on screen)
+
+> A cute plump mushroom with a rounded cap and a short cream stem, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 6. `pine_3` — pine tree (40 on screen)
+
+> A cute small pine tree with soft tiers of dark green needles and a short brown trunk, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 7. `wall_tree_tall` — tall background tree (39 on screen)
+
+> A cute tall slender tree with a narrow rounded crown, used as a background wall of a forest road, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 8. `rock` — rock (85 on screen)
+
+> A cute rounded boulder with soft facets, warm grey stone, a patch of moss on one side, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 9. `awning_stall` — market stall (12 on screen)
+
+> A cute small market stall with a green and white striped fabric awning, a wooden counter piled with baskets of fruit and vegetables, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 10. `hut` — cottage (11 on screen)
+
+> A cute tiny cottage with a thatched straw roof, cream plaster walls, one round window and a small wooden door, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 11. `kiosk` — corner kiosk (9 on screen)
+
+> A cute tiny corner kiosk with a round teal roof, an open wooden serving window and a hand-painted sign, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 12. `hay_bale` — hay bale (8 on screen)
+
+> A cute round bale of golden hay tied with two rope bands, resting on its side, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 13. `goose` — goose · **rig: quadruped, legs apart** (4 on screen)
+
+> A cute plump white goose with an orange beak and orange feet, standing with both legs clearly apart, no eyes drawn on the face, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+### 14. `mill` — windmill (3 on screen)
+
+> A cute small windmill with a cream stone tower, a red conical roof and four wooden sails, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
