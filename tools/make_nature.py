@@ -171,9 +171,14 @@ def build(kind, h, main, second, seed):
     elif kind == "post_line":
         # Два стовпи з натягнутою линвою: мотузка з білизною, гірлянда прапорців.
         w = h * 1.6
+        # Стовпи ТОНКІ. Були 0,05 від висоти — на зріст 1,3 м це 13 см у діаметрі, тобто
+        # брус, а не жердина: у грі вони читались як голі планки посеред траси, і замовник
+        # питав, що це взагалі таке. Плюс маленька шапка, щоб стовп мав верх.
         for sx in (-1, 1):
             add(C.primitive_cylinder_add, mat("pole", second), vertices=6,
-                radius=h * 0.05, depth=h, location=(sx * w * 0.5, 0, h * 0.5))
+                radius=h * 0.022, depth=h, location=(sx * w * 0.5, 0, h * 0.5))
+            add(C.primitive_cone_add, mat("pole", second), vertices=6,
+                radius1=h * 0.038, depth=h * 0.055, location=(sx * w * 0.5, 0, h * 1.02))
         add(C.primitive_cube_add, mat("line", main), size=1.0,
             location=(0, 0, h * 0.88)).scale = (w * 0.5, h * 0.012, h * 0.012)
         # Прапорці РІЗНОКОЛЬОРОВІ. Раніше всі брали один головний колір, і для мотузки з

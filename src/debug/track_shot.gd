@@ -37,6 +37,13 @@ func _ready() -> void:
 	# бачить гравець.
 	e.ambient_light_color = Color(1.0, 0.96, 0.88)
 	e.ambient_light_energy = 0.35
+	# Серпанок — РІВНО як у грі (run3d.gd _setup_sky). Без нього знімок показував далекі
+	# предмети різкими, і я міряв появу декору на горизонті там, де в грі її ховає туман.
+	e.fog_enabled = true
+	e.fog_mode = Environment.FOG_MODE_EXPONENTIAL
+	e.fog_density = 0.012
+	e.fog_sky_affect = 0.0
+	e.fog_aerial_perspective = 0.4
 	env.environment = e
 	add_child(env)
 	var sun := DirectionalLight3D.new()

@@ -27,10 +27,9 @@
   ],
   "decor_big": [
     "tree",
-    "fence",
-    "bush",
-    "haycart",
-    "beehive"
+    "tree_round",
+    "pine_3",
+    "bush"
   ],
   "walls_near": [
     "house_terra",
@@ -41,8 +40,7 @@
     "awning_stall"
   ],
   "walls_far": [
-    "tree",
-    "haycart"
+    "tree"
   ],
   "walls_far_scale": [
     1.4,

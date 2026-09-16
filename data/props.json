@@ -95,5 +95,22 @@
   "banner_line": "res://assets/props/banner_line.glb",
   "xbox_red": "res://assets/props/xbox_red.glb",
   "goose": "res://assets/props/goose.glb",
-  "gate_post": "res://assets/props/gate_post.glb"
+  "gate_post": "res://assets/props/gate_post.glb",
+  "fence": [
+    "res://assets/props/fence_low_1.glb",
+    "res://assets/props/fence_low_2.glb",
+    "res://assets/props/fence_low_3.glb"
+  ],
+  "haycart": [
+    "res://assets/props/cart_market_1.glb",
+    "res://assets/props/cart_market_2.glb",
+    "res://assets/props/cart_market_3.glb"
+  ],
+  "beehive": [
+    "res://assets/props/barrel_1.glb",
+    "res://assets/props/barrel_2.glb",
+    "res://assets/props/barrel_3.glb"
+  ],
+  "garden": "res://assets/props/garden.glb",
+  "lantern": "res://assets/props/lantern.glb"
 }
