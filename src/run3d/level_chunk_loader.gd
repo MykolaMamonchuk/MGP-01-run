@@ -117,7 +117,11 @@ func _load_flat_level() -> void:
 func _apply(packed: PackedScene) -> void:
 	var layout := packed.instantiate()
 	var extracted := LevelTimeline.extract(layout)
-	layout.queue_free()
+	# Саме free(), а не queue_free(). Вузол ніколи не потрапляв у дерево, і потрібен він рівно
+	# на один рядок вище; queue_free() же відкладає звільнення до кінця кадру, тобто тримає
+	# цілий LevelLayout з усіма маркерами живим доти, доки SceneTree не дійде до черги
+	# видалення. На завантаженні рівня кадри саме й не крутяться — і чанки накопичуються.
+	layout.free()
 	# landmarks/walls_near ідуть тим самим шляхом _add_decor(), що й decor, — Track приймає лише
 	# два масиви (decor, buildings), тож зливаємо їх тут, а не плодимо ширший API.
 	var decor: Array = extracted.get("decor", []) + extracted.get("landmarks", []) + extracted.get("walls_near", [])
