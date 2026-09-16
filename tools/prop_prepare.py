@@ -50,6 +50,11 @@ def parse_args(argv):
                          "може зменшити ще й по висоті, і рівний метр зникне")
     ap.add_argument("--origin", default="bottom", choices=["bottom", "center", "keep"])
     ap.add_argument("--yaw", type=float, default=0.0)
+    ap.add_argument("--tris", type=int, default=0,
+                    help="спростити геометрію приблизно до N трикутників. Генератор віддає "
+                         "5–6 тисяч навіть на дощану огорожу, а її в кадрі 78 штук — це 452 "
+                         "тисячі трикутників із 595. Для телефона стеля десь 150–200 тисяч "
+                         "на кадр, тож без спрощення рівень не тягне")
     ap.add_argument("--no-rig", action="store_true",
                     help="викинути скелет і вагові групи. Пропсам ріг не потрібен у принципі: "
                          "він згинає суцільну шкіру, а ящик чи кущ або стоять, або розлітаються "
@@ -183,6 +188,17 @@ def main():
                 v.co.z -= cz
             o.data.update()
         lo, hi, size = describe(meshes, "початок")
+
+    if a.tris > 0:
+        for o in meshes:
+            have = len(o.data.polygons)
+            if have <= a.tris:
+                continue
+            mod = o.modifiers.new("decimate", "DECIMATE")
+            mod.ratio = max(float(a.tris) / float(have), 0.02)
+            bpy.context.view_layer.objects.active = o
+            bpy.ops.object.modifier_apply(modifier=mod.name)
+            print("  спрощено: %d → %d граней" % (have, len(o.data.polygons)))
 
     if a.tex_size > 0:
         for im in bpy.data.images:

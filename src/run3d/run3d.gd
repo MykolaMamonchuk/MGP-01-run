@@ -224,6 +224,11 @@ func _ready() -> void:
 	_wire_diorama()
 	_make_magpie()
 
+	# лічильник кадрів — лише коли попросили (PERF=1), у звичайній грі його нема
+	var perf := load("res://src/debug/perf_overlay.gd")
+	if perf != null:
+		perf.attach(self)
+
 	_apply_profile(AgeAdapt.current)
 	_apply_hero(String(SaveService.child().get("hero", "puf")))
 	level_num = lm.current()

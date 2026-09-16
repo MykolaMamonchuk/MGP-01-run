@@ -12,6 +12,7 @@
 ##     WORLD=meadow VIEW=top OUT=…     # згори: вода, береги, забудова — де що лежить
 ##     WORLD=meadow ADVANCE=17 OUT=…   # проїхати N метрів перед знімком
 ##     WORLD=meadow SEED=7 OUT=…       # інша розкладка декору (типово жереб сталий)
+##     WORLD=meadow LEVEL=1 ADVANCE=40 OUT=…   # САМЕ те, що бачить гравець на рівні 1
 extends Node3D
 
 ## Кадр як у гри: 16:9. Квадратна обрізка викидала б саме краї, а в референсі забудова
@@ -20,6 +21,7 @@ const OUT_W := 1152
 const OUT_H := 648
 
 var _track: Track
+var _chunks: LevelChunkLoader
 var _frames := 0
 var _done := false
 
@@ -74,10 +76,22 @@ func _ready() -> void:
 	e.background_color = Palette.of(w.get("sky"), Palette.W_SKY)
 	_track.rebuild(w, false)
 
+	# АВТОРСЬКИЙ РІВЕНЬ. Це не дрібниця, а різниця між тим, що я міряю, і тим, що бачить
+	# гравець: коли в рівня є авторський декор, Track малює ТІЛЬКИ його, а процедурний
+	# декоратор не виконується взагалі. Знімок без LEVEL показує процедурне узбіччя —
+	# густе й гарне, — а в грі на його місці стоїть рівно те, що розставлено маркерами.
+	var lvl := OS.get_environment("LEVEL")
+	if lvl != "":
+		_chunks = LevelChunkLoader.new()
+		_chunks.start(int(lvl), _track, null)
+
 	# проїхати трохи: перший ряд щойно викладено, а стики видно на вже перевкладених
 	var adv := OS.get_environment("ADVANCE")
-	for i in int(adv) if adv != "" else 6:
-		_track.advance(1.0)
+	var metres := int(adv) if adv != "" else 6
+	for i in metres:
+		_track.advance(1.0, float(i + 1))
+		if _chunks != null:
+			_chunks.update(float(i + 1))
 
 	var cam := Camera3D.new()
 	if OS.get_environment("VIEW") == "top":
