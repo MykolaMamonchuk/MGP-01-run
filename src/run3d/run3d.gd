@@ -1439,6 +1439,8 @@ func _charge_power(amount: int) -> void:
 func activate_power() -> void:
 	if state != State.RUN or not power_ready():
 		return
+	if OS.get_environment("PERF_LOG") != "":
+		print("СИЛА %s на %.2f с" % [power_id(), Time.get_ticks_msec() / 1000.0])
 	_power_id = power_id()
 	_power_dur = maxf(0.5, float(power_def.get("duration", 6.0)))
 	_power_t = _power_dur

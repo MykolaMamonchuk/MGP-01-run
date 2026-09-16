@@ -44,6 +44,17 @@ static func preheat(host: Node3D, at: Vector3 = Vector3.ZERO) -> void:
 	var star := MeshInstance3D.new()
 	star.mesh = star_mesh(Palette.STAR)
 	probe.add_child(star)
+	# Бульбашка щита (ведмежа/черепашки суперсила): єдиний ЛІТ-матеріал у всій родзинці
+	# суперсил — прозорий, з емісією, БЕЗ shading_mode unshaded. Це інший, важчий шейдер,
+	# ніж усі частинки вище (ті — unshaded), тож своє прогрівання йому не завадить: без
+	# нього перше «щит!» у сесії компілювало б PBR-шейдер саме в мить активації сили.
+	var shield := MeshInstance3D.new()
+	var sph := SphereMesh.new()
+	sph.radius = 0.75
+	sph.height = 1.5
+	shield.mesh = sph
+	shield.material_override = _shield_mat()
+	probe.add_child(shield)
 	host.get_tree().create_timer(PREHEAT_SEC).timeout.connect(
 		func() -> void:
 			if is_instance_valid(probe):
@@ -134,6 +145,24 @@ static func _flat_mat(color: Color) -> StandardMaterial3D:
 		# на пів екрана, хоч вузол і просив 0,26
 		m.billboard_keep_scale = true
 		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_mats[key] = m
+	return _mats[key]
+
+
+## Той самий набір властивостей, що й у Hero3D._shield (щит-бульбашка): лишаємо лит-освітлення
+## (тут shading_mode НЕ unshaded — інакше прогрівся б не той шейдер), прозорість і емісію.
+## Значення кольору й шорсткості для компіляції шейдера байдужі — важливий саме набір увімкнених
+## властивостей, тож дублюємо його точно, а не «схоже».
+static func _shield_mat() -> StandardMaterial3D:
+	var key := "shield_warm"
+	if not _mats.has(key):
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.albedo_color = Color(0.4, 0.8, 1.0, 0.28)
+		m.emission_enabled = true
+		m.emission = Palette.HERO_SHIELD
+		m.emission_energy_multiplier = 0.6
+		m.roughness = 0.2
 		_mats[key] = m
 	return _mats[key]
 

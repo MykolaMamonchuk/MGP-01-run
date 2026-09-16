@@ -39,8 +39,15 @@ func _ready() -> void:
 	add_child(_label)
 
 
+## Кадр гірший за поріг — друкуємо одразу, з часом від старту сеансу. Середнє й накопичений
+## «найдовший кадр» ховають ОДИНОЧНИЙ ривок серед секунд рівного бігу: щоб знайти, ЯКА саме
+## дія його викликала, потрібен час події, а не число після факту.
+const SPIKE_MS := 20.0
+
 func _process(delta: float) -> void:
 	_worst = maxf(_worst, delta)
+	if OS.get_environment("PERF_LOG") != "" and delta * 1000.0 > SPIKE_MS:
+		print("СПАЙК %.1f мс на %.2f с" % [delta * 1000.0, Time.get_ticks_msec() / 1000.0])
 	_t += delta
 	if _t < UPDATE_SEC:
 		return
@@ -49,13 +56,18 @@ func _process(delta: float) -> void:
 	var draw := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME)
 	var tris := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)
 	var vram := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED)
+	# Загальна відеопам'ять на маку роздута РОЗДІЛЬНІСТЮ ВІКНА: при MSAA 4× буфери кадру на
+	# ретині коштують сотні мегабайтів, яких на телефоні не буде. Для мобільного важить саме
+	# пам'ять ТЕКСТУР — вона від роздільності не залежить і переїде на пристрій як є.
+	var tex := RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED)
 	# друкуємо ще й у консоль: так числа можна зняти з запуску без очей на екрані
 	if OS.get_environment("PERF_LOG") != "":
-		print("ПРОФІЛЬ к/с=%d найдовший_мс=%.1f виклики=%d трикутники=%d вузли=%d" % [
-			fps, _worst * 1000.0, draw, tris, get_tree().get_node_count()])
-	_label.text = "%d к/с   найдовший кадр %.0f мс\nвикликів малювання %d\nтрикутників %s\nвідеопам'ять %.0f МБ\nвузлів %d" % [
+		print("ПРОФІЛЬ к/с=%d найдовший_мс=%.1f виклики=%d трикутники=%d відеопам'ять_МБ=%.1f текстури_МБ=%.1f вузли=%d" % [
+			fps, _worst * 1000.0, draw, tris, float(vram) / 1048576.0, float(tex) / 1048576.0,
+			get_tree().get_node_count()])
+	_label.text = "%d к/с   найдовший кадр %.0f мс\nвикликів малювання %d\nтрикутників %s\nвідеопам'ять %.0f МБ (текстури %.0f)\nвузлів %d" % [
 		fps, _worst * 1000.0, draw, _thousands(tris), float(vram) / 1048576.0,
-		get_tree().get_node_count()]
+		float(tex) / 1048576.0, get_tree().get_node_count()]
 
 
 ## Розділяємо тисячі: 1 200 000 читається, 1200000 — ні.
