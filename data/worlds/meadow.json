@@ -59,7 +59,7 @@
   "canal": {
     "side": "both",
     "offset": 1.5,
-    "width": 2.2
+    "width": 3.0
   },
   "bridges_every": 9,
   "props_side": [

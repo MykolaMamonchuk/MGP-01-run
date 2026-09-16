@@ -31,7 +31,7 @@ const GLOW_THRESHOLD := 1.1
 const ADJ_SATURATION := 1.15
 const ADJ_CONTRAST := 1.05
 ## Сонце 1.1 (run3d.tscn) + амбієнт 0.55: разом середні тони не перевищують 1.0 і не пересвічуються.
-const AMBIENT_ENERGY := 0.55
+const AMBIENT_ENERGY := 0.35
 ## Сорока (GDD v1.4 §3): скидає X-ящик кожні 12–20 с, починаючи з 3-го рівня.
 const MAGPIE_FROM_LEVEL := 3
 const MAGPIE_DROP_INTERVAL := [12.0, 20.0]
@@ -434,8 +434,11 @@ func _set_sky(t: float) -> void:
 	if bool(level.get("evening", false)):
 		t = maxf(t, 0.8)
 	var c := day.lerp(evening, t)
-	# сонце 1.1 (як у run3d.tscn) + амбієнт 0.55: разом середні тони не виходять за 1.0
-	var energy := lerpf(1.1, 0.7, t)
+	# Сонце 0.9 + амбієнт 0.35. Раніше стояло 1.1 і 0.55, і в коментарі тут писало, що
+	# «разом середні тони не виходять за 1.0» — вимірювання це спростувало: піщана плитка
+	# дороги #E9CF8A множилась на 1.65 і обрізалась у БІЛИЙ. Через це вся картина виглядала
+	# вицвілою, а найяскравіші поверхні втрачали колір повністю.
+	var energy := lerpf(0.9, 0.6, t)
 	if bool(level.get("night", false)):
 		c = c.darkened(0.55).lerp(Palette.SKY_NIGHT, 0.5)
 		energy = 0.45

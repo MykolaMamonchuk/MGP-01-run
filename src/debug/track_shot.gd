@@ -34,7 +34,7 @@ func _ready() -> void:
 	# яскравіше за справжнє, тож знімок виходив вицвілим, і я міряв схожість не з тим, що
 	# бачить гравець.
 	e.ambient_light_color = Color(0.85, 0.93, 1.0)
-	e.ambient_light_energy = 0.55
+	e.ambient_light_energy = 0.35
 	env.environment = e
 	add_child(env)
 	var sun := DirectionalLight3D.new()
@@ -42,7 +42,7 @@ func _ready() -> void:
 	sun.transform.basis = Basis(Vector3(0.87758255, 0.0, -0.47942555),
 		Vector3(-0.37554693, 0.62161, -0.687434),
 		Vector3(0.2980157, 0.7833269, 0.54551405))
-	sun.light_energy = 1.1
+	sun.light_energy = 0.9
 	sun.shadow_enabled = true
 	sun.directional_shadow_max_distance = 40.0
 	add_child(sun)
