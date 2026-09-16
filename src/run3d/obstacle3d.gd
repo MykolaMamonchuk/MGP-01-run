@@ -82,21 +82,26 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		_mesh.scale = _base_scale
 		_mesh.rotation.y += deg_to_rad(float(tw["yaw_deg"]))
 		add_child(_mesh)
-		# обведення: той самий меш, трохи роздутий, чорний, лицьові грані відсічені; дитина меша — повторює анімації
-		var outline := MeshInstance3D.new()
-		outline.mesh = _mesh.mesh
-		outline.scale = Vector3.ONE * OUTLINE_SCALE
-		var om := outline_material()
-		if _base_scale != Vector3.ONE and om is ShaderMaterial:
-			# збільшена перешкода роздула б обведення разом із собою — свій матеріал із меншим grow
-			var dup := (om as ShaderMaterial).duplicate() as ShaderMaterial
-			var g = dup.get_shader_parameter("grow")   # null — не перевизначено, беремо дефолт шейдера
-			var grow := float(g) if g != null else 0.03
-			dup.set_shader_parameter("grow", grow / maxf(0.01, _base_scale.x))
-			om = dup
-		outline.material_override = om
-		outline.name = "Outline"
-		_mesh.add_child(outline)
+		# Обведення — той самий меш, трохи роздутий і чорний. Воно робилось для ВОКСЕЛІВ:
+		# там грані великі й рівні, і чорний контур читається як мальована лінія. На
+		# низькополігональній моделі роздутий меш вилазить назовні окремими чорними
+		# трикутниками — саме це й було видно на гусці й на ринковому візку. Тому для
+		# справжніх моделей обведення не малюємо: у них силует тримає сама форма.
+		if prop_mesh == null:
+			var outline := MeshInstance3D.new()
+			outline.mesh = _mesh.mesh
+			outline.scale = Vector3.ONE * OUTLINE_SCALE
+			var om := outline_material()
+			if _base_scale != Vector3.ONE and om is ShaderMaterial:
+				# збільшена перешкода роздула б обведення разом із собою — свій матеріал із меншим grow
+				var dup := (om as ShaderMaterial).duplicate() as ShaderMaterial
+				var g = dup.get_shader_parameter("grow")   # null — не перевизначено, беремо дефолт шейдера
+				var grow := float(g) if g != null else 0.03
+				dup.set_shader_parameter("grow", grow / maxf(0.01, _base_scale.x))
+				om = dup
+			outline.material_override = om
+			outline.name = "Outline"
+			_mesh.add_child(outline)
 		_add_marker()
 		# Плиту небезпеки (червоно-біле тло під перешкодою) прибрано на прохання замовника:
 		# вона з'явилась як підказка «сюди не можна», але поруч зі справжніми моделями
@@ -266,6 +271,9 @@ func tick(delta: float) -> void:
 			position.z += ROLL_SPEED * delta
 			_roll += (ROLL_SPEED * delta) / r
 			_mesh.rotation = Vector3(_roll, 0.0, PI * 0.5)
+			# Початок координат моделі — унизу, тож поворот на бік «топить» половину бочки
+			# під землю. Піднімаємо на радіус: тепер вона лежить НА землі, а не в ній.
+			_mesh.position.y = _box_y + r
 		"breathe":
 			var s := 1.0 + sin(_t * 2.0) * 0.04
 			_mesh.scale = _base_scale * Vector3(s, 1.0 / s, s)

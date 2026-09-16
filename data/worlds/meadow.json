@@ -121,9 +121,9 @@
       "tumble": true,
       "y": 0.0,
       "box": [
-        0.7,
-        0.52,
-        0.7
+        0.6,
+        0.45,
+        0.6
       ],
       "anim": "breathe",
       "shape": "low_bar",
