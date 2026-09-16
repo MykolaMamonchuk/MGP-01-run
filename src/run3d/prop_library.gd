@@ -114,11 +114,25 @@ static func _sprite_mesh(e: Dictionary) -> Mesh:
 	var h := float(e.get("height", 1.0))
 	var w := float(e.get("width", 0.0))
 	if w <= 0.0:
-		w = h * float(tex.get_width()) / maxf(float(tex.get_height()), 1.0)
+		var cells := maxi(int(e.get("frames", 1)), 1)
+		w = h * (float(tex.get_width()) / float(cells)) / maxf(float(tex.get_height()), 1.0)
 	var quad := QuadMesh.new()
 	quad.size = Vector2(w, h)
 	# початок унизу, як і в моделей: пропс ставиться на землю, а не тоне в ній наполовину
 	quad.center_offset = Vector3(0.0, h * 0.5, 0.0)
+	# frames > 1 — спрайт знятий з КІЛЬКОХ боків (атлас у рядок). Тоді матеріал не звичайний,
+	# а шейдерний: він довертає дощечку до камери й бере з атласу той бік, під яким на
+	# предмет дивляться саме зараз. Звичайний білборд показував би одну й ту саму картинку
+	# з усіх напрямків, і кущ «обертався» б разом з оком.
+	var frames := int(e.get("frames", 1))
+	if frames > 1:
+		var sm := ShaderMaterial.new()
+		sm.shader = load("res://src/run3d/impostor.gdshader")
+		sm.set_shader_parameter("atlas", tex)
+		sm.set_shader_parameter("frames", frames)
+		quad.material = sm
+		return quad
+
 	var m := StandardMaterial3D.new()
 	m.albedo_texture = tex
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED   # світло вже вмальоване в спрайт
@@ -155,6 +169,7 @@ static func _entry(kind: String, variant: int = 0) -> Dictionary:
 			"height": float(d.get("height", 1.0)),
 			"width": float(d.get("width", 0.0)),
 			"billboard": bool(d.get("billboard", true)),
+			"frames": int(d.get("frames", 1)),
 			"scale": float(d.get("scale", 1.0)),
 			"yaw_deg": float(d.get("yaw_deg", 0.0))}
 	return {}

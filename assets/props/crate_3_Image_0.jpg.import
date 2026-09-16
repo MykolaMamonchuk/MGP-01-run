@@ -2,20 +2,20 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://t8vm24c8tj7v"
-path.s3tc="res://.godot/imported/bridge_plank_Image_2.jpg-b7d3d8f825f9dd700dcb6465aa43c5e6.s3tc.ctex"
+uid="uid://dy8ccotngepph"
+path.s3tc="res://.godot/imported/crate_3_Image_0.jpg-8a62b0aedac439cb2f5b45c27d576565.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "1615bbdc2044c47f44bad1e4a15d8d10"
+"md5": "6d866df3dc173267e078be8ba3ae5078"
 }
 
 [deps]
 
-source_file="res://assets/props/bridge_plank_Image_2.jpg"
-dest_files=["res://.godot/imported/bridge_plank_Image_2.jpg-b7d3d8f825f9dd700dcb6465aa43c5e6.s3tc.ctex"]
+source_file="res://assets/props/crate_3_Image_0.jpg"
+dest_files=["res://.godot/imported/crate_3_Image_0.jpg-8a62b0aedac439cb2f5b45c27d576565.s3tc.ctex"]
 
 [params]
 

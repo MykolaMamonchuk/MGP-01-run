@@ -6,87 +6,27 @@
     "yaw_deg": 0.0
   },
   "barrel": [
-    {
-      "sprite": "res://assets/sprites/barrel_1.png",
-      "width": 0.5906,
-      "height": 0.6969
-    },
-    {
-      "sprite": "res://assets/sprites/barrel_2.png",
-      "width": 0.6024,
-      "height": 0.6969
-    },
-    {
-      "sprite": "res://assets/sprites/barrel_3.png",
-      "width": 0.6261,
-      "height": 0.6969
-    }
+    "res://assets/props/barrel_1.glb",
+    "res://assets/props/barrel_2.glb",
+    "res://assets/props/barrel_3.glb"
   ],
-  "cart_market": {
-    "sprite": "res://assets/sprites/cart_market.png",
-    "width": 0.729,
-    "height": 0.7965
-  },
+  "cart_market": "res://assets/props/cart_market.glb",
   "fence_low": [
-    {
-      "sprite": "res://assets/sprites/fence_low_1.png",
-      "width": 0.9458,
-      "height": 0.5611
-    },
-    {
-      "sprite": "res://assets/sprites/fence_low_2.png",
-      "width": 0.9458,
-      "height": 0.497
-    },
-    {
-      "sprite": "res://assets/sprites/fence_low_3.png",
-      "width": 0.9458,
-      "height": 0.513
-    }
+    "res://assets/props/fence_low_1.glb",
+    "res://assets/props/fence_low_2.glb",
+    "res://assets/props/fence_low_3.glb"
   ],
   "fence_rail": [
-    {
-      "sprite": "res://assets/sprites/fence_rail_1.png",
-      "width": 0.9956,
-      "height": 0.4134,
-      "billboard": false
-    },
-    {
-      "sprite": "res://assets/sprites/fence_rail_2.png",
-      "width": 0.9956,
-      "height": 0.27,
-      "billboard": false
-    },
-    {
-      "sprite": "res://assets/sprites/fence_rail_3.png",
-      "width": 0.9956,
-      "height": 0.3206,
-      "billboard": false
-    }
+    "res://assets/props/fence_rail_1.glb",
+    "res://assets/props/fence_rail_2.glb",
+    "res://assets/props/fence_rail_3.glb"
   ],
   "crate": [
-    {
-      "sprite": "res://assets/sprites/crate_1.png",
-      "width": 0.6969,
-      "height": 0.5197
-    },
-    {
-      "sprite": "res://assets/sprites/crate_2.png",
-      "width": 0.6969,
-      "height": 0.5079
-    },
-    {
-      "sprite": "res://assets/sprites/crate_3.png",
-      "width": 0.6969,
-      "height": 0.4843
-    }
+    "res://assets/props/crate_1.glb",
+    "res://assets/props/crate_2.glb",
+    "res://assets/props/crate_3.glb"
   ],
-  "puddle": {
-    "sprite": "res://assets/sprites/puddle.png",
-    "width": 0.7932,
-    "height": 0.1113,
-    "billboard": false
-  },
+  "puddle": "res://assets/props/puddle.glb",
   "bridge_plank": {
     "path": "res://assets/props/bridge_plank.glb",
     "scale": 1.0,
@@ -95,25 +35,29 @@
   "bush_flower": [
     {
       "sprite": "res://assets/sprites/bush_flower_1.png",
-      "width": 0.6313,
-      "height": 0.5029
+      "width": 0.642,
+      "height": 0.5029,
+      "frames": 8
     },
     {
       "sprite": "res://assets/sprites/bush_flower_2.png",
-      "width": 0.2869,
-      "height": 0.3134
+      "width": 0.2948,
+      "height": 0.3134,
+      "frames": 8
     }
   ],
   "bush": [
     {
       "sprite": "res://assets/sprites/bush_flower_1.png",
-      "width": 0.6313,
-      "height": 0.5029
+      "width": 0.642,
+      "height": 0.5029,
+      "frames": 8
     },
     {
       "sprite": "res://assets/sprites/bush_flower_2.png",
-      "width": 0.2869,
-      "height": 0.3134
+      "width": 0.2948,
+      "height": 0.3134,
+      "frames": 8
     }
   ]
 }
