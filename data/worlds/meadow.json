@@ -5,18 +5,19 @@
   "mode": "run",
   "sky": "#9BDDFF",
   "sky_evening": "#F7B58A",
-  "ground": "#7CC46B",
-  "ground_dark": "#5FA553",
-  "side": "#6DB35E",
-  "far": "#A8DCA0",
+  "ground": "#A9BB55",
+  "ground_dark": "#4F7A42",
+  "side": "#5C9048",
+  "far": "#79AD68",
   "accent": "#F06292",
   "cliff": [
     "#C9784F",
     "#A55B3A",
     "#7A4128"
   ],
-  "cliff_water": "#2FB7D9",
-  "seam": "#4C7C43",
+  "cliff_water": "#4A83A8",
+  "water": "#4A83A8",
+  "seam": "#9C7A48",
   "fog_density": 0.012,
   "decor": [
     "flower",
@@ -259,5 +260,6 @@
       "shape": "high_frame",
       "prop": "clothesline"
     }
-  }
+  },
+  "road_color": "#E7C489"
 }

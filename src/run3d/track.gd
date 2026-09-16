@@ -350,7 +350,15 @@ func _decor_layer_custom(key: String, mesh: Mesh, mat: Material) -> int:
 # ── Чисті помічники узбіччя (тести: tests/test_track_v15.gd) ─────────────
 
 ## Два кольори покриття: з них складається малюнок дороги (road_surface зі світу).
-static func surface_colors(surface: String) -> Array:
+##
+## tint — необов'язкове поле `road_color` світу. Досі колір плитки був зашитий у палітру й
+## однаковий у всіх світів, тож піщану стежку містечка не можна було відрізнити від бруківки
+## іншого рівня інакше, як міняючи сам ВИД покриття — а він тягне за собою й малюнок.
+## Тепер вид відповідає за малюнок, а колір задається окремо.
+static func surface_colors(surface: String, tint = null) -> Array:
+	if tint != null:
+		var c := Palette.of(tint, Palette.W_SLAB)
+		return [c, c.darkened(0.10)]
 	match surface:
 		"planks": return [Palette.W_WOOD, Palette.W_WOOD_DARK]
 		"sand_planks": return [Palette.SAND, Palette.W_WOOD]
@@ -362,8 +370,8 @@ static func surface_colors(surface: String) -> Array:
 ## Колір однієї плитки. Детермінований від зерна ряду й номера доріжки — малюнок не мерехтить.
 ## Плити й брук — нерівномірна суміш двох відтінків; дошки — смуги поперек дороги (по рядах);
 ## пісок+дошки — планка кожен третій ряд; хмара — біле з блакитним.
-static func tile_color(surface: String, row_seed: int, col: int) -> Color:
-	var c: Array = surface_colors(surface)
+static func tile_color(surface: String, row_seed: int, col: int, tint = null) -> Color:
+	var c: Array = surface_colors(surface, tint)
 	var h: int = absi(hash(str(row_seed, ":", col)))
 	match surface:
 		"planks": return c[posmod(row_seed, 2)]
@@ -581,7 +589,7 @@ func _paint_surface_row(i: int) -> void:
 	var seed_i := _row_seed[i]
 	var tile_mm := _mm_surface.multimesh as MultiMesh
 	for k in range(MAX_LANES):
-		tile_mm.set_instance_color(i * MAX_LANES + k, tile_color(_surface, seed_i, k))
+		tile_mm.set_instance_color(i * MAX_LANES + k, tile_color(_surface, seed_i, k, world.get("road_color")))
 	var grass := Palette.of(world.get("side"), Palette.W_GRASS)
 	var shadow := Palette.of(world.get("ground_dark"), Palette.W_GRASS_SHADOW)
 	var edge_mm := _mm_edge.multimesh as MultiMesh

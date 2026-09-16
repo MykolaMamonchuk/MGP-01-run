@@ -30,13 +30,21 @@ func _ready() -> void:
 	e.background_mode = Environment.BG_COLOR
 	e.background_color = Palette.W_SKY
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color.WHITE
-	e.ambient_light_energy = 0.75
+	# Світло РІВНО як у грі (run3d.tscn, Environment_1). Було 0,75 і чисто біле — на третину
+	# яскравіше за справжнє, тож знімок виходив вицвілим, і я міряв схожість не з тим, що
+	# бачить гравець.
+	e.ambient_light_color = Color(0.85, 0.93, 1.0)
+	e.ambient_light_energy = 0.55
 	env.environment = e
 	add_child(env)
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-46.0, 150.0, 0.0)
+	# той самий поворот сонця, що в run3d.tscn
+	sun.transform.basis = Basis(Vector3(0.87758255, 0.0, -0.47942555),
+		Vector3(-0.37554693, 0.62161, -0.687434),
+		Vector3(0.2980157, 0.7833269, 0.54551405))
 	sun.light_energy = 1.1
+	sun.shadow_enabled = true
+	sun.directional_shadow_max_distance = 40.0
 	add_child(sun)
 
 	_track = Track.new()
