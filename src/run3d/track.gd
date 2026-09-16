@@ -779,7 +779,12 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 		for v in _near_wall_pool():
 			if not _buildings_far.has(v) and _voxel_exists(String(v)):
 				_buildings_far.append(v)
-	_far_filler = _filter_voxels(["tree_round", "pine_3"])
+	# Чим заповнюється горизонт у проміжках між будинками. Було зашито «дуб і сосна» для
+	# ВСІХ світів — і в Хмаринках уздовж дороги росли сосни, а на морі мали б рости так само.
+	# Дерева лишаються ЗАПАСНИМ варіантом для світів, які нічого не просять (Лужок, Ліс,
+	# Місто — там вони й доречні).
+	var filler = world.get("far_filler", ["tree_round", "pine_3"])
+	_far_filler = _filter_voxels(filler if typeof(filler) == TYPE_ARRAY else ["tree_round", "pine_3"])
 	_canal_rocks = _filter_voxels(["rock_grey", "mossrock"])
 	# шари під усі види пропсів створюємо одразу: вибір випадковий, і без цього другий rebuild
 	# того ж світу «знаходив» нові види й плодив шари посеред гри

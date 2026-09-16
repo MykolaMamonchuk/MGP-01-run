@@ -12,41 +12,244 @@
   "far": "#F6D79A",
   "water": "#4FC3F7",
   "accent": "#EF5350",
-  "cliff": ["#C9784F", "#A55B3A", "#7A4128"],
+  "cliff": [
+    "#C9784F",
+    "#A55B3A",
+    "#7A4128"
+  ],
   "cliff_water": "#2FB7D9",
   "seam": "#D8B876",
   "fog_density": 0.02,
-  "decor": ["rock", "crab", "star", "shell"],
-  "decor_big": ["palm", "umbrella", "palm", "sandcastle", "buoy"],
-  "walls_near": ["buoy", "rock", "palm", "sandcastle", "umbrella", "shell"],
-  "walls_far": ["buoy", "rock"],
-  "walls_far_scale": [1.4, 2.0],
-  "landmarks": ["arch_terracotta", "tower_terracotta"],
+  "decor": [
+    "rock",
+    "crab",
+    "star",
+    "shell"
+  ],
+  "decor_big": [
+    "palm",
+    "umbrella",
+    "palm",
+    "sandcastle",
+    "buoy"
+  ],
+  "walls_near": [
+    "buoy",
+    "rock",
+    "palm",
+    "sandcastle",
+    "umbrella",
+    "shell"
+  ],
+  "walls_far": [
+    "buoy",
+    "rock"
+  ],
+  "far_filler": [
+    "rock"
+  ],
+  "walls_far_scale": [
+    1.4,
+    2.0
+  ],
+  "landmarks": [
+    "arch_terracotta",
+    "tower_terracotta"
+  ],
   "roadside": "open",
   "road_surface": "sand_planks",
-  "canal": {"side": "right", "offset": 1.8, "width": 3.0},
+  "canal": {
+    "side": "right",
+    "offset": 1.8,
+    "width": 3.0
+  },
   "bridges_every": 9,
-  "props_side": ["umbrella_stripe", "palm", "rock_grey", "crate"],
-  "buildings_far": ["beach_hut", "palm"],
+  "props_side": [
+    "umbrella_stripe",
+    "palm",
+    "rock_grey",
+    "crate"
+  ],
+  "buildings_far": [
+    "beach_hut",
+    "palm"
+  ],
   "canopy": false,
   "tier2": false,
-  "critters": ["crab"],
-  "birds": ["bird"],
-  "decor_colors": ["#FFEE58", "#FF7043"],
+  "critters": [
+    "crab"
+  ],
+  "birds": [
+    "bird"
+  ],
+  "decor_colors": [
+    "#FFEE58",
+    "#FF7043"
+  ],
   "music": "beach",
   "speed_factor": 0.8,
-  "camera": {"pos": [0.0, 3.8, 4.6], "look": [0.0, 0.5, -5.0], "fov": 52, "ortho": false},
+  "camera": {
+    "pos": [
+      0.0,
+      3.8,
+      4.6
+    ],
+    "look": [
+      0.0,
+      0.5,
+      -5.0
+    ],
+    "fov": 52,
+    "ortho": false
+  },
   "obstacles": {
-    "rock":       {"voxel": "rock",       "action": "side", "tumble": true,  "y": 0.0, "box": [0.7, 0.6, 0.6],  "shape": "x_box", "marker": "none"},
-    "crab":       {"voxel": "crab",       "action": "jump", "tumble": false, "y": 0.0, "box": [0.7, 0.4, 0.5],  "moves": true, "move_speed": 0.8, "shape": "critter"},
-    "buoy":       {"voxel": "buoy",       "action": "side", "tumble": true,  "y": 0.0, "box": [0.6, 0.7, 0.6],  "anim": "bob",   "shape": "x_box", "marker": "none"},
-    "jellyfish":  {"voxel": "jellyfish",  "action": "jump", "tumble": true,  "y": 0.0, "box": [0.5, 0.6, 0.4],  "anim": "pulse", "shape": "low_bar", "marker": "none"},
-    "ball":       {"voxel": "ball",       "action": "jump", "tumble": false, "y": 0.0, "box": [0.5, 0.5, 0.5],  "anim": "bounce", "shape": "low_bar", "marker": "none"},
-    "sandcastle": {"voxel": "sandcastle", "action": "side", "tumble": true,  "y": 0.0, "box": [0.75, 0.8, 0.6], "anim": "wobble", "shape": "x_box", "marker": "none"},
-    "seaweed":    {"voxel": "seaweed",    "action": "any",  "tumble": false, "y": 0.0, "box": [0.5, 0.5, 0.4],  "anim": "sway",  "shape": "low_bar", "marker": "none"},
-    "beam":       {"voxel": "beam",       "action": "duck", "tumble": true,  "y": 0.9, "box": [1.2, 0.4, 0.3],  "shape": "high_frame"},
-    "boat":       {"voxel": "boat_cart",  "action": "side", "tumble": true,  "y": 0.0, "box": [0.8, 1.0, 0.7],  "anim": "bob",   "shape": "vehicle", "vehicle_voxel": "boat_cart"},
-    "xbox":       {"voxel": "xbox_red",   "action": "side", "tumble": true,  "y": 0.0, "box": [0.75, 1.0, 0.6], "shape": "x_box"},
-    "net":        {"voxel": "net",        "action": "duck", "tumble": true,  "y": 0.95,"box": [1.2, 0.6, 0.3],  "anim": "sway",  "shape": "high_frame"}
+    "rock": {
+      "voxel": "rock",
+      "action": "side",
+      "tumble": true,
+      "y": 0.0,
+      "box": [
+        0.7,
+        0.6,
+        0.6
+      ],
+      "shape": "x_box",
+      "marker": "none"
+    },
+    "crab": {
+      "voxel": "crab",
+      "action": "jump",
+      "tumble": false,
+      "y": 0.0,
+      "box": [
+        0.7,
+        0.4,
+        0.5
+      ],
+      "moves": true,
+      "move_speed": 0.8,
+      "shape": "critter"
+    },
+    "buoy": {
+      "voxel": "buoy",
+      "action": "side",
+      "tumble": true,
+      "y": 0.0,
+      "box": [
+        0.6,
+        0.7,
+        0.6
+      ],
+      "anim": "bob",
+      "shape": "x_box",
+      "marker": "none"
+    },
+    "jellyfish": {
+      "voxel": "jellyfish",
+      "action": "jump",
+      "tumble": true,
+      "y": 0.0,
+      "box": [
+        0.5,
+        0.6,
+        0.4
+      ],
+      "anim": "pulse",
+      "shape": "low_bar",
+      "marker": "none"
+    },
+    "ball": {
+      "voxel": "ball",
+      "action": "jump",
+      "tumble": false,
+      "y": 0.0,
+      "box": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "anim": "bounce",
+      "shape": "low_bar",
+      "marker": "none"
+    },
+    "sandcastle": {
+      "voxel": "sandcastle",
+      "action": "side",
+      "tumble": true,
+      "y": 0.0,
+      "box": [
+        0.75,
+        0.8,
+        0.6
+      ],
+      "anim": "wobble",
+      "shape": "x_box",
+      "marker": "none"
+    },
+    "seaweed": {
+      "voxel": "seaweed",
+      "action": "any",
+      "tumble": false,
+      "y": 0.0,
+      "box": [
+        0.5,
+        0.5,
+        0.4
+      ],
+      "anim": "sway",
+      "shape": "low_bar",
+      "marker": "none"
+    },
+    "beam": {
+      "voxel": "beam",
+      "action": "duck",
+      "tumble": true,
+      "y": 0.9,
+      "box": [
+        1.2,
+        0.4,
+        0.3
+      ],
+      "shape": "high_frame"
+    },
+    "boat": {
+      "voxel": "boat_cart",
+      "action": "side",
+      "tumble": true,
+      "y": 0.0,
+      "box": [
+        0.8,
+        1.0,
+        0.7
+      ],
+      "anim": "bob",
+      "shape": "vehicle",
+      "vehicle_voxel": "boat_cart"
+    },
+    "xbox": {
+      "voxel": "xbox_red",
+      "action": "side",
+      "tumble": true,
+      "y": 0.0,
+      "box": [
+        0.75,
+        1.0,
+        0.6
+      ],
+      "shape": "x_box"
+    },
+    "net": {
+      "voxel": "net",
+      "action": "duck",
+      "tumble": true,
+      "y": 0.95,
+      "box": [
+        1.2,
+        0.6,
+        0.3
+      ],
+      "anim": "sway",
+      "shape": "high_frame"
+    }
   }
 }
