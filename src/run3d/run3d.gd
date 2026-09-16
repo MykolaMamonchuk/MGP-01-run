@@ -449,7 +449,7 @@ func _set_sky(t: float) -> void:
 		energy = 0.45
 	if env.environment:
 		env.environment.background_color = c
-		env.environment.ambient_light_color = c.lightened(0.35)
+		env.environment.ambient_light_color = c.lightened(0.35).lerp(Palette.WHITE, 0.45)
 		env.environment.fog_light_color = c.lightened(0.2)
 	sun.light_energy = energy
 	sun.light_color = Palette.WHITE.lerp(Palette.SUN_EVENING, t)

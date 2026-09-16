@@ -17,7 +17,7 @@
   ],
   "cliff_water": "#4A83A8",
   "water": "#4A83A8",
-  "seam": "#9C7A48",
+  "seam": "#A87F45",
   "fog_density": 0.012,
   "decor": [
     "flower",
@@ -266,7 +266,7 @@
       "marker": "none"
     }
   },
-  "road_color": "#E7C489",
+  "road_color": "#CF9B57",
   "dressing": {
     "prop_chance": 0.65,
     "prop_chance2": 0.4,

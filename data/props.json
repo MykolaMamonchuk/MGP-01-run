@@ -94,5 +94,6 @@
   "clothesline": "res://assets/props/clothesline.glb",
   "banner_line": "res://assets/props/banner_line.glb",
   "xbox_red": "res://assets/props/xbox_red.glb",
-  "goose": "res://assets/props/goose.glb"
+  "goose": "res://assets/props/goose.glb",
+  "gate_post": "res://assets/props/gate_post.glb"
 }

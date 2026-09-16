@@ -140,6 +140,17 @@ def build(kind, h, main, second, seed):
             location=(0, 0, h * 0.92)).scale = (w * 0.5 + h * 0.16, h * 0.13, h * 0.09)
         add(C.primitive_cube_add, mat("pillar", main), size=1.0,
             location=(0, 0, h * 1.05)).scale = (w * 0.30, h * 0.16, h * 0.06)
+    elif kind == "gate_post":
+        # Стовп воріт: база, стовбур зі звуженням, пояс і шапка. Раніше це був стос
+        # кубиків різного кольору — читався як технічна заготовка, а не як ворота свята.
+        add(C.primitive_cylinder_add, mat("stone", second), vertices=8,
+            radius=h * 0.115, depth=h * 0.07, location=(0, 0, h * 0.035))
+        add(C.primitive_cylinder_add, mat("post", main), vertices=8,
+            radius=h * 0.075, depth=h * 0.88, location=(0, 0, h * 0.47))
+        add(C.primitive_torus_add, mat("stone", second), major_radius=h * 0.085,
+            minor_radius=h * 0.022, major_segments=8, minor_segments=5, location=(0, 0, h * 0.62))
+        add(C.primitive_cone_add, mat("stone", second), vertices=8,
+            radius1=h * 0.13, depth=h * 0.13, location=(0, 0, h * 0.97))
     elif kind == "tower":
         # Вежа-орієнтир: круглий стовбур, що звужується догори, пояс і конічний дах.
         # Раніше під цією назвою стояла арка — збоку від дороги вона читалась як голий
@@ -204,7 +215,7 @@ DEFAULTS = {
     "pine": ("#2F7A48", "#6B4327"), "bush": ("#5BA34A", "#4C8C3E"),
     "flower": ("#F2A0C0", "#5FA845"), "mushroom": ("#D9503F", "#F1E4C8"),
     "rock": ("#A8ADB3", "#8E949B"), "hay_bale": ("#D9B65C", "#B08840"),
-    "arch": ("#C97B5A", "#8D5524"), "tower": ("#EFDDBC", "#C1452F"), "post_line": ("#E8F1E4", "#7A4A2A"),
+    "arch": ("#C97B5A", "#8D5524"), "gate_post": ("#C9A45C", "#8D5524"), "tower": ("#EFDDBC", "#C1452F"), "post_line": ("#E8F1E4", "#7A4A2A"),
     "xbox": ("#C1452F", "#FFFFFF"), "goose": ("#F7F3E8", "#E8A33D"),
 }
 

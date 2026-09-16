@@ -35,7 +35,7 @@ func _ready() -> void:
 	# Світло РІВНО як у грі (run3d.tscn, Environment_1). Було 0,75 і чисто біле — на третину
 	# яскравіше за справжнє, тож знімок виходив вицвілим, і я міряв схожість не з тим, що
 	# бачить гравець.
-	e.ambient_light_color = Color(0.85, 0.93, 1.0)
+	e.ambient_light_color = Color(1.0, 0.96, 0.88)
 	e.ambient_light_energy = 0.35
 	env.environment = e
 	add_child(env)

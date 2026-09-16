@@ -4,6 +4,8 @@ class_name FinishGate3D
 extends Node3D
 
 const POLE_H := 2.4
+## Зріст моделі стовпа, як її згенеровано (tools/make_nature.py --kind gate_post --height 2.4).
+const GATE_POST_H := 2.4
 
 var passed := false
 
@@ -20,16 +22,23 @@ func setup(lanes: int) -> void:
 		# стовпчик із «кубиків»
 		var pole := Node3D.new()
 		pole.position = Vector3(side * half, 0.0, 0.0)
-		var n := 6
-		var seg_h := POLE_H / float(n)
-		for i in range(n):
-			var c := Palette.GATE_POST if i % 2 == 0 else Palette.GATE_POST_ALT
-			var b := Mats.box(Vector3(0.24, seg_h, 0.24), c)
-			b.position.y = seg_h * (float(i) + 0.5)
-			pole.add_child(b)
-		var cap := Mats.box(Vector3(0.34, 0.16, 0.34), Palette.GATE_CAP)
-		cap.position.y = POLE_H + 0.08
-		pole.add_child(cap)
+		# Стовп — справжня модель, якщо вона є. Раніше це був стос кубиків різного кольору:
+		# на тлі решти світу, яка вже з моделей, він читався як технічна заготовка.
+		var post := PropLibrary.node_for("gate_post")
+		if post != null:
+			post.scale = Vector3.ONE * (POLE_H / GATE_POST_H)
+			pole.add_child(post)
+		else:
+			var n := 6
+			var seg_h := POLE_H / float(n)
+			for i in range(n):
+				var c := Palette.GATE_POST if i % 2 == 0 else Palette.GATE_POST_ALT
+				var b := Mats.box(Vector3(0.24, seg_h, 0.24), c)
+				b.position.y = seg_h * (float(i) + 0.5)
+				pole.add_child(b)
+			var cap := Mats.box(Vector3(0.34, 0.16, 0.34), Palette.GATE_CAP)
+			cap.position.y = POLE_H + 0.08
+			pole.add_child(cap)
 		add_child(pole)
 		# прапорець на верхівці — розвернутий назовні
 		var flag := Node3D.new()

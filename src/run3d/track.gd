@@ -42,7 +42,7 @@ const CLIFF_LAYERS := 3
 const CLIFF_STEP := 0.4
 const CLIFF_BOTTOM := -0.4 - CLIFF_STEP * float(CLIFF_LAYERS)
 ## Шви між доріжками: тонкі темні бруски на межах плит (максимум — для 7 доріжок).
-const SEAM_W := 0.04
+const SEAM_W := 0.025
 const MAX_SEAMS := 6
 ## Орієнтир (арка/вежа/ворота) — раз на стільки рядів; ≤ 30, щоб він завжди був у полі зору.
 const LANDMARK_MIN := 28
@@ -57,7 +57,7 @@ const NEAR_MAX := 0.8
 ## Покриття дороги: плитка на кожну доріжку кожного ряду, кольори — з road_surface.
 ## Меш трохи менший за клітинку — проміжки самі стають тонкими швами.
 const MAX_LANES := 7
-const TILE_GAP := 0.04
+const TILE_GAP := 0.02
 const TILE_H := 0.06
 ## Плитка лежить на полотні: верх на TILE_LIFT вище дороги, щоб не було z-fighting.
 const TILE_LIFT := 0.01
@@ -415,7 +415,17 @@ static func tile_color(surface: String, row_seed: int, col: int, tint = null) ->
 		"planks": return c[posmod(row_seed, 2)]
 		"sand_planks": return c[1] if posmod(row_seed, 3) == 0 else c[0]
 		"cloud": return (c[0] as Color).lerp(c[1] as Color, float(h % 60) / 100.0)
-		_: return (c[0] as Color).lerp(c[1] as Color, float(h % 100) / 100.0)
+		_:
+			# Плитам потрібен ПОМІТНИЙ розкид, інакше дорога читається як рівна сітка, а не
+			# як бруківка: у референсі кожен камінь свого відтінку, вицвілий по-своєму.
+			# Два джерела розкиду, а не одне: перше змішує два кольори покриття, друге ледь
+			# грає яскравістю. Разом вони прибирають відчуття надрукованої клітинки.
+			var mixv := float(h % 100) / 100.0
+			var bright := 1.0 + (float((h >> 7) % 100) / 100.0 - 0.5) * 0.10
+			var base := (c[0] as Color).lerp(c[1] as Color, mixv)
+			return Color(clampf(base.r * bright, 0.0, 1.0),
+				clampf(base.g * bright, 0.0, 1.0),
+				clampf(base.b * bright, 0.0, 1.0))
 
 
 ## Боки, якими йде канал: -1 — ліворуч, 1 — праворуч.
