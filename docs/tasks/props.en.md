@@ -349,3 +349,80 @@ Meshy віддає **4096×4096 на кожну з трьох карт** (кол
 Джерела: [Meshy: low poly](https://www.meshy.ai/tutorials/make-low-poly-3d-models) ·
 [Meshy: retopology](https://www.meshy.ai/features/ai-retopology) ·
 [Meshy → Unity workflow](https://www.meshy.ai/tutorials/3d-model-for-unity-workflow)
+
+## The rest of the game: worlds 2–5 — as of 2026-09-17
+
+World 1 is finished: **29 kinds out of 29 have real models**. The rest of the game does not,
+and that is now the main thing standing between us and a demo. Counted from
+`data/worlds/*.json` against `data/props.json`:
+
+| world | levels | kinds total | have a model | still voxel |
+|---|---|---|---|---|
+| Meadow `meadow` | 1–4 | 29 | **29** | 0 |
+| City `city` | 12–14 | 20 | 16 | 4 |
+| Forest `forest` | 5–8 | 19 | 15 | 4 |
+| Beach `beach` | 9–11 | 14 | 5 | **9** |
+| Clouds `clouds` | 15–17 | 11 | 2 | **9** |
+
+Nine levels out of seventeen — more than half the game — are still made of cubes, even
+though voxels were dropped as a style.
+
+### The queue, ordered by MEASURED weight on screen
+
+The number is how many of that kind the track actually places in one frame (`DUMP=1` in
+`src/debug/track_shot.tscn`, `ADVANCE=60`). The bigger the number, the more the model shows.
+
+| # | kind | per frame | world | what it is |
+|---|---|---|---|---|
+| 1 | `cloud` | 48 | Clouds | cloud islet you run across |
+| 2 | `buoy` | 43 | Beach | buoy floating on water |
+| 3 | `wall_cloud` | 21 | Clouds | cloud wall on the horizon |
+| 4 | `canopy_leaves` | 15 | Forest | leaf canopy over the road |
+| 5 | `lamp` | 13 | City | street lamp |
+| 6 | `logpile` | 12 | Forest | stack of logs |
+| 7 | `cart` | 11 | City | handcart |
+| 8 | `stump` | 10 | Forest | tree stump (also an obstacle) |
+| 9 | `star` | 9 | Beach + Clouds | star |
+| 10 | `lantern_post` | 9 | City + Forest | lantern post |
+| 11 | `fountain` | 8 | City | fountain |
+| 12 | `signpost` | 6 | Forest | signpost |
+| 13 | `moonswing` | 4 | Clouds | swing hanging from the moon |
+| 14 | `umbrella` | 3 | Beach + City | parasol |
+| 15 | `planet` | 3 | Clouds | little planet |
+| 16 | `balloon` | 2 | Clouds | balloon |
+| 17 | `raincloud` | 2 | Clouds | rain cloud |
+| 18 | `cloud_arch` | 1 | Clouds | cloud archway landmark |
+
+These six never appear on screen at all right now (see "Decide first" below), but they are
+described in the beach data and will be needed once that question is settled: `beach_hut`,
+`palm`, `sandcastle`, `shell`, `crab`, `umbrella_stripe`, `cloud_house`.
+
+### Decide BEFORE generating — these are art calls, not code
+
+Three questions the code cannot answer for us:
+
+1. **Beach — is there a shore at all?** The `beach` world has `"sea": true` (surf mode): the
+   road under the hero is invisible and they ride a board across open water. There is no
+   shore anywhere. Because of that the code never places `walls_near` at sea — yet
+   `beach.json` lists `palm`, `sandcastle`, `umbrella`, `shell` there. Half the beach list
+   therefore never appears. Either the beach needs a distant shore (new geometry), or those
+   kinds should be replaced with things that belong in water: buoys, rocks, planks, floats,
+   a crab on a log.
+   *(Buildings and the lighthouse tower that used to stand in the open sea are already gone —
+   commit "у морському світі забудова й орієнтир більше не стоять у воді".)*
+
+2. **Clouds — 78 wooden railings in the sky.** `clouds.json` describes a canal
+   (`"canal": {...}`) with bridges across it, and a canal drags in `fence_rail` and
+   `bridge_plank` — the same brown wooden railings as the riverside town. There are 78 of
+   them in frame, the most numerous object in that world, plus a brick `tower_terracotta`
+   among the landmarks. None of it suits a sky world; what to put instead is an art call.
+
+3. **Forest and City — four kinds each.** Nothing open here: `canopy_leaves`, `logpile`,
+   `stump`, `signpost`, `lantern_post` (forest) and `lamp`, `cart`, `fountain`,
+   `lantern_post` (city). These two worlds go voxel-free the moment the models exist.
+
+### Cheapest path to a demo
+
+If the game has to be shown soon, **Forest and City** are by far the cheapest: eight kinds
+between them cover seven levels (5–8 and 12–14). Beach and Clouds cost nine kinds each and
+additionally run into questions 1 and 2 above.
