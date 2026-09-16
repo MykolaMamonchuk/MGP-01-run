@@ -23,6 +23,9 @@ extends Node3D
 
 const ROWS := 44
 const BEHIND := 5.0          # позаду камери — ряд переставляється вперед
+## Глибина одного ряду вздовж траси (метри) — рівно крок position.z між рядами (_ready()).
+## Використовується, щоб порахувати зерно ряду від абсолютної відстані (_row_seed_for()).
+const ROW_DEPTH := 1.0
 const LANES_W := 3.2         # ширина для 3 доріжок (базовий меш; масштабується під N)
 const SIDE_W := 8.0
 ## Море на всю видиму ширину.
@@ -64,6 +67,12 @@ const TILE_LIFT := 0.01
 ## Край дороги нерівний: тонкі смужки трави заходять на дорогу на 0–EDGE_OVERLAP м.
 const EDGE_W := 0.3
 const EDGE_OVERLAP := 0.15
+## ЗНАЙДЕНО МИГОТІННЯ: смужка краю (трава, що заходить на дорогу) лежала РІВНО на тій самій
+## висоті, що й плитка покриття (обидві — tile_y). Там, де напуск перекриває плитку (0–0,15 м,
+## тобто майже щоряду), їхні верхні грані стають СПІВПЛОЩИННИМИ — гарантований z-fight на всій
+## трасі, не лише поблизу. EDGE_LIFT піднімає смужку на волосок вище плитки: на дальньому плані
+## цього досить, щоб рендер завжди обирав грань смужки, а зблизька 1 см над дорогою не видно.
+const EDGE_LIFT := 0.01
 ## Відкриті світи: пропси в смузі PROP_NEAR–PROP_FAR від краю (у 0–0,3 м не кладемо нічого),
 ## будинки другим планом — у смузі FAR_MIN–FAR_MAX, через FAR_EVERY рядів, НЕЗАЛЕЖНО на
 ## кожному борті (див. _far_left) — на референсі забудова стоїть суцільно по обидва боки
@@ -139,6 +148,14 @@ var _side_sx := [1.0, 1.0]
 ## Декор: шар на вид вокселя. Ключ — "воксель" або "воксель|колір" (квіти різних кольорів — різні меші).
 var _decor_layer_of: Dictionary = {}
 var _decor_mm: Array[MultiMeshInstance3D] = []
+## Чи цей шар декору — будівля (стіна світу, будинок другого плану): такі не «дихають» і не
+## нахиляються в _sync_decor (індекс — той самий, що й у _decor_mm). Будинок на тлі неба —
+## суцільна пряма межа, а щокадрова гойдалка на 2° по нахилу й 2% по висоті ворушить силует
+## даху щокадру навіть на нерухомій камері — саме так виглядає миготіння на межах геометрії.
+## Дерева й огорожі лишаються «живими» — там дихання непомітне на тлі зелені чи трави.
+## Вирішує МІСЦЕ ПОСТАНОВКИ, а не назва виду: кущ уздовж дороги ворушиться, той самий кущ
+## у стіні світу — ні. Див. _decor_layer().
+var _decor_no_sway: Array[bool] = []
 ## Предмети декору по рядах: у якому шарі кожен і його DECOR_STRIDE чисел.
 var _decor_ids: Array[PackedInt32Array] = []
 var _decor_data: Array[PackedFloat32Array] = []
@@ -200,6 +217,25 @@ var _far_clear := [0.0, 0.0]
 ## поточною купкою — щоб між купками лишалась порожня трава (див. PROP_GROUP_GAP).
 var _prop_clear := [0.0, 0.0]
 var _rng := RandomNumberGenerator.new()
+## ОКРЕМИЙ генератор саме для зерна ряду (_row_seed_for()) — навмисно не той самий _rng, що й
+## декор/забудова. Спільний _rng — послідовність, що просувається по одному виклику randf()/
+## randi() за раз; скидати його seed для ряду не можна, бо це збиває послідовність для всього,
+## що йде після (заміряно раніше: розходження між прогонами зростало з 45 до 76 тисяч пікселів).
+## _row_rng натомість щоразу пересіюється наново — його «попереднього стану» не існує.
+var _row_rng := RandomNumberGenerator.new()
+
+
+## Зерно ряду як ЧИСТА функція абсолютної відстані ділянки (і світу) — а не жереб. Той самий
+## відрізок дороги (той самий world.id і та сама округлена дистанція) завжди дає те саме
+## зерно, скільки разів і коли б ряд не перевертався: кущ, побачений на горизонті, лишається
+## тим самим кущем, коли до нього під'їдеш. Ніякого randomize() — _row_rng пересіюється тут
+## щоразу заново від hash(), тому не накопичує стан і не залежить від порядку викликів.
+func _row_seed_for(dist_m: float) -> int:
+	var key := "%s|%d" % [String(world.get("id", "")), roundi(dist_m / ROW_DEPTH)]
+	_row_rng.seed = hash(key)
+	return _row_rng.randi_range(0, 1 << 29)
+
+
 var _voxel_exists_cache: Dictionary = {}
 var _water: MeshInstance3D
 var _water_mat: ShaderMaterial
@@ -269,7 +305,7 @@ func _ready() -> void:
 		_row_sx[i] = 1.0
 		_row_lx[i] = -side_x
 		_row_rx[i] = side_x
-		_row_seed[i] = _rng.randi_range(0, 1 << 29)
+		_row_seed[i] = _row_seed_for(distance_m - row.position.z)
 		_decor_ids[i] = PackedInt32Array()
 		_decor_data[i] = PackedFloat32Array()
 		_paint_surface_row(i)   # кольори плиток до першого rebuild — запасні з палітри
@@ -297,6 +333,13 @@ func _ready() -> void:
 		for j in range(3):
 			var puff := Mats.box(Vector3(randf_range(0.8, 1.6), 0.5, 0.7), Color(1, 1, 1, 1))
 			puff.position = Vector3(float(j) * 0.7 - 0.7, randf_range(0.0, 0.25), 0.0)
+			# Хмара НЕ кидає тіні. Вона висить за 5–8 м над дорогою, і її тінь лягає просто
+			# на бігову доріжку великою м'якою темною плямою. Заміряно: хмари рівно над
+			# дорогою дають 16 648 темних пікселів на покритті проти 6 435 без тіні.
+			# Гірше за вигляд те, що місце хмари жеребкує ГЛОБАЛЬНИЙ randf(), тож пляма
+			# з'являється не щоразу — рівень виглядає по-різному в різних запусках. А для
+			# дитини темна пляма на світлій доріжці читається як перешкода, якої там нема.
+			puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			cloud.add_child(puff)
 		cloud.position = Vector3(randf_range(-12.0, 12.0), randf_range(5.0, 8.0), BEHIND - float(i) * 5.5 - 4.0)
 		_far.add_child(cloud)
@@ -351,10 +394,21 @@ func _make_canvas(mesh: Mesh, count: int, height := 6.0, colors := false) -> Mul
 ## variant — номер типу моделі (data/props.json може тримати кілька різних моделей на вид).
 ## Кожен тип отримує СВІЙ шар: MultiMesh малює один меш на пачку, тож змішати їх в одному
 ## шарі неможливо — це не обмеження, яке варто обходити, а те, як влаштоване пакетне малювання.
-func _decor_layer(kind: String, override: Dictionary, variant: int = 0) -> int:
+func _decor_layer(kind: String, override: Dictionary, variant: int = 0, no_sway: bool = false) -> int:
 	var key := kind if override.is_empty() else kind + "|" + JSON.stringify(override)
 	if variant > 0:
 		key += "#%d" % variant
+	# Гойдалку вирішує МІСЦЕ ПОСТАНОВКИ, а не назва виду, тому вона входить у ключ шару.
+	# Дев'ять видів у цій грі бувають і стіною, і придорожнім декором — bush, mushroom,
+	# palm, rock, lantern_post, mill, cloud, shell, star, — причому в city й forest кущ
+	# є тим і тим ОДНОЧАСНО. Якби гойдалку вимикали за назвою, кущ уздовж дороги завмер
+	# би разом зі стіною, і рівень виглядав би по-різному залежно від того, які світи
+	# гравець устиг відвідати (шари живуть до кінця сеансу). Тут стіна дістає свій шар,
+	# придорожній кущ — свій.
+	# Позначку кладемо через "#", як і номер типу: усе, що по той бік "#", — різновид того
+	# самого виду, і той, хто розбирає ключ, і далі бачить у ньому "bush".
+	if no_sway:
+		key += "#wall"
 	if _decor_layer_of.has(key):
 		return int(_decor_layer_of[key])
 	# спершу питаємо бібліотеку пропсів: якщо для цього виду вже є СПРАВЖНЯ модель, беремо
@@ -364,6 +418,7 @@ func _decor_layer(kind: String, override: Dictionary, variant: int = 0) -> int:
 	# декор вищий за дорогу (крона на 3,2 м) і ширший — свій AABB
 	var mi := _make_canvas(prop_mesh if prop_mesh != null else VoxelBuilder.mesh(kind, override), 0, 16.0)
 	_decor_mm.append(mi)
+	_decor_no_sway.append(no_sway)
 	_decor_layer_of[key] = _decor_mm.size() - 1
 	return _decor_mm.size() - 1
 
@@ -384,6 +439,7 @@ func _decor_layer_custom(key: String, mesh: Mesh, mat: Material) -> int:
 	var mi := _make_canvas(mesh, 0, 16.0)
 	mi.material_override = mat
 	_decor_mm.append(mi)
+	_decor_no_sway.append(false)   # містки/поручні — не будівлі, дихання лишаємо
 	_decor_layer_of[key] = _decor_mm.size() - 1
 	return _decor_mm.size() - 1
 
@@ -488,14 +544,14 @@ func clear_authored_timeline() -> void:
 
 ## Один запис із авторського таймлайну — тим самим шляхом, що й випадковий декор (_add_decor),
 ## щоб MultiMesh-пачки й усі інваріанти test_track_batching.gd лишались тими самими.
-func _add_authored_record(ids: PackedInt32Array, data: PackedFloat32Array, rec: Dictionary) -> void:
+func _add_authored_record(ids: PackedInt32Array, data: PackedFloat32Array, rec: Dictionary, no_sway: bool = false) -> void:
 	var kind := String(rec.get("kind", ""))
 	if kind == "" or not _kind_exists(kind):
 		return   # автор указав неіснуючий воксель/пропс — мовчки пропускаємо (як і випадкові списки узбіччя)
 	var override: Dictionary = rec.get("override", {}) if typeof(rec.get("override", {})) == TYPE_DICTIONARY else {}
 	_add_decor(ids, data, kind, override,
 		float(rec.get("x_m", 0.0)), float(rec.get("y_m", 0.0)), float(rec.get("scale", 1.0)),
-		deg_to_rad(float(rec.get("yaw_deg", 0.0))))
+		deg_to_rad(float(rec.get("yaw_deg", 0.0))), 1.0, no_sway)
 
 
 ## Декор одного ряду з авторського таймлайну: усі записи, чиє z_m потрапляє у вікно цього ряду
@@ -510,7 +566,7 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 	for rec in _authored_buildings:
 		var z := float((rec as Dictionary).get("z_m", 0.0))
 		if z >= lo and z < hi:
-			_add_authored_record(ids, data, rec)
+			_add_authored_record(ids, data, rec, true)
 
 
 ## Записати предмет у пачку ряду. z, поворот і фаза — випадкові, як було в кожного Critter3D.
@@ -518,9 +574,9 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 ## stretch — додатковий масштаб ЛИШЕ вздовж локальної осі Z ДО повороту на yaw (за
 ## замовчуванням 1.0 — нічого не міняє). Треба, щоб видовжити предмет уздовж одного виміру,
 ## не роздуваючи решту: настилу містка ширший канал дає довшу дошку, а не товщу й вищу.
-func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0, stretch: float = 1.0) -> void:
+func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0, stretch: float = 1.0, no_sway: bool = false) -> void:
 	var variant := PropLibrary.pick(kind)
-	ids.append(_decor_layer(kind, override, variant))
+	ids.append(_decor_layer(kind, override, variant, no_sway))
 	# Доведення моделі (data/props.json): згенерована модель майже ніколи не приходить одразу
 	# в потрібному розмірі й розвороті, а правити це в самому .glb довго. Для вокселя обидва
 	# значення типово 1.0 / 0°, тож нічого не змінюється.
@@ -570,9 +626,14 @@ func _sync_decor(delta: float) -> void:
 			var o := j * DECOR_STRIDE
 			var x := d[o]
 			var z := d[o + 2]
+			var b := ids[j]
 			var t := _decor_t + d[o + 5]
-			var breathe := 1.0 + sin(t * 1.6 + x) * 0.02
-			var tilt := sin(t * 1.2 + z) * 0.02
+			# Забудова (стіни світу, будинки другого плану) — БЕЗ дихання/нахилу: дах на тлі
+			# неба — пряма межа геометрії, і щокадрова гойдалка на 2° ворушить власний силует
+			# навіть на цілком нерухомій камері (це і є «миготіння» на дахах, а не на площинах).
+			var no_sway: bool = b < _decor_no_sway.size() and _decor_no_sway[b]
+			var breathe := 1.0 if no_sway else 1.0 + sin(t * 1.6 + x) * 0.02
+			var tilt := 0.0 if no_sway else sin(t * 1.2 + z) * 0.02
 			var sc := d[o + 4]
 			var stretch := d[o + 6]   # розтяг лише по локальній Z до повороту (див. _add_decor) — 1.0 для звичайного декору
 			# Розтяг множимо СПРАВА, а не через scaled(). У Godot Basis.scaled() множить зліва,
@@ -582,7 +643,6 @@ func _sync_decor(delta: float) -> void:
 			var basis := (Basis(Vector3.UP, d[o + 3]) * Basis.from_scale(Vector3(sc, sc, sc * stretch))) \
 				* Basis(Vector3(0, 0, 1), tilt).scaled(Vector3(1.0, breathe, 1.0))
 			basis = Basis.from_scale(Vector3(1.0, sy_row, 1.0)) * basis
-			var b := ids[j]
 			(_decor_mm[b].multimesh as MultiMesh).set_instance_transform(used[b], Transform3D(basis, Vector3(x, sy_row * d[o + 1], z_row + z)))
 			used[b] += 1
 	for b in range(n):
@@ -635,12 +695,15 @@ func _sync_road() -> void:
 			if k < lanes:
 				tt = Transform3D(Basis.from_scale(Vector3(1.0, sy, 1.0)), Vector3((lane0 + float(k)) * Hero3D.LANE_W, tile_y, z))
 			tile_mm.set_instance_transform(i * MAX_LANES + k, tt)
-		# край: смужка трави заходить на дорогу на 0–EDGE_OVERLAP м (напуск свій у кожного ряду)
+		# край: смужка трави заходить на дорогу на 0–EDGE_OVERLAP м (напуск свій у кожного ряду).
+		# Висота — трохи вище tile_y (EDGE_LIFT), інакше в зоні напуску смужка й плитка
+		# лежать в одній площині й миготять (див. коментар при EDGE_LIFT).
+		var edge_y := tile_y + EDGE_LIFT * sy
 		for s in range(2):
 			var dir := -1.0 if s == 0 else 1.0
 			var over := float(absi(hash(str(_row_seed[i], ":e", s))) % 100) / 100.0 * EDGE_OVERLAP
 			edge_mm.set_instance_transform(i * 2 + s,
-				Transform3D(Basis.from_scale(Vector3(1.0, sy, 1.0)), Vector3(dir * (edge_x - over + EDGE_W * 0.5), tile_y, z)))
+				Transform3D(Basis.from_scale(Vector3(1.0, sy, 1.0)), Vector3(dir * (edge_x - over + EDGE_W * 0.5), edge_y, z)))
 
 
 ## Кольори плиток одного ряду й двох його смужок трави. Викликається, коли ряд переставили
@@ -721,8 +784,13 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	# шари під усі види пропсів створюємо одразу: вибір випадковий, і без цього другий rebuild
 	# того ж світу «знаходив» нові види й плодив шари посеред гри
 	var lm_kinds: Array = world.get("landmarks", []) if typeof(world.get("landmarks")) == TYPE_ARRAY else []
-	for v in _props_side + _buildings_far + _far_filler + _canal_rocks + lm_kinds:
+	for v in _props_side + _far_filler + _canal_rocks + lm_kinds:
 		_decor_layer(String(v), {}, PropLibrary.pick(String(v)))
+	# забудова — окремими шарами з вимкненою гойдалкою (ключ із "!"), інакше на постановці
+	# знайшовся б уже створений «живий» шар тієї ж назви
+	for v in _buildings_far + _near_wall_pool() + (world.get("walls_far", []) as Array):
+		if typeof(v) == TYPE_STRING:
+			_decor_layer(String(v), {}, PropLibrary.pick(String(v)), true)
 	if not _canal_sides.is_empty() and _bridges_every > 0 and _voxel_exists("bridge_plank"):
 		_decor_layer("bridge_plank", {}, PropLibrary.pick("bridge_plank"))
 	if not _canal_sides.is_empty() and PropLibrary.has("fence_rail"):
@@ -796,22 +864,20 @@ func _decorate(row: Node3D) -> void:
 	var i := int(row.get_meta("i", 0))
 	var ids := PackedInt32Array()
 	var data := PackedFloat32Array()
-	# ряд переставили — нове зерно малюнка покриття й напуску трави (те саме в обох режимах)
+	# ряд переставили — нове зерно малюнка покриття й напуску трави (те саме в обох режимах).
 	#
-	# ЗНАЙДЕНО, НЕ ВИПРАВЛЕНО: саме тут і живе «миготіння на горизонті». Ряд при кожному
-	# перевертанні отримує НОВЕ випадкове зерно, тож та сама ділянка дороги щоразу виглядає
-	# інакше: при 44 км/год ряд перевертається двічі на секунду, і далекі предмети
-	# безперервно з'являються та зникають. Правильно було б рахувати зерно від АБСОЛЮТНОЇ
-	# ВІДСТАНІ ділянки — тоді побачений на горизонті кущ лишався б тим самим, коли до нього
-	# під'їдеш. Проба показала, що просто підмінити зерно тут НЕ МОЖНА: `_rng` спільний, і
-	# його скидання збиває послідовність для забудови й пропсів (заміряно: розходження між
-	# двома однаковими прогонами зросло з 45 до 76 тисяч пікселів). Потрібен окремий
-	# генератор саме для розкладки ряду — це окрема робота.
-	_row_seed[i] = _rng.randi_range(0, 1 << 29)
-	_paint_surface_row(i)
-	# яку абсолютну відстань рівня цей ряд тепер представляє (Phase 1 level-authoring plumbing);
-	# паралельно до _row_seed — та сама лічба «раз на wrap», але лишень для читання авторським таймлайном
+	# ВИПРАВЛЕНО (було «ЗНАЙДЕНО, НЕ ВИПРАВЛЕНО» — миготіння на горизонті): зерно рахуємо від
+	# АБСОЛЮТНОЇ ВІДСТАНІ ділянки (_row_seed_for()), а не жеребом. Тому порядок обернений
+	# відносно старого коду: спершу рахуємо _row_distance_m[i] (яку ділянку ряд тепер
+	# представляє), а вже з неї — зерно. Стара версія брала жереб з `_rng` ДО того, як
+	# рахувалась відстань, і від того ж кущ на горизонті через 44 переставляння виглядав
+	# уже інакше. _row_seed_for() використовує ОКРЕМИЙ _row_rng, не спільний _rng: спроба
+	# просто підмінити цей рядок жеребом з того самого `_rng` провалилась раніше — скидання
+	# спільного жеребу збивало послідовність для забудови й пропсів (заміряно тоді: розбіжність
+	# між двома однаковими прогонами зросла з 45 до 76 тисяч пікселів).
 	_row_distance_m[i] = distance_m - row.position.z
+	_row_seed[i] = _row_seed_for(_row_distance_m[i])
+	_paint_surface_row(i)
 	if _authored_active:
 		# Авторські маркери кладемо ПОВЕРХ звичайного оздоблення, а не замість нього.
 		#
@@ -927,7 +993,7 @@ func _decorate(row: Node3D) -> void:
 					# реальна половина розмірів САМЕ цієї моделі на цьому масштабі: константа
 					# BUILD_HALF_W знає лише орієнтовний розмір, а сарай на найбільшому масштабі
 					# вдвічі ширший за колодязь — перевіряти треба факт (мешу шару), не здогад.
-					b_half = _kind_half_extent(b_kind) * b_scale
+					b_half = _kind_half_extent(b_kind, true) * b_scale
 					if _row_distance_m[i] - b_half.y >= _far_clear[sidx]:
 						far_row = true
 						_far_left[sidx] = _rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1]))
@@ -942,7 +1008,7 @@ func _decorate(row: Node3D) -> void:
 				var b_hi := maxf(b_lo, _d("far_max", FAR_MAX))
 				_add_decor(ids, data, b_kind, {},
 					side * (edge + _rng.randf_range(b_lo, b_hi)), 0.0, b_scale,
-					0.0 if side > 0.0 else PI)
+					0.0 if side > 0.0 else PI, 1.0, true)
 				# наступна будівля на цьому боці — не раніше, ніж ця скінчиться по Z (+ зазор):
 				# інакше сарай і будинок поруч проростають одне в одне.
 				_far_clear[sidx] = _row_distance_m[i] + b_half.y + FAR_GAP_MIN
@@ -969,7 +1035,7 @@ func _decorate(row: Node3D) -> void:
 			_add_decor(ids, data, String(walls_far[randi() % walls_far.size()]), {},
 				side * (edge + randf_range(3.0, 5.0)),
 				-0.05 if _sea else 0.0,
-				randf_range(float(far_scale[0]), float(far_scale[1])))
+				randf_range(float(far_scale[0]), float(far_scale[1])), -1.0, 1.0, true)
 		if _sea:
 			# гребені хвиль із піною — плавають довкола траси
 			if randf() < 0.3:
@@ -979,7 +1045,8 @@ func _decorate(row: Node3D) -> void:
 		if not walls_near.is_empty():
 			var tall := (i + (1 if side > 0.0 else 0)) % 2 == 0
 			_add_decor(ids, data, String(walls_near[randi() % walls_near.size()]), {},
-				side * (edge + randf_range(NEAR_MIN, NEAR_MAX)), 0.0, 1.25 if tall else 0.85)
+				side * (edge + randf_range(NEAR_MIN, NEAR_MAX)), 0.0, 1.25 if tall else 0.85,
+				-1.0, 1.0, true)
 		# дрібне — часто
 		if not kinds.is_empty() and randf() < 0.9:
 			var kind := String(kinds[randi() % kinds.size()])
@@ -1109,8 +1176,10 @@ func _filter_voxels(list: Variant) -> Array:
 ## ящик. _decor_layer() тут не створює нового шару — він уже підготовлений заздалегідь
 ## (rebuild() проходить усі види props_side/buildings_far/far_filler один раз), тож це
 ## лише кешоване читання властивості мешу, не диск.
-func _kind_half_extent(kind: String) -> Vector2:
-	var layer := _decor_layer(kind, {}, PropLibrary.pick(kind))
+## no_sway мусить збігатися з тим, із яким вид СТАВИТЬСЯ: гойдалка входить у ключ шару, і
+## вимір із чужим ключем створив би другий, назавжди порожній шар того самого меша.
+func _kind_half_extent(kind: String, no_sway: bool = false) -> Vector2:
+	var layer := _decor_layer(kind, {}, PropLibrary.pick(kind), no_sway)
 	var mesh := (_decor_mm[layer].multimesh as MultiMesh).mesh
 	if mesh == null:
 		return Vector2(BUILD_HALF_W, BUILD_HALF_W)
