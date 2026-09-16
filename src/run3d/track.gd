@@ -985,7 +985,12 @@ func _decorate(row: Node3D) -> void:
 			var b_kind := ""
 			var b_scale := 1.0
 			var b_half := Vector2.ZERO
-			if not _buildings_far.is_empty():
+			# У морському світі (surf) забудови другого плану немає. Берега там не існує
+			# взагалі: дорога під героєм невидима, він їде дошкою по воді, — тож пляжна хатина
+			# й пальма ставали просто посеред моря, без піску під ними. Видно на кожному
+			# знімку рівнів 9–11, а дев'ятий — туторіал серфінгу, його проходять усі.
+			# На воді лишаються буї та скелі (walls_far), яким там і місце.
+			if not _sea and not _buildings_far.is_empty():
 				_far_left[sidx] -= 1
 				if _far_left[sidx] <= 0:
 					b_kind = String(_buildings_far[_rng.randi() % _buildings_far.size()])
@@ -1073,7 +1078,9 @@ func _decorate(row: Node3D) -> void:
 	if canopy_voxel != "" and i % 3 == 0:
 		_add_decor(ids, data, canopy_voxel, {}, randf_range(-1.0, 1.0), CANOPY_Y, CANOPY_SCALE)
 	# орієнтир на точці сходу: арка на всю дорогу або вежа/ворота збоку — раз на 28–30 рядів
-	var landmarks: Array = world.get("landmarks", [])
+	# Орієнтир (арка через дорогу, вежа чи ворота збоку) теж потребує землі під собою —
+	# у морському світі його нема куди поставити, а вежа маяка просто стояла у воді.
+	var landmarks: Array = world.get("landmarks", []) if not _sea else []
 	if not landmarks.is_empty():
 		_landmark_left -= 1
 		if _landmark_left <= 0:
