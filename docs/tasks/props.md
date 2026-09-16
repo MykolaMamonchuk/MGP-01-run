@@ -519,3 +519,27 @@ rig OFF, quad, ≤ 12k. Розмір не вгадуй — доводиться 
 ### 12. `well` — криниця (2 шт.)
 
 > A cute round stone well with a small wooden roof, a rope and a hanging bucket, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+
+## Будинки робить скрипт, а не генератор
+
+Забудова — найбільша частина кадру, і чекати на неї найдовше. Але будиночок — річ регулярна:
+коробка, двосхилий дах, віконця, двері, фахверк. Усе це чесно збирається геометрією.
+
+```sh
+B=/Applications/Blender.app/Contents/MacOS/Blender
+$B --background --python tools/make_house.py -- \
+    --out assets/props/house_red.glb \
+    --width 1.5 --depth 1.3 --height 1.5 --storeys 2 \
+    --roof "#C1452F" --wall "#F4E8D0" --beam "#6E4326" --awning "#DCEBE0"
+```
+
+128–248 трикутників на будинок, без текстур — самими кольорами матеріалів. Вісім різних
+будинків разом важать 112 КБ. Параметри (розмір, поверхи, кольори даху/стіни/балок, маркіза)
+дають несхожі будинки з одного інструмента, тож вулиця не виглядає повтореною.
+
+Що вже згенеровано: `house_red`, `house_terra`, `house_teal`, `house_straw`, `city_house_a`,
+`city_house_b`, `hut`, `wall_house`.
+
+Генератор моделей потрібен там, де форма НЕрегулярна: дерево, кущ, камінь, тварина. Там
+скрипт не допоможе, і черга вище лишається в силі.
