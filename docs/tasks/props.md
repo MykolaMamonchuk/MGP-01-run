@@ -635,3 +635,38 @@ $B --background --python tools/make_house.py -- \
 ### 14. `mill` — вітряк (3 шт. у кадрі)
 
 > A cute small windmill with a cream stone tower, a red conical roof and four wooden sails, chunky low-poly toy, soft rounded edges, simple readable shapes. Children's premium 3D game art: a magical storybook world — soft handcrafted low-poly, gentle glow, whimsical fairy-tale charm. Bright saturated colours: emerald greens, turquoise water, warm brown wood, soft grey stone, cheerful yellow, pink and pastel magical accents. Single clean silhouette, slightly exaggerated for gameplay readability. Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished. No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic textures.
+
+
+## Налаштування Meshy — підібрані ВИМІРЮВАННЯМ, не з документації
+
+| поле | що ставити | чому саме так |
+|---|---|---|
+| Режим | Image to 3D (краще) або Text to 3D | з картинки виходить те, що ти бачив; з тексту — лотерея |
+| Topology | **Triangles** | квади потрібні лише тому, що деформують. Наші пропси не гнуться; для гри трикутники — стандарт, і Godot усе одно тріангулює |
+| Target Polycount | **1 500–3 000** | не 12 тисяч. Заміряно: поручні по 5 796 трикутників × 78 ланок = 452 тисячі з 595 у кадрі. Це вбивало телефон. Мої згенеровані будинки коштують 188 |
+| Texture | **on** | пропси й будівлі живуть кольором. Виняток — герої: їм обличчя малює гра |
+| Rig | **off** | ріг згинає суцільну шкіру. Ящик або стоїть, або розлітається шматками — і те, й те без рига. Виняток один: гуска (quadruped, лапки нарізно) |
+| Формат | **GLB** | один файл із текстурами всередині |
+
+### Про роздільність текстур
+
+Meshy віддає **4096×4096 на кожну з трьох карт** (колір, шорсткість, нормаль) і змінити це
+в ньому не можна. Саме через це пакет гри важив 296 МБ. Ми зменшуємо їх самі при обробці
+(`--tex-size 512`), тож просто вивантажуй як є — конвеєр упорається.
+
+Виміряно, чому 512 достатньо: на знімку зблизька (×3) 2048 проти 4096 дали 37 різних
+пікселів із 435 600, а 1024 — 1381. На ігровій відстані пропс займає сотню пікселів.
+
+### Три вимоги, які ламають усе, якщо їх не дотримати
+
+1. **Один меш, один матеріал.** Гра бере ПЕРШИЙ меш зі сцени й малює його пачкою; модель,
+   розбита на частини, втрачає все, крім першої. Якщо Meshy віддав кілька — об'єднай перед
+   вивантаженням.
+2. **Без вмальованих очей** на тваринах. Обличчя малює сама гра поверх, і намальовані очі
+   проступають крізь нього.
+3. **Розмір і початок координат не вгадуй.** Ми їх виправляємо самі (`prop_prepare.py`):
+   модель має мати правильні ПРОПОРЦІЇ, решта доводиться.
+
+Джерела: [Meshy: low poly](https://www.meshy.ai/tutorials/make-low-poly-3d-models) ·
+[Meshy: retopology](https://www.meshy.ai/features/ai-retopology) ·
+[Meshy → Unity workflow](https://www.meshy.ai/tutorials/3d-model-for-unity-workflow)
