@@ -34,7 +34,7 @@ shadow_enabled = true
 shadow_bias = 0.03
 shadow_normal_bias = 1.5
 directional_shadow_mode = 0
-directional_shadow_max_distance = 40.0
+directional_shadow_max_distance = 22.0
 
 [node name="CameraRig" type="Node3D" parent="." unique_id=688793029]
 script = ExtResource("5")

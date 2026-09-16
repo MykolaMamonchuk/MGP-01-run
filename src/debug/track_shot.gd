@@ -59,7 +59,7 @@ func _ready() -> void:
 	sun.shadow_bias = 0.03
 	sun.shadow_normal_bias = 1.5
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
-	sun.directional_shadow_max_distance = 40.0
+	sun.directional_shadow_max_distance = 22.0
 	add_child(sun)
 
 	_track = Track.new()
