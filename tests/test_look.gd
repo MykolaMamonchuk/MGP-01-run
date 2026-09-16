@@ -69,3 +69,23 @@ func test_the_game_casts_shadows() -> void:
 			if state.get_node_property_name(i, p) == &"shadow_enabled":
 				found = found or bool(state.get_node_property_value(i, p))
 	assert_true(found, "сонце в грі кидає тінь")
+
+
+## Назва світу на мапі. «Містечко над річкою» — найдовша в грі, і draw_string() ріже її
+## мовчки посеред слова. Перевіряємо саме скорочення, бо на мапі це видно лише оком.
+func test_long_world_name_gets_an_ellipsis() -> void:
+	var f: Font = ThemeDB.fallback_font
+	assert_not_null(f, "шрифт є")
+	if f == null:
+		return
+	var long := "Містечко над річкою"
+	var cut := MapScreen.fit_label(long, f, 120.0)
+	assert_true(cut.ends_with("…"), "довга назва закінчується трьома крапками")
+	assert_lt(cut.length(), long.length(), "і справді коротша за вихідну")
+	assert_lte(f.get_string_size(cut, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x, 120.0,
+		"результат уміщається у відведену ширину")
+
+
+func test_short_name_is_left_alone() -> void:
+	var f: Font = ThemeDB.fallback_font
+	assert_eq(MapScreen.fit_label("Ліс", f, 240.0), "Ліс", "коротка назва не чіпається")

@@ -108,15 +108,16 @@ func _ready() -> void:
 	_settings.add_child(gear)
 	_root.add_child(_settings)
 
+	# Підказка живе В СТОВПЦІ кнопок, першим елементом, а не окремо ліворуч від центру.
+	# Раніше вона була прив'язана до лівого краю на 120 пікселів нижче центру, а кнопка
+	# «Біжимо!» шириною 420 стоїть по центру: на екранах, вужчих за 1280, вони
+	# перетинались, і останні літери підказки ховались під кнопкою. У стовпці вона завжди
+	# над кнопкою, хай яке співвідношення сторін.
 	_hint = UIKit.title("торкнись героя — він зрадіє", 24, Palette.TEXT_LIGHT)
-	_hint.set_anchors_preset(Control.PRESET_CENTER_LEFT)
-	_hint.grow_vertical = Control.GROW_DIRECTION_BOTH
-	_hint.offset_left = 40
-	_hint.offset_right = 40
-	_hint.offset_top = 120
-	_hint.offset_bottom = 120
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_hint.modulate.a = 0.85
-	_root.add_child(_hint)
+	_buttons.add_child(_hint)
+	_buttons.move_child(_hint, 0)
 	UIKit.wobble(_hint, 0.03, 2.4)
 
 

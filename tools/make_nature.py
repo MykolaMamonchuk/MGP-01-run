@@ -176,9 +176,13 @@ def build(kind, h, main, second, seed):
                 radius=h * 0.05, depth=h, location=(sx * w * 0.5, 0, h * 0.5))
         add(C.primitive_cube_add, mat("line", main), size=1.0,
             location=(0, 0, h * 0.88)).scale = (w * 0.5, h * 0.012, h * 0.012)
+        # Прапорці РІЗНОКОЛЬОРОВІ. Раніше всі брали один головний колір, і для мотузки з
+        # білизною це давало п'ять однакових білих трикутників — у яскравій дитячій палітрі
+        # вони читались як дірка, а не як прикраса.
+        tints = ("#F07FAE", "#F5D34E", "#63C7E8", "#8FD16A", "#F2A0C0")
         for i in range(5):
             t = (i - 2) / 2.0
-            add(C.primitive_cone_add, mat("flag", main), vertices=3,
+            add(C.primitive_cone_add, mat("flag%d" % i, tints[i]), vertices=3,
                 radius1=h * 0.11, depth=h * 0.18,
                 location=(t * w * 0.38, 0, h * 0.79), rotation=(math.pi, 0, 0))
     elif kind == "xbox":

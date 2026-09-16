@@ -9,7 +9,6 @@ class_name Obstacle3D
 extends Node3D
 
 ## Дії без плитки: не збивають або є бонусом.
-const NO_PLATE_ACTIONS := ["any", "boost", "rail", "wind"]
 const OUTLINE_SCALE := 1.04
 const SHAPES_PATH := "res://data/obstacle_shapes.json"
 
@@ -113,7 +112,6 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		add_child(_mesh)
 
 
-var _plate: MeshInstance3D
 
 
 ## Каталог силуетів (data/obstacle_shapes.json) — читається один раз на запуск.

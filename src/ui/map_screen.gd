@@ -203,8 +203,13 @@ class MapCanvas:
 			f = ThemeDB.fallback_font
 		for i in range(mini(tops.size(), islands.size())):
 			var top: Vector2 = tops[i]
+			# Назва довша за відведену ширину раніше просто ОБРИВАЛАСЬ посеред слова:
+			# «Містечко над річкою» показувалось як «Містечко над річ». Godot уміє
+			# скоротити з трьома крапками, але для цього треба явно попросити розрив і
+			# обрізання — без них draw_string() ріже мовчки.
 			var label := String(islands[i]["name"])
 			var base := top + Vector2(0, MapScreen.LABEL_H - 8.0)
+			label = MapScreen.fit_label(label, f, MapScreen.LABEL_W)
 			draw_string(f, base + Vector2(1, 2), label, HORIZONTAL_ALIGNMENT_CENTER, int(MapScreen.LABEL_W), 28, Color(0, 0, 0, 0.25))
 			draw_string(f, base, label, HORIZONTAL_ALIGNMENT_CENTER, int(MapScreen.LABEL_W), 28, Palette.MAP_LABEL)
 
@@ -277,6 +282,18 @@ static func _rect_hits_circle(r: Rect2, c: Vector2, radius: float) -> bool:
 ## Розкладає написи островів (LABEL_W × LABEL_H): верх напису = center − (120, LABEL_LIFT); якщо напис лягає на
 ## попередній напис або на коло вузла (r 48) — піднімаємо на LABEL_STEP, до LABEL_TRIES разів. По x — у межах екрана.
 ## Повертає верхні-ліві кути. Чиста функція.
+## Скоротити назву до ширини з трьома крапками. draw_string() САМ нічого не скорочує — він
+## мовчки ріже посеред слова, і «Містечко над річкою» показувалось як «Містечко над річ».
+## Функція чиста, щоб її можна було перевірити тестом, а не оком на мапі.
+static func fit_label(text: String, f: Font, width: float, font_size: int = 28) -> String:
+	if f == null or f.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x <= width:
+		return text
+	var cut := text
+	while cut.length() > 1 and f.get_string_size(cut + "…", HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > width:
+		cut = cut.substr(0, cut.length() - 1)
+	return cut.strip_edges() + "…"
+
+
 static func place_labels(centers: Array, node_points: Array, size: Vector2) -> Array:
 	var out := []
 	var placed: Array[Rect2] = []
