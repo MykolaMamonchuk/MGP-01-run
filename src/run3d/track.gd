@@ -68,6 +68,14 @@ const EDGE_OVERLAP := 0.15
 const PROP_NEAR := 0.3
 const PROP_FAR := 1.4
 const PROP_CHANCE := 0.65
+## Другий, рідший кидок у тій самій смузі 0,3–1,4 м: на референсі дрібниці стоять купками
+## (кущ упритул до ящика, ящик упритул до бочки), а не по одній штуці на метр — з одним
+## кидком узбіччя лишалось «травою з цятками» навіть коли кожна цятка випадала.
+const PROP_CHANCE2 := 0.4
+## Каміння у самій воді каналу (референс: річка встелена дрібним камінням, а не порожня
+## гладь). Кидок окремий від пропсів на березі — це інша смуга, у самій воді.
+const CANAL_ROCK_CHANCE := 0.35
+const CANAL_ROCK_SCALE := [0.4, 0.75]
 const FAR_MIN := 2.8
 const FAR_MAX := 7.0
 const FAR_EVERY := [2, 3]
@@ -155,6 +163,8 @@ var _cliff_on := [true, true]
 var _props_side: Array = []
 var _buildings_far: Array = []
 var _far_filler: Array = []
+## Каміння, яке кладемо просто у воду каналу (див. CANAL_ROCK_CHANCE).
+var _canal_rocks: Array = []
 ## Лічильники до наступної будівлі другого плану — окремо для лівого й правого борту
 ## (індекс 0/1), щоб забудова росла на обох боках незалежно й щільно, а не по черзі через ряд.
 var _far_left := [0, 0]
@@ -439,8 +449,8 @@ func clear_authored_timeline() -> void:
 ## щоб MultiMesh-пачки й усі інваріанти test_track_batching.gd лишались тими самими.
 func _add_authored_record(ids: PackedInt32Array, data: PackedFloat32Array, rec: Dictionary) -> void:
 	var kind := String(rec.get("kind", ""))
-	if kind == "" or not _voxel_exists(kind):
-		return   # автор указав неіснуючий воксель — мовчки пропускаємо (як і випадкові списки узбіччя)
+	if kind == "" or not _kind_exists(kind):
+		return   # автор указав неіснуючий воксель/пропс — мовчки пропускаємо (як і випадкові списки узбіччя)
 	var override: Dictionary = rec.get("override", {}) if typeof(rec.get("override", {})) == TYPE_DICTIONARY else {}
 	_add_decor(ids, data, kind, override,
 		float(rec.get("x_m", 0.0)), float(rec.get("y_m", 0.0)), float(rec.get("scale", 1.0)),
@@ -655,10 +665,11 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 			if not _buildings_far.has(v) and _voxel_exists(String(v)):
 				_buildings_far.append(v)
 	_far_filler = _filter_voxels(["tree_round", "pine_3"])
+	_canal_rocks = _filter_voxels(["rock_grey", "mossrock"])
 	# шари під усі види пропсів створюємо одразу: вибір випадковий, і без цього другий rebuild
 	# того ж світу «знаходив» нові види й плодив шари посеред гри
 	var lm_kinds: Array = world.get("landmarks", []) if typeof(world.get("landmarks")) == TYPE_ARRAY else []
-	for v in _props_side + _buildings_far + _far_filler + lm_kinds:
+	for v in _props_side + _buildings_far + _far_filler + _canal_rocks + lm_kinds:
 		_decor_layer(String(v), {}, PropLibrary.pick(String(v)))
 	if not _canal_sides.is_empty() and _bridges_every > 0 and _voxel_exists("bridge_plank"):
 		_decor_layer("bridge_plank", {}, PropLibrary.pick("bridge_plank"))
@@ -770,6 +781,15 @@ func _decorate(row: Node3D) -> void:
 			_add_decor(ids, data, "fence_rail", {},
 				side * (edge + c_offset - RAIL_INSET), 0.0, 1.0,
 				PI * 0.5 if side < 0.0 else PI * 1.5)
+		# каміння просто у воді каналу — на референсі річка встелена дрібним камінням,
+		# у нас вона була порожньою гладдю. Кладемо в саму смугу води (не на банк,
+		# не на дорогу), трохи занурене — щоб виглядало обмитим водою, а не покладеним зверху.
+		if not _sea and _canal_sides.has(side) and not _canal_rocks.is_empty() and c_width > 0.3 \
+				and _rng.randf() < CANAL_ROCK_CHANCE:
+			var rock_span := c_width - 0.3
+			_add_decor(ids, data, String(_canal_rocks[_rng.randi() % _canal_rocks.size()]), {},
+				side * (edge + c_offset + 0.15 + _rng.randf() * rock_span),
+				-CANAL_DEPTH * 0.6, _rng.randf_range(CANAL_ROCK_SCALE[0], CANAL_ROCK_SCALE[1]))
 		if open and not _sea:
 			# ── відкрите узбіччя: трава одразу за дорогою, пропси, за ними другий план ──
 			var far_min := FAR_MIN
@@ -778,6 +798,12 @@ func _decorate(row: Node3D) -> void:
 				# стоїть одразу за берегом, а не в окремій смузі за пів метра до нього
 				far_min = maxf(FAR_MIN, c_offset + c_width + 0.15)
 			if not _props_side.is_empty() and _rng.randf() < PROP_CHANCE:
+				_add_decor(ids, data, String(_props_side[_rng.randi() % _props_side.size()]), {},
+					prop_x(side, edge, _rng), 0.0, 1.0)
+			# другий, рідший кидок у тій самій смузі 0,3–1,4 м: на референсі дрібниці стоять
+			# купками (кущ упритул до ящика, ящик упритул до бочки) — з одним кидком на ряд
+			# узбіччя лишалось «травою з цятками» навіть коли кожна цятка й випадала.
+			if not _props_side.is_empty() and _rng.randf() < PROP_CHANCE2:
 				_add_decor(ids, data, String(_props_side[_rng.randi() % _props_side.size()]), {},
 					prop_x(side, edge, _rng), 0.0, 1.0)
 			# будинок другого плану: НЕЗАЛЕЖНИЙ лічильник на кожен борт (_far_left), а не спільний
@@ -915,12 +941,21 @@ func _voxel_exists(name: String) -> bool:
 	return bool(_voxel_exists_cache[name])
 
 
+## Вид «існує», якщо його чим намалювати: воксель ЧИ справжня модель/спрайт із
+## data/props.json. bush_flower — саме такий випадок: живе лише спрайтом, вокселя
+## data/voxels/bush_flower.json нема й не буде. Без другої половини перевірки
+## _filter_voxels() мовчки викидав його з props_side ще до першого показу — узбіччя
+## лишалось голим, хоча готовий пропс уже лежав у assets/sprites/.
+func _kind_exists(name: String) -> bool:
+	return _voxel_exists(name) or PropLibrary.has(name)
+
+
 func _filter_voxels(list: Variant) -> Array:
 	var out: Array = []
 	if typeof(list) != TYPE_ARRAY:
 		return out
 	for v in (list as Array):
-		if typeof(v) == TYPE_STRING and _voxel_exists(String(v)):
+		if typeof(v) == TYPE_STRING and _kind_exists(String(v)):
 			out.append(String(v))
 	return out
 
