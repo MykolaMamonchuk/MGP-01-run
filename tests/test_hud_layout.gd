@@ -48,6 +48,7 @@ func _watched() -> Array:
 		["серця", _hud._hearts_box, "l"],
 		["для батьків", _hud._parents_btn, "lb"],
 		["кнопка сили", _hud._power_btn, "rb"],
+		["батьки: продовжити", _hud._sleep_button, "b"],
 	]
 
 
@@ -55,6 +56,9 @@ func test_corner_elements_stay_in_their_corner_on_every_shape() -> void:
 	assert_not_null(_hud, "HUD у сцені")
 	if _hud == null:
 		return
+	# екран «час спати» будуємо явно: його кнопка — єдиний вихід звідти, і саме її
+	# найдорожче загубити за краєм
+	_hud.show_sleep(func(): pass)
 	for shape in SHAPES:
 		get_tree().root.size = shape
 		await wait_process_frames(4)

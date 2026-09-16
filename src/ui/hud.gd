@@ -884,8 +884,18 @@ func show_sleep(on_parent_continue: Callable) -> void:
 	move_child(dim, 0)
 	_sleep_button = Button.new()
 	_sleep_button.text = "Батьки: продовжити"
-	_sleep_button.position = Vector2(480, 560)
 	_sleep_button.custom_minimum_size = Vector2(320, 80)
+	# Прив'язка до низу по центру, а не до пікселя: полотно при розтягу "expand" роздається
+	# по більшій осі (планшет 4:3 — 1280×960, телефон 19.5:9 — 1560×720), і прибита кнопка
+	# з'їжджала то вбік, то на 400 точок від низу. Це екран «час спати» — єдиний вихід із
+	# нього, і промахнутись по ньому гірше, ніж по будь-чому іншому в грі.
+	_sleep_button.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_sleep_button.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_sleep_button.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_sleep_button.offset_left = -160
+	_sleep_button.offset_right = 160
+	_sleep_button.offset_top = -160
+	_sleep_button.offset_bottom = -80
 	_sleep_button.add_theme_font_size_override("font_size", 24)
 	_sleep_button.pressed.connect(on_parent_continue)
 	_root.add_child(_sleep_button)
