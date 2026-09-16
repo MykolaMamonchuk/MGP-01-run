@@ -134,6 +134,25 @@ func _process(_delta: float) -> void:
 		return
 	_done = true
 	await RenderingServer.frame_post_draw
+
+	# ДВА СУСІДНІ КАДРИ ОДНОГО ЗАПУСКУ. Це і є єдиний чесний спосіб зміряти миготіння.
+	# Порівняння двох окремих ЗАПУСКІВ не працює в принципі: вода, «дихання» декору й хмари
+	# живуть за реальним часом, тож два запуски не збігаються навіть коли все правильно, і
+	# метрика ловить анімацію замість вади. Тут же між знімками минає один кадр гри — усе,
+	# що стрибнуло за цей час, стрибнуло по-справжньому.
+	#
+	#     WORLD=meadow LEVEL=1 ADVANCE=40 OUT=/tmp/a.png NEXT=/tmp/b.png godot res://src/debug/track_shot.tscn
+	var nxt := OS.get_environment("NEXT")
+	if nxt != "":
+		_save(OS.get_environment("OUT"))
+		var step := float(OS.get_environment("STEP")) if OS.get_environment("STEP") != "" else 0.0
+		if step > 0.0:
+			_track.advance(step)      # рух траси на STEP метрів між кадрами
+		await RenderingServer.frame_post_draw
+		_save(nxt)
+		print("два кадри: ", OS.get_environment("OUT"), " і ", nxt)
+		get_tree().quit()
+		return
 	if OS.get_environment("DUMP") != "":
 		# скільки предметів кожного виду траса справді поклала в ряди — щоб черга на
 		# генерування моделей будувалась за фактом, а не за відчуттям «це, мабуть, помітне»
@@ -153,6 +172,14 @@ func _process(_delta: float) -> void:
 
 	var out := OS.get_environment("OUT")
 	if out != "":
+		_save(out)
+		print("знімок: ", out)
+	get_tree().quit()
+
+
+## Зберегти поточний кадр у файл: ріжемо по ширині до 16:9, як у гри.
+func _save(out: String) -> void:
+	if out != "":
 		var img := get_viewport().get_texture().get_image()
 		# ріжемо по ширині до 16:9, а не до квадрата
 		var w := img.get_width()
@@ -160,5 +187,3 @@ func _process(_delta: float) -> void:
 		img = img.get_region(Rect2i(0, (img.get_height() - h) / 2, w, h))
 		img.resize(OUT_W, OUT_H, Image.INTERPOLATE_LANCZOS)
 		img.save_png(out)
-		print("знімок: ", out)
-	get_tree().quit()
