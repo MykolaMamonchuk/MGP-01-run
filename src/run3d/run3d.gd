@@ -643,6 +643,7 @@ func _on_map_closed() -> void:
 ## Показовий вхід пускає в будь-який рівень. Прапорець, а не правка прогресу: збереження
 ## дитини лишається недоторканим, і без змінної оточення гра поводиться рівно як раніше.
 var _demo_any_level := false
+var _perf_power_t := 0.0
 
 
 func _start_level(num: int) -> void:
@@ -936,6 +937,15 @@ func _process(delta: float) -> void:
 	# стрибком. Сигнал один — скільки героєві лишилось до своєї доріжки (див. CameraRig.drive)
 	camera_rig.drive(delta, hero.position.x, hero.x_target - hero.position.x,
 		hero.vy(), Hero3D.LANE_W)
+	# Автозапуск суперсили для замірів: натиснути кнопку зі скрипта неможливо, а саме в цю
+	# мить гра й завмирала. PERF_POWER=1 стріляє нею раз на 5 секунд, і perf_overlay ловить
+	# найдовший кадр — тобто затримку видно числом, а не на відчуття.
+	if OS.get_environment("PERF_POWER") != "":
+		_perf_power_t += delta
+		if _perf_power_t > 5.0:
+			_perf_power_t = 0.0
+			power_charge = 9999
+			activate_power()
 	spawner.check(delta)
 	events_spawner.tick(delta)
 	_hint(delta)

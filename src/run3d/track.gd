@@ -537,7 +537,12 @@ func _sync_decor(delta: float) -> void:
 			var tilt := sin(t * 1.2 + z) * 0.02
 			var sc := d[o + 4]
 			var stretch := d[o + 6]   # розтяг лише по локальній Z до повороту (див. _add_decor) — 1.0 для звичайного декору
-			var basis := Basis(Vector3.UP, d[o + 3]).scaled(Vector3(sc, sc, sc * stretch)) * Basis(Vector3(0, 0, 1), tilt).scaled(Vector3(1.0, breathe, 1.0))
+			# Розтяг множимо СПРАВА, а не через scaled(). У Godot Basis.scaled() множить зліва,
+			# тобто масштабує СВІТОВІ осі — і розтяг прольоту йшов у світову Z замість власної
+			# осі настилу. Для рівномірного масштабу різниці нема, тож вада ховалась доти,
+			# доки не знадобився розтяг по одній осі: місток не діставав берегів.
+			var basis := (Basis(Vector3.UP, d[o + 3]) * Basis.from_scale(Vector3(sc, sc, sc * stretch))) \
+				* Basis(Vector3(0, 0, 1), tilt).scaled(Vector3(1.0, breathe, 1.0))
 			basis = Basis.from_scale(Vector3(1.0, sy_row, 1.0)) * basis
 			var b := ids[j]
 			(_decor_mm[b].multimesh as MultiMesh).set_instance_transform(used[b], Transform3D(basis, Vector3(x, sy_row * d[o + 1], z_row + z)))

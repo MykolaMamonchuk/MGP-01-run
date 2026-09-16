@@ -27,11 +27,7 @@
     "res://assets/props/crate_3.glb"
   ],
   "puddle": "res://assets/props/puddle.glb",
-  "bridge_plank": {
-    "path": "res://assets/props/bridge_plank.glb",
-    "scale": 1.0,
-    "yaw_deg": -90.0
-  },
+  "bridge_plank": "res://assets/props/bridge_plank.glb",
   "bush_flower": [
     {
       "sprite": "res://assets/sprites/bush_flower_1.png",

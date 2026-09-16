@@ -45,7 +45,13 @@ func _ready() -> void:
 		Vector3(-0.37554693, 0.62161, -0.687434),
 		Vector3(0.2980157, 0.7833269, 0.54551405))
 	sun.light_energy = 0.9
+	# Тіні РІВНО як у грі: один каскад замість чотирьох (на 40 метрах ділити нема чого, а
+	# межі каскадів дають повзучі шви) плюс зсув, без якого на великих площинах з'являється
+	# «акне» — дрібні смуги, що ворушаться при русі.
 	sun.shadow_enabled = true
+	sun.shadow_bias = 0.03
+	sun.shadow_normal_bias = 1.5
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 40.0
 	add_child(sun)
 

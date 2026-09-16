@@ -38,6 +38,9 @@ static func preheat(host: Node3D, at: Vector3 = Vector3.ZERO) -> void:
 	splash(probe, Vector3.ZERO, Palette.SPLASH_WATER)
 	confetti(probe, Vector3.ZERO, 4)
 	sparkles(probe, 0.1, 4)
+	# Кільце теж: ним світить СУПЕРСИЛА, і це найгірше місце для компіляції шейдера —
+	# дитина натискає кнопку, і гра завмирає рівно в мить, коли має бути найефектніше.
+	ring(probe, Vector3.ZERO, Palette.STAR)
 	var star := MeshInstance3D.new()
 	star.mesh = star_mesh(Palette.STAR)
 	probe.add_child(star)

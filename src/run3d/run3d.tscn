@@ -31,6 +31,9 @@ environment = SubResource("Environment_1")
 transform = Transform3D(0.87758255, -0.37554693, 0.2980157, 0, 0.62161, 0.7833269, -0.47942555, -0.687434, 0.54551405, 0, 8, 0)
 light_energy = 0.9
 shadow_enabled = true
+shadow_bias = 0.03
+shadow_normal_bias = 1.5
+directional_shadow_mode = 0
 directional_shadow_max_distance = 40.0
 
 [node name="CameraRig" type="Node3D" parent="." unique_id=688793029]
