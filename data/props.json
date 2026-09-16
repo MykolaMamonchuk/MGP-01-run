@@ -59,5 +59,13 @@
       "height": 0.3134,
       "frames": 8
     }
-  ]
+  ],
+  "house_red": "res://assets/props/house_red.glb",
+  "house_terra": "res://assets/props/house_terra.glb",
+  "house_teal": "res://assets/props/house_teal.glb",
+  "house_straw": "res://assets/props/house_straw.glb",
+  "city_house_a": "res://assets/props/city_house_a.glb",
+  "city_house_b": "res://assets/props/city_house_b.glb",
+  "hut": "res://assets/props/hut.glb",
+  "wall_house": "res://assets/props/wall_house.glb"
 }
