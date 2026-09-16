@@ -78,10 +78,11 @@ func _process(_delta: float) -> void:
 	var strip := Image.create(size * angles, size, false, Image.FORMAT_RGBA8)
 	for i in angles:
 		_subject.rotation.y = TAU * float(i) / float(angles)
-		# Наводимо камеру НА ЦЕНТР, а не виставляємо нахил і позицію окремо: інакше промінь
-		# проходить повз модель і силует з'їжджає за край кадру. Кут −25° — той самий, під
-		# яким пропс видно в грі, тож спрайт збігається з тим, що заміняє.
-		_cam.position = centre + Vector3(0.0, sin(deg_to_rad(25.0)), cos(deg_to_rad(25.0))) * span * 3.0
+		# Знімаємо СТРОГО ЗБОКУ, без нахилу. Це не дрібниця: дощечка в грі стоїть вертикально,
+		# і ігрова камера сама дивиться на неї згори під 25°. Якщо зняти пропс уже під цим
+		# кутом, скорочення накладеться ДВІЧІ — і бочка виходить приплюснутою. Ціна: на
+		# спрайті не видно кришки, але пласка дощечка її й не показала б.
+		_cam.position = centre + Vector3(0.0, 0.0, 1.0) * span * 3.0
 		_cam.look_at(centre, Vector3.UP)
 		await RenderingServer.frame_post_draw
 		await RenderingServer.frame_post_draw

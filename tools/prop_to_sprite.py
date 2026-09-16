@@ -58,7 +58,10 @@ def shrink(png, colors):
     full_px = im.size[0]
     # Обрізаємо порожнечу: спрайт має щільно облягати силует, інакше половина пікселів
     # (і ваги) йде на прозоре тло.
-    box = im.getbbox()
+    # getbbox() рахує вмістом БУДЬ-ЯКУ ненульову прозорість, тож ледь помітна облямівка від
+    # згладжування роздувала розмір на 6–8% — пропс у грі виходив більшим за модель.
+    # Беремо межу за тим самим порогом, за яким її ріже матеріал (alpha_scissor 0.5).
+    box = im.split()[3].point(lambda v: 255 if v > 127 else 0).getbbox()
     if box:
         im = im.crop(box)
     q = im.quantize(colors=colors, method=Image.FASTOCTREE)

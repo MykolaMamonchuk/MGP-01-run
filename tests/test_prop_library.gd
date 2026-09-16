@@ -20,10 +20,15 @@ func test_unknown_kind_has_no_model() -> void:
 
 ## Найважливіше: порожній data/props.json не має нічого міняти. Саме так воно й лежить у
 ## репозиторії зараз — моделей ще нема, і гра мусить малювати вокселі, як малювала.
-func test_empty_library_changes_nothing() -> void:
+## Вид, якого нема в props.json, мусить тихо лишитись на вокселі, а не впасти. Перевіряємо
+## це на ВИГАДАНИХ іменах навмисно: раніше тут стояли справжні («bush», «tree»), і тест
+## падав щоразу, коли черговий вид отримував модель — тобто карав саме за те, заради чого
+## уся ця робота й робиться.
+func test_unknown_kinds_stay_on_voxel() -> void:
 	PropLibrary.reload()
-	for kind in ["tree", "bush", "fence", "stump", "rock", "flower"]:
-		assert_null(PropLibrary.mesh(kind), "%s поки малюється вокселем" % kind)
+	for kind in ["такого_виду_нема", "zzz_test_kind", "вигадка_42"]:
+		assert_null(PropLibrary.mesh(kind), "%s: моделі нема — лишається воксель" % kind)
+	assert_false(PropLibrary.has("такого_виду_нема"), "і бібліотека це визнає")
 
 
 func test_missing_file_falls_back_to_voxel() -> void:
