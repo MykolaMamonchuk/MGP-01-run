@@ -3,7 +3,7 @@ extends GutTest
 
 const RunScript := preload("res://src/run3d/run3d.gd")
 const VALID_ACTIONS := ["jump", "duck", "any", "side", "gap", "boost", "rail", "wind"]
-const VALID_ANIMS := ["", "sway", "spin", "bob", "breathe", "bounce", "flap", "pulse", "drip", "wobble"]
+const VALID_ANIMS := ["", "sway", "spin", "bob", "breathe", "bounce", "flap", "pulse", "drip", "wobble", "roll"]
 ## Мова перешкод (GDD v1.4 §3): силует → дія → маркер.
 const VALID_SHAPES := ["low_bar", "high_frame", "x_box", "vehicle", "critter"]
 const VALID_MARKERS := ["none", "stripes_red", "stripes_yellow", "x_white"]

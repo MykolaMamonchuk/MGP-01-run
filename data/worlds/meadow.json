@@ -72,7 +72,6 @@
     "flower_yellow",
     "flower_pink",
     "hay_bale",
-    "hay_bale",
     "rock_grey"
   ],
   "buildings_far": [
@@ -143,7 +142,8 @@
       ],
       "anim": "sway",
       "shape": "high_frame",
-      "prop": "banner_line"
+      "prop": "banner_line",
+      "marker": "none"
     },
     "puddle": {
       "voxel": "puddle",
@@ -187,7 +187,8 @@
       ],
       "anim": "wobble",
       "shape": "low_bar",
-      "prop": "fence_low"
+      "prop": "fence_low",
+      "marker": "none"
     },
     "beehive": {
       "voxel": "beehive",
@@ -199,7 +200,7 @@
         0.7,
         0.65
       ],
-      "anim": "bob",
+      "anim": "roll",
       "shape": "x_box",
       "marker": "none",
       "prop": "barrel"
@@ -216,7 +217,8 @@
       ],
       "anim": "breathe",
       "shape": "critter",
-      "prop": "goose"
+      "prop": "goose",
+      "marker": "none"
     },
     "haycart": {
       "voxel": "haycart",
@@ -231,7 +233,8 @@
       "anim": "wobble",
       "shape": "vehicle",
       "vehicle_voxel": "haycart",
-      "prop": "cart_market"
+      "prop": "cart_market",
+      "marker": "none"
     },
     "xbox": {
       "voxel": "xbox_red",
@@ -244,7 +247,8 @@
         0.6
       ],
       "shape": "x_box",
-      "prop": "xbox_red"
+      "prop": "xbox_red",
+      "marker": "none"
     },
     "clothesline": {
       "voxel": "clothesline",
@@ -258,7 +262,8 @@
       ],
       "anim": "sway",
       "shape": "high_frame",
-      "prop": "clothesline"
+      "prop": "clothesline",
+      "marker": "none"
     }
   },
   "road_color": "#E7C489",
