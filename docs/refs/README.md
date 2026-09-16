@@ -24,10 +24,20 @@
 > magical accents. Single clean silhouette, slightly exaggerated for gameplay readability.
 > Soft ambient lighting, gentle shadows, cosy cheerful atmosphere, family-friendly, polished.
 > **No voxels, no cubes, no blocky or pixelated geometry, no photorealism, no realistic
-> textures.**
+> textures. ISOLATED ASSET: the object alone on a plain empty background, nothing else in
+> frame — no scenery, no ground, no grass, no floor plane, no cast shadow, no base, no
+> pedestal, no props around it, no other objects, no text. One single object, centred,
+> fully visible.**
 
-Останнє речення — не формальність: саме воно відсікає старий напрям, і без нього генератор
-збивається на кубики.
+Останні два речення — не формальність.
+
+Перше відсікає старий напрям: без нього генератор збивається на кубики.
+
+Друге відсікає ФОН. Генератор охоче домальовує предмету галявину, тінь або підставку, і
+далі це коштує двічі: у моделі з'являється зайва геометрія (плита під бочкою), а в
+текстуру затікає колір трави. Ми на цьому вже спіймались — довелось писати окремий пошук
+силуету в `tools/project_texture.py`, щоб не намалювати фон концепту на самій моделі.
+Нам потрібен ОКРЕМИЙ предмет, який гра сама поставить на землю.
 
 **Для чотирилапих героїв** дописуємо до першого речення:
 
