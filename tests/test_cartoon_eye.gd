@@ -162,3 +162,56 @@ func _rotation_swing(lever: Vector3, wobble_hz: float, hz: float) -> float:
 		lo = minf(lo, ball.global_position.y)
 		hi = maxf(hi, ball.global_position.y)
 	return hi - lo
+
+
+# ───────────────── CartoonEye3D (vendor/cartoon_eye_3d) — рябий обвід зіниці ─────────────────
+# ВЕНДОРНИЙ 3D-компонент ока (справжня геометрія: куля + купол-райдужка + купол-зіниця),
+# ЗОВСІМ ІНШИЙ клас за наш CartoonEye вище. Тестуємо тут те саме, на що спирається лис
+# (rig_face.eye_scene → fox_eye_3d.tscn): купол зіниці/райдужки/rim мусять НЕ перетинатись
+# геометрично, інакше на межі — рябий, шумний обвід (z-fighting), який побачив Nick.
+
+## Купол зіниці на своєму КРАЇ (де сфера сходить у нуль) мусить лежати ПОПЕРЕДУ поверхнею
+## купола райдужки на цьому ж радіусі — інакше вони перетинаються. Рахуємо з опублікованих
+## transform-ів вузлів (Iris/Pupil), не лізучи в приватну _layer_gap: так тест ловить і
+## регресію, якщо позиції колись повернуть на «навмання підібрані частки iris_d» (як було
+## 0.10 / 0.22 до правки — з ними цей тест падає, бачили це на знімку кропу ока лиса).
+func test_pupil_dome_stays_in_front_of_iris_at_its_own_edge() -> void:
+	var eye := (load("res://src/run3d/eye/fox_eye_3d.tscn") as PackedScene).instantiate() as CartoonEye3D
+	add_child_autofree(eye)
+	await wait_process_frames(1)
+	var pivot := eye.iris_pivot
+	var iris := pivot.get_node("Iris") as MeshInstance3D
+	var pupil := pivot.get_node("Pupil") as MeshInstance3D
+	var edge_r := pupil.scale.x * 0.5
+	var t := clampf(edge_r / maxf(iris.scale.x * 0.5, 0.0001), 0.0, 1.0)
+	var iris_height_at_pupil_edge := iris.position.z + iris.scale.z * 0.5 * sqrt(1.0 - t * t)
+	assert_gt(pupil.position.z, iris_height_at_pupil_edge,
+		"на краю зіниці її купол мусить лежати ПОПЕРЕД куполом райдужки — інакше z-fighting")
+
+
+## Той самий перетин, на поверх вище: купол райдужки на СВОЄМУ краю — попереду obidка (rim).
+func test_iris_dome_stays_in_front_of_rim_at_its_own_edge() -> void:
+	var eye := (load("res://src/run3d/eye/fox_eye_3d.tscn") as PackedScene).instantiate() as CartoonEye3D
+	add_child_autofree(eye)
+	await wait_process_frames(1)
+	var pivot := eye.iris_pivot
+	var rim := pivot.get_node("IrisRim") as MeshInstance3D
+	var iris := pivot.get_node("Iris") as MeshInstance3D
+	var edge_r := iris.scale.x * 0.5
+	var t := clampf(edge_r / maxf(rim.scale.x * 0.5, 0.0001), 0.0, 1.0)
+	var rim_height_at_iris_edge := rim.position.z + rim.scale.z * 0.5 * sqrt(1.0 - t * t)
+	assert_gt(iris.position.z, rim_height_at_iris_edge,
+		"на краю райдужки її купол мусить лежати ПОПЕРЕД обідком — інакше z-fighting")
+
+
+## Той самий запобіжник — але для КРАЙНІХ pupil_size (не лише лисячого 0.66): чиста функція
+## _layer_gap() мусить тримати властивість «вужчий купол попереду ширшого на своєму краю»
+## для будь-якого пресета майбутнього героя, не тільки для щойно підігнаного лиса.
+func test_layer_gap_keeps_narrower_dome_in_front_for_any_ratio() -> void:
+	for ratio in [0.2, 0.45, 0.66, 0.85, 0.95]:
+		var base_d := 0.08
+		var margin_d := 0.08
+		var gap: float = CartoonEye3D._layer_gap(base_d, ratio, margin_d)
+		var base_height_at_narrow_edge := 0.5 * base_d * sqrt(1.0 - ratio * ratio)
+		assert_gt(gap, base_height_at_narrow_edge,
+			"ratio=%.2f: запас має перевищувати висоту ширшого купола на краю вужчого" % ratio)

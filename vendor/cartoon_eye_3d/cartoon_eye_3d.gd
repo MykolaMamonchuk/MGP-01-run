@@ -205,6 +205,11 @@ const IRIS_RIM_WIDEN := 1.07
 ## наше: опуклість райдужки як частка глибини ока — саме вона й дає м'який градієнт.
 const IRIS_DOME := 0.22
 const IRIS_RIM_DARKEN := 0.42
+## наше: запас (частка iris_d) понад геометрично необхідний зсув між сусідніми куполами
+## (rim→iris→pupil) — див. _layer_gap(). Без запасу шари лише-лише не перетинаються, і на
+## екрані це все одно читається як шумний, рябий обвід (z-fighting на майже дотичних
+## поверхнях); з запасом лишається справжня, помітна щілина.
+const DEPTH_MARGIN := 0.25
 
 var _blink_timer := 0.0
 var _active_blink_tween: Tween
@@ -269,6 +274,20 @@ func _nodes_ok() -> bool:
 		and is_instance_valid(upper_lid) and is_instance_valid(lower_lid)
 
 
+## наше: зсув НАСТУПНОГО (вужчого) купола вперед відносно ПОПЕРЕДНЬОГО (ширшого) під ним,
+## який гарантовано тримає край вужчого купола ПОПЕРЕД поверхнею ширшого — інакше вони
+## геометрично перетинаються й дають рябий, шумний обвід z-fighting (див. коментар у
+## _apply_shape, де це й побачили на зіниці лиса). Чиста функція — тест б'є її напряму.
+##   base_d   — повний (не пів-) z-розмір ширшого купола внизу (rim_d для переходу rim→iris,
+##              iris_d для переходу iris→pupil);
+##   ratio    — відношення радіуса вужчого купола до ширшого (pupil_size для iris→pupil,
+##              1.0 / IRIS_RIM_WIDEN для rim→iris);
+##   margin_d — одиниця запасу (завжди iris_d: спільний масштаб для обох переходів).
+static func _layer_gap(base_d: float, ratio: float, margin_d: float) -> float:
+	var r := clampf(ratio, 0.0, 1.0)
+	return 0.5 * base_d * sqrt(maxf(0.0, 1.0 - r * r)) + DEPTH_MARGIN * margin_d
+
+
 func _apply_shape() -> void:
 	if not _nodes_ok():
 		return
@@ -300,12 +319,14 @@ func _apply_shape() -> void:
 	var iris_w := eye_width * iris_size
 	var iris_h := eye_height * iris_size
 	var iris_d := maxf(0.03, eye_depth * IRIS_DOME)
-	iris_rim.scale = Vector3(iris_w * IRIS_RIM_WIDEN, iris_h * IRIS_RIM_WIDEN, iris_d * 0.9)
+	var rim_d := iris_d * 0.9
+	var pupil_d := iris_d * 0.9
+	iris_rim.scale = Vector3(iris_w * IRIS_RIM_WIDEN, iris_h * IRIS_RIM_WIDEN, rim_d)
 	iris.scale = Vector3(iris_w, iris_h, iris_d)
 	pupil.scale = Vector3(
 		iris_w * pupil_size,
 		iris_h * pupil_size,
-		iris_d * 0.9
+		pupil_d
 	)
 	# наше: повороти дітей ЗАВЖДИ обнуляємо. Пресети героїв — успадковані сцени, і редактор
 	# любить запікати в них трансформи дітей; коли форма компонента змінюється (у нас диски
@@ -316,10 +337,21 @@ func _apply_shape() -> void:
 	highlight_big.rotation = Vector3.ZERO
 	highlight_small.rotation = Vector3.ZERO
 
-	# кожен шар трохи попереду попереднього, інакше вони б z-fight'ились між собою
-	iris_rim.position.z = 0.0
-	iris.position.z = iris_d * 0.10
-	pupil.position.z = iris_d * 0.22
+	# наше: кожен шар — купол (сплющена сфера), не пласка нашивка. На своєму КРАЇ купол
+	# завжди сходить у нуль (сфера), а купол ширшого шару під ним на цьому ж радіусі ще
+	# опуклий — тож старий підхід «зсунь наступний шар на довільну частку iris_d вперед»
+	# (тут стояло фіксоване 0.10 / 0.22, взяте на око під одного лиса) на вужчих/ширших
+	# пресетах не рятує: край вузького купола провалюється НИЖЧЕ поверхні широкого, вони
+	# геометрично перетинаються, і рівно на цьому перетині — де поверхні майже дотичні —
+	# з'являється рябий, шумний обвід (z-fighting). Це і побачив Nick на зіниці лиса.
+	# _layer_gap() рахує зсув, який ГАРАНТОВАНО тримає край вужчого купола попереду
+	# ширшого — для будь-яких iris_size/pupil_size з пресета, не тільки для лиса.
+	var rim_layer_z := 0.0
+	var iris_layer_z := rim_layer_z + _layer_gap(rim_d, 1.0 / IRIS_RIM_WIDEN, iris_d)
+	var pupil_layer_z := iris_layer_z + _layer_gap(iris_d, pupil_size, iris_d)
+	iris_rim.position.z = rim_layer_z
+	iris.position.z = iris_layer_z
+	pupil.position.z = pupil_layer_z
 
 	# наше: розмір бліків тепер ВІДНОСНИЙ (×eye_width/×eye_height), як у райдужки. Був
 	# абсолютний — і щойно Hero3D стискав око під конкретного героя (rig_face.eye_size),

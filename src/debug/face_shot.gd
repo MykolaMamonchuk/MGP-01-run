@@ -7,6 +7,27 @@ extends Node3D
 
 const SIZE := 660
 
+## Дефолтне кадрування (CAM_SIZE/CAM_Y) підібране під героя-звірятка ЗВИЧАЙНИХ пропорцій:
+## компактна кругла голова над тілом, очі десь трохи вище середини голови. Дельфін —
+## виняток: плаский, ШИРОКИЙ безногий силует зі спинним плавцем, приварений скінінгом до
+## ТІЄЇ Ж кістки, що й голова (див. docs/MEMORY.md, «Відомий залишок»). Через це дефолтне
+## кадрування показує плавець і потилицю замість очей — саме симптом, який побачив Nick.
+## Авто-порахувати кадр (з коробки голови) тут не можна: коробка тягнеться до кінчика
+## плавця, і формула виходить така сама неправильна, як і посадка `rig_face` (обидві
+## рахують «перед»/«верх» з тієї самої розкладки кісток, яку плавець і псує). Тому —
+## явний виняток per-hero, а не спроба вивести його з геометрії.
+const CAM_OVERRIDES := {
+	"dolphin": {"size": 1.0, "y": 0.45},
+}
+const DEFAULT_CAM_SIZE := 0.62
+const DEFAULT_CAM_Y := 0.66
+
+## Чиста функція (тест б'є її напряму): кадрування за замовчуванням для героя `id`,
+## якщо CAM_SIZE/CAM_Y не задані з середовища.
+static func default_cam(id: String) -> Vector2:
+	var o: Dictionary = CAM_OVERRIDES.get(id, {})
+	return Vector2(float(o.get("size", DEFAULT_CAM_SIZE)), float(o.get("y", DEFAULT_CAM_Y)))
+
 var _hero: Hero3D
 var _cam: Camera3D
 var _frames := 0
@@ -65,9 +86,12 @@ func _ready() -> void:
 	_cam = Camera3D.new()
 	var cam := _cam
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	# кадрування — зі середовища, бо голова в кожного героя на своїй висоті
-	cam.size = float(OS.get_environment("CAM_SIZE")) if OS.get_environment("CAM_SIZE") != "" else 0.62
-	var cam_y := float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else 0.66
+	# кадрування — зі середовища, а типово — за default_cam(id): для більшості звірят це
+	# ті самі 0.62/0.66, що й завжди; для дельфіна (див. default_cam) — свої, бо дефолтні
+	# показують плавець замість очей.
+	var cam_default := default_cam(id)
+	cam.size = float(OS.get_environment("CAM_SIZE")) if OS.get_environment("CAM_SIZE") != "" else cam_default.x
+	var cam_y := float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else cam_default.y
 	# CAM_YAW — кут довкола героя: 0 — анфас, 90 — збоку (видно лапи, яких спереду не видно)
 	var yaw: float = float(OS.get_environment("CAM_YAW")) if OS.get_environment("CAM_YAW") != "" else 0.0
 	var a := deg_to_rad(yaw)
@@ -121,14 +145,23 @@ func _process(_delta: float) -> void:
 	# чекання знімок показував би морду до пози (на цьому вже один раз обманулись)
 	await RenderingServer.frame_post_draw
 	if OS.get_environment("DUMP") != "":
-		var e0 := _hero._eyes[0] as Node3D
-		var e1 := _hero._eyes[1] as Node3D
-		print("голова=%s  обличчя=%s  око0=%s  око1=%s  центр очей x=%.3f" % [
-			_hero._head.global_position, _hero._face.global_position,
-			e0.global_position, e1.global_position,
-			(e0.global_position.x + e1.global_position.x) * 0.5])
-		if _hero._mouth3d != null:
-			print("рот=%s  масштаб=%s" % [_hero._mouth3d.global_position, _hero._mouth3d.global_transform.basis.get_scale()])
+		# rig_texture-герой БЕЗ rig_face_overlay (черепаха/дельфін/єдиноріг) живого обличчя не
+		# будує взагалі (Hero3D._build_rig() пропускає _build_face()) — _eyes і _face
+		# лишаються порожні/null. Без цієї гілки DUMP на такому герої падав з "Out of
+		# bounds get index '0'" замість корисного повідомлення (саме так і виявилось, що
+		# дельфін живих очей не має).
+		if _hero._eyes.is_empty():
+			print("голова=%s  живого обличчя нема (_build_face() не викликано — див. rig_face_overlay)" %
+				_hero._head.global_position)
+		else:
+			var e0 := _hero._eyes[0] as Node3D
+			var e1 := _hero._eyes[1] as Node3D
+			print("голова=%s  обличчя=%s  око0=%s  око1=%s  центр очей x=%.3f" % [
+				_hero._head.global_position, _hero._face.global_position,
+				e0.global_position, e1.global_position,
+				(e0.global_position.x + e1.global_position.x) * 0.5])
+			if _hero._mouth3d != null:
+				print("рот=%s  масштаб=%s" % [_hero._mouth3d.global_position, _hero._mouth3d.global_transform.basis.get_scale()])
 	var img := get_viewport().get_texture().get_image()
 	var side: int = mini(img.get_width(), img.get_height())
 	img = img.get_region(Rect2i((img.get_width() - side) / 2, (img.get_height() - side) / 2, side, side))

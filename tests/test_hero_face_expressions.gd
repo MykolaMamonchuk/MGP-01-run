@@ -11,6 +11,7 @@ extends GutTest
 
 const SHADER_EYE := "res://vendor/cartoon_eye/ShaderEye.tscn"
 const EYE_3D := "res://vendor/cartoon_eye_3d/CartoonEye3D.tscn"
+const FaceShot := preload("res://src/debug/face_shot.gd")
 
 var _hero: Hero3D
 
@@ -353,3 +354,52 @@ func test_gaze_drifts_by_itself_while_running_straight() -> void:
 
 	assert_gt(absf(b - a), 0.01, "погляд сам ледь блукає, а не стоїть на місці")
 	assert_lt(absf(b), Hero3D.GAZE_DRIFT * 1.5, "але блукає ЛЕДЬ — не косить очима")
+
+
+# ───────────────── дельфін: rig_face мертвий БЕЗ rig_face_overlay ─────────────────
+# Баг-репорт: «у дельфіна обличчя не на місці, знімок морди показує спину й плавець
+# замість очей». Причина виявилась не в rig_face (він читається нормально — див.
+# HeroRig.face_of()/Hero3D._face_cfg_value()), а в тому, що rig_face для rig_texture-героя
+# УЗАГАЛІ ні на що не впливає, поки йому не додали "rig_face_overlay": true —
+# Hero3D._build_rig() тоді просто не викликає _build_face(), і живих очей немає (нема кому
+# читати rig_face.y/scale). У дельфіна цього прапорця нема — на відміну від лиса/оленяти.
+
+## Живого обличчя в дельфіна зараз немає — і це не забутий rig_face.eye_scene/mouth_scene,
+## а свідома (хай і документована як «відомий залишок» у docs/MEMORY.md) відсутність
+## rig_face_overlay: без нього ЖОДНЕ значення rig_face дельфіна не подіяло б, тож
+## calibровка тут — не рішення, поки текстура ще малює власні («мертві») очі моделі.
+func test_dolphin_has_rig_texture_but_no_live_face_overlay() -> void:
+	var def := Hero3D.resolve_def(Hero3D.defs(), "dolphin")
+	assert_true(bool(def.get("rig_texture", false)), "передумова: дельфін — rig_texture-герой")
+	assert_false(def.has("rig_face_overlay"),
+		"дельфін БЕЗ rig_face_overlay — інакше цей тест застарів і калібрування знову можливе")
+	var dolphin := Hero3D.new()
+	add_child_autofree(dolphin)
+	dolphin.set_hero("dolphin", Palette.of(def.get("color"), Palette.HERO_DEFAULT),
+		String(def.get("feature", "dolphin")))
+	await wait_process_frames(1)
+	assert_eq(dolphin._eyes.size(), 0,
+		"_build_face() не викликано — живих очей немає, rig_face (навіть заданий) не подіяв би")
+	assert_null(dolphin._face, "живого вузла обличчя теж немає")
+
+
+## РЕГРЕСІЯ: face_shot.tscn за замовчуванням (без CAM_SIZE/CAM_Y) знімав дельфіна так само,
+## як лиса чи оленя — а в дельфіна плаский ШИРОКИЙ безногий силует зі спинним плавцем,
+## приварений до тієї самої кістки, що й голова, тож дефолтне кадрування показувало плавець
+## і потилицю замість очей (саме симптом з баг-репорту). FaceShot.default_cam() — чиста
+## функція, тест б'є її напряму: для дельфіна кадрування МАЄ відрізнятися від загального
+## дефолту, а для решти звірят лишається тим самим (жоден інший знімок не мав зламатись).
+func test_face_shot_default_cam_has_dolphin_override_others_unchanged() -> void:
+	var generic := FaceShot.default_cam("lys")
+	assert_almost_eq(generic.x, FaceShot.DEFAULT_CAM_SIZE, 0.0001, "лис — загальний дефолт")
+	assert_almost_eq(generic.y, FaceShot.DEFAULT_CAM_Y, 0.0001, "лис — загальний дефолт")
+	assert_eq(FaceShot.default_cam("olen"), Vector2(FaceShot.DEFAULT_CAM_SIZE, FaceShot.DEFAULT_CAM_Y),
+		"оленя дефолт кадрування не чіпали")
+	assert_eq(FaceShot.default_cam("odn"), Vector2(FaceShot.DEFAULT_CAM_SIZE, FaceShot.DEFAULT_CAM_Y),
+		"єдинорога дефолт кадрування не чіпали")
+	assert_eq(FaceShot.default_cam("turtle"), Vector2(FaceShot.DEFAULT_CAM_SIZE, FaceShot.DEFAULT_CAM_Y),
+		"черепаху дефолт кадрування не чіпали")
+	var dolphin_cam := FaceShot.default_cam("dolphin")
+	assert_ne(dolphin_cam, generic, "у дельфіна СВОЄ кадрування, інакше знову побачимо плавець")
+	assert_gt(dolphin_cam.x, generic.x, "ширший кадр — інакше очі дельфіна вилазять за краї")
+	assert_lt(dolphin_cam.y, generic.y, "нижчий погляд — інакше кадр ловить плавець, не очі")
