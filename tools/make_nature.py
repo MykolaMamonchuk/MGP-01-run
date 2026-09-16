@@ -140,6 +140,23 @@ def build(kind, h, main, second, seed):
             location=(0, 0, h * 0.92)).scale = (w * 0.5 + h * 0.16, h * 0.13, h * 0.09)
         add(C.primitive_cube_add, mat("pillar", main), size=1.0,
             location=(0, 0, h * 1.05)).scale = (w * 0.30, h * 0.16, h * 0.06)
+    elif kind == "tower":
+        # Вежа-орієнтир: круглий стовбур, що звужується догори, пояс і конічний дах.
+        # Раніше під цією назвою стояла арка — збоку від дороги вона читалась як голий
+        # стовп, бо в арки збоку й видно лише опору.
+        add(C.primitive_cylinder_add, mat("stone", main), vertices=9,
+            radius=h * 0.20, depth=h * 0.62, location=(0, 0, h * 0.31))
+        add(C.primitive_cylinder_add, mat("stone", main), vertices=9,
+            radius=h * 0.155, depth=h * 0.26, location=(0, 0, h * 0.75))
+        add(C.primitive_torus_add, mat("belt", second), major_radius=h * 0.205,
+            minor_radius=h * 0.028, major_segments=9, minor_segments=5, location=(0, 0, h * 0.62))
+        add(C.primitive_cone_add, mat("roof", second), vertices=9,
+            radius1=h * 0.24, depth=h * 0.28, location=(0, 0, h * 1.02))
+        for i in range(3):
+            a = math.pi * 2.0 / 3.0 * i
+            add(C.primitive_cube_add, mat("window", "#63C7E8"), size=1.0,
+                location=(math.cos(a) * h * 0.20, math.sin(a) * h * 0.20, h * 0.46)
+                ).scale = (h * 0.05, h * 0.05, h * 0.09)
     elif kind == "post_line":
         # Два стовпи з натягнутою линвою: мотузка з білизною, гірлянда прапорців.
         w = h * 1.6
@@ -187,7 +204,7 @@ DEFAULTS = {
     "pine": ("#2F7A48", "#6B4327"), "bush": ("#5BA34A", "#4C8C3E"),
     "flower": ("#F2A0C0", "#5FA845"), "mushroom": ("#D9503F", "#F1E4C8"),
     "rock": ("#A8ADB3", "#8E949B"), "hay_bale": ("#D9B65C", "#B08840"),
-    "arch": ("#C97B5A", "#8D5524"), "post_line": ("#E8F1E4", "#7A4A2A"),
+    "arch": ("#C97B5A", "#8D5524"), "tower": ("#EFDDBC", "#C1452F"), "post_line": ("#E8F1E4", "#7A4A2A"),
     "xbox": ("#C1452F", "#FFFFFF"), "goose": ("#F7F3E8", "#E8A33D"),
 }
 

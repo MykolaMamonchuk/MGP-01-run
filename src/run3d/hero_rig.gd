@@ -1158,7 +1158,11 @@ func build(parent: Node3D, def: Dictionary, colors: Dictionary) -> bool:
 		_model = null
 		_meshes.clear()
 		return false
-	_scale = HEAD_TOP / maxf(box.size.y, 0.0001)
+	# Модель нормалізуємо за ПОВНИМ габаритом до зросту героя. Для більшості це правильно,
+	# але в кого габарит більший за тіло — ріг єдинорога, піднятий хвіст — тіло стискається,
+	# щоб укластися разом із тим виростом, і звірятко виходить помітно меншим за сусідів.
+	# rig_scale у data/heroes.json — множник саме на цей випадок, за відсутності 1.0.
+	_scale = HEAD_TOP / maxf(box.size.y, 0.0001) * float(def.get("rig_scale", 1.0))
 	_inv_scale = 1.0 / _scale
 	_model_box = box          # потрібен _hero_point() — переклад у метри героя (rig_marks)
 	# скільки шкіри насправді висить на кожній лапці (і якою кісткою нею махати) —
@@ -1177,7 +1181,11 @@ func build(parent: Node3D, def: Dictionary, colors: Dictionary) -> bool:
 	_root = Node3D.new()
 	_root.name = "Rig"
 	_root.scale = Vector3.ONE * _scale
-	_root_y0 = -box.position.y * _scale                # лапки на землю (y = 0)
+	# Лапки на землю. Рахуємо від НИЗУ ГАБАРИТУ моделі, і для більшості це те саме, що низ
+	# лапок. Але коли нижче копит щось звисає — у єдинорога це бічні пасма хвоста, — габарит
+	# глибший за тіло, і звірятко зависає над землею. rig_y у data/heroes.json опускає його
+	# назад; величина в частках зросту героя, за відсутності 0.
+	_root_y0 = -box.position.y * _scale - float(def.get("rig_y", 0.0)) * HEAD_TOP
 	_root.position.y = _root_y0
 	parent.add_child(_root)
 	# розворот мордою в −Z робимо на самій моделі, тож усередині скелета
