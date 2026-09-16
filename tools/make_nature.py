@@ -129,6 +129,53 @@ def build(kind, h, main, second, seed):
             add(C.primitive_torus_add, mat("rope", second), major_radius=h * 0.53,
                 minor_radius=h * 0.035, major_segments=10, minor_segments=5,
                 location=(0, z * h, h * 0.5), rotation=(math.pi * 0.5, 0, 0))
+    elif kind == "arch":
+        # Орієнтир над дорогою: дві опори й перекладина. Стоїть ПОПЕРЕК смуги руху, тож
+        # ширина задається окремо від висоти — інакше низька арка виходила б вузькою.
+        w = h * 1.5
+        for sx in (-1, 1):
+            add(C.primitive_cube_add, mat("pillar", main), size=1.0,
+                location=(sx * w * 0.5, 0, h * 0.5)).scale = (h * 0.16, h * 0.16, h * 0.5)
+        add(C.primitive_cube_add, mat("beam", second), size=1.0,
+            location=(0, 0, h * 0.92)).scale = (w * 0.5 + h * 0.16, h * 0.13, h * 0.09)
+        add(C.primitive_cube_add, mat("pillar", main), size=1.0,
+            location=(0, 0, h * 1.05)).scale = (w * 0.30, h * 0.16, h * 0.06)
+    elif kind == "post_line":
+        # Два стовпи з натягнутою линвою: мотузка з білизною, гірлянда прапорців.
+        w = h * 1.6
+        for sx in (-1, 1):
+            add(C.primitive_cylinder_add, mat("pole", second), vertices=6,
+                radius=h * 0.05, depth=h, location=(sx * w * 0.5, 0, h * 0.5))
+        add(C.primitive_cube_add, mat("line", main), size=1.0,
+            location=(0, 0, h * 0.88)).scale = (w * 0.5, h * 0.012, h * 0.012)
+        for i in range(5):
+            t = (i - 2) / 2.0
+            add(C.primitive_cone_add, mat("flag", main), vertices=3,
+                radius1=h * 0.11, depth=h * 0.18,
+                location=(t * w * 0.38, 0, h * 0.79), rotation=(math.pi, 0, 0))
+    elif kind == "xbox":
+        # Ящик із великим білим хрестом на передній грані — «сюди не можна».
+        add(C.primitive_cube_add, mat("crate", main), size=1.0,
+            location=(0, 0, h * 0.5)).scale = (h * 0.5, h * 0.5, h * 0.5)
+        for sgn in (1, -1):
+            add(C.primitive_cube_add, mat("cross", "#FFFFFF"), size=1.0,
+                location=(0, -h * 0.51, h * 0.5),
+                rotation=(0, sgn * math.pi * 0.25, 0)).scale = (h * 0.52, h * 0.02, h * 0.07)
+    elif kind == "goose":
+        # Гуска: тіло, шия, голова, дзьоб, дві лапки. Очей НЕ малюємо — їх малює гра.
+        body = add(C.primitive_ico_sphere_add, mat("feather", main), subdivisions=2,
+                   radius=h * 0.34, location=(0, 0, h * 0.42))
+        body.scale = (0.85, 1.25, 0.9)
+        add(C.primitive_cylinder_add, mat("feather", main), vertices=7,
+            radius=h * 0.09, depth=h * 0.40, location=(0, -h * 0.20, h * 0.68))
+        add(C.primitive_ico_sphere_add, mat("feather", main), subdivisions=2,
+            radius=h * 0.15, location=(0, -h * 0.22, h * 0.88))
+        add(C.primitive_cone_add, mat("beak", second), vertices=6,
+            radius1=h * 0.07, depth=h * 0.16,
+            location=(0, -h * 0.36, h * 0.86), rotation=(math.pi * 0.5, 0, 0))
+        for sx in (-1, 1):
+            add(C.primitive_cylinder_add, mat("beak", second), vertices=5,
+                radius=h * 0.035, depth=h * 0.18, location=(sx * h * 0.12, 0, h * 0.09))
     else:
         raise SystemExit("невідомий вид: %s" % kind)
 
@@ -140,6 +187,8 @@ DEFAULTS = {
     "pine": ("#2F7A48", "#6B4327"), "bush": ("#5BA34A", "#4C8C3E"),
     "flower": ("#F2A0C0", "#5FA845"), "mushroom": ("#D9503F", "#F1E4C8"),
     "rock": ("#A8ADB3", "#8E949B"), "hay_bale": ("#D9B65C", "#B08840"),
+    "arch": ("#C97B5A", "#8D5524"), "post_line": ("#E8F1E4", "#7A4A2A"),
+    "xbox": ("#C1452F", "#FFFFFF"), "goose": ("#F7F3E8", "#E8A33D"),
 }
 
 

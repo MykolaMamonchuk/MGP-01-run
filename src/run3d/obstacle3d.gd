@@ -98,12 +98,10 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		outline.name = "Outline"
 		_mesh.add_child(outline)
 		_add_marker()
-		if tumble and not NO_PLATE_ACTIONS.has(action):
-			_plate = Mats.box(Vector3(0.9, 0.04, 0.9), Color.WHITE)
-			_plate.material_override = plate_material()
-			_plate.position.y = 0.02
-			_plate.name = "Danger"
-			add_child(_plate)
+		# Плиту небезпеки (червоно-біле тло під перешкодою) прибрано на прохання замовника:
+		# вона з'явилась як підказка «сюди не можна», але поруч зі справжніми моделями
+		# читається як технічна розмітка, а не як частина світу. Сама перешкода тепер
+		# помітна власним виглядом.
 	else:
 		# невидима перешкода — меш-заглушка, щоб анімації не падали
 		_mesh = MeshInstance3D.new()
@@ -232,6 +230,7 @@ var _drip_t := 0.0
 const ROLL_SPEED := 1.6
 
 var _base_scale := Vector3.ONE
+var _roll := 0.0                   ## накопичений кут котіння бочки
 
 
 func tick(delta: float) -> void:
@@ -259,9 +258,14 @@ func tick(delta: float) -> void:
 			#
 			# Швидкість обертання пов'язана з розміром: бочка радіусом 0,3 м за метр шляху
 			# робить метр/(2πr) обороту. Інакше вона або ковзає, або крутиться дзиґою.
+			# Бочка мусить ЛЕЖАТИ на боці: її вісь — поперек дороги. Раніше я крутив її
+			# навколо X, не поклавши, і вона перекидалась через голову, ніби кубик.
+			# Кладемо один раз (поворот навколо Z на чверть оберту), далі крутимо навколо
+			# тієї самої осі, якою вона тепер лежить.
 			var r: float = maxf(box.x * 0.5, 0.05)
 			position.z += ROLL_SPEED * delta
-			_mesh.rotation.x -= (ROLL_SPEED * delta) / r
+			_roll += (ROLL_SPEED * delta) / r
+			_mesh.rotation = Vector3(_roll, 0.0, PI * 0.5)
 		"breathe":
 			var s := 1.0 + sin(_t * 2.0) * 0.04
 			_mesh.scale = _base_scale * Vector3(s, 1.0 / s, s)

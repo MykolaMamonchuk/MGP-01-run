@@ -87,5 +87,12 @@
     "res://assets/props/cart_market_1.glb",
     "res://assets/props/cart_market_2.glb",
     "res://assets/props/cart_market_3.glb"
-  ]
+  ],
+  "arch_terracotta": "res://assets/props/arch_terracotta.glb",
+  "gate_wood": "res://assets/props/gate_wood.glb",
+  "tower_terracotta": "res://assets/props/tower_terracotta.glb",
+  "clothesline": "res://assets/props/clothesline.glb",
+  "banner_line": "res://assets/props/banner_line.glb",
+  "xbox_red": "res://assets/props/xbox_red.glb",
+  "goose": "res://assets/props/goose.glb"
 }
