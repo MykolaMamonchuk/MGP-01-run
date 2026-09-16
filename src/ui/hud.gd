@@ -66,6 +66,7 @@ var _stars_box: HBoxContainer
 var _mult := 1
 var _mult_label: Label
 var _pause_btn: Button
+var _parents_btn: Button
 var _pause_panel: Control
 var _tally_tw: Tween
 # v1.6 §3c: кнопка суперсили героя (знизу праворуч, над рядом смужки пікапа)
@@ -105,7 +106,13 @@ func _ready() -> void:
 
 	# загальні зірочки — лише поза бігом (меню, герої, фініш); у RUN ховаються
 	_stars_box = HBoxContainer.new()
-	_stars_box.position = Vector2(1000, 24)
+	# Прив'язка до КУТА, а не до пікселя. Розтяг "expand" роздає полотно по більшій осі:
+	# на телефоні 19.5:9 воно стає 1560 точок завширшки, і все, прибите до x=1000, їде
+	# на 300 точок від краю — тобто посеред екрана. Див. tests/test_hud_layout.gd.
+	_stars_box.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_stars_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_stars_box.offset_right = -28
+	_stars_box.offset_top = 24
 	_stars_box.add_theme_constant_override("separation", 10)
 	_stars_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_stars_box)
@@ -152,9 +159,14 @@ func _ready() -> void:
 
 	# праворуч угорі: кругла пауза
 	_pause_btn = Button.new()
-	_pause_btn.position = Vector2(1164, 24)
 	_pause_btn.custom_minimum_size = Vector2(88, 88)
 	_pause_btn.size = _pause_btn.custom_minimum_size
+	_pause_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_pause_btn.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_pause_btn.offset_left = -(28 + 88)
+	_pause_btn.offset_right = -28
+	_pause_btn.offset_top = 24
+	_pause_btn.offset_bottom = 24 + 88
 	_pause_btn.focus_mode = Control.FOCUS_NONE
 	_pause_btn.tooltip_text = "Пауза"
 	for st in ["normal", "hover", "pressed", "focus"]:
@@ -170,15 +182,25 @@ func _ready() -> void:
 	Events.pickup_ended.connect(_on_pickup_ended)
 
 	profile_label = Label.new()
-	profile_label.position = Vector2(440, 686)
+	profile_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	profile_label.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	profile_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	profile_label.offset_top = -34
+	profile_label.offset_bottom = -34
 	profile_label.add_theme_font_size_override("font_size", 18)
 	profile_label.modulate.a = 0.5
 	_root.add_child(profile_label)
 
 	# кнопка батьків переїхала вниз ліворуч — угорі ліворуч тепер злиток і серця
 	var parents := Button.new()
-	parents.position = Vector2(24, 600)
+	_parents_btn = parents
 	parents.custom_minimum_size = Vector2(96, 96)
+	parents.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	parents.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	parents.offset_left = 24
+	parents.offset_right = 24 + 96
+	parents.offset_top = -(24 + 96)
+	parents.offset_bottom = -24
 	parents.tooltip_text = "Для батьків"
 	parents.pressed.connect(_request_parents)
 	_root.add_child(parents)
