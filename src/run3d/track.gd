@@ -67,26 +67,26 @@ const EDGE_OVERLAP := 0.15
 ## одразу за каналом, а не через ряд то ліворуч, то праворуч.
 const PROP_NEAR := 0.3
 const PROP_FAR := 1.4
-const PROP_CHANCE := 0.65
+const PROP_CHANCE := 0.35
 ## Другий, рідший кидок у тій самій смузі 0,3–1,4 м: на референсі дрібниці стоять купками
 ## (кущ упритул до ящика, ящик упритул до бочки), а не по одній штуці на метр — з одним
 ## кидком узбіччя лишалось «травою з цятками» навіть коли кожна цятка випадала.
-const PROP_CHANCE2 := 0.4
+const PROP_CHANCE2 := 0.0
 ## Каміння у самій воді каналу (референс: річка встелена дрібним камінням, а не порожня
 ## гладь). Кидок окремий від пропсів на березі — це інша смуга, у самій воді.
-const CANAL_ROCK_CHANCE := 0.35
+const CANAL_ROCK_CHANCE := 0.0
 const CANAL_ROCK_SCALE := [0.4, 0.75]
-const FAR_MIN := 2.8
-const FAR_MAX := 7.0
-const FAR_EVERY := [2, 3]
+const FAR_MIN := 2.5
+const FAR_MAX := 4.5
+const FAR_EVERY := [4, 6]
 ## Будинки другого плану — великі й близькі, як на референсі (закривають горизонт),
 ## а не дрібні цятки на обрії. Заповнювач (дерева між будинками) — трохи менший.
 ## Перевірено на знімку: менший діапазон (1.4, 1.9) насправді ГІРШИЙ — забудова рідшає,
 ## неба знову більше (18% замість 14%). На самому референсі великі будівлі теж обрізані
 ## краєм кадру впритул до камери — це не хиба перспективи, це і є потрібна щільна забудова.
-const FAR_BUILD_SCALE := [1.2, 1.6]
-const FAR_FILLER_SCALE := [1.3, 1.9]
-const FAR_FILLER_CHANCE := 0.75
+const FAR_BUILD_SCALE := [1.1, 1.4]
+const FAR_FILLER_SCALE := [1.0, 1.5]
+const FAR_FILLER_CHANCE := 0.5
 ## Канал: вода занурена на CANAL_DEPTH, береги — три тонкі теракотові шари.
 const CANAL_DEPTH := 0.35
 const BANK_H := 0.14
@@ -151,6 +151,13 @@ var _authored_decor: Array = []
 var _authored_buildings: Array = []
 var _authored_active := false
 ## Канал уздовж дороги: вода + береги (по 3 шари на кожен борт), настили-містки — у декорі.
+## Щільність оздоблення узбіччя — з ДАНИХ СВІТУ, з відкатом на константи вище.
+##
+## Раніше це були просто константи, і доведення їх під містечко над річкою (щільніша
+## забудова, другий кидок пропсів, каміння у воді) мовчки поїхало на всі світи одразу: ліс
+## перекрило стіною, у місті будинки зайняли весь кадр, на пляжі зникла дорога. Кожен світ
+## має свою щільність, і вона мусить жити в його файлі, а не в спільній константі.
+var _dress: Dictionary = {}
 var _canal: Dictionary = {}
 var _canal_sides: Array = []
 var _canal_water: Array[MeshInstance3D] = []
@@ -653,6 +660,7 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	_layout_water()
 	# узбіччя з даних (GDD v1.5 §3): покриття, канал із містками, пропси й будинки другого плану
 	_surface = String(world.get("road_surface", "slabs"))
+	_dress = world.get("dressing", {}) if typeof(world.get("dressing")) == TYPE_DICTIONARY else {}
 	_canal = world.get("canal", {}) if typeof(world.get("canal")) == TYPE_DICTIONARY else {}
 	_canal_sides = [] if _sea else canal_sides(_canal)
 	_bridges_every = int(world.get("bridges_every", 0))
@@ -675,7 +683,7 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 		_decor_layer("bridge_plank", {}, PropLibrary.pick("bridge_plank"))
 	if not _canal_sides.is_empty() and PropLibrary.has("fence_rail"):
 		_decor_layer("fence_rail", {}, PropLibrary.pick("fence_rail"))
-	_far_left = [_rng.randi_range(FAR_EVERY[0], FAR_EVERY[1]), _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])]
+	_far_left = [_rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1])), _rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1]))]
 	_layout_canal()
 	# ближні стіни: список світу + будівлі, добудовані дитиною в діорамі
 	_near_pool = [] if is_open(world) else _near_wall_pool()
@@ -791,25 +799,25 @@ func _decorate(row: Node3D) -> void:
 		# у нас вона була порожньою гладдю. Кладемо в саму смугу води (не на банк,
 		# не на дорогу), трохи занурене — щоб виглядало обмитим водою, а не покладеним зверху.
 		if not _sea and _canal_sides.has(side) and not _canal_rocks.is_empty() and c_width > 0.3 \
-				and _rng.randf() < CANAL_ROCK_CHANCE:
+				and _rng.randf() < _d("canal_rock_chance", CANAL_ROCK_CHANCE):
 			var rock_span := c_width - 0.3
 			_add_decor(ids, data, String(_canal_rocks[_rng.randi() % _canal_rocks.size()]), {},
 				side * (edge + c_offset + 0.15 + _rng.randf() * rock_span),
 				-CANAL_DEPTH * 0.6, _rng.randf_range(CANAL_ROCK_SCALE[0], CANAL_ROCK_SCALE[1]))
 		if open and not _sea:
 			# ── відкрите узбіччя: трава одразу за дорогою, пропси, за ними другий план ──
-			var far_min := FAR_MIN
+			var far_min := _d("far_min", FAR_MIN)
 			if _canal_sides.has(side):
 				# найближче за каналом — трохи щільніше до води, ніж було: на референсі забудова
 				# стоїть одразу за берегом, а не в окремій смузі за пів метра до нього
-				far_min = maxf(FAR_MIN, c_offset + c_width + 0.15)
-			if not _props_side.is_empty() and _rng.randf() < PROP_CHANCE:
+				far_min = maxf(_d("far_min", FAR_MIN), c_offset + c_width + 0.15)
+			if not _props_side.is_empty() and _rng.randf() < _d("prop_chance", PROP_CHANCE):
 				_add_decor(ids, data, String(_props_side[_rng.randi() % _props_side.size()]), {},
 					prop_x(side, edge, _rng), 0.0, 1.0)
 			# другий, рідший кидок у тій самій смузі 0,3–1,4 м: на референсі дрібниці стоять
 			# купками (кущ упритул до ящика, ящик упритул до бочки) — з одним кидком на ряд
 			# узбіччя лишалось «травою з цятками» навіть коли кожна цятка й випадала.
-			if not _props_side.is_empty() and _rng.randf() < PROP_CHANCE2:
+			if not _props_side.is_empty() and _rng.randf() < _d("prop_chance2", PROP_CHANCE2):
 				_add_decor(ids, data, String(_props_side[_rng.randi() % _props_side.size()]), {},
 					prop_x(side, edge, _rng), 0.0, 1.0)
 			# будинок другого плану: НЕЗАЛЕЖНИЙ лічильник на кожен борт (_far_left), а не спільний
@@ -820,18 +828,18 @@ func _decorate(row: Node3D) -> void:
 			if not _buildings_far.is_empty():
 				_far_left[sidx] -= 1
 				if _far_left[sidx] <= 0:
-					_far_left[sidx] = _rng.randi_range(FAR_EVERY[0], FAR_EVERY[1])
+					_far_left[sidx] = _rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1]))
 					far_row = true
 			if far_row:
 				_add_decor(ids, data, String(_buildings_far[_rng.randi() % _buildings_far.size()]), {},
-					side * (edge + _rng.randf_range(far_min, FAR_MAX)), 0.0,
-					_rng.randf_range(FAR_BUILD_SCALE[0], FAR_BUILD_SCALE[1]),
+					side * (edge + _rng.randf_range(far_min, _d("far_max", FAR_MAX))), 0.0,
+					_rng.randf_range(_d2("build_scale", FAR_BUILD_SCALE)[0], _d2("build_scale", FAR_BUILD_SCALE)[1]),
 					0.0 if side > 0.0 else PI)
-			elif not _far_filler.is_empty() and _rng.randf() < FAR_FILLER_CHANCE:
+			elif not _far_filler.is_empty() and _rng.randf() < _d("filler_chance", FAR_FILLER_CHANCE):
 				# заповнювач між будинками — дерева, щоб горизонт лишався закритим і в проміжках
 				_add_decor(ids, data, String(_far_filler[_rng.randi() % _far_filler.size()]), {},
-					side * (edge + _rng.randf_range(far_min, FAR_MAX)), 0.0,
-					_rng.randf_range(FAR_FILLER_SCALE[0], FAR_FILLER_SCALE[1]))
+					side * (edge + _rng.randf_range(far_min, _d("far_max", FAR_MAX))), 0.0,
+					_rng.randf_range(_d2("filler_scale", FAR_FILLER_SCALE)[0], _d2("filler_scale", FAR_FILLER_SCALE)[1]))
 			if not critters.is_empty() and randf() < 0.12:
 				var cr_open := Critter3D.new()
 				cr_open.position = Vector3(side * (edge + randf_range(0.6, 1.4)), 0.0, randf_range(-0.4, 0.4))
@@ -952,6 +960,17 @@ func _voxel_exists(name: String) -> bool:
 ## data/voxels/bush_flower.json нема й не буде. Без другої половини перевірки
 ## _filter_voxels() мовчки викидав його з props_side ще до першого показу — узбіччя
 ## лишалось голим, хоча готовий пропс уже лежав у assets/sprites/.
+## Число з world.dressing або константа за відкатом.
+func _d(key: String, fallback: float) -> float:
+	return float(_dress.get(key, fallback))
+
+
+## Пара чисел (діапазон) з world.dressing або константа за відкатом.
+func _d2(key: String, fallback: Array) -> Array:
+	var v = _dress.get(key)
+	return v if typeof(v) == TYPE_ARRAY and (v as Array).size() == 2 else fallback
+
+
 func _kind_exists(name: String) -> bool:
 	return _voxel_exists(name) or PropLibrary.has(name)
 

@@ -261,5 +261,25 @@
       "prop": "clothesline"
     }
   },
-  "road_color": "#E7C489"
+  "road_color": "#E7C489",
+  "dressing": {
+    "prop_chance": 0.65,
+    "prop_chance2": 0.4,
+    "far_min": 2.8,
+    "far_max": 7.0,
+    "far_every": [
+      2,
+      3
+    ],
+    "build_scale": [
+      1.2,
+      1.6
+    ],
+    "filler_scale": [
+      1.3,
+      1.9
+    ],
+    "filler_chance": 0.75,
+    "canal_rock_chance": 0.35
+  }
 }
