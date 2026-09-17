@@ -356,7 +356,12 @@ func test_near_walls_and_landmarks_exist() -> void:
 		for v in near:
 			assert_true(_voxel_ok(String(v)), "%s: ближня стіна %s існує (або запланована в арт-базі v1.5)" % [id, v])
 		var marks: Array = _worlds[id].get("landmarks", [])
-		assert_gte(marks.size(), 2, "%s: є орієнтири (арка/вежа/ворота)" % id)
+		# Було «не менш як два», і це вимагало зайвого: Хмаринки після прибирання каналу
+		# мають один орієнтир — хмарну арку, — і цього досить. Цегляна вежа, яка там стояла
+		# другою, була меблями з річкового містечка. Стерегти треба не КІЛЬКІСТЬ, а те, що
+		# названий орієнтир справді існує (перевірка нижче) і що світ не лишився зовсім без
+		# зорової опори на обрії.
+		assert_gte(marks.size(), 1, "%s: є принаймні один орієнтир на точці сходу" % id)
 		for v in marks:
 			assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % String(v)), "%s: орієнтир %s існує" % [id, v])
 		var cliff: Array = _worlds[id].get("cliff", [])
@@ -388,8 +393,13 @@ func test_every_world_describes_its_roadside() -> void:
 		var w: Dictionary = _worlds[id]
 		assert_true(String(w.get("roadside", "")) in ["open", "walls"], "%s: roadside — open або walls" % id)
 		assert_true(String(w.get("road_surface", "")) in surfaces, "%s: road_surface з каталогу покриттів" % id)
+		# Канал НЕ обов'язковий. Вимога «канал у кожного світу» лишилась із часів, коли всі
+		# світи були річковим містечком: у Хмаринках канал тягнув за собою 78 коричневих
+		# дерев'яних поручнів і дощаті містки, тобто меблі зовсім іншого світу. Стережемо
+		# лише те, що ЯКЩО канал описано — він описаний правильно.
 		var canal = w.get("canal")
-		assert_eq(typeof(canal), TYPE_DICTIONARY, "%s: canal — словник" % id)
+		if canal != null:
+			assert_eq(typeof(canal), TYPE_DICTIONARY, "%s: canal — словник" % id)
 		if typeof(canal) == TYPE_DICTIONARY:
 			var c: Dictionary = canal
 			assert_true(String(c.get("side", "")) in sides, "%s: canal.side — both/left/right/none" % id)

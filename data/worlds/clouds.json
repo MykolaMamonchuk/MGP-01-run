@@ -48,18 +48,10 @@
     2.0
   ],
   "landmarks": [
-    "cloud_arch",
-    "tower_terracotta"
+    "cloud_arch"
   ],
   "roadside": "open",
   "road_surface": "cloud",
-  "canal": {
-    "side": "both",
-    "offset": 2.0,
-    "width": 1.2,
-    "water_color": "#BFE3F7"
-  },
-  "bridges_every": 9,
   "props_side": [
     "cloud",
     "star",
