@@ -103,6 +103,10 @@ func _ready() -> void:
 	_root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_root)
+	# Виріз і заокруглені кути телефона. Усе в HUD висить усередині _root, тож досить
+	# підтиснути його краї — і серця, пауза, кнопка сили самі відійдуть від «чубчика».
+	_apply_safe_area()
+	get_tree().root.size_changed.connect(_apply_safe_area)
 
 	# загальні зірочки — лише поза бігом (меню, герої, фініш); у RUN ховаються
 	_stars_box = HBoxContainer.new()
@@ -337,6 +341,41 @@ func _process(delta: float) -> void:
 # ---------- v1.3: серця, швидкість, монети рівня, пікап ----------
 
 ## Ряд сердець заново (n = максимум героя, 3–4).
+## Відступи від країв, яких треба уникати: виріз камери, «острівець», заокруглені кути.
+## ЧИСТА функція, бо перевірити її інакше нічим: DisplayServer у тесті не підробиш, а
+## помилка тут видно лише на справжньому телефоні з чубчиком — тобто пізно.
+##
+## safe — безпечна область у пікселях ВІКНА (DisplayServer.get_display_safe_area()),
+## window — розмір вікна в тих самих пікселях, canvas — розмір полотна гри (він інший:
+## розтяг "expand" роздає базові 1280×720 по більшій осі). Повертає (ліворуч, згори,
+## праворуч, знизу) уже в одиницях полотна.
+static func safe_area_insets(safe: Rect2i, window: Vector2i, canvas: Vector2) -> Vector4:
+	if window.x <= 0 or window.y <= 0:
+		return Vector4.ZERO
+	# Порожня або безглузда безпечна область — не звужуємо нічого: краще нічого не
+	# зробити, ніж з'їсти пів екрана через дивні дані від системи.
+	if safe.size.x <= 0 or safe.size.y <= 0:
+		return Vector4.ZERO
+	var kx := canvas.x / float(window.x)
+	var ky := canvas.y / float(window.y)
+	return Vector4(
+		maxf(0.0, float(safe.position.x)) * kx,
+		maxf(0.0, float(safe.position.y)) * ky,
+		maxf(0.0, float(window.x - safe.end.x)) * kx,
+		maxf(0.0, float(window.y - safe.end.y)) * ky)
+
+
+func _apply_safe_area() -> void:
+	if _root == null:
+		return
+	var win := DisplayServer.window_get_size()
+	var pad := safe_area_insets(DisplayServer.get_display_safe_area(), win, _root.size)
+	_root.offset_left = pad.x
+	_root.offset_top = pad.y
+	_root.offset_right = -pad.z
+	_root.offset_bottom = -pad.w
+
+
 func _build_hearts(n: int) -> void:
 	for c in _hearts_box.get_children():
 		c.queue_free()
