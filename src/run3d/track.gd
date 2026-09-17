@@ -300,7 +300,7 @@ func _ready() -> void:
 	_mm_edge = _make_canvas(edge_mesh, ROWS * 2, 6.0, true)
 	_mm_edge.material_override = _tinted_material()
 
-	_rng.randomize()
+	RngSeed.start(_rng, "track")
 	_row_seed.resize(ROWS)
 	_row_distance_m.resize(ROWS)
 	_row_sx.resize(ROWS)

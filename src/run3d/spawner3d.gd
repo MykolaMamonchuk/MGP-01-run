@@ -527,7 +527,7 @@ func _tick_pickups(delta: float) -> void:
 		return
 	_schedule_pickup()
 	var rng := RandomNumberGenerator.new()
-	rng.randomize()
+	RngSeed.start(rng, "spawner")
 	var base := float(profile.get("speed", 4.0))
 	var exclude := []
 	if hero.hearts >= hero.max_hearts:

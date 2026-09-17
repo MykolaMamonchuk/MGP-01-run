@@ -87,7 +87,7 @@ func tick(delta: float) -> void:
 	if _next > 0.0:
 		return
 	var rng := RandomNumberGenerator.new()
-	rng.randomize()
+	RngSeed.start(rng, "events")
 	# рівень задає список подій; порожній список = подій на рівні нема (туторіал)
 	var pool := _events.filter(func(ev): return allowed_ids.has(String(ev.get("id", ""))))
 	var e := pick(pool, AgeAdapt.current, mode_id, rng)

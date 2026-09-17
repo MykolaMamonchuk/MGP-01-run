@@ -186,6 +186,12 @@ var _idle_t := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Відтворюваний запуск на вимогу (GAME_SEED): крім власних генераторів підсистем,
+	# траса й спавнер беруть ще й ГЛОБАЛЬНИЙ randf()/randi(), тож сідаємо і на нього.
+	# Без цього два прогони гри розходяться на 37% пікселів уже до 600-го кадру —
+	# заміряно, і саме через це весь день не вдавалося порівняти «до і після».
+	if RngSeed.fixed():
+		seed(RngSeed.value())
 
 	profiles = AgeAdapt.load_profiles()
 	worlds = load_worlds()

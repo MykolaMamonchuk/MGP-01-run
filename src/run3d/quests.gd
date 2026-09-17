@@ -26,7 +26,7 @@ static func pick(all: Array, profile_name: String, rng: RandomNumberGenerator) -
 
 func start_segment(profile_name: String) -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.randomize()
+	RngSeed.start(rng, "quests")
 	current = pick(_all, profile_name, rng)
 	done = false
 
