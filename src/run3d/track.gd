@@ -48,6 +48,10 @@ const CLIFF_BOTTOM := -0.4 - CLIFF_STEP * float(CLIFF_LAYERS)
 const SEAM_W := 0.025
 const MAX_SEAMS := 6
 ## Орієнтир (арка/вежа/ворота) — раз на стільки рядів; ≤ 30, щоб він завжди був у полі зору.
+## Орієнтир: масштаб, відступ від краю дороги й запас від берега каналу.
+const LANDMARK_SCALE := 1.2
+const LANDMARK_INSET := 1.2
+const LANDMARK_BANK_MARGIN := 0.15
 const LANDMARK_MIN := 28
 const LANDMARK_MAX := 30
 ## Ширина, під яку намальовані арки (3 доріжки); Track масштабує їх під поточну дорогу.
@@ -1099,11 +1103,10 @@ func _decorate(row: Node3D) -> void:
 				# масштабі 1,2 при відступі edge+1,2 займала від 1,91 до 3,49 м, а канал
 				# Лужка — від 2,0 до 3,2: вежа стояла просто у воді. Для забудови другого
 				# плану це вже враховано (b_lo нижче по коду), а орієнтири лишались.
-				var half := _kind_half_extent(lk) * 1.2
-				var off := edge + 1.2
-				if _canal_sides.has(s):
-					off = maxf(off, c_offset + c_width + 0.15 + half.x)
-				_add_decor(ids, data, lk, {}, s * off, 0.0, 1.2, 0.0 if s > 0.0 else PI)
+				var half := _kind_half_extent(lk) * LANDMARK_SCALE
+				_add_decor(ids, data, lk, {},
+					s * landmark_offset(edge, c_offset, c_width, half.x, _canal_sides.has(s)),
+					0.0, LANDMARK_SCALE, 0.0 if s > 0.0 else PI)
 	_decor_ids[i] = ids
 	_decor_data[i] = data
 
@@ -1345,6 +1348,22 @@ func _process(delta: float) -> void:
 
 
 ## Поточна ширина дороги в метрах.
+## Відступ орієнтира (вежа, ворота, млин) від ОСІ дороги. Орієнтир мусить стояти ЗА каналом,
+## а не в ньому. Чиста функція, бо перевірити інакше нічим: орієнтир трапляється раз на 28-30
+## рядів, тобто в тесті його можна й не побачити.
+##
+## УВАГА, тут і була вада (до 17.09.2026): усе повертається в АБСОЛЮТНИХ метрах від осі, а
+## c_offset/c_width задані ВІД КРАЮ ДОРОГИ (скрізь у коді вони йдуть як edge + c_offset).
+## У захисті edge забули — і для Лужка формула давала 5.44 м, тоді як канал займає 3.1-6.1:
+## вежа ставала просто у воду. Видно на знімку гравця.
+static func landmark_offset(edge: float, c_offset: float, c_width: float, half_x: float,
+		on_canal_side: bool) -> float:
+	var off := edge + LANDMARK_INSET
+	if on_canal_side:
+		off = maxf(off, edge + c_offset + c_width + LANDMARK_BANK_MARGIN + half_x)
+	return off
+
+
 func road_width() -> float:
 	return float(lanes) * Hero3D.LANE_W + 0.2
 

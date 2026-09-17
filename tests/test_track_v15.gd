@@ -77,3 +77,30 @@ func test_track_builds_open_world_without_walls() -> void:
 	assert_gt(t.get_child_count(), 0, "полотно, канал і береги створені")
 	# у відкритому світі стіни впритул не беруться навіть із даних
 	assert_true(Track.is_open(t.world))
+
+
+## Орієнтир (вежа, ворота, млин) не має стояти у воді. До 17.09.2026 стояв: у захисті
+## забули edge, і формула рахувала відступ від КРАЮ ДОРОГИ так, ніби це відстань від осі.
+## Гравець прислав знімок, де вежа Лужка стоїть просто в каналі.
+func test_landmark_never_stands_in_the_canal() -> void:
+	var f := FileAccess.open("res://data/worlds/meadow.json", FileAccess.READ)
+	var w: Dictionary = JSON.parse_string(f.get_as_text())
+	var canal: Dictionary = w.get("canal", {})
+	var c_off := float(canal.get("offset", 1.5))
+	var c_w := float(canal.get("width", 3.0))
+	var edge := 3.0 * Hero3D.LANE_W * 0.5 + 0.1        # три доріжки, як на першому рівні
+	var half := 0.79                                    # пів ширини вежі на масштабі 1.2
+
+	var off := Track.landmark_offset(edge, c_off, c_w, half, true)
+	# Ближній бік вежі мусить лишитися ЗА дальнім берегом каналу.
+	assert_gte(off - half, edge + c_off + c_w,
+		"вежа стоїть за каналом (канал %.2f..%.2f від осі, вежа від %.2f)"
+		% [edge + c_off, edge + c_off + c_w, off - half])
+
+	# Борт без каналу нічим не обмежений — там орієнтир стоїть одразу за дорогою.
+	assert_almost_eq(Track.landmark_offset(edge, c_off, c_w, half, false),
+		edge + Track.LANDMARK_INSET, 0.001, "без каналу — звичайний відступ")
+
+	# Вузький канал не має відсувати орієнтир далі, ніж треба.
+	var near := Track.landmark_offset(edge, 0.2, 0.3, half, true)
+	assert_lt(near, off, "вужчий канал — ближчий орієнтир")
