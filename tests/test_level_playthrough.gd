@@ -41,6 +41,21 @@ func _run_to_finish() -> int:
 	return steps
 
 
+## Меню не сміє лишатись поверх гри, хай яким шляхом рівень почався. Раніше hide_menu()
+## кликав лише _on_play(), і демо-вхід (LEVEL=n), перехід на наступний рівень після фінішу
+## та налагоджувальна клавіша L лишали напис «Біжимо!/Герої/Мапа» посеред екрана. Під час
+## першого огляду рівнів 2–17 це закривало центр кожного знімка.
+func test_starting_a_level_always_hides_the_menu() -> void:
+	var menu = _scene.get_node("Menu")
+	assert_not_null(menu, "меню у сцені")
+	if menu == null:
+		return
+	menu.visible = true
+	_scene._start_level(1)
+	await wait_seconds(0.6)   # hide_menu ховає вузол наприкінці короткої анімації
+	assert_false(menu.visible, "після старту рівня меню сховане")
+
+
 func test_level_one_starts_counts_down_and_reaches_the_finish() -> void:
 	_scene._start_level(1)
 	assert_eq(_scene.state, _scene.State.COUNTDOWN, "рівень починається з відліку")
