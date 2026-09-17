@@ -47,6 +47,10 @@ pointing/emulate_touch_from_mouse=true
 3d/physics_engine="Jolt Physics"
 2d/default_gravity=1800.0
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/godot_mcp_server/plugin.cfg")
+
 [rendering]
 
 rendering_device/driver.windows="d3d12"
