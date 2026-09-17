@@ -24,3 +24,6 @@ __pycache__/
 /m*.png
 /m.wav
 /m.wav.import
+
+# Особисті дозволи Claude Code — не для спільного репозиторію
+.claude/settings.local.json
