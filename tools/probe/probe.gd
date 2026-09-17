@@ -27,6 +27,10 @@ var _frames: int = int(OS.get_environment("FRAMES")) if OS.has_environment("FRAM
 func _ready() -> void:
 	seed(SEED)
 	DirAccess.make_dir_recursive_absolute(_out)
+	# RESET=1 — міряти з чистого аркуша. Без цього проба бачить ВАШ прогрес, і той самий
+	# STAGE дає різні екрани на різних машинах, тобто порівнювати «до/після» нічим.
+	if OS.get_environment("RESET") == "1":
+		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://save.json"))
 	_run = load("res://src/run3d/run3d.tscn").instantiate()
 	add_child(_run)
 	await _frames_passed(30)
@@ -41,11 +45,25 @@ func _ready() -> void:
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("%s/frame.png" % _out)
 
+	var hud_before := _hud_state()
+	var hud_after := {}
+	# RESIZE=1600x900 — змінити розмір вікна й переміряти. Відступи безпечної зони мусять
+	# лишитись ТИМИ САМИМИ в частках екрана: якщо вони «сповзають» після кожної зміни
+	# розміру, значить у розрахунок потрапляє вже підтиснуте полотно.
+	if OS.has_environment("RESIZE"):
+		var wh := OS.get_environment("RESIZE").split("x")
+		if wh.size() == 2:
+			get_tree().root.size = Vector2i(int(wh[0]), int(wh[1]))
+			await _frames_passed(10)
+			hud_after = _hud_state()
+
 	var report := {
 		"stage": _stage,
 		"level": _level,
 		"frames": _frames,
 		"viewport": _v2(get_viewport().get_visible_rect().size),
+		"hud": hud_before,
+		"hud_after_resize": hud_after,
 		"performance": {
 			"fps": Performance.get_monitor(Performance.TIME_FPS),
 			"frame_ms": Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
@@ -64,6 +82,31 @@ func _ready() -> void:
 func _frames_passed(n: int) -> void:
 	for i in range(n):
 		await get_tree().process_frame
+
+
+## Стан кореня HUD — саме до нього hud.gd підтискає краї під виріз камери. Відступи тут
+## у одиницях полотна; вікно й безпечна область — у пікселях, вони НЕ збігаються (розтяг
+## "expand" роздає базові 1280×720 по більшій осі).
+func _hud_state() -> Dictionary:
+	var hud := _run.get_node_or_null("HUD")
+	if hud == null or hud._root == null:
+		return {}
+	var root: Control = hud._root
+	var safe := DisplayServer.get_display_safe_area()
+	return {
+		"window": _v2i(DisplayServer.window_get_size()),
+		"safe_area": {"x": safe.position.x, "y": safe.position.y, "w": safe.size.x, "h": safe.size.y},
+		"canvas": _v2(get_viewport().get_visible_rect().size),
+		"root_size": _v2(root.size),
+		"offsets": {
+			"left": root.offset_left, "top": root.offset_top,
+			"right": root.offset_right, "bottom": root.offset_bottom,
+		},
+	}
+
+
+func _v2i(v: Vector2i) -> Dictionary:
+	return {"x": v.x, "y": v.y}
 
 
 ## Усі Control'и піддерева з глобальною геометрією. Невидимі теж — саме вони найчастіше

@@ -52,6 +52,66 @@ func _watched() -> Array:
 	]
 
 
+## Айфон із «острівцем», альбомно: виріз збоку, смужка жесту знизу. Підставляємо, бо в
+## headless безпечна зона дорівнює вікну — на тестовій машині вирізу просто немає.
+const NOTCH_WINDOW := Vector2i(2340, 1080)
+const NOTCH_SAFE := Rect2i(132, 0, 2340 - 132 - 132, 1080 - 63)
+
+
+func _root_offsets() -> Vector4:
+	var r: Control = _hud._root
+	return Vector4(r.offset_left, r.offset_top, r.offset_right, r.offset_bottom)
+
+
+## Відступи мусять лишатися ті самі, скільки б разів їх не перераховували. Вада, що була
+## до 17.09.2026: у розрахунок ішов _root.size, а він PRESET_FULL_RECT і вже підтиснутий
+## попереднім застосуванням — тож коефіцієнт щоразу занижувався і HUD підповзав під виріз.
+## Заміряно пробою: 27.84 → 26.76 після ОДНІЄЇ зміни розміру вікна.
+func test_safe_area_padding_does_not_creep_when_reapplied() -> void:
+	assert_not_null(_hud, "HUD у сцені")
+	if _hud == null:
+		return
+	_hud._apply_safe_area(NOTCH_SAFE, NOTCH_WINDOW)
+	await wait_process_frames(2)
+	var first := _root_offsets()
+	# Альбомно виріз збоку, тож стережемо ЛІВИЙ відступ: offset_top тут нульовий за
+	# побудовою, і перевірка на нього мовчки нічого б не стерегла.
+	assert_gt(first.x, 0.0, "виріз узагалі дає відступ (інакше тест нічого не стереже)")
+
+	for i in range(3):
+		_hud._apply_safe_area(NOTCH_SAFE, NOTCH_WINDOW)
+		await wait_process_frames(2)
+	assert_eq(_root_offsets(), first,
+		"відступи не змінюються від повторного застосування (було: сповзали до вирізу)")
+
+
+## Відступи підтискають САМЕ _root, тож усе, що висить поруч із ним, безпечну зону
+## проґавить. Один Control-корінь на весь HUD — це і є та умова.
+func test_every_hud_element_hangs_inside_the_padded_root() -> void:
+	assert_not_null(_hud, "HUD у сцені")
+	if _hud == null:
+		return
+	var roots := []
+	for child in _hud.get_children():
+		if child is Control:
+			roots.append(child.name)
+	assert_eq(roots.size(), 1,
+		"у HUD рівно один Control-корінь, інакше нові елементи не отримають відступів під виріз (знайдено: %s)"
+		% [roots])
+
+	_hud._apply_safe_area(NOTCH_SAFE, NOTCH_WINDOW)
+	await wait_process_frames(4)
+	var safe_rect := Rect2((_hud._root as Control).global_position, (_hud._root as Control).size)
+	for pair in _watched():
+		var what: String = pair[0]
+		var c: Control = pair[1]
+		if c == null:
+			continue
+		var r := Rect2(c.global_position, c.size)
+		assert_true(safe_rect.encloses(r),
+			"%s лишається в безпечній зоні %s (елемент %s)" % [what, safe_rect, r])
+
+
 func test_corner_elements_stay_in_their_corner_on_every_shape() -> void:
 	assert_not_null(_hud, "HUD у сцені")
 	if _hud == null:

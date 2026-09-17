@@ -365,11 +365,20 @@ static func safe_area_insets(safe: Rect2i, window: Vector2i, canvas: Vector2) ->
 		maxf(0.0, float(window.y - safe.end.y)) * ky)
 
 
-func _apply_safe_area() -> void:
+## Типові значення читаються з системи, але їх можна ПІДСТАВИТИ — інакше застосування
+## відступів не перевірити: у headless безпечна зона дорівнює вікну, тож на тестовій машині
+## вада не видна. Сигнал size_changed параметрів не передає, тож підключення не ламається.
+func _apply_safe_area(safe := DisplayServer.get_display_safe_area(),
+		win := DisplayServer.window_get_size()) -> void:
 	if _root == null:
 		return
-	var win := DisplayServer.window_get_size()
-	var pad := safe_area_insets(DisplayServer.get_display_safe_area(), win, _root.size)
+	# Полотно беремо з вьюпорта, а НЕ з _root.size: _root має PRESET_FULL_RECT, тож після
+	# першого ж застосування відступів його розмір уже підтиснутий. Підставивши його назад
+	# як «полотно», ми щоразу занижували коефіцієнт — заміряно 17.09.2026: після однієї
+	# зміни розміру вікна відступ згори впав 27.84 → 26.76 при незмінній безпечній зоні,
+	# тобто HUD підповзав під виріз камери на кожному повороті екрана.
+	var canvas := get_viewport().get_visible_rect().size
+	var pad := safe_area_insets(safe, win, canvas)
 	_root.offset_left = pad.x
 	_root.offset_top = pad.y
 	_root.offset_right = -pad.z
