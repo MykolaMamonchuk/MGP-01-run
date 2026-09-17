@@ -118,3 +118,44 @@ func test_missing_level_clears_authored_state_without_crash() -> void:
 	assert_false(_spawner._authored_active)
 	assert_false(_track._authored_active)
 	_loader.update(1000.0)   # не мало впасти й після цього
+
+
+## Порожній відрізок посеред рівня — це просто відсутній chunk_NN.tscn: розрізання не пише
+## файл для куска без маркерів, та й автор карти може стерти середній чанк руками в редакторі.
+## Раніше перший же відсутній номер читався як «рівень скінчився», і решта рівня мовчки не
+## вантажилась — на швидкому профілі це кілометр порожньої дороги. Фікстура тимчасова: теку
+## level_90 збираємо тут із чанків level_01 і прибираємо в after_each().
+const GAP_LEVEL := 90
+const GAP_DIR := "res://levels/level_%02d" % GAP_LEVEL
+
+
+func _make_gap_level() -> void:
+	DirAccess.make_dir_recursive_absolute(GAP_DIR)
+	var src := FileAccess.get_file_as_bytes("res://levels/level_01/chunk_00.tscn")
+	for name in ["chunk_00.tscn", "chunk_02.tscn"]:   # chunk_01 свідомо відсутній
+		var f := FileAccess.open("%s/%s" % [GAP_DIR, name], FileAccess.WRITE)
+		f.store_buffer(src)
+		f.close()
+
+
+func _remove_gap_level() -> void:
+	var dir := DirAccess.open(GAP_DIR)
+	if dir == null:
+		return
+	for name in dir.get_files():
+		DirAccess.remove_absolute("%s/%s" % [GAP_DIR, name])
+	DirAccess.remove_absolute(GAP_DIR)
+
+
+func test_missing_middle_chunk_does_not_end_the_level() -> void:
+	_make_gap_level()
+	_loader.start(GAP_LEVEL, _track, _spawner)
+	var n0 := _spawner._authored_obstacles.size()
+	assert_gt(n0, 0, "chunk_00 завантажився")
+	var d := 0.0
+	while d < 500.0:
+		d += 5.0
+		_loader.update(d)
+	assert_eq(_spawner._authored_obstacles.size(), n0 * 2,
+		"пропущений chunk_01 перестрибнуто, chunk_02 усе одно завантажився")
+	_remove_gap_level()

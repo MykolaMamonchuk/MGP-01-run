@@ -26,6 +26,11 @@ var _spawner: Spawner3D
 var _chunked := false          ## true — є папка levels/level_XX/, чанки вантажимо по одному
 var _next_chunk_index := 0     ## індекс наступного НЕзавантаженого чанку
 var _loaded_through_z := 0.0   ## до якої відстані рівень уже завантажено (межа останнього чанку)
+## Найбільший номер чанку, який реально лежить у теці. Потрібен, бо чанк може бути ПРОПУЩЕНИЙ:
+## розрізання не пише файл для відрізка, у якому не лишилось жодного маркера, та й автор карти
+## може стерти середній чанк руками. Без цієї межі перший же відсутній номер читався б як
+## «рівень скінчився», і решта рівня тихо не завантажувалась би взагалі.
+var _last_chunk_index := -1
 var _done := false             ## усі чанки рівня вже завантажені — update() більше не працює
 
 
@@ -47,7 +52,8 @@ func start(num: int, track: Track, spawner: Spawner3D) -> void:
 	_next_chunk_index = 0
 	_loaded_through_z = 0.0
 	_done = false
-	_chunked = DirAccess.dir_exists_absolute(_folder_path())
+	_last_chunk_index = _scan_last_chunk_index()
+	_chunked = _last_chunk_index >= 0
 	if not _chunked and not ResourceLoader.exists(_flat_path()):
 		track.clear_authored_timeline()
 		_clear_obstacles()
@@ -84,6 +90,24 @@ func _chunk_path(index: int) -> String:
 	return "%s/chunk_%02d.tscn" % [_folder_path(), index]
 
 
+## Пройти теку рівня один раз і запам'ятати найбільший номер чанку. Дивимось саме на список
+## файлів, а не на послідовність номерів: у теці можуть бути діри.
+func _scan_last_chunk_index() -> int:
+	var dir := DirAccess.open(_folder_path())
+	if dir == null:
+		return -1
+	var last := -1
+	for name in dir.get_files():
+		# .tscn у теці рівня імпортується в .remap на експорті — беремо ім'я до першої крапки
+		var base := name.get_basename()
+		if base.get_extension() == "tscn":
+			base = base.get_basename()
+		if not base.begins_with("chunk_"):
+			continue
+		last = maxi(last, int(base.substr(6)))
+	return last
+
+
 ## Єдине місце, де чанк реально читається з диска — свідомо ізольоване від решти логіки: коли
 ## чанки нестимуть важкі ресурси (реальні .glb-будівлі "зовнішнього світу"), заміна на
 ## ResourceLoader.load_threaded_request()/load_threaded_get() торкнеться лише цієї функції.
@@ -93,14 +117,17 @@ func _load_chunk_resource(path: String) -> PackedScene:
 	return load(path) as PackedScene
 
 
+## Завантажити наступний чанк, ПЕРЕСТРИБУЮЧИ відсутні номери: порожній відрізок рівня — це
+## просто відсутній файл, а не кінець рівня.
 func _load_next_chunk() -> void:
-	var packed := _load_chunk_resource(_chunk_path(_next_chunk_index))
-	if packed == null:
-		_done = true          # чанків більше нема — рівень повністю завантажено
-		return
-	_apply(packed)
-	_next_chunk_index += 1
-	_loaded_through_z = float(_next_chunk_index) * CHUNK_LENGTH_M
+	while _next_chunk_index <= _last_chunk_index:
+		var packed := _load_chunk_resource(_chunk_path(_next_chunk_index))
+		_next_chunk_index += 1
+		_loaded_through_z = float(_next_chunk_index) * CHUNK_LENGTH_M
+		if packed != null:
+			_apply(packed)
+			return
+	_done = true              # дійшли до останнього чанку теки — рівень завантажено повністю
 
 
 func _load_flat_level() -> void:
