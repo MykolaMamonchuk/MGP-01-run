@@ -8,7 +8,7 @@
 script = ExtResource("1")
 role = "decor"
 kind = "planet"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -10.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.9, 0.0, -10.0)
 
 [node name="M0_obstacle_cloud" type="Node3D" parent="." index="1"]
 script = ExtResource("1")
@@ -21,7 +21,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -20.0)
 script = ExtResource("1")
 role = "decor"
 kind = "cloud"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -20.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.1, 0.0, -20.0)
 
 [node name="M1_obstacle_bridge" type="Node3D" parent="." index="3"]
 script = ExtResource("1")
@@ -34,7 +34,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -28.0)
 script = ExtResource("1")
 role = "decor"
 kind = "moonswing"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -30.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.3, 0.0, -30.0)
 
 [node name="M2_obstacle_raincloud" type="Node3D" parent="." index="5"]
 script = ExtResource("1")
@@ -47,7 +47,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -36.0)
 script = ExtResource("1")
 role = "decor"
 kind = "raincloud"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -40.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.9, 0.0, -40.0)
 
 [node name="M3_obstacle_comet" type="Node3D" parent="." index="7"]
 script = ExtResource("1")
@@ -60,7 +60,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -44.0)
 script = ExtResource("1")
 role = "decor"
 kind = "star"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -50.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.1, 0.0, -50.0)
 
 [node name="M4_obstacle_kite" type="Node3D" parent="." index="9"]
 script = ExtResource("1")
@@ -80,7 +80,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -60.0)
 script = ExtResource("1")
 role = "decor"
 kind = "planet"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -60.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.3, 0.0, -60.0)
 
 [node name="M6_obstacle_wind" type="Node3D" parent="." index="12"]
 script = ExtResource("1")
@@ -93,7 +93,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -68.0)
 script = ExtResource("1")
 role = "decor"
 kind = "cloud"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -70.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.9, 0.0, -70.0)
 
 [node name="M7_obstacle_thundercloud" type="Node3D" parent="." index="14"]
 script = ExtResource("1")
@@ -106,7 +106,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -76.0)
 script = ExtResource("1")
 role = "decor"
 kind = "moonswing"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -80.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.1, 0.0, -80.0)
 
 [node name="M8_obstacle_birds" type="Node3D" parent="." index="16"]
 script = ExtResource("1")
@@ -119,7 +119,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -84.0)
 script = ExtResource("1")
 role = "decor"
 kind = "raincloud"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -90.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.3, 0.0, -90.0)
 
 [node name="M9_obstacle_rocket" type="Node3D" parent="." index="18"]
 script = ExtResource("1")
@@ -139,7 +139,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -100.0)
 script = ExtResource("1")
 role = "decor"
 kind = "star"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -100.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.9, 0.0, -100.0)
 
 [node name="M11_obstacle_balloon" type="Node3D" parent="." index="21"]
 script = ExtResource("1")
@@ -152,7 +152,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -108.0)
 script = ExtResource("1")
 role = "decor"
 kind = "planet"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -110.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.1, 0.0, -110.0)
 
 [node name="M12_obstacle_cloud" type="Node3D" parent="." index="23"]
 script = ExtResource("1")
@@ -165,7 +165,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -116.0)
 script = ExtResource("1")
 role = "decor"
 kind = "cloud"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -120.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.3, 0.0, -120.0)
 
 [node name="M13_obstacle_bridge" type="Node3D" parent="." index="25"]
 script = ExtResource("1")
@@ -178,7 +178,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -124.0)
 script = ExtResource("1")
 role = "decor"
 kind = "moonswing"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -130.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.9, 0.0, -130.0)
 
 [node name="M14_obstacle_raincloud" type="Node3D" parent="." index="27"]
 script = ExtResource("1")
@@ -198,7 +198,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -140.0)
 script = ExtResource("1")
 role = "decor"
 kind = "raincloud"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -140.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.1, 0.0, -140.0)
 
 [node name="M16_obstacle_kite" type="Node3D" parent="." index="30"]
 script = ExtResource("1")

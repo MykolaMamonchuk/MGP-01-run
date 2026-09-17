@@ -121,6 +121,29 @@ func _lanes_within(num: int, cut: float) -> Array:
 	return out
 
 
+## Декор обабіч дороги мусить лишитись ЗА її краєм і після розширення. Маркери
+## розставляли під вузьку дорогу (|x| ≈ 1,9–2,3 м, тобто на 0,4 м далі за край), а після
+## розширення півширина дороги сама стає 2,5 або 3,5 — і дерева, пальми, парасолі та хмари
+## опиняються просто на біговій смузі. Заміряно: 78 маркерів на три рівні.
+##
+## Орієнтири (арка через дорогу) сюди не входять навмисно: вони стоять по центру, і так і
+## задумано — герой пробігає під ними.
+func test_side_decor_stays_off_the_widened_road() -> void:
+	var profiles := _json("res://data/profiles.json")
+	var levels: Array = _json("res://data/levels.json").get("levels", [])
+	for l in levels:
+		var level: Dictionary = l
+		if not level.has("lanes_to"):
+			continue
+		var num := int(level["id"])
+		var half := (float(level["lanes_to"]) * 1.0 + 0.2) * 0.5   # road_width()/2
+		var cut := _widen_distance(level, profiles) + MARGIN_M
+		var inside := _side_decor_within(num, cut, half)
+		assert_true(inside.is_empty(),
+			("рівень %d: після розширення дорога сягає ±%.1f м, а на ній лишився декор: %s")
+			% [num, half, inside])
+
+
 func test_widened_levels_use_their_new_outer_lanes() -> void:
 	var profiles := _json("res://data/profiles.json")
 	var levels: Array = _json("res://data/levels.json").get("levels", [])
@@ -142,3 +165,31 @@ func test_widened_levels_use_their_new_outer_lanes() -> void:
 			"рівень %d: після розширення вживаються й НОВІ крайні смуги ±%d, а не лише %s"
 			% [num, wide, lanes])
 	assert_gt(checked, 0, "рівні з розширенням у даних знайшлись")
+
+## Бічний декор далі за cut, що опинився ближче до центру, ніж half. Маркери по центру
+## (|x| < 0.3) пропускаємо — це орієнтири, вони над дорогою за задумом.
+func _side_decor_within(num: int, cut: float, half: float) -> Array:
+	var out := []
+	var dir := DirAccess.open("res://levels/level_%02d" % num)
+	if dir == null:
+		return out
+	for name in dir.get_files():
+		if not name.ends_with(".tscn"):
+			continue
+		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
+		for block in f.get_as_text().split("[node "):
+			if not block.contains("role = \"decor\""):
+				continue
+			var tr := block.find("Transform3D(")
+			if tr < 0:
+				continue
+			var args := block.substr(tr + 12).split(")")[0].split(",")
+			if args.size() < 12:
+				continue
+			var x := float(args[9])
+			var z := absf(float(args[11]))
+			if z > cut and absf(x) > 0.3 and absf(x) < half:
+				var kind_at := block.find("kind = \"")
+				var kind := block.substr(kind_at + 8).split("\"")[0] if kind_at >= 0 else "?"
+				out.append("%s на x=%.1f (z=%.0f)" % [kind, x, z])
+	return out

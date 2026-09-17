@@ -74,6 +74,38 @@ def main():
     profiles = json.load(open("data/profiles.json"))
     levels = {l["id"]: l for l in json.load(open("data/levels.json"))["levels"]}
 
+    # ── бічний декор ───────────────────────────────────────────────────────────
+    # Маркери декору розставляли під ВУЗЬКУ дорогу: |x| ≈ 1,9–2,3 м, тобто рівно на
+    # 0,4–0,8 м далі за її край. Після розширення півширина дороги сама стає 2,5 або 3,5 —
+    # і дерева, пальми, парасолі та хмари опиняються просто на біговій смузі. Заміряно:
+    # 78 маркерів на три рівні.
+    #
+    # Відсуваємо рівно на приріст півширини, зберігаючи знак: тоді задуманий відступ від
+    # краю (ті самі 0,4–0,8 м) лишається тим самим. Маркери по центру не чіпаємо — це
+    # орієнтири-арки, вони над дорогою за задумом.
+    def shift_side_decor(num, level, cut, write):
+        grow = (float(level["lanes_to"]) - float(level["lanes"])) * 0.5
+        moved = 0
+        for f in sorted(glob.glob("levels/level_%02d/chunk_*.tscn" % num)):
+            text = open(f).read()
+            out, changed = [], False
+            for piece in text.split("[node "):
+                if 'role = "decor"' in piece:
+                    m = re.search(r'(Transform3D\()([^)]*)(\))', piece)
+                    if m:
+                        a = [x.strip() for x in m.group(2).split(",")]
+                        if len(a) >= 12:
+                            x, z = float(a[9]), abs(float(a[11]))
+                            if z > cut and abs(x) > 0.3:
+                                a[9] = "%.1f" % (x + (grow if x > 0 else -grow))
+                                piece = piece[:m.start()] + m.group(1) + ", ".join(a) + m.group(3) + piece[m.end():]
+                                changed = True
+                                moved += 1
+                out.append(piece)
+            if changed and write:
+                open(f, "w").write("[node ".join(out))
+        return moved
+
     for num, level in sorted(levels.items()):
         if "lanes_to" not in level:
             continue
@@ -106,11 +138,12 @@ def main():
             if want != lane:
                 changed.setdefault(f, []).append((start, lane, want))
 
+        moved = shift_side_decor(num, level, cut, a.write)
         after = [r for r in everything if r[0] > cut]
         print("рівень %-2d: %d→%d смуг, розширення найпізніше на %.0f м (+запас) — "
-              "перешкод далі %d, змінено смугу в %d"
+              "перешкод далі %d, змінено смугу в %d, відсунуто декору %d"
               % (num, level["lanes"], level["lanes_to"], cut - MARGIN_M,
-                 len(after), sum(len(v) for v in changed.values())))
+                 len(after), sum(len(v) for v in changed.values()), moved))
         lanes_after = sorted({cycle[(i) % len(cycle)] for i in range(len(after))}) if after else []
         print("     смуги після розширення стануть: %s" % (lanes_after or "—"))
         if not a.write:
