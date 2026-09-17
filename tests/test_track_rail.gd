@@ -100,3 +100,24 @@ func test_no_canal_keeps_the_verge_solid() -> void:
 	var parts := _track._side_strips(1.0, 1.5 + Track.SIDE_W * 0.5, Track.SIDE_W * 0.5)
 	assert_almost_eq(float(parts[0]["sx"]) * Track.SIDE_W, Track.SIDE_W, 0.001, "узбіччя суцільне")
 	assert_eq(float(parts[1]["sx"]), 0.0, "друга смуга не потрібна")
+
+
+## Ланки поручнів стикуються ВПРИТУЛ: один ряд = 1,0 м, і модель має бути такою ж. Якщо
+## ланка бодай на частку міліметра ширша, сусідні заходять одна в одну, їхні бічні грані
+## стають співплощинними — і на КОЖНОМУ стику, тобто рівно щометра вздовж берега, з'являється
+## z-fight: у русі це читається як миготіння кольору на поручнях. Саме так і було до
+## 17.09.2026: fence_rail_2 мав 1.0009 м, fence_rail_3 — 1.0002 м (заміряно по AABB у .glb),
+## і це видно на знімках гравця регулярним кроком уздовж берега. Лікується scale у props.json.
+func test_every_rail_link_is_exactly_one_metre_after_tweaks() -> void:
+	var n := PropLibrary.variants("fence_rail")
+	assert_gt(n, 0, "поручні взагалі є в props.json")
+	for v in range(n):
+		var mesh := PropLibrary.mesh("fence_rail", v)
+		assert_not_null(mesh, "варіант %d має меш" % v)
+		if mesh == null:
+			continue
+		var tw := PropLibrary.tweak("fence_rail", v)
+		# Ланку ставлять поперек ряду (поворот на 90°), тож уздовж траси лягає X моделі.
+		var along := mesh.get_aabb().size.x * float(tw["scale"])
+		assert_almost_eq(along, 1.0, 0.0002,
+			"ланка %d завширшки рівно з ряд — інакше стики z-fight'ять щометра" % v)
