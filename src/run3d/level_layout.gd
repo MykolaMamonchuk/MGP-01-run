@@ -63,9 +63,21 @@ func _exit_tree() -> void:
 	_guide = null
 
 
+## Те саме, але без перевірки «ми в редакторі» — для src/debug/chunk_shot.gd, який показує
+## розкладку поза редактором. У грі цього ніхто не кличе.
+func _rebuild_guide_forced() -> void:
+	if not is_inside_tree():
+		return
+	_build_guide()
+
+
 func _rebuild_guide() -> void:
 	if not Engine.is_editor_hint() or not is_inside_tree():
 		return
+	_build_guide()
+
+
+func _build_guide() -> void:
 	if _guide != null and is_instance_valid(_guide):
 		_guide.queue_free()
 	_guide = null

@@ -67,10 +67,15 @@ def parse_args(argv):
                          "замість того, щоб спрощувати. Зі зварюванням той самий будинок "
                          "сідає з 30 918 до 3 000 граней і лишається цілим (18.09.2026)")
     ap.add_argument("--matte", action="store_true",
-                    help="прибрати карти, яких гра не використовує (нормаль, метал/шорсткість), "
-                         "і зробити матеріал матовим: metallic 0, roughness 1 — як усі матеріали "
-                         "гри. Просто викинути карту метал/шорсткості не можна: генератор "
-                         "часто лишає metallicFactor 1, і без карти пропс став би дзеркальним")
+                    help="зробити матеріал матовим, як усі матеріали гри: metallic 0, roughness 1, "
+                         "карта метал/шорсткості геть. Просто викинути карту не можна: генератор "
+                         "часто лишає metallicFactor 1, і без карти пропс став би дзеркальним. "
+                         "Карту НОРМАЛЕЙ при цьому лишаємо — див. --no-normal")
+    ap.add_argument("--no-normal", action="store_true",
+                    help="викинути ще й карту нормалей. Типово вона ЛИШАЄТЬСЯ, і це важливо: "
+                         "дрібний рельєф (черепиця, дошки, цегла) переживає спрощення сітки лише "
+                         "в ній. Заміряно 18.09.2026 на house_terra: та сама модель на 3 000 "
+                         "граней без нормалі має розплавлений дах, з нормаллю — черепицю видно")
     ap.add_argument("--tex-size", type=int, default=0,
                     help="звести текстури до N×N. Генератор віддає 4096×4096 на кожну карту, "
                          "а пропс 0,95 м займає на екрані сотню пікселів: різниці не видно, "
@@ -229,7 +234,10 @@ def main():
             bsdf = next((n for n in tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
             if bsdf is None:
                 continue
-            for slot in ("Normal", "Metallic", "Roughness", "Specular IOR Level"):
+            slots = ["Metallic", "Roughness", "Specular IOR Level"]
+            if a.no_normal:
+                slots.append("Normal")
+            for slot in slots:
                 inp = bsdf.inputs.get(slot)
                 if inp is None:
                     continue
@@ -240,7 +248,7 @@ def main():
             if bsdf.inputs.get("Roughness") is not None:
                 bsdf.inputs["Roughness"].default_value = 1.0
         # Зображення, що більше нікуди не під'єднані, експортер у файл не запише сам.
-        print("  матовий матеріал: лишилась тільки базова текстура")
+        print("  матовий матеріал%s" % (", нормаль теж прибрано" if a.no_normal else ", карта нормалей лишилась"))
 
     if a.tex_size > 0:
         # Тільки ті зображення, що справді під'єднані: після --matte у файлі лишаються
