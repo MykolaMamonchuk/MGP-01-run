@@ -211,6 +211,8 @@ var _canal_sides: Array = []
 var _canal_water: Array[MeshInstance3D] = []
 var _canal_mats: Array[ShaderMaterial] = []
 var _canal_banks: Array[MeshInstance3D] = []
+## Один матеріал на шар берега — усі чотири борти каналу фарбуються однаково.
+var _bank_mats: Array[ShaderMaterial] = []
 var _bridges_every := 0
 ## Чи малювати обрив плато з боку [лівого, правого] — там, де канал, обриву нема.
 var _cliff_on := [true, true]
@@ -1281,8 +1283,9 @@ func _layout_canal() -> void:
 		# Береги — три тонкі смужки по 18 см. Під гострим кутом (а дальній берег видно саме
 		# так) така смужка займає менше пікселя, і її яскравий теракотовий колір щокадру то
 		# потрапляє в піксель, то ні: лінія «кишить». Саме це замовник позначив на знімку.
-		# Прибрати геометрію не можна — вона й формує борт каналу, — тож гасимо КОНТРАСТ:
-		# зміщуємо колір до трави, і мерехтіння стає непомітним, бо мерехтіти вже нічому.
+		# Прибрати геометрію не можна — вона й формує борт каналу, — тож гасимо КОНТРАСТ.
+		# Тут задано колір ЗБЛИЗЬКА; далі bank.gdshader веде його в колір трави, бо заміри
+		# показали, що мерехтить саме різниця кольорів, а не форма (числа — у шейдері).
 		var grass := Palette.of(world.get("ground"), Palette.WORLD_GROUND)
 		var banks: Array[Color] = [
 			Palette.W_BANK_1.lerp(grass, 0.45),
@@ -1302,11 +1305,23 @@ func _layout_canal() -> void:
 					_canal_banks.append(b)
 				var bank := _canal_banks[idx]
 				bank.visible = on
-				bank.material_override = Mats.solid(banks[k])
+				bank.material_override = _bank_material(k, banks[k], grass)
 				var cx: float = water.position.x + eside * width * 0.5
 				bank.position = Vector3(cx + eside * (BANK_W * 0.5 - 0.03 * float(k)),
 					-BANK_H * (float(k) + 0.5) + BANK_LIFT, water.position.z)
 
+
+## Матеріал одного шару берега. Колір зблизька — заданий, вдалині — колір трави: смуга там
+## вужча за піксель, і будь-який контраст на ній перетворюється на мерехтіння.
+func _bank_material(layer: int, near_color: Color, grass: Color) -> ShaderMaterial:
+	while _bank_mats.size() <= layer:
+		var m := ShaderMaterial.new()
+		m.shader = load("res://src/run3d/bank.gdshader")
+		_bank_mats.append(m)
+	var mat := _bank_mats[layer]
+	mat.set_shader_parameter("near_color", near_color)
+	mat.set_shader_parameter("far_color", grass)
+	return mat
 
 ## Розкласти узбіччя одного борту на смуги. Без каналу — одна смуга на всю ширину, друга
 ## нульова. З каналом — смуга від дороги до води й смуга за водою, а між ними проріз.
