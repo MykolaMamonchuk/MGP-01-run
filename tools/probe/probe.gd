@@ -36,6 +36,10 @@ func _ready() -> void:
 	await _frames_passed(30)
 
 	if _stage == "level":
+		# Профіль задає швидкість бігу, а швидкість прямо впливає на мерехтіння — без
+		# фіксації два прогони порівнювати НЕ МОЖНА (наступив 17.09.2026: «до» вийшло
+		# older на 42 км/год, «після» young на 28, і різниця в числах була від швидкості).
+		AgeAdapt.set_profile(OS.get_environment("PROFILE") if OS.has_environment("PROFILE") else "older")
 		_run.menu.hide_menu()
 		_run._start_level(_level)
 		await _frames_passed(_frames)
@@ -44,6 +48,18 @@ func _ready() -> void:
 
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("%s/frame.png" % _out)
+
+	# BURST=N — N кадрів ПОСПІЛЬ, без пропусків. Для пошуку миготіння: воно має підпис
+	# «змінилось і повернулось», а рух камери такого не дає — там піксель їде далі.
+	# PAUSE=1 спиняє дерево перед серією: що мигає й на СТОЯЧІЙ картинці — то справжнє
+	# миготіння, а що зникає — то мерехтіння від руху (недосемплена дрібна деталь).
+	if OS.get_environment("PAUSE") == "1":
+		get_tree().paused = true
+		await _frames_passed(5)
+	var burst := int(OS.get_environment("BURST")) if OS.has_environment("BURST") else 0
+	for i in range(burst):
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("%s/burst_%03d.png" % [_out, i])
 
 	var hud_before := _hud_state()
 	var hud_after := {}
