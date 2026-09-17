@@ -2,10 +2,16 @@
 ## NekotoArts, CC0, див. шапку файлу). Тут не міряємо картинку (для цього — знімки й
 ## visual-check), а стережемо контракт, яким користується track.gd, і мобільні обмеження:
 ##   - кольори різні для різних світів (Лужок/Пляж/Хмаринки не повинні злитись в один колір);
-##   - набір uniform-ів, які виставляє track.gd (color, color_light, scroll, amplitude),
+##   - набір uniform-ів, які виставляє track.gd (color, color_light, scroll, amplitude, flow),
 ##     не загубився при правках шейдера;
-##   - жодних SCREEN_TEXTURE/DEPTH_TEXTURE/unshaded/blend_add — те, через що раніше
-##     відкидались готові шейдери спільноти, не повинно непомітно закрастись назад.
+##   - жодних hint_screen_texture/unshaded/blend_add — те, через що раніше відкидались готові
+##     шейдери спільноти, не повинно непомітно закрастись назад.
+##   - hint_depth_texture — ОНОВЛЕНО 17.09.2026: правило «ніякого DEPTH_TEXTURE на мобільному»
+##     було хибним (спростовано дослідом), шейдер тепер СВІДОМО читає глибину для прибережної
+##     піни навколо перешкод у воді. Тест більше не забороняє це, а стежить, щоб читання було
+##     БЕЗПЕЧНИМ: матеріал мусить лишатись у прозорому проході (blend_mix, depth_draw_never),
+##     інакше DEPTH_TEXTURE бачить сам себе й піна бреше (та сама помилка, що вже сталась
+##     двічі поспіль — див. нотатку продюсера).
 extends GutTest
 
 const SHADER_PATH := "res://src/run3d/water.gdshader"
@@ -25,16 +31,33 @@ func before_each() -> void:
 	await wait_process_frames(2)
 
 
-func test_shader_avoids_mobile_unsafe_features() -> void:
+func _code_lines() -> String:
 	# Шапка файлу СВІДОМО згадує ці слова — там пояснено, чому саме такі готові шейдери
 	# відкинули. Тож перевіряємо не весь текст, а лише рядки коду (без "//"-коментарів).
 	var code_lines := PackedStringArray()
 	for line in (load(SHADER_PATH) as Shader).code.split("\n"):
 		if not String(line).strip_edges().begins_with("//"):
 			code_lines.append(line)
-	var code := "\n".join(code_lines)
-	for banned in ["SCREEN_TEXTURE", "DEPTH_TEXTURE", "unshaded", "blend_add"]:
+	return "\n".join(code_lines)
+
+
+func test_shader_avoids_mobile_unsafe_features() -> void:
+	var code := _code_lines()
+	# Кольоровий SCREEN_TEXTURE нам не потрібен (лише глибина), unshaded/blend_add — те, через
+	# що раніше відкидались готові шейдери спільноти.
+	for banned in ["hint_screen_texture", "unshaded", "blend_add"]:
 		assert_eq(code.find(banned), -1, "мобільний рендерер: %s не повинен використовуватись" % banned)
+
+
+## hint_depth_texture ТЕПЕР дозволено (виправлене правило), але лише якщо шейдер малюється у
+## прозорому проході — інакше DEPTH_TEXTURE читає сам себе замість дна/предмета за водою
+## (нотатка продюсера: ця помилка вже коштувала два заходи поспіль).
+func test_depth_texture_used_only_in_transparent_pass() -> void:
+	var code := _code_lines()
+	assert_ne(code.find("hint_depth_texture"), -1, "прибережна піна: шейдер має читати глибину сцени")
+	assert_ne(code.find("blend_mix"), -1, "DEPTH_TEXTURE безпечний лише в прозорому проході (render_mode blend_mix)")
+	assert_ne(code.find("depth_draw_never"), -1, "вода не повинна сама писати в буфер глибини (depth_draw_never)")
+	assert_ne(code.find("ALPHA = 1.0"), -1, "прозорий прохід не повинен зробити воду видимо прозорою (ALPHA = 1.0)")
 
 
 func test_shader_exposes_uniforms_track_gd_relies_on() -> void:
@@ -46,8 +69,22 @@ func test_shader_exposes_uniforms_track_gd_relies_on() -> void:
 	var names: Array = []
 	for u in mat.shader.get_shader_uniform_list():
 		names.append(u.get("name", ""))
-	for expected in ["color", "color_light", "scroll", "amplitude"]:
+	for expected in ["color", "color_light", "scroll", "amplitude", "flow"]:
 		assert_true(names.has(expected), "шейдер має uniform '%s'" % expected)
+
+
+## Замовник помітив на око: обидва боки каналу текли візуально ОДНАКОВО (дзеркальна копія),
+## бо геометрія обох боків локально та сама (лише зсунута по X), а _canal_mats діставали
+## однаковий scroll. flow — множник, свій для кожного матеріалу (track.gd: _layout_canal),
+## має різнити боки і знаком (напрямок), і довжиною (швидкість) — інакше вада повернеться.
+func test_canal_sides_flow_differently() -> void:
+	_track.rebuild(_world("meadow"), false)
+	await wait_process_frames(2)
+	assert_eq(_track._canal_mats.size(), 2, "обидва боки каналу заведено")
+	var flow_a: float = _track._canal_mats[0].get_shader_parameter("flow")
+	var flow_b: float = _track._canal_mats[1].get_shader_parameter("flow")
+	assert_ne(signf(flow_a), signf(flow_b), "боки каналу мають текти в різні боки")
+	assert_ne(absf(flow_a), absf(flow_b), "боки каналу мають текти з різною швидкістю")
 
 
 ## Лужок і Хмаринки — вода каналу (_canal_mats, обидва боки), Пляж — море на всю ширину

@@ -1247,6 +1247,13 @@ func _layout_canal() -> void:
 			var mat := ShaderMaterial.new()
 			mat.shader = load("res://src/run3d/water.gdshader")
 			mat.set_shader_parameter("amplitude", 0.03)
+			# Обидва боки каналу — локально ОДНАКОВА геометрія (лише зсунута по X), тож без
+			# цього хвиля й піна текли б дзеркально однаково з обох боків дороги — так це й
+			# виглядало, і замовник це підмітив на око. Один бік лишаємо як є (flow=1.0),
+			# другий пускаємо в інший бік і з іншою швидкістю; -0.7, а не -0.5, — щоб два
+			# потоки не «бились» у видиму синхронну протифазу на певних відстанях. Підібрано
+			# знімком (WORLD=meadow ADVANCE=40), не з голови.
+			mat.set_shader_parameter("flow", 1.0 if s == 0 else -0.7)
 			mi.material_override = mat
 			add_child(mi)
 			_canal_water.append(mi)
