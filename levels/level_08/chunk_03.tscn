@@ -177,3 +177,10 @@ script = ExtResource("1")
 role = "decor"
 kind = "logpile"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -590.0)
+
+[node name="M109_obstacle_xbox" type="Node3D" parent="." index="27"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "xbox"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -594.3)

@@ -67,10 +67,25 @@ func test_update_does_not_double_load_same_chunk() -> void:
 func test_streaming_through_whole_level_loads_every_chunk_exactly_once() -> void:
 	_loader.start(1, _track, _spawner)
 	var d := 0.0
-	while d < 320.0:
+	while d < 500.0:
 		d += 5.0
 		_loader.update(d)
-	assert_eq(_spawner._authored_obstacles.size(), 20, "усі 20 authored-перешкод level_01 дозавантажені по чанках")
+	# Скільки саме перешкод у рівні — не сталість тесту: хвости рівнів дотягували під
+	# швидкий профіль (tools/extend_level_tails.py), і число мінялося. Тест стереже інше —
+	# що жоден чанк не завантажено двічі й жодного не загублено, тому рахуємо очікуване
+	# просто з файлів рівня.
+	var want := 0
+	var dir := DirAccess.open("res://levels/level_01")
+	for name in dir.get_files():
+		if not name.ends_with(".tscn"):
+			continue
+		var f := FileAccess.open("res://levels/level_01/%s" % name, FileAccess.READ)
+		for block in f.get_as_text().split("[node "):
+			if block.contains("role = \"obstacle\""):
+				want += 1
+	assert_gt(want, 0, "у рівні 1 є перешкоди")
+	assert_eq(_spawner._authored_obstacles.size(), want,
+		"усі %d authored-перешкод level_01 дозавантажені по чанках" % want)
 	var seen := {}
 	for rec in _spawner._authored_obstacles:
 		var z: float = rec.get("z_m", 0.0)
