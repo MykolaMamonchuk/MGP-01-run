@@ -60,6 +60,17 @@ def parse_args(argv):
                          "він згинає суцільну шкіру, а ящик чи кущ або стоять, або розлітаються "
                          "шматками — і те, й те робиться без нього. Натомість ріг тягне в файл "
                          "десятки мегабайтів ваг на кожну вершину")
+    ap.add_argument("--weld", action="store_true",
+                    help="зварити збіжні вершини ПЕРЕД спрощенням. glTF розщеплює вершину на "
+                         "кожному шві UV і на кожному зламі нормалі, тож дах із черепиці "
+                         "приходить як купа окремих оболонок — і --tris рве їх на клапті "
+                         "замість того, щоб спрощувати. Зі зварюванням той самий будинок "
+                         "сідає з 30 918 до 3 000 граней і лишається цілим (18.09.2026)")
+    ap.add_argument("--matte", action="store_true",
+                    help="прибрати карти, яких гра не використовує (нормаль, метал/шорсткість), "
+                         "і зробити матеріал матовим: metallic 0, roughness 1 — як усі матеріали "
+                         "гри. Просто викинути карту метал/шорсткості не можна: генератор "
+                         "часто лишає metallicFactor 1, і без карти пропс став би дзеркальним")
     ap.add_argument("--tex-size", type=int, default=0,
                     help="звести текстури до N×N. Генератор віддає 4096×4096 на кожну карту, "
                          "а пропс 0,95 м займає на екрані сотню пікселів: різниці не видно, "
@@ -189,6 +200,16 @@ def main():
             o.data.update()
         lo, hi, size = describe(meshes, "початок")
 
+    if a.weld:
+        for o in meshes:
+            bpy.context.view_layer.objects.active = o
+            was = len(o.data.vertices)
+            bpy.ops.object.mode_set(mode="EDIT")
+            bpy.ops.mesh.select_all(action="SELECT")
+            bpy.ops.mesh.remove_doubles(threshold=0.0005)
+            bpy.ops.object.mode_set(mode="OBJECT")
+            print("  зварено вершини: %d → %d" % (was, len(o.data.vertices)))
+
     if a.tris > 0:
         for o in meshes:
             have = len(o.data.polygons)
@@ -200,8 +221,56 @@ def main():
             bpy.ops.object.modifier_apply(modifier=mod.name)
             print("  спрощено: %d → %d граней" % (have, len(o.data.polygons)))
 
+    if a.matte:
+        for mat in bpy.data.materials:
+            tree = getattr(mat, "node_tree", None)
+            if tree is None:
+                continue
+            bsdf = next((n for n in tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+            if bsdf is None:
+                continue
+            for slot in ("Normal", "Metallic", "Roughness", "Specular IOR Level"):
+                inp = bsdf.inputs.get(slot)
+                if inp is None:
+                    continue
+                for link in list(inp.links):
+                    tree.links.remove(link)
+            if bsdf.inputs.get("Metallic") is not None:
+                bsdf.inputs["Metallic"].default_value = 0.0
+            if bsdf.inputs.get("Roughness") is not None:
+                bsdf.inputs["Roughness"].default_value = 1.0
+        # Зображення, що більше нікуди не під'єднані, експортер у файл не запише сам.
+        print("  матовий матеріал: лишилась тільки базова текстура")
+
     if a.tex_size > 0:
+        # Тільки ті зображення, що справді під'єднані: після --matte у файлі лишаються
+        # «осиротілі» карти, які експортер усе одно викине, і зменшувати їх — брехати в лог.
+        live = set()
+        for mat in bpy.data.materials:
+            tree = getattr(mat, "node_tree", None)
+            if tree is None:
+                continue
+            bsdf = next((n for n in tree.nodes if n.type == "BSDF_PRINCIPLED"), None)
+            if bsdf is None:
+                continue
+            # Ідемо НАЗАД від BSDF: карта нормалі під'єднана не прямо, а через вузол Normal Map,
+            # тож перевірки «у зображення є вихідний зв'язок» замало — вона рахує живими й ті
+            # карти, які --matte щойно відрізав від матеріалу.
+            seen = set()
+            stack = [bsdf]
+            while stack:
+                node = stack.pop()
+                if node.name in seen:
+                    continue
+                seen.add(node.name)
+                if node.type == "TEX_IMAGE" and node.image is not None:
+                    live.add(node.image.name)
+                for inp in node.inputs:
+                    for link in inp.links:
+                        stack.append(link.from_node)
         for im in bpy.data.images:
+            if live and im.name not in live:
+                continue
             if im.size[0] > a.tex_size or im.size[1] > a.tex_size:
                 was = tuple(im.size)
                 im.scale(min(im.size[0], a.tex_size), min(im.size[1], a.tex_size))

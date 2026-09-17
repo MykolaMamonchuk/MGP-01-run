@@ -97,6 +97,12 @@ func _ready() -> void:
 			"frame_ms": Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0,
 			"objects": Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
 			"draw_calls": Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+			# Трикутники кадру. Без цього числа «важка модель чи ні» лишається відчуттям:
+			# декор малюється через MultiMesh, а там LOD НЕ працює — кожен інстанс коштує
+			# повну сітку, тож ціна моделі множиться на кількість будинків у кадрі.
+			"primitives": Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+			"video_mem_mb": Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
+			"texture_mem_mb": Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
 		},
 		"controls": _controls(_run),
 	}
