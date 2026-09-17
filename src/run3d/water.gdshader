@@ -14,6 +14,13 @@
 // Stylized Toon Water, Low poly water, Toon Water 4.4+ (усі — godotshaders.com), EmaceArt і
 // Binbun (itch) — вимагали текстур шуму й режиму blend_add+unshaded.
 //
+// УВАГА, ПРАВИЛО НИЖЧЕ ЧАСТКОВО ХИБНЕ. Перевірено дослідом 17.09.2026: hint_depth_texture у
+// цьому проєкті ЧИТАЄТЬСЯ ПРАВИЛЬНО попри мобільний рендерер і MSAA 4× (стіна за 4,5 м дала
+// очікуване 0,022 у зворотному Z; однаково в мобільному з MSAA, без MSAA і у Forward+).
+// Твердження в мережі, що «в мобільному з MSAA глибина завжди нуль», стосується старіших
+// версій. Тож «Toon Style 3D Water Shader» (Megalithium, CC0) відкинуто НЕСПРАВЕДЛИВО — він
+// не потребує текстур і вартий другого погляду, якщо захочемо піну на межі берега.
+//
 // РОЗГЛЯНУТІ ЗАРАЗ Й ТЕЖ ВІДКИНУТІ (не мобільні за нашим правилом):
 //   - «Stylized Water for Godot 4.x», MinhCreatorVN, MIT,
 //     https://godotshaders.com/shader/stylized-water-for-godot-4-x/ — 4 текстури (noise1,
