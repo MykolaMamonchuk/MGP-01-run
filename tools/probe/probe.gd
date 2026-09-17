@@ -56,8 +56,20 @@ func _ready() -> void:
 	if OS.get_environment("PAUSE") == "1":
 		get_tree().paused = true
 		await _frames_passed(5)
+	# NUDGE=0.004 — на ПАУЗІ зсувати камеру на частку пікселя між кадрами. Часового шуму
+	# тоді немає взагалі (гра стоїть, анімації стоять), і лишається чиста чутливість
+	# картинки до піврухів камери: z-fight від такого зсуву мав би стрибати стрибком, а
+	# нормальна геометрія — плавно повзти. Задум такий; ЧЕСНО ПРО МЕЖІ: на калібруванні
+	# (EDGE_LIFT=0, де коментар у track.gd обіцяє «гарантований z-fight») прилад НЕ показав
+	# різниці з HEAD. Камера при цьому справді рухається — 3 см зсуву міняють 22% пікселів.
+	# Отже або та копланарність не конфліктує насправді, або чутливості все одно бракує.
+	# Довіряти цьому показнику наосліп не можна, поки він не розрізнить завідомий випадок.
+	var nudge := float(OS.get_environment("NUDGE")) if OS.has_environment("NUDGE") else 0.0
+	var cam := get_viewport().get_camera_3d()
 	var burst := int(OS.get_environment("BURST")) if OS.has_environment("BURST") else 0
 	for i in range(burst):
+		if nudge != 0.0 and cam != null:
+			cam.global_position += cam.global_transform.basis.x * nudge
 		await RenderingServer.frame_post_draw
 		get_viewport().get_texture().get_image().save_png("%s/burst_%03d.png" % [_out, i])
 
