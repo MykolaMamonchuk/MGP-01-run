@@ -112,5 +112,7 @@
     "res://assets/props/barrel_3.glb"
   ],
   "garden": "res://assets/props/garden.glb",
-  "lantern": "res://assets/props/lantern.glb"
+  "lantern": "res://assets/props/lantern.glb",
+  "branch": "res://assets/props/branch.glb",
+  "stump": "res://assets/props/stump.glb"
 }

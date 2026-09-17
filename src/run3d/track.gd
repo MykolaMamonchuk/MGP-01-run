@@ -1095,7 +1095,15 @@ func _decorate(row: Node3D) -> void:
 				_add_decor(ids, data, lk, {}, 0.0, 0.0, road_width() / ARCH_BASE_W, 0.0)
 			else:
 				var s := -1.0 if randf() < 0.5 else 1.0
-				_add_decor(ids, data, lk, {}, s * (edge + 1.2), 0.0, 1.2, 0.0 if s > 0.0 else PI)
+				# Орієнтир мусить стояти ЗА каналом, а не в ньому. Вежа 1,32 м завширшки на
+				# масштабі 1,2 при відступі edge+1,2 займала від 1,91 до 3,49 м, а канал
+				# Лужка — від 2,0 до 3,2: вежа стояла просто у воді. Для забудови другого
+				# плану це вже враховано (b_lo нижче по коду), а орієнтири лишались.
+				var half := _kind_half_extent(lk) * 1.2
+				var off := edge + 1.2
+				if _canal_sides.has(s):
+					off = maxf(off, c_offset + c_width + 0.15 + half.x)
+				_add_decor(ids, data, lk, {}, s * off, 0.0, 1.2, 0.0 if s > 0.0 else PI)
 	_decor_ids[i] = ids
 	_decor_data[i] = data
 

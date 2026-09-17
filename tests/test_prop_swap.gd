@@ -106,13 +106,39 @@ func test_world_one_obstacles_name_their_target_model() -> void:
 
 ## І сам шов: коли модель зʼявиться під іменем із `prop`, вона має підмінити воксель.
 func test_target_model_wins_when_it_appears() -> void:
+	# Назву цільової моделі НЕ тримаємо в коді сталою. Колись пеньок цілився в «ящик», бо
+	# власної моделі не було; коли вона з'явилась, тест упав на заглушці, а не на ваді.
+	# Перевіряти треба сам шов: що названа модель підміняє воксель.
 	var stump: Dictionary = _world("meadow")["obstacles"]["stump"]
-	assert_eq(String(stump.get("prop", "")), "crate", "пеньок цілиться в дерев'яний ящик")
+	var target := String(stump.get("prop", ""))
+	assert_ne(target, "", "пеньок називає цільову модель")
 
-	PropLibrary.use({"crate": "res://vendor/cartoon_eye_3d/CartoonEye3D.tscn"})
-	assert_not_null(PropLibrary.mesh("crate"), "модель ящика знайдена — саме вона й малюватиметься")
+	PropLibrary.use({target: "res://vendor/cartoon_eye_3d/CartoonEye3D.tscn"})
+	assert_not_null(PropLibrary.mesh(target), "модель знайдена — саме вона й малюватиметься")
 	PropLibrary.use({})
-	assert_null(PropLibrary.mesh("crate"), "моделі нема — лишається воксель пенька")
+	assert_null(PropLibrary.mesh(target), "моделі нема — лишається воксель пенька")
+
+
+## Кожна перешкода першого світу мусить називати модель, яка СПРАВДІ є. Помилка в імені не
+## падає й ніде не світиться — перешкода просто мовчки лишається кубиком, і помітити це можна
+## лише оком у грі. Саме так довго жили гілка (малювалась гірляндою прапорців) і пеньок
+## (малювався ящиком): назва вела не туди, куди треба, і ніхто цього не бачив.
+func test_world_one_obstacle_models_actually_exist() -> void:
+	var props = JSON.parse_string(FileAccess.open("res://data/props.json",
+		FileAccess.READ).get_as_text())
+	assert_eq(typeof(props), TYPE_DICTIONARY, "список моделей читається")
+	if typeof(props) != TYPE_DICTIONARY:
+		return
+	var obs: Dictionary = _world("meadow").get("obstacles", {})
+	var missing := []
+	for kind in obs.keys():
+		var def: Dictionary = obs[kind]
+		var target := String(def.get("prop", ""))
+		if target != "" and not (props as Dictionary).has(target):
+			missing.append("%s → %s" % [kind, target])
+	missing.sort()
+	assert_true(missing.is_empty(),
+		"перешкоди Лужка називають наявні моделі, а не порожнечу: %s" % [missing])
 
 
 ## Доведення моделі (scale / yaw_deg у data/props.json) має СПРАВДІ застосовуватись.

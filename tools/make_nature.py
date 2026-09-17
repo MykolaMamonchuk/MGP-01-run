@@ -198,6 +198,38 @@ def build(kind, h, main, second, seed):
             add(C.primitive_cube_add, mat("cross", "#FFFFFF"), size=1.0,
                 location=(0, -h * 0.51, h * 0.5),
                 rotation=(0, sgn * math.pi * 0.25, 0)).scale = (h * 0.52, h * 0.02, h * 0.07)
+    elif kind == "branch":
+        # Гілка ЧЕРЕЗ дорогу, під якою присідають. У грі вона піднімається на 1,05 м
+        # (data/worlds/meadow.json, поле "y"), тож модель мусить бути САМЕ гілкою й нічим
+        # більше: усе, що стирчить униз, повисне в повітрі. Саме через це попередня
+        # підміна на banner_line (стовпи 1,36 м заввишки) виглядала як гірлянда, що
+        # висить над дорогою ні на чому.
+        span = h * 2.75
+        bough = add(C.primitive_cylinder_add, mat("bark", second), vertices=7,
+                    radius=h * 0.13, depth=span, location=(0, 0, h * 0.62))
+        bough.rotation_euler = (0.0, math.radians(90.0), 0.0)
+        # два сучки вгору — щоб силует читався як гілка, а не як труба
+        for sx in (-0.26, 0.30):
+            tw = add(C.primitive_cylinder_add, mat("bark", second), vertices=5,
+                     radius=h * 0.055, depth=h * 0.34, location=(span * sx, 0, h * 0.80))
+            tw.rotation_euler = (math.radians(22.0 * (1 if sx > 0 else -1)), 0.0, 0.0)
+        for i, (sx, r) in enumerate(((-0.34, 0.30), (0.02, 0.34), (0.36, 0.28))):
+            leaf = add(C.primitive_ico_sphere_add, mat("leaf", main), subdivisions=1,
+                       radius=h * r, location=(span * sx, 0, h * 0.86))
+            leaf.scale = (1.25, 0.8, 0.62)
+            jitter(leaf, h * 0.05, seed + i)
+    elif kind == "stump":
+        # Пеньок: низький широкий циліндр кори зі світлішим зрізом угорі. Раніше замість
+        # нього малювався ЯЩИК (поле "prop": "crate") — дитина бачила скриню там, де за
+        # задумом стоїть пеньок.
+        add(C.primitive_cylinder_add, mat("bark", second), vertices=9,
+            radius=h * 0.62, depth=h * 0.92, location=(0, 0, h * 0.46))
+        add(C.primitive_cylinder_add, mat("cut", main), vertices=9,
+            radius=h * 0.58, depth=h * 0.10, location=(0, 0, h * 0.94))
+        # корінь збоку — силует перестає бути просто бочкою
+        root = add(C.primitive_cone_add, mat("bark2", second), vertices=6,
+                   radius1=h * 0.22, depth=h * 0.46, location=(h * 0.52, h * 0.10, h * 0.18))
+        root.rotation_euler = (0.0, math.radians(64.0), 0.0)
     elif kind == "goose":
         # Гуска: тіло, шия, голова, дзьоб, дві лапки. Очей НЕ малюємо — їх малює гра.
         body = add(C.primitive_ico_sphere_add, mat("feather", main), subdivisions=2,
@@ -226,6 +258,7 @@ DEFAULTS = {
     "rock": ("#A8ADB3", "#8E949B"), "hay_bale": ("#D9B65C", "#B08840"),
     "arch": ("#C97B5A", "#8D5524"), "gate_post": ("#C9A45C", "#8D5524"), "tower": ("#EFDDBC", "#C1452F"), "post_line": ("#E8F1E4", "#7A4A2A"),
     "xbox": ("#C1452F", "#FFFFFF"), "goose": ("#F7F3E8", "#E8A33D"),
+    "branch": ("#5FA845", "#7A4A2A"), "stump": ("#C9A063", "#7A4A2A"),
 }
 
 

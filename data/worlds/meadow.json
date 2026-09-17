@@ -126,7 +126,7 @@
       "anim": "breathe",
       "shape": "low_bar",
       "marker": "none",
-      "prop": "crate"
+      "prop": "stump"
     },
     "branch": {
       "voxel": "branch",
@@ -140,7 +140,7 @@
       ],
       "anim": "sway",
       "shape": "high_frame",
-      "prop": "banner_line",
+      "prop": "branch",
       "marker": "none"
     },
     "puddle": {
