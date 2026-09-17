@@ -16,9 +16,9 @@
     "res://assets/props/fence_low_3.glb"
   ],
   "fence_rail": [
-    "res://assets/props/fence_rail_1.glb",
-    { "path": "res://assets/props/fence_rail_2.glb", "scale": 0.99908 },
-    { "path": "res://assets/props/fence_rail_3.glb", "scale": 0.99983 }
+    { "path": "res://assets/props/fence_rail_1.glb", "scale": 0.99798 },
+    { "path": "res://assets/props/fence_rail_2.glb", "scale": 0.99708 },
+    { "path": "res://assets/props/fence_rail_3.glb", "scale": 0.99783 }
   ],
   "crate": [
     "res://assets/props/crate_1.glb",
