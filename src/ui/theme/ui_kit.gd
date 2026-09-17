@@ -3,7 +3,16 @@
 class_name UIKit
 extends RefCounted
 
-const FONT_PATH := "res://assets/fonts/kenney_mini_square.ttf"
+## Balsamiq Sans (Wojciech Kalinowski, ліцензія OFL — assets/fonts/OFL.txt). Мальований,
+## теплий, читається як дитяча книжка; з повною українською абеткою, включно з ґ, є, і, ї.
+##
+## ТУТ УЖЕ БУЛА ТИХА ВАДА, І САМЕ ТОМУ НИЖЧЕ СТОЇТЬ ТЕСТ. Раніше шлях указував на
+## kenney_mini_square.ttf, якого в репозиторії НІКОЛИ не було: ResourceLoader.exists()
+## повертав false, font() віддавав null, кожен виклик мовчки проминав
+## add_theme_font_override — і вся гра малювалась типовим шрифтом Godot. Помітити це можна
+## було тільки оком, бо жоден тест шрифту не перевіряв. Тепер перевіряє:
+## tests/test_font.gd падає, якщо файл зник або в ньому немає української абетки.
+const FONT_PATH := "res://assets/fonts/BalsamiqSans-Bold.ttf"
 
 static var _font: Font
 
