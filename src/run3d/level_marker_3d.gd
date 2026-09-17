@@ -3,8 +3,8 @@
 ## рівень; після екстракції авторська сцена звільняється й НЕ додається у живе дерево — дорогу/
 ## перешкоди все одно малюють Track/Spawner3D через свої MultiMesh-пачки й пул-вузли, як і
 ## раніше (docs/optimisation/2026-09-07-render-budget.md) — цей вузол сам по собі нічого не рендерить.
-## В редакторі ж (Engine.is_editor_hint()) показує прев'ю вокселя, щоб рівень було видно наживо
-## під час розстановки; прев'ю не серіалізується (owner = null) і не існує в грі.
+## В редакторі ж (Engine.is_editor_hint()) показує прев'ю СПРАВЖНЬОЇ моделі, щоб рівень було
+## видно наживо під час розстановки; прев'ю не серіалізується (owner = null) і не існує в грі.
 @tool
 class_name LevelMarker3D
 extends Node3D
@@ -24,7 +24,10 @@ extends Node3D
 
 ## Доріжка для obstacle/pickup (як Spawner3D.lane: -max_lane()..max_lane()); decor/building
 ## ігнорують lane і кладуться за власною position (x_m/y_m — див. LevelTimeline).
-@export var lane: int = 0
+@export var lane: int = 0:
+	set(v):
+		lane = v
+		_rebuild_preview()
 
 ## Параметри вокселя — те саме, що palette_override у VoxelBuilder.instance()/_decor_layer()
 ## (напр. {"p": "pink"} для кольору квітки).
@@ -64,17 +67,108 @@ func _clear_preview() -> void:
 	_preview = null
 
 
-## Перебудувати прев'ю: старе прибираємо, нове ставимо лише якщо воксель існує (інакше
-## VoxelBuilder намалював би рожевий кубик-заглушку прямо в редакторі на кожному порожньому маркері).
+## Кольори-заглушки за роллю — щоб маркер із невідомим kind усе одно було ВИДНО. Раніше він
+## був невидимий, і чанк у редакторі виглядав порожнім навіть там, де маркери стояли.
+const ROLE_COLORS := {
+	"decor": Color(0.35, 0.75, 0.35),
+	"obstacle": Color(0.95, 0.35, 0.30),
+	"pickup": Color(1.00, 0.85, 0.25),
+	"building": Color(0.60, 0.55, 0.85),
+	"landmark": Color(0.30, 0.70, 0.95),
+	"wall_near": Color(0.55, 0.45, 0.35),
+}
+## Ширина доріжки — та сама, що Hero3D.LANE_W.
+const LANE_W := 1.0
+
+
+## Перебудувати прев'ю. Джерело шукаємо в трьох місцях по черзі:
+##   1. справжня модель із data/props.json (PropLibrary) — саме її й побачить гравець;
+##   2. воксель data/voxels/<kind>.json — для видів, які ще не отримали моделі;
+##   3. кольорова коробка за роллю — коли не знайшлось нічого.
+## Третій крок принциповий: раніше маркер без вокселя не малював НІЧОГО, і автор рівня
+## дивився в порожню сцену, не розуміючи, чи там щось є. Заглушка каже «тут маркер, і його
+## kind невідомий» — це помилка, яку видно.
 func _rebuild_preview() -> void:
 	if not Engine.is_editor_hint() or not is_inside_tree():
 		return
 	_clear_preview()
-	if kind == "" or not FileAccess.file_exists("res://data/voxels/%s.json" % kind):
+	var mi := _preview_node()
+	if mi == null:
 		return
-	var mi := VoxelBuilder.instance(kind, override)
 	mi.rotation.y = deg_to_rad(yaw_deg)
 	mi.scale = Vector3.ONE * scale_mul
+	# Перешкоди й пікапи стоять на ДОРІЖЦІ, а не за власним x: саме так їх ставить Spawner3D.
+	# Без цього зсуву в редакторі вони всі купчились би по осі дороги.
+	if role == "obstacle" or role == "pickup":
+		mi.position.x = float(lane) * LANE_W
 	add_child(mi)
 	mi.owner = null   # прев'ю ніколи не йде в .tscn і не існує в запущеній грі
 	_preview = mi
+
+
+func _preview_node() -> Node3D:
+	var name_ := model_kind(role, kind)
+	if name_ == "":
+		return _placeholder()
+	if PropLibrary.has(name_):
+		var node := PropLibrary.node_for(name_)
+		if node != null:
+			return node
+	if FileAccess.file_exists("res://data/voxels/%s.json" % name_):
+		return VoxelBuilder.instance(name_, override)
+	return _placeholder()
+
+
+## Ім'я МОДЕЛІ для цього маркера. Для декору воно збігається з kind, а перешкода зветься
+## по-своєму («xbox», «wagon», «wind») і бере модель через поле "voxel" свого опису в
+## data/worlds/*.json. Без цього кроку кожна перешкода малювалась би заглушкою, хоч модель
+## у неї є — і автор рівня бачив би кольорові коробки замість рівня.
+static func model_kind(role_: String, kind_: String) -> String:
+	if kind_ == "":
+		return ""
+	if role_ != "obstacle":
+		return kind_
+	if _obstacle_models.is_empty():
+		_load_obstacle_models()
+	return String(_obstacle_models.get(kind_, kind_))
+
+
+static var _obstacle_models: Dictionary = {}
+
+
+static func _load_obstacle_models() -> void:
+	var dir := DirAccess.open("res://data/worlds")
+	if dir == null:
+		return
+	for file in dir.get_files():
+		if not file.ends_with(".json"):
+			continue
+		var f := FileAccess.open("res://data/worlds/%s" % file, FileAccess.READ)
+		if f == null:
+			continue
+		var parsed = JSON.parse_string(f.get_as_text())
+		if typeof(parsed) != TYPE_DICTIONARY:
+			continue
+		var obstacles = (parsed as Dictionary).get("obstacles", {})
+		if typeof(obstacles) != TYPE_DICTIONARY:
+			continue
+		for k in (obstacles as Dictionary).keys():
+			var def = (obstacles as Dictionary)[k]
+			if typeof(def) == TYPE_DICTIONARY and (def as Dictionary).has("voxel"):
+				_obstacle_models[k] = (def as Dictionary)["voxel"]
+
+
+## Напівпрозорий кубик кольору ролі — «тут маркер, моделі нема».
+func _placeholder() -> MeshInstance3D:
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.5, 0.5, 0.5)
+	var mi := MeshInstance3D.new()
+	mi.mesh = bm
+	mi.position.y = 0.25
+	var m := StandardMaterial3D.new()
+	m.albedo_color = ROLE_COLORS.get(role, Color.MAGENTA)
+	m.albedo_color.a = 0.75
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mi.material_override = m
+	return mi

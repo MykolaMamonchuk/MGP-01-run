@@ -1,185 +1,188 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
 
 [node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+z_offset_m = 150.0
 
 [node name="M45_decor_tree" type="Node3D" parent="." index="0"]
 script = ExtResource("1")
 role = "decor"
 kind = "tree"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -150.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, 0.0)
 
 [node name="M10_obstacle_tree" type="Node3D" parent="." index="1"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -151.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -1.2)
 
 [node name="M46_decor_stump" type="Node3D" parent="." index="2"]
 script = ExtResource("1")
 role = "decor"
 kind = "stump"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -160.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -10.0)
 
 [node name="M11_obstacle_tree" type="Node3D" parent="." index="3"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -164.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -14.4)
 
 [node name="M47_decor_logpile" type="Node3D" parent="." index="4"]
 script = ExtResource("1")
 role = "decor"
 kind = "logpile"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -170.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -20.0)
 
 [node name="M12_obstacle_tree" type="Node3D" parent="." index="5"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -177.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -27.5)
 
 [node name="M48_decor_mossrock" type="Node3D" parent="." index="6"]
 script = ExtResource("1")
 role = "decor"
 kind = "mossrock"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -180.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -30.0)
 
 [node name="M49_decor_mushroom" type="Node3D" parent="." index="7"]
 script = ExtResource("1")
 role = "decor"
 kind = "mushroom"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -190.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -40.0)
 
 [node name="M13_obstacle_tree" type="Node3D" parent="." index="8"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -190.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -40.6)
 
 [node name="M50_decor_flower" type="Node3D" parent="." index="9"]
 script = ExtResource("1")
 role = "decor"
 kind = "flower"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -200.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -50.0)
 
 [node name="M14_obstacle_tree" type="Node3D" parent="." index="10"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -203.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -53.8)
 
 [node name="M51_decor_bush" type="Node3D" parent="." index="11"]
 script = ExtResource("1")
 role = "decor"
 kind = "bush"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -210.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -60.0)
 
 [node name="M73_landmark_gate_wood" type="Node3D" parent="." index="12"]
 script = ExtResource("1")
 role = "landmark"
 kind = "gate_wood"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -210.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -60.9)
 
 [node name="M15_obstacle_tree" type="Node3D" parent="." index="13"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -216.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -66.9)
 
 [node name="M52_decor_tree" type="Node3D" parent="." index="14"]
 script = ExtResource("1")
 role = "decor"
 kind = "tree"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -220.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -70.0)
 
 [node name="M16_obstacle_tree" type="Node3D" parent="." index="15"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -230.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -80.0)
 
 [node name="M53_decor_stump" type="Node3D" parent="." index="16"]
 script = ExtResource("1")
 role = "decor"
 kind = "stump"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -230.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -80.0)
 
 [node name="M54_decor_logpile" type="Node3D" parent="." index="17"]
 script = ExtResource("1")
 role = "decor"
 kind = "logpile"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -240.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -90.0)
 
 [node name="M17_obstacle_tree" type="Node3D" parent="." index="18"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -243.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -93.1)
 
 [node name="M55_decor_mossrock" type="Node3D" parent="." index="19"]
 script = ExtResource("1")
 role = "decor"
 kind = "mossrock"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -250.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -100.0)
 
 [node name="M18_obstacle_tree" type="Node3D" parent="." index="20"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -256.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -106.2)
 
 [node name="M56_decor_mushroom" type="Node3D" parent="." index="21"]
 script = ExtResource("1")
 role = "decor"
 kind = "mushroom"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -260.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -110.0)
 
 [node name="M19_obstacle_tree" type="Node3D" parent="." index="22"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -269.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -119.4)
 
 [node name="M57_decor_flower" type="Node3D" parent="." index="23"]
 script = ExtResource("1")
 role = "decor"
 kind = "flower"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -270.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -120.0)
 
 [node name="M58_decor_bush" type="Node3D" parent="." index="24"]
 script = ExtResource("1")
 role = "decor"
 kind = "bush"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -280.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -130.0)
 
 [node name="M20_obstacle_tree" type="Node3D" parent="." index="25"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -282.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -132.5)
 
 [node name="M59_decor_tree" type="Node3D" parent="." index="26"]
 script = ExtResource("1")
 role = "decor"
 kind = "tree"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -290.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -140.0)
 
 [node name="M21_obstacle_tree" type="Node3D" parent="." index="27"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -295.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -145.6)

@@ -49,6 +49,8 @@ func _lanes_beyond(num: int, cut: float) -> Array:
 			continue
 		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
 		var text := f.get_as_text()
+		# z маркера ЛОКАЛЬНА (від початку чанка) — додаємо зсув самого чанка.
+		var offset := LevelLayout.offset_from_text(text)
 		for block in text.split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue
@@ -58,7 +60,7 @@ func _lanes_beyond(num: int, cut: float) -> Array:
 				continue
 			var lane := int(block.substr(lane_at + 7, 4).strip_edges().split("\n")[0])
 			var args := block.substr(tr_at + 12).split(")")[0].split(",")
-			var z := absf(float(args[args.size() - 1]))
+			var z := absf(float(args[args.size() - 1])) + offset
 			if z > cut:
 				lanes[lane] = true
 	var out := lanes.keys()
@@ -105,7 +107,10 @@ func _lanes_within(num: int, cut: float) -> Array:
 		if not name.ends_with(".tscn"):
 			continue
 		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
-		for block in f.get_as_text().split("[node "):
+		var text := f.get_as_text()
+		# z маркера ЛОКАЛЬНА (від початку чанка) — додаємо зсув самого чанка.
+		var offset := LevelLayout.offset_from_text(text)
+		for block in text.split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue
 			var lane_at := block.find("lane = ")
@@ -114,7 +119,7 @@ func _lanes_within(num: int, cut: float) -> Array:
 				continue
 			var lane := int(block.substr(lane_at + 7, 4).strip_edges().split("\n")[0])
 			var args := block.substr(tr_at + 12).split(")")[0].split(",")
-			if absf(float(args[args.size() - 1])) < cut:
+			if absf(float(args[args.size() - 1])) + offset < cut:
 				lanes[lane] = true
 	var out := lanes.keys()
 	out.sort()
@@ -177,7 +182,10 @@ func _side_decor_within(num: int, cut: float, half: float) -> Array:
 		if not name.ends_with(".tscn"):
 			continue
 		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
-		for block in f.get_as_text().split("[node "):
+		var text := f.get_as_text()
+		# z маркера ЛОКАЛЬНА (від початку чанка) — додаємо зсув самого чанка.
+		var offset := LevelLayout.offset_from_text(text)
+		for block in text.split("[node "):
 			if not block.contains("role = \"decor\""):
 				continue
 			var tr := block.find("Transform3D(")
@@ -187,7 +195,7 @@ func _side_decor_within(num: int, cut: float, half: float) -> Array:
 			if args.size() < 12:
 				continue
 			var x := float(args[9])
-			var z := absf(float(args[11]))
+			var z := absf(float(args[11])) + offset
 			if z > cut and absf(x) > 0.3 and absf(x) < half:
 				var kind_at := block.find("kind = \"")
 				var kind := block.substr(kind_at + 8).split("\"")[0] if kind_at >= 0 else "?"

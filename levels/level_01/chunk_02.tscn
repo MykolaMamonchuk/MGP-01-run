@@ -1,67 +1,70 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
 
 [node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+z_offset_m = 300.0
 
 [node name="M50_decor_flower" type="Node3D" parent="." index="0"]
 script = ExtResource("1")
 role = "decor"
 kind = "flower"
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -300.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, 0.0)
 
 [node name="M20_obstacle_puddle" type="Node3D" parent="." index="1"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "puddle"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -305.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -5.0)
 
 [node name="M52_obstacle_stump" type="Node3D" parent="." index="2"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "stump"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -320.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -20.0)
 
 [node name="M53_obstacle_puddle" type="Node3D" parent="." index="3"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "puddle"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -335.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -35.0)
 
 [node name="M54_obstacle_stump" type="Node3D" parent="." index="4"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "stump"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -350.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -50.0)
 
 [node name="M55_obstacle_puddle" type="Node3D" parent="." index="5"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "puddle"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -365.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -65.0)
 
 [node name="M56_obstacle_stump" type="Node3D" parent="." index="6"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "stump"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -380.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -80.0)
 
 [node name="M57_obstacle_puddle" type="Node3D" parent="." index="7"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "puddle"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -395.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -95.0)
 
 [node name="M58_obstacle_stump" type="Node3D" parent="." index="8"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "stump"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -410.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -110.0)

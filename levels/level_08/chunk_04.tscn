@@ -1,96 +1,99 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
 
 [node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+z_offset_m = 600.0
 
 [node name="M110_obstacle_bigshroom" type="Node3D" parent="." index="0"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "bigshroom"
 lane = -2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -606.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -6.0)
 
 [node name="M111_obstacle_bridge" type="Node3D" parent="." index="1"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "bridge"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -617.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -17.8)
 
 [node name="M112_obstacle_fox" type="Node3D" parent="." index="2"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "fox"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -629.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -29.5)
 
 [node name="M113_obstacle_hedgehog" type="Node3D" parent="." index="3"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "hedgehog"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -641.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -41.2)
 
 [node name="M114_obstacle_logpile" type="Node3D" parent="." index="4"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "logpile"
 lane = 2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -652.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -52.9)
 
 [node name="M115_obstacle_mossrock" type="Node3D" parent="." index="5"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "mossrock"
 lane = -2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -664.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -64.6)
 
 [node name="M116_obstacle_owl_branch" type="Node3D" parent="." index="6"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "owl_branch"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -676.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -76.4)
 
 [node name="M117_obstacle_tree" type="Node3D" parent="." index="7"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "tree"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -688.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -88.1)
 
 [node name="M118_obstacle_wagon" type="Node3D" parent="." index="8"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "wagon"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -699.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -99.8)
 
 [node name="M119_obstacle_web" type="Node3D" parent="." index="9"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "web"
 lane = 2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -711.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -111.5)
 
 [node name="M120_obstacle_xbox" type="Node3D" parent="." index="10"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "xbox"
 lane = -2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -723.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -123.2)
 
 [node name="M121_obstacle_bigshroom" type="Node3D" parent="." index="11"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "bigshroom"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -735.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -135.0)
 
 [node name="M122_obstacle_bridge" type="Node3D" parent="." index="12"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "bridge"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -746.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -146.7)

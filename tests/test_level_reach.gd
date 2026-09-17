@@ -31,14 +31,17 @@ func _last_obstacle_m(num: int) -> float:
 		if not name.ends_with(".tscn"):
 			continue
 		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
-		for block in f.get_as_text().split("[node "):
+		var text := f.get_as_text()
+		# z маркера ЛОКАЛЬНА (від початку чанка) — без зсуву чанка вона нічого не значить.
+		var offset := LevelLayout.offset_from_text(text)
+		for block in text.split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue
 			var tr := block.find("Transform3D(")
 			if tr < 0:
 				continue
 			var args := block.substr(tr + 12).split(")")[0].split(",")
-			far = maxf(far, absf(float(args[args.size() - 1])))
+			far = maxf(far, absf(float(args[args.size() - 1])) + offset)
 	return far
 
 

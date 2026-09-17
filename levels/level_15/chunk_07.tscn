@@ -1,33 +1,36 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
 
 [node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+z_offset_m = 1050.0
 
 [node name="M200_obstacle_cloud" type="Node3D" parent="." index="0"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "cloud"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -1050.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, 0.0)
 
 [node name="M201_obstacle_moonswing" type="Node3D" parent="." index="1"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "moonswing"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -1058.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -8.5)
 
 [node name="M202_obstacle_balloon" type="Node3D" parent="." index="2"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "balloon"
 lane = 2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -1066.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -16.9)
 
 [node name="M203_obstacle_bridge" type="Node3D" parent="." index="3"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "bridge"
 lane = -2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -1075.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -25.3)

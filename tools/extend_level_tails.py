@@ -27,6 +27,25 @@ import json
 import os
 import re
 
+
+# --- СТОП після переходу на локальні координати (18.09.2026) ---------------------------
+# Маркери чанків більше не тримають абсолютну z: її дає корінь сцени (LevelLayout.z_offset_m),
+# див. tools/localize_chunk_z.py. Цей інструмент рахує z як абсолютну, тож на нових файлах
+# він порахував би неправильно — і зробив би це МОВЧКИ. Поки його не переписано, він
+# відмовляється працювати.
+def _refuse_if_localized():
+    import glob as _glob
+    for _p in _glob.glob("levels/level_*/chunk_*.tscn"):
+        if "z_offset_m" in open(_p, encoding="utf-8").read():
+            raise SystemExit(
+                "%s: чанки вже в ЛОКАЛЬНИХ координатах (є z_offset_m), а цей інструмент\n"
+                "рахує z як абсолютну. Перепиши його під зсув чанка, перш ніж запускати."
+                % __file__)
+
+
+_refuse_if_localized()
+
+
 CHUNK_LENGTH_M = 150.0    # той самий поділ, що в src/run3d/level_chunk_loader.gd
 SAFETY = 1.25             # див. «Про запас» у шапці
 

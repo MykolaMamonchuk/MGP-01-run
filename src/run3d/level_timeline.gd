@@ -32,7 +32,17 @@ static func extract(layout_root: Node) -> Dictionary:
 	for key in ROLE_KEYS.values():
 		out[key] = []
 	if layout_root != null:
+		# Маркери чанка лежать у ЛОКАЛЬНИХ метрах (від початку самого чанка), щоб відкритий
+		# у редакторі чанк не виявився порожнім: раніше z була абсолютна, і chunk_05 стояв
+		# за 750 м від початку координат. Зсув місця чанка в рівні тримає корінь — LevelLayout.
+		var offset := 0.0
+		if layout_root is LevelLayout:
+			offset = (layout_root as LevelLayout).z_offset_m
 		_collect(layout_root, out)
+		if not is_zero_approx(offset):
+			for key in out.keys():
+				for rec in (out[key] as Array):
+					rec["z_m"] = float(rec["z_m"]) + offset
 	for key in out.keys():
 		(out[key] as Array).sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
 	return out

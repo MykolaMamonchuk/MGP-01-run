@@ -1,103 +1,106 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
 
 [node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+z_offset_m = 750.0
 
 [node name="M133_obstacle_ball" type="Node3D" parent="." index="0"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "ball"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -753.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -3.0)
 
 [node name="M134_obstacle_crab" type="Node3D" parent="." index="1"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "crab"
 lane = 2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -763.7)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -13.7)
 
 [node name="M135_obstacle_rock" type="Node3D" parent="." index="2"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "rock"
 lane = -2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -774.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -24.5)
 
 [node name="M136_obstacle_seaweed" type="Node3D" parent="." index="3"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "seaweed"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -785.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -35.3)
 
 [node name="M137_obstacle_ball" type="Node3D" parent="." index="4"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "ball"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -796.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -46.1)
 
 [node name="M138_obstacle_crab" type="Node3D" parent="." index="5"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "crab"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -806.9)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -56.9)
 
 [node name="M139_obstacle_rock" type="Node3D" parent="." index="6"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "rock"
 lane = 2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -817.6)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -67.6)
 
 [node name="M140_obstacle_seaweed" type="Node3D" parent="." index="7"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "seaweed"
 lane = -2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -828.4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -78.4)
 
 [node name="M141_obstacle_ball" type="Node3D" parent="." index="8"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "ball"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -839.2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -89.2)
 
 [node name="M142_obstacle_crab" type="Node3D" parent="." index="9"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "crab"
 lane = 0
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -850.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -100.0)
 
 [node name="M143_obstacle_rock" type="Node3D" parent="." index="10"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "rock"
 lane = 1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -860.8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -110.8)
 
 [node name="M144_obstacle_seaweed" type="Node3D" parent="." index="11"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "seaweed"
 lane = 2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -871.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -121.5)
 
 [node name="M145_obstacle_ball" type="Node3D" parent="." index="12"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "ball"
 lane = -2
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -882.3)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -132.3)
 
 [node name="M146_obstacle_crab" type="Node3D" parent="." index="13"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "crab"
 lane = -1
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -893.1)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -143.1)
