@@ -14,7 +14,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -300.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "branch"
-lane = -1
+lane = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -305.5)
 
 [node name="M62_decor_bush" type="Node3D" parent="." index="2"]
@@ -27,7 +27,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -310.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "puddle"
-lane = 0
+lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -319.1)
 
 [node name="M63_decor_haycart" type="Node3D" parent="." index="4"]
@@ -46,7 +46,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -330.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "bush"
-lane = 1
+lane = -1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -332.7)
 
 [node name="M65_decor_flower" type="Node3D" parent="." index="7"]
@@ -59,7 +59,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -340.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "fence"
-lane = -1
+lane = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -346.3)
 
 [node name="M66_decor_mushroom" type="Node3D" parent="." index="9"]
@@ -72,7 +72,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -350.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "beehive"
-lane = 0
+lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -359.9)
 
 [node name="M67_decor_tree" type="Node3D" parent="." index="11"]
@@ -91,7 +91,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -370.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "cow"
-lane = 1
+lane = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -373.5)
 
 [node name="M69_decor_bush" type="Node3D" parent="." index="14"]
@@ -104,7 +104,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -380.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "haycart"
-lane = -1
+lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -387.1)
 
 [node name="M70_decor_haycart" type="Node3D" parent="." index="16"]
@@ -123,7 +123,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -400.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "xbox"
-lane = 0
+lane = -1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -400.7)
 
 [node name="M72_decor_flower" type="Node3D" parent="." index="19"]
@@ -136,7 +136,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -410.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "clothesline"
-lane = 1
+lane = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -414.3)
 
 [node name="M73_decor_mushroom" type="Node3D" parent="." index="21"]
@@ -149,7 +149,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -420.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "stump"
-lane = -1
+lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -427.9)
 
 [node name="M74_decor_tree" type="Node3D" parent="." index="23"]
@@ -168,5 +168,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -440.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "branch"
-lane = 0
+lane = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -441.5)

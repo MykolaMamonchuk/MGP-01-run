@@ -182,7 +182,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -430.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "beam"
-lane = -2
+lane = 3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -432.7)
 
 [node name="M107_decor_buoy" type="Node3D" parent="." index="28"]
@@ -195,5 +195,5 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -440.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "boat"
-lane = -1
+lane = -3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -443.0)

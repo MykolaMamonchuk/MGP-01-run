@@ -14,7 +14,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -600.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "buoy"
-lane = 0
+lane = -1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -608.1)
 
 [node name="M124_decor_rock" type="Node3D" parent="." index="2"]
@@ -27,7 +27,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0.0, -610.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "jellyfish"
-lane = 1
+lane = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -618.4)
 
 [node name="M125_decor_crab" type="Node3D" parent="." index="4"]
@@ -40,7 +40,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0.0, -620.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "ball"
-lane = 2
+lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -628.8)
 
 [node name="M126_decor_star" type="Node3D" parent="." index="6"]
@@ -53,7 +53,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0.0, -630.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "sandcastle"
-lane = -2
+lane = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -639.1)
 
 [node name="M127_decor_shell" type="Node3D" parent="." index="8"]
@@ -66,7 +66,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0.0, -640.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "seaweed"
-lane = -1
+lane = 3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -649.4)
 
 [node name="M128_decor_palm" type="Node3D" parent="." index="10"]
@@ -79,7 +79,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0.0, -650.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "beam"
-lane = 0
+lane = -3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -659.7)
 
 [node name="M129_decor_umbrella" type="Node3D" parent="." index="12"]
@@ -92,7 +92,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0.0, -660.0)
 script = ExtResource("1")
 role = "obstacle"
 kind = "boat"
-lane = 1
+lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -670.0)
 
 [node name="M130_decor_sandcastle" type="Node3D" parent="." index="14"]
