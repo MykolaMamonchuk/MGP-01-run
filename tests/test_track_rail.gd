@@ -128,3 +128,117 @@ func test_rail_links_leave_a_hairline_gap_and_never_overlap() -> void:
 		assert_almost_eq(along, 1.0 - RAIL_GAP, RAIL_GAP_TOL,
 			"ланка %d коротша за ряд на волосину — не впритул і не з напуском" % v)
 		assert_lt(along, 1.0, "ланка %d не досягає сусідньої" % v)
+
+
+## ── Розрив під АВТОРСЬКИЙ місток ──────────────────────────────────────────────────────────
+## Досі розрив у стрічці поручнів працював лише тому, що місток і поручні кладе одна й та сама
+## процедура: вона сама знала, на якому ряду поставила настил (`bridge_row`). Коли містки
+## переїжджають у маркери сцени (kind "bridge_plank" у levels/level_XX/chunk_NN.tscn), процедура
+## про них не знає взагалі — і стрічка поручнів перегороджує прохід на місток, тобто автор
+## поставив перехід, а пройти ним не можна.
+##
+## Тут стережемо саме це: авторський місток робить у поручнях такий самий розрив, як і
+## процедурний, і робить його ЛИШЕ на своєму борті й ЛИШЕ на своєму ряду.
+const AUTHORED_BRIDGE_Z := 12.0
+
+
+## Лужок без процедурних містків: тоді єдиний розрив у суцільній стрічці може бути тільки від
+## авторського маркера, і тест не залежить від того, куди цього разу впав випадковий проміжок.
+func _meadow_without_procedural_bridges() -> Dictionary:
+	var w := _world("meadow")
+	w["bridges_every"] = 0
+	return w
+
+
+func _authored_bridge(z: float, x: float) -> Dictionary:
+	return {"z_m": z, "x_m": x, "y_m": 0.0, "kind": "bridge_plank",
+		"lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}
+
+
+## X усіх ланок поручнів у ряду, який зараз представляє відстань z (вікно ряду — те саме ±0,5 м,
+## що і в Track._decorate_authored()).
+func _rail_xs_near(z: float) -> Array:
+	var layers := _rail_layers()
+	var out := []
+	for r in _track._decor_ids.size():
+		var d: float = _track._row_distance_m[r]
+		if z < d - 0.5 or z >= d + 0.5:
+			continue
+		var ids: PackedInt32Array = _track._decor_ids[r]
+		var data: PackedFloat32Array = _track._decor_data[r]
+		for j in ids.size():
+			if layers.has(ids[j]):
+				out.append(data[j * Track.DECOR_STRIDE])
+	return out
+
+
+func _rails_on(z: float, side: float) -> int:
+	var n := 0
+	for x in _rail_xs_near(z):
+		if signf(float(x)) == side:
+			n += 1
+	return n
+
+
+## Центр каналу на правому борті — саме там, де автор ставить настил.
+func _bridge_x(side: float) -> float:
+	var canal: Dictionary = _track.world.get("canal", {})
+	return side * (_track.road_width() * 0.5
+		+ float(canal.get("offset", 2.0)) + float(canal.get("width", 1.2)) * 0.5)
+
+
+## Контроль. Без нього перевірка нижче нічого не стереже: якби поручнів на цьому ряду не було
+## й так, «розрив» показався б і на зламаному коді.
+func test_control_rail_runs_on_both_banks_when_no_bridge_is_authored() -> void:
+	_track.rebuild(_meadow_without_procedural_bridges(), false)
+	await wait_process_frames(2)
+	assert_eq(_rails_on(AUTHORED_BRIDGE_Z, -1.0), 1, "контроль: ланка на лівому березі є")
+	assert_eq(_rails_on(AUTHORED_BRIDGE_Z, 1.0), 1, "контроль: ланка на правому березі є")
+
+
+func test_authored_bridge_opens_a_gap_in_the_rail() -> void:
+	var w := _meadow_without_procedural_bridges()
+	_track.rebuild(w, false)
+	await wait_process_frames(2)
+	var x := _bridge_x(1.0)
+	_track.set_authored_timeline([_authored_bridge(AUTHORED_BRIDGE_Z, x)], [])
+	_track.rebuild(w, false)
+	await wait_process_frames(2)
+	assert_eq(_rails_on(AUTHORED_BRIDGE_Z, 1.0), 0,
+		"на ряду з авторським містком поручнів нема — інакше вони перегородили б прохід")
+
+
+## Розрив рівно там, де місток: на другому борті стрічка суцільна (місток же на одному боці).
+func test_authored_bridge_does_not_open_a_gap_on_the_other_bank() -> void:
+	var w := _meadow_without_procedural_bridges()
+	_track.rebuild(w, false)
+	await wait_process_frames(2)
+	_track.set_authored_timeline([_authored_bridge(AUTHORED_BRIDGE_Z, _bridge_x(1.0))], [])
+	_track.rebuild(w, false)
+	await wait_process_frames(2)
+	assert_eq(_rails_on(AUTHORED_BRIDGE_Z, -1.0), 1, "протилежний берег місток не чіпає")
+
+
+## І рівно один ряд: сусідні ряди лишаються з поручнями, інакше в стрічці зяяла б діра.
+func test_authored_bridge_gap_is_exactly_one_row_wide() -> void:
+	var w := _meadow_without_procedural_bridges()
+	_track.rebuild(w, false)
+	await wait_process_frames(2)
+	_track.set_authored_timeline([_authored_bridge(AUTHORED_BRIDGE_Z, _bridge_x(1.0))], [])
+	_track.rebuild(w, false)
+	await wait_process_frames(2)
+	assert_eq(_rails_on(AUTHORED_BRIDGE_Z - 1.0, 1.0), 1, "ряд перед містком з поручнями")
+	assert_eq(_rails_on(AUTHORED_BRIDGE_Z + 1.0, 1.0), 1, "ряд за містком з поручнями")
+
+
+## Авторський декор, який НЕ місток, стрічку не рве.
+func test_other_authored_decor_leaves_the_rail_alone() -> void:
+	var w := _meadow_without_procedural_bridges()
+	_track.rebuild(w, false)
+	await wait_process_frames(2)
+	var rec := _authored_bridge(AUTHORED_BRIDGE_Z, _bridge_x(1.0))
+	rec["kind"] = "signpost"
+	_track.set_authored_timeline([rec], [])
+	_track.rebuild(w, false)
+	await wait_process_frames(2)
+	assert_eq(_rails_on(AUTHORED_BRIDGE_Z, 1.0), 1, "не місток — не розрив")

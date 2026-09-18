@@ -211,6 +211,15 @@ var _row_distance_m := PackedFloat32Array()
 var _authored_decor: Array = []
 var _authored_buildings: Array = []
 var _authored_active := false
+## Відстані авторських містків по бортах: [0] — лівий (x_m < 0), [1] — правий (x_m > 0).
+## Обидва масиви відсортовані, бо _authored_decor уже відсортований за z_m.
+##
+## Навіщо окремий покажчик, а не перебір _authored_decor у _decorate(). Поручні питають про
+## містки на КОЖНЕ переставляння ряду й на кожен борт (44 ряди × 2 борти за одну довжину
+## траси), а записів у таймлайні буває під дві тисячі — це мільйони порівнянь там, де достатньо
+## один раз просіяти список. Тут просіювання коштує O(n) рівно на дозавантаженні чанка, а сам
+## запит — двійковий пошук по кількох десятках чисел (містків на рівень небагато).
+var _authored_bridge_z := [PackedFloat32Array(), PackedFloat32Array()]
 ## Канал уздовж дороги: вода + береги (по 3 шари на кожен борт), настили-містки — у декорі.
 ## Щільність оздоблення узбіччя — з ДАНИХ СВІТУ, з відкатом на константи вище.
 ##
@@ -586,6 +595,7 @@ func add_authored_timeline(decor: Array, buildings: Array) -> void:
 	_authored_buildings.append_array(buildings)
 	_authored_buildings.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
 	_authored_active = true
+	_index_authored_bridges()
 
 
 ## Повернутися до повністю процедурного декору (рівні без authored .tscn — усі, поки що).
@@ -593,6 +603,43 @@ func clear_authored_timeline() -> void:
 	_authored_decor = []
 	_authored_buildings = []
 	_authored_active = false
+	_authored_bridge_z = [PackedFloat32Array(), PackedFloat32Array()]
+
+
+## Просіяти авторський таймлайн і запам'ятати, де стоять містки. Викликається один раз на
+## дозавантаження чанка, а не на кожен ряд (див. _authored_bridge_z).
+func _index_authored_bridges() -> void:
+	# Збираємо в локальні змінні й присвоюємо в кінці: PackedFloat32Array — ЗНАЧЕННЯ, а не
+	# посилання, тож _authored_bridge_z[0].append() дописав би в копію й пропав би безслідно.
+	var left := PackedFloat32Array()
+	var right := PackedFloat32Array()
+	for rec in _authored_decor:
+		var d := rec as Dictionary
+		if String(d.get("kind", "")) != "bridge_plank":
+			continue
+		var x := float(d.get("x_m", 0.0))
+		if x == 0.0:
+			continue   # місток посеред дороги — не буває; борт визначити нічим
+		if x < 0.0:
+			left.append(float(d.get("z_m", 0.0)))
+		else:
+			right.append(float(d.get("z_m", 0.0)))
+	_authored_bridge_z = [left, right]
+
+
+## Чи стоїть авторський місток поруч із цим рядом на цьому борті. Вікно ±0,5 м — рівно те саме,
+## що й у _decorate_authored(): ряд траси має 1,0 м, тож «поруч» = «у цьому ж ряду».
+##
+## Потрібно поручням. Процедурний місток і поручні кладе один і той самий цикл, тож про свій
+## місток він знає зі змінної bridge_row; про АВТОРСЬКИЙ (маркер у levels/level_XX/chunk_NN.tscn)
+## він не знає нічого — і без цієї перевірки стрічка поручнів перегородила б прохід на місток,
+## який автор поставив навмисно.
+func _authored_bridge_near(side: float, dist: float) -> bool:
+	var zs: PackedFloat32Array = _authored_bridge_z[0 if side < 0.0 else 1]
+	if zs.is_empty():
+		return false
+	var k := zs.bsearch(dist - 0.5, true)
+	return k < zs.size() and zs[k] < dist + 0.5
 
 
 ## Один запис із авторського таймлайну — тим самим шляхом, що й випадковий декор (_add_decor),
@@ -1006,8 +1053,11 @@ func _decorate(row: Node3D) -> void:
 				_far_left[bsidx] = 0
 		# поручні вздовж берега: одна ланка на ряд. Ряд рівно 1,0 м, і модель зроблено такою ж
 		# (tools/prop_prepare.py --width 1.0), тож ланки стикуються в суцільну стрічку.
-		# На ряду з містком поручнів нема — інакше вони перегородили б прохід на нього.
-		if not _sea and _canal_sides.has(side) and PropLibrary.has("fence_rail") 				and not bridge_row:
+		# На ряду з містком поручнів нема — інакше вони перегородили б прохід на нього. Місток
+		# буває двох родів: процедурний (його щойно поставив цей самий цикл — bridge_row) і
+		# АВТОРСЬКИЙ, маркер зі сцени чанка, про який процедура нічого не знає (_authored_bridge_near).
+		if not _sea and _canal_sides.has(side) and PropLibrary.has("fence_rail") \
+				and not bridge_row and not _authored_bridge_near(side, _row_distance_m[i]):
 			# розвертаємо лицем до дороги: на лівому борті це +90°, на правому −90°
 			_add_decor(ids, data, "fence_rail", {},
 				side * (edge + c_offset - RAIL_INSET), 0.0, 1.0,
