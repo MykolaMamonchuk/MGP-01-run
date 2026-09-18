@@ -22,6 +22,15 @@ extends Node3D
 		kind = v
 		_rebuild_preview()
 
+## ДІЯ замість виду: "jump" / "duck" / "side" — «тут треба перестрибнути», а конкретну модель
+## добере СВІТ (Spawner3D._kind_for_action). Порожнє — маркер поводиться як раніше, вид задає
+## kind. Навіщо: спільних ВИДІВ перешкод між світами майже нема (Лужок ∩ Ліс — лише xbox), а
+## jump/duck/side є в кожному світі, тож чанк, написаний у діях, переживає будь-який біом.
+@export var action: String = "":
+	set(v):
+		action = v
+		_rebuild_preview()
+
 ## Доріжка для obstacle/pickup (як Spawner3D.lane: -max_lane()..max_lane()); decor/building
 ## ігнорують lane і кладуться за власною position (x_m/y_m — див. LevelTimeline).
 @export var lane: int = 0:
@@ -107,7 +116,7 @@ func _rebuild_preview() -> void:
 
 
 func _preview_node() -> Node3D:
-	var name_ := model_kind(role, kind)
+	var name_ := model_kind(role, _preview_kind())
 	if name_ == "":
 		return _placeholder()
 	if PropLibrary.has(name_):
@@ -156,6 +165,67 @@ static func _load_obstacle_models() -> void:
 			var def = (obstacles as Dictionary)[k]
 			if typeof(def) == TYPE_DICTIONARY and (def as Dictionary).has("voxel"):
 				_obstacle_models[k] = (def as Dictionary)["voxel"]
+
+
+## Що показувати в редакторі. Для маркера-дії (kind порожній, action заданий) беремо
+## ПРЕДСТАВНИКА цієї дії з першого-ліпшого світу — справжню перешкоду з даних, а не заглушку.
+## Чому саме так, а не кольорова табличка з написом: автор розставляє маркери оком, і йому
+## треба бачити ГАБАРИТ і СИЛУЕТ дії — «перестрибнути» це низька колода, «ухилитись» —
+## висока рама над головою. Будь-який представник дії має потрібний силует, бо саме силует
+## і робить дію дією. Що в грі стане іншою моделлю того ж класу — нормально й очікувано.
+func _preview_kind() -> String:
+	if kind != "":
+		return kind
+	if role == "obstacle" and action != "":
+		return sample_kind_for_action(action)
+	return ""
+
+
+## Перший-ліпший вид із заданою дією по всіх світах. Файли перебираємо ВІДСОРТОВАНИМИ, щоб
+## прев'ю не стрибало між запусками редактора (DirAccess.get_files() порядку не обіцяє).
+static func sample_kind_for_action(action_: String) -> String:
+	if action_ == "":
+		return ""
+	if _action_samples.is_empty():
+		_load_action_samples()
+	return String(_action_samples.get(action_, ""))
+
+
+static var _action_samples: Dictionary = {}
+
+
+static func _load_action_samples() -> void:
+	var dir := DirAccess.open("res://data/worlds")
+	if dir == null:
+		return
+	var files := Array(dir.get_files())
+	files.sort()
+	for file in files:
+		if not String(file).ends_with(".json"):
+			continue
+		var f := FileAccess.open("res://data/worlds/%s" % file, FileAccess.READ)
+		if f == null:
+			continue
+		var parsed = JSON.parse_string(f.get_as_text())
+		if typeof(parsed) != TYPE_DICTIONARY:
+			continue
+		var obstacles = (parsed as Dictionary).get("obstacles", {})
+		if typeof(obstacles) != TYPE_DICTIONARY:
+			continue
+		var kinds := Array((obstacles as Dictionary).keys())
+		kinds.sort()
+		for k in kinds:
+			var def = (obstacles as Dictionary)[k]
+			if typeof(def) != TYPE_DICTIONARY:
+				continue
+			# Ті самі два винятки, що й у Spawner3D._kind_for_action(): X-ящик кидає лише сорока,
+			# а транспорт — не перешкода, а кузов із рампою. Показувати автору те, чого гра
+			# за цим маркером не поставить, гірше за відсутність прев'ю.
+			if String(k) == "xbox" or String((def as Dictionary).get("shape", "")) == "vehicle":
+				continue
+			var a := String((def as Dictionary).get("action", "any"))
+			if not _action_samples.has(a):
+				_action_samples[a] = String(k)
 
 
 ## Напівпрозорий кубик кольору ролі — «тут маркер, моделі нема».

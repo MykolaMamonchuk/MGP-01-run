@@ -105,10 +105,15 @@ var _big_t := 25.0
 var _big_due := false
 ## Скільки ще секунд тягнути всі злитки до героя («Райдужний міст»).
 var _pull_t := 0.0
+## Власний генератор спавнера для вибору ВИДУ під авторську дію. Окремий і засіяний через
+## RngSeed: глобальний randi() сідає на системну ентропію, і два прогони з тим самим GAME_SEED
+## дали б різні рівні — це вже коштувало дня замірів (docs/MEMORY.md, перший запис).
+var _rng := RandomNumberGenerator.new()
 
 
 func _ready() -> void:
 	_pickups = Pickup3D.load_all()
+	RngSeed.start(_rng, "spawner_action")
 
 
 func configure(p: Dictionary, w: Dictionary, h: Hero3D, m: ModeBase, r: Node) -> void:
@@ -288,9 +293,14 @@ func _advance_authored() -> void:
 
 
 ## Один запис із авторського списку — тим самим _spawn_obstacle(), що й випадкові групи.
+## Запис без kind, але з action («тут треба перестрибнути») — вид добирає СВІТ.
 func _spawn_authored_obstacle(rec: Dictionary) -> void:
 	var kind := String(rec.get("kind", ""))
 	var defs: Dictionary = world.get("obstacles", {})
+	if kind == "":
+		kind = _kind_for_action(String(rec.get("action", "")))
+		if kind == "":
+			return   # дії в цьому світі нема (або нема й самої дії) — запис пропущено
 	if not defs.has(kind):
 		return   # автор указав перешкоду, якої нема в цьому світі — пропускаємо, а не падаємо
 	var lane := clampi(int(rec.get("lane", 0)), -max_lane(), max_lane())
@@ -298,6 +308,37 @@ func _spawn_authored_obstacle(rec: Dictionary) -> void:
 	_last_free_z = SPAWN_Z
 	var ob := _spawn_obstacle(kind, defs[kind], lane)
 	ob.free_lane = lane
+
+
+## Вид перешкоди під ЗАДАНУ ДІЮ в поточному світі. Чанк пише дію («jump»), бо спільних видів
+## між світами практично нема (Лужок ∩ Ліс — лише xbox), а jump/duck/side є всюди.
+##
+## Беремо лише те, що рівень і так дозволяє (_allowed_kinds() шанує obstacle_types рівня й
+## викидає X-ящик), і додатково виключаємо транспорт: shape "vehicle" — це не перешкода, а
+## кузов із рампою й дахом-ярусом, його ставить окремий _spawn_vehicle(). Підсунути його під
+## «обійди збоку» означало б підмінити задум автора цілою конструкцією.
+##
+## Нема жодного придатного виду — повертаємо порожнє й гучно попереджаємо: мовчазна підміна
+## («постав хоч щось») зробила б рівень непрохідним тихо, а пропуск видно і в логові, і в грі.
+##
+## Вибір іде через _rng (засіяний RngSeed), а не через глобальний randi(): два прогони з тим
+## самим зерном мусять дати той самий рівень. Ключі сортуємо — порядок у словнику залежить від
+## порядку запису в JSON, і перестановка рядків у файлі не має міняти вже знятий рівень.
+func _kind_for_action(action: String) -> String:
+	if action == "":
+		return ""
+	var defs: Dictionary = world.get("obstacles", {})
+	var fits := _allowed_kinds().filter(func(k):
+		var d: Dictionary = defs[k]
+		if String(d.get("shape", "")) == "vehicle":
+			return false
+		return String(d.get("action", "any")) == action)
+	if fits.is_empty():
+		push_warning("Spawner3D: у світі «%s» нема перешкоди з дією «%s» (дозволено рівнем: %s) — авторський запис пропущено"
+			% [String(world.get("id", "?")), action, "усі біому" if level_types.is_empty() else str(level_types)])
+		return ""
+	fits.sort()
+	return String(fits[_rng.randi() % fits.size()])
 
 
 func _next_gap() -> float:

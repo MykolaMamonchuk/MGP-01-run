@@ -105,3 +105,22 @@ func test_no_marker_in_levels_falls_back_to_a_placeholder() -> void:
 	fell_back.sort()
 	assert_true(fell_back.is_empty(),
 		"ці маркери намалюються кольоровою заглушкою замість моделі: %s" % [fell_back])
+
+
+## Маркер, що каже ДІЮ замість виду, теж мусить щось показувати: автор розставляє його оком,
+## і невидимий маркер читається як «тут порожньо» — це брехня (docs/MEMORY.md).
+func test_action_marker_shows_a_real_obstacle_not_a_placeholder() -> void:
+	for action in ["jump", "duck", "side"]:
+		var marker := LevelMarker3D.new()
+		marker.role = "obstacle"
+		marker.action = action
+		var sample := LevelMarker3D.sample_kind_for_action(action)
+		assert_ne(sample, "", "для дії «%s» знайшовся представник" % action)
+		var node := marker._preview_node()
+		var mi := node as MeshInstance3D
+		var is_placeholder := mi != null and mi.mesh is BoxMesh \
+			and (mi.mesh as BoxMesh).size.is_equal_approx(Vector3(0.5, 0.5, 0.5))
+		assert_false(is_placeholder,
+			"маркер дії «%s» намалювався заглушкою замість перешкоди «%s»" % [action, sample])
+		node.free()
+		marker.free()

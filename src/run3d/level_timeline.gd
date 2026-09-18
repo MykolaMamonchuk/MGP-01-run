@@ -64,6 +64,9 @@ static func _append(marker: LevelMarker3D, out: Dictionary) -> void:
 		"x_m": pos.x,
 		"y_m": pos.y,
 		"kind": marker.kind,
+		# Дія поруч із видом, а не замість нього: порожній kind + заданий action означає
+		# «вид добере світ» (Spawner3D._kind_for_action). Обидва порожні — запис як був.
+		"action": marker.action,
 		"lane": marker.lane,
 		"override": marker.override,
 		"yaw_deg": marker.yaw_deg,

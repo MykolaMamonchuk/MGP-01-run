@@ -86,3 +86,27 @@ func test_extract_on_empty_tree_returns_empty_sorted_arrays() -> void:
 	for key in ["decor", "obstacles", "pickups", "buildings", "landmarks", "walls_near"]:
 		assert_true(out.has(key), "ключ '%s' присутній навіть без жодного маркера" % key)
 		assert_eq((out[key] as Array).size(), 0)
+
+
+## Крок 2½: маркер може казати ДІЮ замість виду — поле мусить доїхати до запису поруч із kind,
+## інакше Spawner3D його не побачить і чанк, написаний у діях, мовчки лишиться порожнім.
+func test_action_travels_into_the_record_next_to_kind() -> void:
+	var root := Node3D.new()
+	var m := LevelMarker3D.new()
+	m.role = "obstacle"
+	m.action = "jump"
+	m.lane = 1
+	m.position = Vector3(0.0, 0.0, -12.0)
+	root.add_child(m)
+	var out := LevelTimeline.extract(autofree(root))
+	var rec: Dictionary = (out["obstacles"] as Array)[0]
+	assert_eq(String(rec["action"]), "jump", "дія маркера є в записі")
+	assert_eq(String(rec["kind"]), "", "вид лишається порожнім — його добере світ")
+	assert_eq(int(rec["lane"]), 1)
+
+
+## Маркер без дії (усі 105 наявних чанків) — поле є й порожнє, тобто стара поведінка.
+func test_marker_without_action_keeps_the_field_empty() -> void:
+	var out := LevelTimeline.extract(autofree(_small_tree()))
+	for rec in (out["obstacles"] as Array):
+		assert_eq(String(rec.get("action", "")), "", "старий маркер не отримує дії з повітря")
