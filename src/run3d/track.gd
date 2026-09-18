@@ -235,6 +235,22 @@ var _bridges_every := 0
 ## випадковий у межах BRIDGE_GAP, і кожен місток веде ДО СВОГО БУДИНКУ: на ряду з містком
 ## лічильник забудови примусово обнуляється, тож будинок стає рівно навпроти переходу.
 var _bridge_left := [0, 0]
+
+## ── Рівень, розставлений У СЦЕНІ, а не процедурою ────────────────────────────────────────
+## Процедура зручна, поки світу мало. Коли рівень доводять до ладу руками, вона заважає:
+## того, що вона поставила, не видно в редакторі, не можна посунути й важко дебажити.
+## Тому є два перемикачі й один журнал.
+##
+## authored_only — не класти НІЧОГО процедурного: ні пропсів, ні містків, ні забудови.
+## Лишаються тільки полотно дороги, узбіччя, канал і вода (це поверхні, а не предмети) плюс
+## маркери самого рівня. Вмикається полем "authored" у data/levels.json.
+var authored_only := false
+## record_decor — записувати КОЖЕН покладений предмет разом з його абсолютною відстанню по
+## трасі. Потрібно рівно один раз: щоб «заморозити» те, що процедура вже вигадала, у маркери
+## сцени (src/debug/freeze_level.gd → tools/freeze_level.py). У грі завжди false.
+var record_decor := false
+var decor_log: Array = []
+var _layer_names: Dictionary = {}
 ## Чи малювати обрив плато з боку [лівого, правого] — там, де канал, обриву нема.
 var _cliff_on := [true, true]
 ## Узбіччя з даних: пропси ближньої смуги й будинки другого плану (вже відсіяні за наявністю вокселів).
@@ -633,6 +649,25 @@ func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, o
 	data.append(stretch)
 
 
+## Записати предмети одного ряду в журнал: вид, місце по трасі, зсув, поворот, масштаб.
+## Абсолютна відстань = відстань ряду мінус власний зсув предмета по Z (у _sync_decor вони
+## складаються так само). Ім'я виду дістаємо з ключа шару: усе до першого "#" або "|".
+func _log_decor(i: int, ids: PackedInt32Array, data: PackedFloat32Array) -> void:
+	if _layer_names.is_empty():
+		for key in _decor_layer_of.keys():
+			_layer_names[int(_decor_layer_of[key])] = String(key).split("#")[0].split("|")[0]
+	for j in range(ids.size()):
+		var o := j * DECOR_STRIDE
+		decor_log.append({
+			"kind": _layer_names.get(ids[j], "?"),
+			"z_m": _row_distance_m[i] - data[o + 2],
+			"x_m": data[o + 0],
+			"y_m": data[o + 1],
+			"yaw_deg": rad_to_deg(data[o + 3]),
+			"scale": data[o + 4],
+		})
+
+
 ## Переносить декор у буфери шарів. Те саме «дихання», що робив Critter3D._process:
 ## ледь помітний масштаб по y і нахил по z із фазою від власного часу й положення.
 func _sync_decor(delta: float) -> void:
@@ -934,6 +969,12 @@ func _decorate(row: Node3D) -> void:
 		# світ. Фонове оздоблення — кущі, каміння, бочки вздовж берега — має йти своєю
 		# чергою, інакше рівень доводилось би розставляти вручну по предмету.
 		_decorate_authored(i, ids, data)
+	# Рівень, розставлений у сцені: далі процедура не додає нічого. Дорога, узбіччя, канал і
+	# вода лишаються — це поверхні траси, а не предмети, і малює їх інша частина коду.
+	if authored_only:
+		_decor_ids[i] = ids
+		_decor_data[i] = data
+		return
 	var kinds: Array = world.get("decor", [])
 	var big: Array = world.get("decor_big", [])
 	var critters: Array = world.get("critters", [])
@@ -1155,6 +1196,8 @@ func _decorate(row: Node3D) -> void:
 					0.0, LANDMARK_SCALE, 0.0 if s > 0.0 else PI)
 	_decor_ids[i] = ids
 	_decor_data[i] = data
+	if record_decor:
+		_log_decor(i, ids, data)
 
 
 ## Настил містка через канал: воксель bridge_plank, якщо він є, інакше дошка з коробки.
