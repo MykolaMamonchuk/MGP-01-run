@@ -23,14 +23,13 @@ const LOOKAHEAD_M := 80.0
 var _num := 0
 var _track: Track
 var _spawner: Spawner3D
-var _chunked := false          ## true — є папка levels/level_XX/, чанки вантажимо по одному
-var _next_chunk_index := 0     ## індекс наступного НЕзавантаженого чанку
-var _loaded_through_z := 0.0   ## до якої відстані рівень уже завантажено (межа останнього чанку)
-## Найбільший номер чанку, який реально лежить у теці. Потрібен, бо чанк може бути ПРОПУЩЕНИЙ:
-## розрізання не пише файл для відрізка, у якому не лишилось жодного маркера, та й автор карти
-## може стерти середній чанк руками. Без цієї межі перший же відсутній номер читався б як
-## «рівень скінчився», і решта рівня тихо не завантажувалась би взагалі.
-var _last_chunk_index := -1
+var _chunked := false          ## true — рівень зібрано з чанків, а не з одного плаского файлу
+## ПЛАН рівня: [{path, offset_m, length_m}] у порядку проходження. Раніше тут було припущення
+## «чанк №N лежить у теці рівня й займає рівно 150 м» — і саме воно не давало ставити ту саму
+## цеглинку двічі. Тепер план будує або збирач зі списку імен (ChunkLibrary.assemble), або, для
+## старих рівнів-тек, сканування теки; завантажувачу однаково, звідки він узявся.
+var _plan: Array = []
+var _next := 0                 ## індекс наступного НЕзавантаженого шматка плану
 ## Чанк, який ЗАРАЗ вантажиться у фоні (-1 — жодного) і його шлях.
 ## Навіщо фон. Заміряно 18.09.2026: чанк із 904 маркерами читається 46,8 мс, інстанціюється
 ## 5,9 і розбирається 17,2 — разом ~70 мс на Mac, отже 200–350 мс на телефоні. Синхронно це
@@ -42,9 +41,6 @@ var _pending_path := ""
 var _done := false             ## усі чанки рівня вже завантажені — update() більше не працює
 
 
-## Почати стрімінг рівня num: визначає чанкований рівень це чи старий суцільний файл, вантажить
-## перший чанк (або весь рівень) синхронно — так само, як і раніше, гравець стартує з готовими
-## першими записами. track/spawner — куди зливати LevelTimeline.extract().
 ## Спавнер може бути null — так його передає знімальний інструмент src/debug/track_shot.gd,
 ## якому потрібен лише декор рівня, без перешкод. Раніше це валило виклик і знімок робився
 ## без половини даних, мовчки: помилка друкувалась у консоль, а картинка виглядала цілою.
@@ -53,36 +49,75 @@ func _clear_obstacles() -> void:
 		_spawner.clear_authored_obstacles()
 
 
-func start(num: int, track: Track, spawner: Spawner3D) -> void:
+## Почати стрімінг рівня num: визначає, з чого рівень зібрано, вантажить перший шматок (або весь
+## рівень) синхронно — гравець стартує з готовими першими записами. track/spawner — куди зливати
+## LevelTimeline.extract(). level — запис рівня з data/levels.json: якщо він має список "chunks",
+## рівень збирається з бібліотеки цеглинок; інакше працює старий шлях — тека levels/level_XX/.
+func start(num: int, track: Track, spawner: Spawner3D, level: Dictionary = {}) -> void:
 	_num = num
 	_track = track
 	_spawner = spawner
-	_next_chunk_index = 0
-	_loaded_through_z = 0.0
+	_next = 0
 	_done = false
 	_pending_index = -1
 	_pending_path = ""
-	_last_chunk_index = _scan_last_chunk_index()
-	_chunked = _last_chunk_index >= 0
-	if not _chunked and not ResourceLoader.exists(_flat_path()):
-		track.clear_authored_timeline()
-		_clear_obstacles()
-		_done = true
-		return
+	# Рівень, який НАЗВАВ цеглинки, іншими шляхами не ходить узагалі. Список у levels.json
+	# перебиває і стару теку levels/level_XX/, і плаский levels/level_XX.tscn: інакше рівень,
+	# переведений на бібліотеку, мовчки вантажив би дві розкладки одночасно, а зі зламаним
+	# стиком — показував би геть іншу замість помилки, яку вже надруковано.
+	var declared: Array = level.get("chunks", [])
+	_plan = _build_from_library(level) if not declared.is_empty() else _plan_from_folder()
+	_chunked = not _plan.is_empty()
 	track.clear_authored_timeline()
 	_clear_obstacles()
 	if _chunked:
-		# Перший чанк — синхронно: гравець ще на екрані завантаження, підвисати нема де, а
+		# Перший шматок — синхронно: гравець ще на екрані завантаження, підвисати нема де, а
 		# стартувати без записів не можна.
 		_load_first_chunk()
-	else:
+	elif declared.is_empty():
 		_load_flat_level()
+	else:
+		_done = true
 
 
-## Викликати щокадру одразу після track.advance()/spawner.advance() (той самий distance_m, що
-## й вони отримали) — вантажить наступний чанк, щойно гравець підійшов на LOOKAHEAD_M до межі
-## останнього завантаженого. Для нечанкованого рівня (весь файл уже завантажено в start()) —
-## нічого не робить.
+## План зі списку цеглинок. Зламана збірка — це порожній план, а не «зібрати як вийде»: рівень
+## зі стиком «3 доріжки віддає, 5 чекає» виглядав би як обрив дороги посеред бігу.
+func _build_from_library(level: Dictionary) -> Array:
+	var built := ChunkLibrary.assemble(level, ChunkLibrary.scan())
+	var errors: Array = built["errors"]
+	if errors.is_empty():
+		return built["pieces"]
+	for e in errors:
+		push_error("рівень %d: %s" % [_num, e])
+	return []
+
+
+## Старий шлях: тека levels/level_XX/ із чанками chunk_NN.tscn по CHUNK_LENGTH_M метрів.
+## Пропущений номер — це просто порожній відрізок рівня, а не кінець: зсув рахується від
+## НОМЕРА, тож дірка лишається діркою й не з'їжджає.
+func _plan_from_folder() -> Array:
+	var out: Array = []
+	var dir := DirAccess.open(_folder_path())
+	if dir == null:
+		return out
+	var indices: Array = []
+	for name in dir.get_files():
+		var base := name.get_basename()
+		if base.get_extension() == "tscn":
+			base = base.get_basename()
+		if base.begins_with("chunk_"):
+			indices.append(int(base.substr(6)))
+	indices.sort()
+	for index in indices:
+		out.append({
+			"id": "chunk_%02d" % index,
+			"path": _chunk_path(index),
+			"offset_m": float(index) * CHUNK_LENGTH_M,
+			"length_m": CHUNK_LENGTH_M,
+		})
+	return out
+
+
 func update(distance_m: float) -> void:
 	if _done or not _chunked:
 		return
@@ -92,7 +127,13 @@ func update(distance_m: float) -> void:
 	if _pending_index >= 0:
 		_poll_pending()
 		return
-	if distance_m + LOOKAHEAD_M >= _loaded_through_z:
+	if _next >= _plan.size():
+		_done = true
+		return
+	# Шматок замовляється до того, як гравець дійде до ЙОГО ПОЧАТКУ. Раніше порівнювали з
+	# кінцем попереднього — те саме, поки всі чанки однакової довжини, але з бібліотекою
+	# цеглинки різні, та й дірку в нумерації так було не перескочити чесно.
+	if distance_m + LOOKAHEAD_M >= float(_plan[_next]["offset_m"]):
 		_request_next_chunk()
 
 
@@ -114,7 +155,7 @@ func _poll_pending() -> void:
 	if status == ResourceLoader.THREAD_LOAD_LOADED:
 		var packed := ResourceLoader.load_threaded_get(_pending_path) as PackedScene
 		if packed != null:
-			_apply(packed, float(_pending_index) * CHUNK_LENGTH_M)
+			_apply(packed, float(_plan[_pending_index]["offset_m"]))
 	else:
 		push_warning("чанк не прочитався: %s" % _pending_path)
 	_pending_index = -1
@@ -124,18 +165,19 @@ func _poll_pending() -> void:
 ## Подати заявку на наступний чанк, ПЕРЕСТРИБУЮЧИ відсутні номери: порожній відрізок рівня —
 ## це просто відсутній файл, а не кінець рівня.
 func _request_next_chunk() -> void:
-	while _next_chunk_index <= _last_chunk_index:
-		var path := _chunk_path(_next_chunk_index)
-		var index := _next_chunk_index
-		_next_chunk_index += 1
-		_loaded_through_z = float(_next_chunk_index) * CHUNK_LENGTH_M
+	while _next < _plan.size():
+		var piece: Dictionary = _plan[_next]
+		var path := String(piece["path"])
+		_pending_index = _next
+		_next += 1
 		if not ResourceLoader.exists(path):
+			push_warning("чанк не знайдено: %s" % path)
 			continue
 		ResourceLoader.load_threaded_request(path)
-		_pending_index = index
 		_pending_path = path
 		return
-	_done = true              # дійшли до останнього чанку теки — рівень завантажено повністю
+	_pending_index = -1
+	_done = true              # план вичерпано — рівень завантажено повністю
 
 
 ## Зсув чанка за його ІМ'ЯМ файлу ("chunk_03.tscn" → 450). Потрібен тестам і інструментам, які
@@ -163,24 +205,6 @@ func _chunk_path(index: int) -> String:
 	return "%s/chunk_%02d.tscn" % [_folder_path(), index]
 
 
-## Пройти теку рівня один раз і запам'ятати найбільший номер чанку. Дивимось саме на список
-## файлів, а не на послідовність номерів: у теці можуть бути діри.
-func _scan_last_chunk_index() -> int:
-	var dir := DirAccess.open(_folder_path())
-	if dir == null:
-		return -1
-	var last := -1
-	for name in dir.get_files():
-		# .tscn у теці рівня імпортується в .remap на експорті — беремо ім'я до першої крапки
-		var base := name.get_basename()
-		if base.get_extension() == "tscn":
-			base = base.get_basename()
-		if not base.begins_with("chunk_"):
-			continue
-		last = maxi(last, int(base.substr(6)))
-	return last
-
-
 ## Єдине місце, де чанк реально читається з диска — свідомо ізольоване від решти логіки: коли
 ## чанки нестимуть важкі ресурси (реальні .glb-будівлі "зовнішнього світу"), заміна на
 ## ResourceLoader.load_threaded_request()/load_threaded_get() торкнеться лише цієї функції.
@@ -192,13 +216,12 @@ func _load_chunk_resource(path: String) -> PackedScene:
 
 ## Перший чанк рівня, синхронно.
 func _load_first_chunk() -> void:
-	while _next_chunk_index <= _last_chunk_index:
-		var index := _next_chunk_index
-		var packed := _load_chunk_resource(_chunk_path(index))
-		_next_chunk_index += 1
-		_loaded_through_z = float(_next_chunk_index) * CHUNK_LENGTH_M
+	while _next < _plan.size():
+		var piece: Dictionary = _plan[_next]
+		_next += 1
+		var packed := _load_chunk_resource(String(piece["path"]))
 		if packed != null:
-			_apply(packed, float(index) * CHUNK_LENGTH_M)
+			_apply(packed, float(piece["offset_m"]))
 			return
 	_done = true
 

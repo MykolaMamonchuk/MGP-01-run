@@ -724,7 +724,7 @@ func _start_level(num: int) -> void:
 	# Поверхні траси (дорога, узбіччя, канал, вода) лишаються процедурними завжди —
 	# див. docs/tasks/authored-levels.md.
 	track.authored_only = bool(level.get("authored", false))
-	_chunk_loader.start(level_num, track, spawner)
+	_chunk_loader.start(level_num, track, spawner, level)
 	spawner.spawning = false
 	events_spawner.allowed_ids = level.get("events", [])
 	events_spawner.events_enabled = false

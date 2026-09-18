@@ -23,6 +23,7 @@ func before_each() -> void:
 	add_child_autofree(_spawner)
 	await wait_process_frames(1)
 	_loader = LevelChunkLoader.new()
+	gut.error_tracker.treat_push_error_as = GutUtils.TREAT_AS.FAILURE
 
 
 ## _apply() звільняє інстанс чанку через queue_free() (не одразу) — дати рушію дійсно
@@ -189,8 +190,112 @@ func test_no_second_request_while_one_is_pending() -> void:
 	_loader.start(1, _track, _spawner)
 	_loader.update(70.0)
 	var pending := _loader._pending_index
-	var next_index := _loader._next_chunk_index
+	var next_index := _loader._next
 	_loader.update(120.0)                     # поріг наступного чанку теж перейдено
 	assert_eq(_loader._pending_index, pending, "заявка та сама")
-	assert_eq(_loader._next_chunk_index, next_index, "черга не зрушила")
+	assert_eq(_loader._next, next_index, "черга не зрушила")
 	_loader.finish_pending()
+
+
+## --- рівень, зібраний зі списку цеглинок ------------------------------------------------
+##
+## Досі рівень був текою, і номер файлу був водночас місцем: chunk_02 = 300-й метр, і та сама
+## цеглинка не могла стояти в рівні двічі. Тут перевіряємо наскрізно — від запису в levels.json
+## до записів у Spawner3D, — що вона таки може, і що друга копія лягає на свій метр.
+## Фікстуру збираємо в справжній теці бібліотеки (як level_90 вище) і прибираємо по собі.
+const BRICK_ID := "test_brick_40m"
+const BRICK_DIR := "res://levels/chunks/%s" % BRICK_ID
+## Довжина цеглинки; маркери всередині стоять на 10-му й 30-му метрі ВІД ЇЇ ПОЧАТКУ.
+const BRICK_LEN := 40.0
+
+
+func _make_brick() -> void:
+	DirAccess.make_dir_recursive_absolute(BRICK_DIR)
+	var desc := FileAccess.open("%s/chunk.json" % BRICK_DIR, FileAccess.WRITE)
+	desc.store_string(JSON.stringify({
+		"id": BRICK_ID, "worlds": ["meadow"],
+		"entry_lanes": 3, "exit_lanes": 3, "length_m": BRICK_LEN,
+	}))
+	desc.close()
+	var scene := FileAccess.open("%s/chunk.tscn" % BRICK_DIR, FileAccess.WRITE)
+	# z_m у маркері — це -position.z (та сама умова, що й у справжніх чанках)
+	scene.store_string("""[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M1_obstacle_stump" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "stump"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -10.0)
+
+[node name="M2_obstacle_stump" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "stump"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -30.0)
+""")
+	scene.close()
+
+
+func _remove_brick() -> void:
+	for name in ["chunk.json", "chunk.tscn"]:
+		DirAccess.remove_absolute("%s/%s" % [BRICK_DIR, name])
+	DirAccess.remove_absolute(BRICK_DIR)
+
+
+func _brick_level(count: int) -> Dictionary:
+	var ids: Array = []
+	for i in count:
+		ids.append(BRICK_ID)
+	return {"world": "meadow", "lanes": 3, "chunks": ids}
+
+
+func test_level_assembled_from_library_places_the_same_brick_twice() -> void:
+	_make_brick()
+	_loader.start(1, _track, _spawner, _brick_level(3))
+	var d := 0.0
+	while d < 200.0:
+		d += 5.0
+		_update(d)
+	_remove_brick()
+	var zs: Array = []
+	for rec in _spawner._authored_obstacles:
+		zs.append(roundi(float(rec.get("z_m", 0.0))))
+	zs.sort()
+	# 10 і 30 у кожній копії, зсунуті на 0 / 40 / 80 — тобто цеглинка справді стала тричі,
+	# і саме туди, куди її поклав збирач, а не туди, де лежить її файл.
+	assert_eq(zs, [10, 30, 50, 70, 90, 110])
+
+
+## Список цеглинок у рівні ПЕРЕБИВАЄ стару теку levels/level_01/: інакше рівень, переведений на
+## бібліотеку, мовчки вантажив би дві розкладки одночасно.
+func test_chunk_list_wins_over_the_level_folder() -> void:
+	_make_brick()
+	_loader.start(1, _track, _spawner, _brick_level(1))
+	_remove_brick()
+	assert_eq(_spawner._authored_obstacles.size(), 2, "лише дві перешкоди цеглинки")
+
+
+## Зламаний стик рівень не збирає взагалі. Порожній рівень помітно одразу; рівень, зібраний
+## «якось», обривався б дорогою на 900-му метрі — і шукали б це довго.
+func test_broken_seam_leaves_the_level_empty_instead_of_half_assembled() -> void:
+	_make_brick()
+	# цеглинка чекає 3 доріжки, а рівень заявлений на 5
+	var level := _brick_level(2)
+	level["lanes"] = 5
+	# push_error тут — не збій тесту, а ТЕ, ЩО ПЕРЕВІРЯЄТЬСЯ: зламана збірка мусить кричати.
+	# Прапорець знімає before_each, а не цей рядок: GUT звіряє помилки вже ПІСЛЯ тіла тесту,
+	# тож повернути суворість тут означало б не поставити її взагалі.
+	gut.error_tracker.treat_push_error_as = GutUtils.TREAT_AS.NOTHING
+	_loader.start(1, _track, _spawner, level)
+	_remove_brick()
+	assert_false(_spawner._authored_active, "жодного запису зі зламаної збірки не поїхало")
