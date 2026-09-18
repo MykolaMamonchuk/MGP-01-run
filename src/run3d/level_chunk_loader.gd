@@ -31,6 +31,14 @@ var _loaded_through_z := 0.0   ## до якої відстані рівень у
 ## може стерти середній чанк руками. Без цієї межі перший же відсутній номер читався б як
 ## «рівень скінчився», і решта рівня тихо не завантажувалась би взагалі.
 var _last_chunk_index := -1
+## Чанк, який ЗАРАЗ вантажиться у фоні (-1 — жодного) і його шлях.
+## Навіщо фон. Заміряно 18.09.2026: чанк із 904 маркерами читається 46,8 мс, інстанціюється
+## 5,9 і розбирається 17,2 — разом ~70 мс на Mac, отже 200–350 мс на телефоні. Синхронно це
+## означало б підвисання ПОСЕРЕД БІГУ на кожній межі чанка, бо наступний тягнеться за 80 м до
+## неї. Запас часу величезний: 80 м на 12 м/с — понад шість секунд, тож фонове читання
+## встигає з великим лишком.
+var _pending_index := -1
+var _pending_path := ""
 var _done := false             ## усі чанки рівня вже завантажені — update() більше не працює
 
 
@@ -52,6 +60,8 @@ func start(num: int, track: Track, spawner: Spawner3D) -> void:
 	_next_chunk_index = 0
 	_loaded_through_z = 0.0
 	_done = false
+	_pending_index = -1
+	_pending_path = ""
 	_last_chunk_index = _scan_last_chunk_index()
 	_chunked = _last_chunk_index >= 0
 	if not _chunked and not ResourceLoader.exists(_flat_path()):
@@ -62,7 +72,9 @@ func start(num: int, track: Track, spawner: Spawner3D) -> void:
 	track.clear_authored_timeline()
 	_clear_obstacles()
 	if _chunked:
-		_load_next_chunk()
+		# Перший чанк — синхронно: гравець ще на екрані завантаження, підвисати нема де, а
+		# стартувати без записів не можна.
+		_load_first_chunk()
 	else:
 		_load_flat_level()
 
@@ -74,8 +86,56 @@ func start(num: int, track: Track, spawner: Spawner3D) -> void:
 func update(distance_m: float) -> void:
 	if _done or not _chunked:
 		return
+	# Чанк уже читається у фоні — просто перевіряємо, чи готовий. Нової заявки не подаємо,
+	# доки не заберемо попередню: інакше два чанки поїхали б у Track одночасно й у різному
+	# порядку.
+	if _pending_index >= 0:
+		_poll_pending()
+		return
 	if distance_m + LOOKAHEAD_M >= _loaded_through_z:
-		_load_next_chunk()
+		_request_next_chunk()
+
+
+## Дочекатись, доки фоновий чанк дочитається. Потрібно ТЕСТАМ і знімальним інструментам, яким
+## нема куди подіти час між кадрами. У грі цього не кличе ніхто: там update() іде щокадру й
+## забирає чанк тоді, коли потік закінчив, — у цьому вся суть.
+func finish_pending() -> void:
+	while _pending_index >= 0:
+		_poll_pending()
+		if _pending_index >= 0:
+			OS.delay_msec(1)
+
+
+## Забрати чанк, якщо він уже прочитався. Нічого не робить, доки потік не закінчив.
+func _poll_pending() -> void:
+	var status := ResourceLoader.load_threaded_get_status(_pending_path)
+	if status == ResourceLoader.THREAD_LOAD_IN_PROGRESS:
+		return
+	if status == ResourceLoader.THREAD_LOAD_LOADED:
+		var packed := ResourceLoader.load_threaded_get(_pending_path) as PackedScene
+		if packed != null:
+			_apply(packed)
+	else:
+		push_warning("чанк не прочитався: %s" % _pending_path)
+	_pending_index = -1
+	_pending_path = ""
+
+
+## Подати заявку на наступний чанк, ПЕРЕСТРИБУЮЧИ відсутні номери: порожній відрізок рівня —
+## це просто відсутній файл, а не кінець рівня.
+func _request_next_chunk() -> void:
+	while _next_chunk_index <= _last_chunk_index:
+		var path := _chunk_path(_next_chunk_index)
+		var index := _next_chunk_index
+		_next_chunk_index += 1
+		_loaded_through_z = float(_next_chunk_index) * CHUNK_LENGTH_M
+		if not ResourceLoader.exists(path):
+			continue
+		ResourceLoader.load_threaded_request(path)
+		_pending_index = index
+		_pending_path = path
+		return
+	_done = true              # дійшли до останнього чанку теки — рівень завантажено повністю
 
 
 func _folder_path() -> String:
@@ -117,9 +177,8 @@ func _load_chunk_resource(path: String) -> PackedScene:
 	return load(path) as PackedScene
 
 
-## Завантажити наступний чанк, ПЕРЕСТРИБУЮЧИ відсутні номери: порожній відрізок рівня — це
-## просто відсутній файл, а не кінець рівня.
-func _load_next_chunk() -> void:
+## Перший чанк рівня, синхронно.
+func _load_first_chunk() -> void:
 	while _next_chunk_index <= _last_chunk_index:
 		var packed := _load_chunk_resource(_chunk_path(_next_chunk_index))
 		_next_chunk_index += 1
@@ -127,7 +186,7 @@ func _load_next_chunk() -> void:
 		if packed != null:
 			_apply(packed)
 			return
-	_done = true              # дійшли до останнього чанку теки — рівень завантажено повністю
+	_done = true
 
 
 func _load_flat_level() -> void:

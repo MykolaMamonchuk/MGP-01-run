@@ -4,6 +4,13 @@
 ## підтвердив побайтну ідентичність із плаский файлом.
 extends GutTest
 
+## Чанки тепер читаються У ФОНІ (заміряно: синхронно це 70 мс на Mac і 200–350 на телефоні,
+## посеред бігу). Тест не має кадрів, щоб чекати, тому кличе update() і одразу забирає
+## результат. У грі так ніхто не робить: там update() іде щокадру.
+func _update(distance_m: float) -> void:
+	_loader.update(distance_m)
+	_loader.finish_pending()
+
 var _track: Track
 var _spawner: Spawner3D
 var _loader: LevelChunkLoader
@@ -39,14 +46,14 @@ func test_update_does_not_load_next_chunk_before_lookahead_threshold() -> void:
 	_loader.start(1, _track, _spawner)
 	var n0 := _spawner._authored_obstacles.size()
 	# межа першого чанку — 150; поріг дозавантаження — 150 - LOOKAHEAD_M(80) = 70
-	_loader.update(69.0)
+	_update(69.0)
 	assert_eq(_spawner._authored_obstacles.size(), n0, "до порогу 70 м другий чанк ще не вантажиться")
 
 
 func test_update_loads_next_chunk_at_lookahead_threshold() -> void:
 	_loader.start(1, _track, _spawner)
 	var n0 := _spawner._authored_obstacles.size()
-	_loader.update(70.0)   # рівно поріг: 150 - 80
+	_update(70.0)   # рівно поріг: 150 - 80
 	assert_gt(_spawner._authored_obstacles.size(), n0, "на порозі 70 м другий чанк дозавантажився")
 	for rec in _spawner._authored_obstacles:
 		assert_lt(float(rec.get("z_m", 0.0)), LevelChunkLoader.CHUNK_LENGTH_M * 2.0,
@@ -55,10 +62,10 @@ func test_update_loads_next_chunk_at_lookahead_threshold() -> void:
 
 func test_update_does_not_double_load_same_chunk() -> void:
 	_loader.start(1, _track, _spawner)
-	_loader.update(70.0)
+	_update(70.0)
 	var n1 := _spawner._authored_obstacles.size()
-	_loader.update(71.0)
-	_loader.update(75.0)
+	_update(71.0)
+	_update(75.0)
 	assert_eq(_spawner._authored_obstacles.size(), n1, "повторні update() у тому самому вікні не тягнуть чанк удруге")
 
 
@@ -69,7 +76,7 @@ func test_streaming_through_whole_level_loads_every_chunk_exactly_once() -> void
 	var d := 0.0
 	while d < 500.0:
 		d += 5.0
-		_loader.update(d)
+		_update(d)
 	# Скільки саме перешкод у рівні — не сталість тесту: хвости рівнів дотягували під
 	# швидкий профіль (tools/extend_level_tails.py), і число мінялося. Тест стереже інше —
 	# що жоден чанк не завантажено двічі й жодного не загублено, тому рахуємо очікуване
@@ -101,7 +108,7 @@ func test_streaming_through_longest_level_loads_every_chunk_exactly_once() -> vo
 	var d := 0.0
 	while d < 1000.0:
 		d += 5.0
-		_loader.update(d)
+		_update(d)
 	assert_gt(_spawner._authored_obstacles.size(), 0)
 	var seen := {}
 	for rec in _spawner._authored_obstacles:
@@ -117,7 +124,7 @@ func test_missing_level_clears_authored_state_without_crash() -> void:
 	_loader.start(999, _track, _spawner)
 	assert_false(_spawner._authored_active)
 	assert_false(_track._authored_active)
-	_loader.update(1000.0)   # не мало впасти й після цього
+	_update(1000.0)   # не мало впасти й після цього
 
 
 ## Порожній відрізок посеред рівня — це просто відсутній chunk_NN.tscn: розрізання не пише
@@ -155,7 +162,35 @@ func test_missing_middle_chunk_does_not_end_the_level() -> void:
 	var d := 0.0
 	while d < 500.0:
 		d += 5.0
-		_loader.update(d)
+		_update(d)
 	assert_eq(_spawner._authored_obstacles.size(), n0 * 2,
 		"пропущений chunk_01 перестрибнуто, chunk_02 усе одно завантажився")
 	_remove_gap_level()
+
+
+## Фонове читання: update() на порозі лише ПОДАЄ ЗАЯВКУ, а не блокує. Саме це й рятує від
+## підвисання посеред бігу — заміряно, що синхронне читання зарядженого чанка коштує 70 мс на
+## Mac і 200–350 мс на телефоні, і відбувалось воно за 80 м до межі, тобто на повному ходу.
+func test_update_only_requests_the_chunk_and_does_not_block() -> void:
+	_loader.start(1, _track, _spawner)
+	var n0 := _spawner._authored_obstacles.size()
+	_loader.update(70.0)                      # БЕЗ finish_pending
+	assert_gte(_loader._pending_index, 0, "заявку подано, чанк читається у фоні")
+	assert_eq(_spawner._authored_obstacles.size(), n0,
+		"але записів ще нема — потік не закінчив, і головний потік його не чекав")
+	_loader.finish_pending()
+	assert_eq(_loader._pending_index, -1, "після завершення заявка знята")
+	assert_gt(_spawner._authored_obstacles.size(), n0, "а записи дозавантажились")
+
+
+## Доки чанк читається у фоні, друга заявка не подається: інакше два чанки поїхали б у Track
+## одночасно й у непередбачуваному порядку.
+func test_no_second_request_while_one_is_pending() -> void:
+	_loader.start(1, _track, _spawner)
+	_loader.update(70.0)
+	var pending := _loader._pending_index
+	var next_index := _loader._next_chunk_index
+	_loader.update(120.0)                     # поріг наступного чанку теж перейдено
+	assert_eq(_loader._pending_index, pending, "заявка та сама")
+	assert_eq(_loader._next_chunk_index, next_index, "черга не зрушила")
+	_loader.finish_pending()
