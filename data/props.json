@@ -18,15 +18,15 @@
   "fence_rail": [
     {
       "path": "res://assets/props/fence_rail_1.glb",
-      "scale": 0.99798
+      "scale": 0.99814
     },
     {
       "path": "res://assets/props/fence_rail_2.glb",
-      "scale": 0.99708
+      "scale": 0.9969
     },
     {
       "path": "res://assets/props/fence_rail_3.glb",
-      "scale": 0.99783
+      "scale": 0.99897
     }
   ],
   "crate": [

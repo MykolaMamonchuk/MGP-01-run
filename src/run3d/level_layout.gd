@@ -10,8 +10,18 @@
 ## власною нумерацією можна поставити в будь-яке місце будь-якого рівня, просто змінивши
 ## z_offset_m.
 ##
-## Дорога-орієнтир малюється ЛИШЕ в редакторі й ніколи не потрапляє ні в .tscn, ні в гру:
-## прев'ю додається з owner = null, а LevelTimeline.extract() збирає тільки LevelMarker3D.
+## СВІТ-ОРІЄНТИР малюється ЛИШЕ в редакторі. Потрібен він тому, що в грі світу як об'єктів
+## не існує: дорогу, узбіччя, канал, воду й дальню забудову будує Track під час гри з
+## data/worlds/*.json. Тому чанк, відкритий у редакторі, і виглядав порожнім полем — правити
+## розкладку «на око» не було відносно ЧОГО.
+##
+## Тут те саме малюється наближено й статично: смуги дороги за кількістю доріжок ЦЬОГО рівня,
+## узбіччя, канал із водою на його справжній відстані від краю дороги, риски через 10 метрів.
+## Номер рівня беремо зі шляху сцени (levels/level_07/chunk_02.tscn → рівень 7), решту — з
+## data/levels.json і data/worlds/*.json, тобто з тих самих даних, що й гра.
+##
+## Нічого з цього не потрапляє ні в .tscn, ні в гру: прев'ю додається з owner = null, а
+## LevelTimeline.extract() збирає тільки LevelMarker3D.
 @tool
 class_name LevelLayout
 extends Node3D
@@ -83,50 +93,155 @@ func _build_guide() -> void:
 	_guide = null
 	if not show_guide:
 		return
+	var w := _world_data()
 	var root := Node3D.new()
-	root.add_child(_surface())
-	root.add_child(_lines())
+	root.add_child(_ground(w))
+	for plate in _water_plates(w):
+		root.add_child(plate)
+	root.add_child(_road(w))
+	root.add_child(_lines(w))
 	add_child(root)
 	root.owner = null
 	_guide = root
 
 
-## Полотно дороги — напівпрозора плита завширшки як трисмугова траса. Саме по ній видно,
-## чи не стоїть декор на біговій доріжці (колись так стало 776 маркерів).
-func _surface() -> MeshInstance3D:
+## Дані рівня й світу — з тих самих файлів, що читає гра. Номер рівня беремо зі шляху сцени.
+func _world_data() -> Dictionary:
+	var out := {"lanes": 3, "ground": Color(0.66, 0.73, 0.33), "side": Color(0.36, 0.56, 0.28),
+		"water": Color(0.29, 0.51, 0.66), "road": Color(0.93, 0.87, 0.70),
+		"canal_side": "", "canal_offset": 0.0, "canal_width": 0.0}
+	var num := _level_number()
+	if num <= 0:
+		return out
+	var levels: Array = _json("res://data/levels.json").get("levels", [])
+	var level := {}
+	for l in levels:
+		if int((l as Dictionary).get("id", 0)) == num:
+			level = l
+			break
+	if level.is_empty():
+		return out
+	out["lanes"] = int(level.get("lanes", 3))
+	var world := _json("res://data/worlds/%s.json" % String(level.get("world", "meadow")))
+	if world.is_empty():
+		return out
+	out["ground"] = _color(world.get("ground", ""), out["ground"])
+	out["side"] = _color(world.get("side", ""), out["side"])
+	out["water"] = _color(world.get("water", ""), out["water"])
+	out["road"] = _color(world.get("road_color", world.get("road_surface", "")), out["road"])
+	var canal = world.get("canal", null)
+	if typeof(canal) == TYPE_DICTIONARY:
+		out["canal_side"] = String((canal as Dictionary).get("side", ""))
+		out["canal_offset"] = float((canal as Dictionary).get("offset", 0.0))
+		out["canal_width"] = float((canal as Dictionary).get("width", 0.0))
+	return out
+
+
+## levels/level_07/chunk_02.tscn → 7. Нуль — шлях не той, малюємо типове.
+func _level_number() -> int:
+	var path := scene_file_path
+	if path == "":
+		path = get_scene_file_path()
+	var at := path.find("level_")
+	if at < 0:
+		return 0
+	return int(path.substr(at + 6, 2))
+
+
+func _json(path: String) -> Dictionary:
+	var f := FileAccess.open(path, FileAccess.READ)
+	if f == null:
+		return {}
+	var parsed = JSON.parse_string(f.get_as_text())
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
+func _color(value, fallback: Color) -> Color:
+	var s := String(value)
+	return Color(s) if s.begins_with("#") else fallback
+
+
+## Півширина дороги: доріжки × 1 м + 20 см бордюру, поділити навпіл. Та сама формула, що
+## Track.road_width().
+func half_road(lanes: int) -> float:
+	return (float(lanes) * LANE_W + 0.2) * 0.5
+
+
+func _plate(size: Vector2, at: Vector3, color: Color, alpha := 1.0) -> MeshInstance3D:
 	var pm := PlaneMesh.new()
-	pm.size = Vector2(EDGES[0] * 2.0, GUIDE_LENGTH_M)
+	pm.size = size
 	var mi := MeshInstance3D.new()
 	mi.mesh = pm
-	mi.position = Vector3(0.0, -0.01, -GUIDE_LENGTH_M * 0.5)
+	mi.position = at
 	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(0.85, 0.78, 0.55, 0.35)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	color.a = alpha
+	m.albedo_color = color
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	if alpha < 1.0:
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mi.material_override = m
 	return mi
 
 
-## Лінії: межі доріжок, краї дороги для 3/5/7 смуг і поперечні риски через TICK_M метрів.
-func _lines() -> MeshInstance3D:
+## Трава обабіч — на всю видиму ширину, під усім іншим.
+func _ground(w: Dictionary) -> MeshInstance3D:
+	return _plate(Vector2(40.0, GUIDE_LENGTH_M), Vector3(0.0, -0.03, -GUIDE_LENGTH_M * 0.5),
+		w["side"])
+
+
+## Полотно дороги за кількістю доріжок ЦЬОГО рівня.
+func _road(w: Dictionary) -> MeshInstance3D:
+	var half := half_road(int(w["lanes"]))
+	return _plate(Vector2(half * 2.0, GUIDE_LENGTH_M),
+		Vector3(0.0, -0.01, -GUIDE_LENGTH_M * 0.5), w["road"])
+
+
+## Канал: відстань відлічується ВІД КРАЮ ДОРОГИ, а не від осі — на цьому вже наступали
+## (орієнтир опинявся у воді, див. memory bank).
+func _water_plates(w: Dictionary) -> Array:
+	var out: Array = []
+	var side := String(w["canal_side"])
+	if side == "" or float(w["canal_width"]) <= 0.0:
+		return out
+	var half := half_road(int(w["lanes"]))
+	var near: float = half + float(w["canal_offset"])
+	var width: float = float(w["canal_width"])
+	var signs: Array = []
+	if side == "both":
+		signs = [-1.0, 1.0]
+	elif side == "left":
+		signs = [-1.0]
+	elif side == "right":
+		signs = [1.0]
+	for s in signs:
+		out.append(_plate(Vector2(width, GUIDE_LENGTH_M),
+			Vector3(float(s) * (near + width * 0.5), -0.02, -GUIDE_LENGTH_M * 0.5), w["water"]))
+	return out
+
+
+## Лінії: межі доріжок, край дороги цього рівня (яскраво) і краї для інших смуг (тьмяно),
+## плюс поперечні риски через TICK_M метрів.
+func _lines(w: Dictionary) -> MeshInstance3D:
+	var lanes := int(w["lanes"])
+	var half := half_road(lanes)
 	var verts := PackedVector3Array()
 	var colors := PackedColorArray()
-	var lane_c := Color(1.0, 1.0, 1.0, 0.5)
-	var edge_c: Array[Color] = [Color(0.2, 0.9, 0.3), Color(1.0, 0.8, 0.2), Color(1.0, 0.4, 0.3)]
-	var tick_c := Color(0.6, 0.8, 1.0, 0.6)
+	var lane_c := Color(1.0, 1.0, 1.0, 0.45)
+	var tick_c := Color(0.1, 0.1, 0.1, 0.35)
 	for i in range(-3, 4):
 		var x := float(i) * LANE_W + LANE_W * 0.5
-		if absf(x) > EDGES[2]:
+		if absf(x) >= half:
 			continue
 		_line(verts, colors, Vector3(x, 0.0, 0.0), Vector3(x, 0.0, -GUIDE_LENGTH_M), lane_c)
 	for k in range(EDGES.size()):
 		var e: float = EDGES[k]
+		var c := Color(0.1, 0.9, 0.3) if is_equal_approx(e, half) else Color(0.5, 0.5, 0.5, 0.35)
 		for s in [-1.0, 1.0]:
-			_line(verts, colors, Vector3(e * s, 0.0, 0.0), Vector3(e * s, 0.0, -GUIDE_LENGTH_M), edge_c[k])
+			_line(verts, colors, Vector3(e * s, 0.0, 0.0), Vector3(e * s, 0.0, -GUIDE_LENGTH_M), c)
 	var z := 0.0
 	while z <= GUIDE_LENGTH_M:
-		var half: float = EDGES[2] if fmod(z, 50.0) < 0.001 else EDGES[0]
-		_line(verts, colors, Vector3(-half, 0.0, -z), Vector3(half, 0.0, -z), tick_c)
+		var reach: float = half + 6.0 if fmod(z, 50.0) < 0.001 else half
+		_line(verts, colors, Vector3(-reach, 0.0, -z), Vector3(reach, 0.0, -z), tick_c)
 		z += TICK_M
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
