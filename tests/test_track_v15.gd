@@ -104,3 +104,29 @@ func test_landmark_never_stands_in_the_canal() -> void:
 	# Вузький канал не має відсувати орієнтир далі, ніж треба.
 	var near := Track.landmark_offset(edge, 0.2, 0.3, half, true)
 	assert_lt(near, off, "вужчий канал — ближчий орієнтир")
+
+
+## Олівкова смужка полотна дороги НЕ МУСИТЬ визирати з-під трави. Полотно ширше за плитку
+## покриття на 0,10 м з кожного боку (road_width() = смуги × 1,0 + 0,2, а плитка вкриває рівно
+## смуги). Напуск трави на дорогу був випадковий від нуля, тож на рядах, де він виходив
+## меншим за 0,10, смужка визирала — і ряд за рядом то з'являлась, то зникала. На відстані це
+## читалось як пунктир, що мигтить між зеленим і коричневим: рівно те, на що замовник
+## показував два дні.
+func test_grass_edge_always_covers_the_road_canvas_border() -> void:
+	var border := 0.1                      # (road_width() - смуги × LANE_W) / 2
+	assert_gte(Track.EDGE_OVERLAP_MIN, border,
+		"найменший напуск трави мусить покривати олівкову смужку полотна, інакше вона визирає")
+	assert_gt(Track.EDGE_OVERLAP, Track.EDGE_OVERLAP_MIN,
+		"але напуск лишається ВИПАДКОВИМ у діапазоні — інакше край дороги стане лінійкою")
+
+
+## Та сама арифметика для всіх ширин дороги: смужка полотна завжди 0,10 м, бо +0,2 у
+## road_width() не залежить від кількості смуг.
+func test_canvas_border_is_the_same_for_every_road_width() -> void:
+	var t := Track.new()
+	add_child_autofree(t)
+	for n in [3, 5, 7]:
+		t.lanes = n
+		var border: float = (t.road_width() - float(n) * Hero3D.LANE_W) * 0.5
+		assert_almost_eq(border, 0.1, 0.0001,
+			"при %d смугах смужка полотна теж 0,10 м" % n)
