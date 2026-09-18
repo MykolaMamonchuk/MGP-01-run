@@ -42,6 +42,9 @@ const TICK_M := 10.0
 const RAIL_INSET := 0.10
 const RAIL_LINK_M := 1.0
 const RAIL_W := 0.08
+## Висота стінки-поручня в орієнтирі. Лежача смужка на землі з ігрового ракурсу зникала
+## зовсім — поручень мусить СТОЯТИ, як і в грі, інакше його не видно ні збоку, ні згори.
+const RAIL_H := 0.45
 const BRIDGE_DECK_MARGIN := 0.4
 
 ## Відстань від старту рівня до початку цього чанка, у метрах. Для нарізки по 150 м це
@@ -261,21 +264,36 @@ func _rails_and_bridges(w: Dictionary) -> Array:
 		signs = [1.0]
 	for s in signs:
 		var sign := float(s)
-		# поручень стоїть на RAIL_INSET ближче до дороги, ніж край води
 		var rail_x := sign * (half + offset - RAIL_INSET)
 		var z := 0.0
 		while z <= GUIDE_LENGTH_M:
-			var row := int(round((float(w["level"]) * 0.0) + z))   # ряд = метр
-			var is_bridge := every > 0 and posmod(row, every) == 0
+			var is_bridge := every > 0 and posmod(int(round(z)), every) == 0
 			if is_bridge:
-				# настил упоперек води, трохи довший за канал
 				out.append(_plate(Vector2(width + BRIDGE_DECK_MARGIN, RAIL_LINK_M * 0.9),
 					Vector3(sign * (half + offset + width * 0.5), 0.02, -z - 0.5), w["wood"]))
 			else:
-				out.append(_plate(Vector2(RAIL_W, RAIL_LINK_M * 0.98),
-					Vector3(rail_x, 0.01, -z - 0.5), w["wood"]))
+				out.append(_rail_link(rail_x, -z - 0.5, w["wood"]))
 			z += RAIL_LINK_M
 	return out
+
+
+## Одна ланка поручня — СТОЯЧА стінка заввишки RAIL_H. Довжина трохи менша за метр, тож між
+## ланками лишається видимий проміж: саме ці стики автор рівня і хотів бачити, бо по них
+## читається, де закінчується одна ланка й починається наступна.
+func _rail_link(x: float, z: float, color: Color) -> MeshInstance3D:
+	var pm := PlaneMesh.new()
+	pm.size = Vector2(RAIL_LINK_M * 0.9, RAIL_H)
+	pm.orientation = PlaneMesh.FACE_Z
+	var mi := MeshInstance3D.new()
+	mi.mesh = pm
+	mi.position = Vector3(x, RAIL_H * 0.5, z)
+	mi.rotation.y = PI * 0.5
+	var m := StandardMaterial3D.new()
+	m.albedo_color = color
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mi.material_override = m
+	return mi
 
 
 ## Лінії: межі доріжок, край дороги цього рівня (яскраво) і краї для інших смуг (тьмяно),
