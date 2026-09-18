@@ -9,7 +9,6 @@
 extends GutTest
 
 ## Де складність падає при переході до наступного рівня: [з, у].
-const KNOWN_DIPS := [[4, 5], [8, 9], [14, 15]]
 ## Наскільки глибоко їй дозволено провалюватись на такому перепочинку (найглибший — 4→5, 0.087).
 const DIP_MAX := 0.10
 
@@ -48,8 +47,15 @@ func test_tutorial_is_the_easiest_and_the_last_level_is_the_hardest() -> void:
 			assert_lt(d, last, "рівень %d легший за фінал" % int(l["id"]))
 
 
-## Провали складності — лише ті три, що описані вгорі файлу, і лише неглибокі.
-func test_growth_is_monotone_apart_from_the_three_world_openers() -> void:
+## ПРАВИЛО, а не знімок. Перша версія цього тесту вимагала, щоб список провалів дорівнював
+## рівно [[4,5],[8,9],[14,15]] — і тоді будь-яке законне доналаштування щільності на якомусь
+## рівні робило його червоним, хоч задум ніхто не порушив. Тепер перевіряється саме правило:
+## провал дозволено ЛИШЕ там, де починається новий світ, і лише неглибокий. Список відомих
+## провалів лишається в коментарі як факт на день заміру, а не як вимога.
+##
+## Станом на 18.09.2026 провалів три: 4→5 (−0,087), 8→9 (−0,027), 14→15 (−0,058). Четвертий
+## відкривач світу (11→12, Місто) провалу не дає: +0,007.
+func test_every_dip_only_happens_where_a_new_world_opens() -> void:
 	var dips := []
 	for i in range(_levels.size() - 1):
 		var a: Dictionary = _levels[i]
@@ -59,20 +65,27 @@ func test_growth_is_monotone_apart_from_the_three_world_openers() -> void:
 		if db < da:
 			dips.append([int(a["id"]), int(b["id"])])
 			assert_lt(da - db, DIP_MAX, "провал %d→%d неглибокий" % [int(a["id"]), int(b["id"])])
-	assert_eq(dips, KNOWN_DIPS, "провали складності — лише відомі три")
+			assert_ne(String(b.get("world", "")), String(a.get("world", "")),
+				"провал %d→%d дозволено лише там, де починається новий світ" % [int(a["id"]), int(b["id"])])
+			assert_true(bool(b.get("tutorial", false)),
+				"рівень %d, на якому складність падає, мусить бути знайомством із біомом" % int(b["id"]))
+	assert_lt(dips.size(), 5, "провалів не більше, ніж переходів між світами")
 
 
 ## Кожен провал пояснюється тим самим: далі починається новий світ, і його перший рівень —
 ## перепочинок із підказкою. Якщо дані зміняться так, що провал з'явиться посеред світу,
 ## цей тест почервоніє.
-func test_every_dip_lands_on_a_tutorial_level_that_opens_a_new_world() -> void:
-	for pair in KNOWN_DIPS:
-		var prev := _level(int(pair[0]))
-		var next := _level(int(pair[1]))
-		assert_ne(String(next.get("world", "")), String(prev.get("world", "")),
-			"рівень %d відкриває новий світ" % int(pair[1]))
-		assert_true(bool(next.get("tutorial", false)),
-			"рівень %d — знайомство з біомом" % int(pair[1]))
+## Зворотний бік того самого правила: перший рівень нового світу МОЖЕ бути легшим за
+## попередній, але не мусить. Тут перевіряємо лише, що кожен такий рівень справді позначений
+## як знайомство з біомом — інакше «перепочинок» вийшов би випадковим, а не задуманим.
+func test_every_world_opener_is_marked_as_a_tutorial() -> void:
+	for i in range(_levels.size() - 1):
+		var a: Dictionary = _levels[i]
+		var b: Dictionary = _levels[i + 1]
+		if String(a.get("world", "")) == String(b.get("world", "")):
+			continue
+		assert_true(bool(b.get("tutorial", false)),
+			"рівень %d відкриває світ %s — має бути знайомством" % [int(b["id"]), String(b["world"])])
 
 
 func test_difficulty_grows_strictly_inside_every_world() -> void:
