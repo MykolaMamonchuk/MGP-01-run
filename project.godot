@@ -53,6 +53,8 @@ pointing/emulate_touch_from_mouse=true
 
 [rendering]
 
+mesh_lod/lod_change/threshold_pixels=4.0
+
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
 lights_and_shadows/directional_shadow/size=2048

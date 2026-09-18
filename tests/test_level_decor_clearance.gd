@@ -45,7 +45,13 @@ func _decor_on_the_road(num: int, edge: float) -> Array:
 			continue
 		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
 		for block in f.get_as_text().split("[node "):
-			if not block.contains("role = \"decor\""):
+			# Godot НЕ пише властивість, що дорівнює типовій, тож у маркера декору рядка role
+			# може не бути зовсім (так виглядає чанк, перезбережений редактором). Шукати
+			# «role = "decor"» означає тихо пропустити половину маркерів — тобто сторож
+			# лишився б зеленим, нічого не стережучи.
+			if block.contains("role = \"") and not block.contains("role = \"decor\""):
+				continue
+			if not block.contains("script = ExtResource"):
 				continue
 			var tr := block.find("Transform3D(")
 			if tr < 0:

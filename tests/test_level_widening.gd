@@ -186,7 +186,12 @@ func _side_decor_within(num: int, cut: float, half: float) -> Array:
 		# z маркера ЛОКАЛЬНА (від початку чанка) — додаємо зсув самого чанка.
 		var offset := LevelLayout.offset_from_text(text)
 		for block in text.split("[node "):
-			if not block.contains("role = \"decor\""):
+			# Godot НЕ пише властивість, що дорівнює типовій, тож у маркера декору рядка
+			# role може не бути зовсім — саме так виглядає чанк, перезбережений редактором.
+			# Шукати «role = "decor"» означає тихо пропустити половину маркерів.
+			if block.contains("role = \"") and not block.contains("role = \"decor\""):
+				continue
+			if not block.contains("script = ExtResource"):
 				continue
 			var tr := block.find("Transform3D(")
 			if tr < 0:
