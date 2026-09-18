@@ -130,3 +130,26 @@ func test_canvas_border_is_the_same_for_every_road_width() -> void:
 		var border: float = (t.road_width() - float(n) * Hero3D.LANE_W) * 0.5
 		assert_almost_eq(border, 0.1, 0.0001,
 			"при %d смугах смужка полотна теж 0,10 м" % n)
+
+
+## Містки не стоять гребінкою. Раніше вони йшли строго через world.bridges_every рядів, і
+## рівний ритм читався як розмітка, а не як село. Тепер проміжок випадковий у межах діапазону,
+## і кожен місток веде ДО БУДИНКУ: на ряду з містком лічильник забудови обнуляється.
+func test_bridge_gap_is_a_range_not_a_comb() -> void:
+	assert_eq(Track.BRIDGE_GAP.size(), 2, "проміжок між містками — діапазон із двох чисел")
+	assert_gt(int(Track.BRIDGE_GAP[0]), 0, "найменший проміжок додатний")
+	assert_gt(int(Track.BRIDGE_GAP[1]), int(Track.BRIDGE_GAP[0]),
+		"верхня межа більша за нижню — інакше це знову рівна гребінка")
+
+
+## Камінь у каналі мусить бути ЗАНУРЕНИЙ, а не висіти над водою. Пропси мають початок
+## координат у низу, тож основа каменя має бути нижчою за поверхню води (-CANAL_DEPTH).
+## Раніше тут стояло -CANAL_DEPTH * 0.6, тобто −0,21 при поверхні −0,35: камінь висів на
+## 14 см над водою, і замовник це побачив.
+func test_canal_rocks_sit_in_the_water_not_above_it() -> void:
+	var rock_base := -Track.CANAL_DEPTH - Track.CANAL_ROCK_SINK
+	assert_lt(rock_base, -Track.CANAL_DEPTH,
+		"основа каменя нижча за поверхню води — інакше камінь парить")
+	assert_gt(Track.CANAL_ROCK_SINK, 0.0, "занурення додатне")
+	assert_lt(Track.CANAL_ROCK_SINK, 0.15,
+		"але не по маківку: камінь має визирати з води, а не зникати в ній")

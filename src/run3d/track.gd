@@ -103,6 +103,11 @@ const CANAL_ROCK_CHANCE := 0.0
 ## центр предмета, і без цього запасу будинок звисає над каналом.
 const BUILD_HALF_W := 1.3
 const CANAL_ROCK_SCALE := [0.4, 0.75]
+## Наскільки основа каменя занурена під ПОВЕРХНЮ води. Раніше тут стояло -CANAL_DEPTH * 0.6,
+## тобто −0,21 при поверхні на −0,35: камінь висів на 14 см НАД водою. Коментар обіцяв
+## «трохи занурене», а число робило протилежне. Пропси мають початок координат у низу
+## (tools/prop_prepare.py --origin bottom), тож занурювати треба саме основу.
+const CANAL_ROCK_SINK := 0.04
 const FAR_MIN := 2.5
 const FAR_MAX := 4.5
 const FAR_EVERY := [4, 6]
@@ -138,6 +143,9 @@ const BANK_LIFT := 0.012
 const BANK_W := 0.18
 ## Місток через канал: настил трохи довший за канал, лежить ледь вище трави.
 const BRIDGE_MARGIN := 0.4
+## Проміжок між містками в рядах (метрах траси), від і до. Береться з world.dressing
+## ("bridge_gap"), інакше ця пара.
+const BRIDGE_GAP := [7, 14]
 const BRIDGE_Y := 0.02
 ## Довжина вокселя bridge_plank уздовж Z (2,2 м) — після повороту на PI/2 це ширина настилу поперек каналу.
 const BRIDGE_BASE_W := 2.2
@@ -222,6 +230,11 @@ var _canal_banks: Array[MeshInstance3D] = []
 ## Один матеріал на шар берега — усі чотири борти каналу фарбуються однаково.
 var _bank_mats: Array[ShaderMaterial] = []
 var _bridges_every := 0
+## Скільки рядів лишилось до наступного містка на кожному борті. Раніше містки стояли строго
+## через _bridges_every рядів — рівна гребінка, яку одразу видно як штучну. Тепер проміжок
+## випадковий у межах BRIDGE_GAP, і кожен місток веде ДО СВОГО БУДИНКУ: на ряду з містком
+## лічильник забудови примусово обнуляється, тож будинок стає рівно навпроти переходу.
+var _bridge_left := [0, 0]
 ## Чи малювати обрив плато з боку [лівого, правого] — там, де канал, обриву нема.
 var _cliff_on := [true, true]
 ## Узбіччя з даних: пропси ближньої смуги й будинки другого плану (вже відсіяні за наявністю вокселів).
@@ -935,14 +948,25 @@ func _decorate(row: Node3D) -> void:
 	for side in [-1.0, 1.0]:
 		if _sea_side != 0 and signf(float(side)) == signf(float(_sea_side)):
 			continue
-		# місток через канал — поперек води, поза габаритом дороги (чистий декор)
-		if not _sea and _canal_sides.has(side) and _bridges_every > 0 and posmod(i, _bridges_every) == 0 \
+		var bsidx := 0 if side < 0.0 else 1
+		# Місток через канал — поперек води, поза габаритом дороги (чистий декор). Проміжок
+		# ВИПАДКОВИЙ: рівна гребінка через кожні N рядів читалась як розмітка, а не як село.
+		var bridge_row := false
+		if not _sea and _canal_sides.has(side) and _bridges_every > 0 \
 				and bridge_clears_road(edge, c_offset, c_width):
-			_add_bridge(ids, data, side * (edge + c_offset + c_width * 0.5), c_width)
+			_bridge_left[bsidx] -= 1
+			if _bridge_left[bsidx] <= 0:
+				bridge_row = true
+				var gap: Array = _d2("bridge_gap", BRIDGE_GAP)
+				_bridge_left[bsidx] = _rng.randi_range(int(gap[0]), int(gap[1]))
+				_add_bridge(ids, data, side * (edge + c_offset + c_width * 0.5), c_width)
+				# місток веде ДО БУДИНКУ: обнуляємо лічильник забудови цього борту, щоб
+				# будинок став рівно навпроти переходу, а не десь через три ряди
+				_far_left[bsidx] = 0
 		# поручні вздовж берега: одна ланка на ряд. Ряд рівно 1,0 м, і модель зроблено такою ж
 		# (tools/prop_prepare.py --width 1.0), тож ланки стикуються в суцільну стрічку.
 		# На ряду з містком поручнів нема — інакше вони перегородили б прохід на нього.
-		if not _sea and _canal_sides.has(side) and PropLibrary.has("fence_rail") 				and not (_bridges_every > 0 and posmod(i, _bridges_every) == 0):
+		if not _sea and _canal_sides.has(side) and PropLibrary.has("fence_rail") 				and not bridge_row:
 			# розвертаємо лицем до дороги: на лівому борті це +90°, на правому −90°
 			_add_decor(ids, data, "fence_rail", {},
 				side * (edge + c_offset - RAIL_INSET), 0.0, 1.0,
@@ -955,7 +979,8 @@ func _decorate(row: Node3D) -> void:
 			var rock_span := c_width - 0.3
 			_add_decor(ids, data, String(_canal_rocks[_rng.randi() % _canal_rocks.size()]), {},
 				side * (edge + c_offset + 0.15 + _rng.randf() * rock_span),
-				-CANAL_DEPTH * 0.6, _rng.randf_range(CANAL_ROCK_SCALE[0], CANAL_ROCK_SCALE[1]))
+				-CANAL_DEPTH - CANAL_ROCK_SINK,
+				_rng.randf_range(CANAL_ROCK_SCALE[0], CANAL_ROCK_SCALE[1]))
 		if open and not _sea:
 			# ── відкрите узбіччя: трава одразу за дорогою, пропси, за ними другий план ──
 			var far_min := _d("far_min", FAR_MIN)
