@@ -103,9 +103,8 @@ func _build_guide() -> void:
 		return
 	var w := _world_data()
 	var root := Node3D.new()
-	root.add_child(_ground(w))
-	for plate in _water_plates(w):
-		root.add_child(plate)
+	for band in _bands(w):
+		root.add_child(band)
 	root.add_child(_road(w))
 	for part in _rails_and_bridges(w):
 		root.add_child(part)
@@ -198,10 +197,38 @@ func _plate(size: Vector2, at: Vector3, color: Color, alpha := 1.0) -> MeshInsta
 	return mi
 
 
-## Трава обабіч — на всю видиму ширину, під усім іншим.
-func _ground(w: Dictionary) -> MeshInstance3D:
-	return _plate(Vector2(40.0, GUIDE_LENGTH_M), Vector3(0.0, -0.03, -GUIDE_LENGTH_M * 0.5),
-		w["side"])
+## Смуги світу, що НЕ ПЕРЕКРИВАЮТЬСЯ. Перша версія клала суцільну плиту трави на всю ширину,
+## а воду — плитою поверх неї, на сантиметр вище. Цього замало: на пологому куті погляду край
+## двох майже копланарних площин починає зубчитись, і замовник упізнав це одразу — та сама
+## вада, що колись була на березі каналу в самій грі («вони на одній x,y і грають»).
+##
+## Тому тут кожна смуга займає СВІЙ проміжок по x і ніде не лізе під сусідню: узбіччя від краю
+## дороги до води, вода, далі знову трава. Перекриття нема — нема чому й битись.
+func _bands(w: Dictionary) -> Array:
+	var out: Array = []
+	var half := half_road(int(w["lanes"]))
+	var side := String(w["canal_side"])
+	var offset: float = float(w["canal_offset"])
+	var width: float = float(w["canal_width"])
+	var far := 20.0
+	for s in [-1.0, 1.0]:
+		var sign := float(s)
+		var has_canal := width > 0.0 and (side == "both"
+			or (side == "left" and sign < 0.0) or (side == "right" and sign > 0.0))
+		if not has_canal:
+			out.append(_band(sign, half, far, w["side"]))
+			continue
+		out.append(_band(sign, half, half + offset, w["side"]))
+		out.append(_band(sign, half + offset, half + offset + width, w["water"]))
+		out.append(_band(sign, half + offset + width, far, w["side"]))
+	return out
+
+
+## Одна смуга вздовж траси: від |x| = from до |x| = to по бік sign.
+func _band(sign: float, from: float, to: float, color: Color) -> MeshInstance3D:
+	var w := maxf(to - from, 0.001)
+	return _plate(Vector2(w, GUIDE_LENGTH_M),
+		Vector3(sign * (from + w * 0.5), -0.02, -GUIDE_LENGTH_M * 0.5), color)
 
 
 ## Полотно дороги за кількістю доріжок ЦЬОГО рівня.
@@ -209,29 +236,6 @@ func _road(w: Dictionary) -> MeshInstance3D:
 	var half := half_road(int(w["lanes"]))
 	return _plate(Vector2(half * 2.0, GUIDE_LENGTH_M),
 		Vector3(0.0, -0.01, -GUIDE_LENGTH_M * 0.5), w["road"])
-
-
-## Канал: відстань відлічується ВІД КРАЮ ДОРОГИ, а не від осі — на цьому вже наступали
-## (орієнтир опинявся у воді, див. memory bank).
-func _water_plates(w: Dictionary) -> Array:
-	var out: Array = []
-	var side := String(w["canal_side"])
-	if side == "" or float(w["canal_width"]) <= 0.0:
-		return out
-	var half := half_road(int(w["lanes"]))
-	var near: float = half + float(w["canal_offset"])
-	var width: float = float(w["canal_width"])
-	var signs: Array = []
-	if side == "both":
-		signs = [-1.0, 1.0]
-	elif side == "left":
-		signs = [-1.0]
-	elif side == "right":
-		signs = [1.0]
-	for s in signs:
-		out.append(_plate(Vector2(width, GUIDE_LENGTH_M),
-			Vector3(float(s) * (near + width * 0.5), -0.02, -GUIDE_LENGTH_M * 0.5), w["water"]))
-	return out
 
 
 ## Поручні вздовж берега й містки через канал. У грі їх ставить Track по рядах: поручень —
