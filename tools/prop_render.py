@@ -19,6 +19,12 @@ def main():
     argv = sys.argv[sys.argv.index("--") + 1:]
     src, out = argv[0], argv[1]
     size = int(argv[2]) if len(argv) > 2 else 700
+    # --fit: підігнати модель до однакового розміру й центра перед зніманням. Потрібен для
+    # ПОРІВНЯНЬ: дві моделі однієї речі майже завжди мають різні габарити й початок
+    # координат, і без нормалізації різниця між знімками виходить від кадрування, а не від
+    # самих моделей (на цьому 18.09.2026 прилад показав «57% схожості» для куща, якого на
+    # око не відрізнити).
+    fit = "--fit" in argv
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=src)
@@ -36,6 +42,18 @@ def main():
                 hi[i] = max(hi[i], w[i])
     c = [(lo[i] + hi[i]) * 0.5 for i in range(3)]
     span = max(hi[i] - lo[i] for i in range(3))
+
+    if fit:
+        k = 1.0 / max(span, 1e-6)
+        for o in objs:
+            for v in o.data.vertices:
+                v.co = ((o.matrix_world @ v.co) - mathutils.Vector(c)) * k
+            o.matrix_world = mathutils.Matrix.Identity(4)
+            o.data.update()
+        lo = [-0.5] * 3
+        hi = [0.5] * 3
+        c = [0.0, 0.0, 0.0]
+        span = 1.0
 
     bpy.ops.object.camera_add(location=(c[0] + span * 1.5, c[1] - span * 1.7, c[2] + span * 1.1))
     cam = bpy.context.object

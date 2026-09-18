@@ -49,7 +49,8 @@ def parse_args(argv):
     ap.add_argument("--samples", type=int, default=4)
     ap.add_argument("--shape", default="decimate", choices=["decimate", "sphere"],
                     help="з чого робити ціль. decimate — спростити саму модель (типово). "
-                         "sphere — взяти просту кулю за габаритами моделі. Друге потрібне для "
+                         "sphere — взяти кулю й посадити кожну її вершину на справжню поверхню "
+                         "оригіналу (промінь ззовні в центр). Друге потрібне для "
                          "форм із БАГАТЬОХ ОКРЕМИХ ОБОЛОНОК: у кущі кожен листочок сам по собі, "
                          "і схлопування впирається в дно (104 299 → 7 108 і далі нікуди), бо "
                          "оболонку не можна прибрати зовсім. Куля таких обмежень не має")
@@ -99,21 +100,37 @@ def join_source():
 
 ## ЦІЛЬ — копія джерела, зварена по швах і спрощена. Зварювання обов'язкове: glTF розщеплює
 ## вершину на кожному шві UV, і без нього спрощення рве оболонки на клапті.
-## Ціль-КУЛЯ за габаритами оригіналу. Для кулястих форм (кущ, крона) вона і є правильною
-## низькополігональною формою: silhouette у них і так кулястий, а всю дрібноту малює текстура.
-def make_sphere_target(src, segments, rings, shrink):
+## Ціль-ОБОЛОНКА для кулястих форм (кущ, крона). Беремо кулю з потрібною кількістю граней і
+## САДИМО КОЖНУ ЇЇ ВЕРШИНУ на справжню поверхню оригіналу: з точки далеко зовні стріляємо
+## променем у центр і беремо перше влучання.
+##
+## Чому не просто куля за габаритним боксом (так було спершу). Бокс куща 0,633 × 0,500 —
+## куля виходила приплюснутою, оригінал же на око круглий, бо його силует тримає листя, а не
+## бокс. Прилад це й показав: 57% схожості при вимозі 80%. З променями оболонка повторює
+## справжній силует, і число піднімається туди, куди треба.
+def make_shell_target(src, segments, rings, shrink):
+    import mathutils
     lo, hi = bounds([src])
-    c = [(lo[i] + hi[i]) * 0.5 for i in range(3)]
-    size = [max(hi[i] - lo[i], 1e-6) for i in range(3)]
+    c = mathutils.Vector([(lo[i] + hi[i]) * 0.5 for i in range(3)])
+    span = max(hi[i] - lo[i] for i in range(3))
     bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=0.5)
     dst = bpy.context.view_layer.objects.active
     dst.name = "ЦІЛЬ"
+    inv = src.matrix_world.inverted()
+    hits = 0
     for v in dst.data.vertices:
-        v.co.x = v.co.x * size[0] * shrink + c[0]
-        v.co.y = v.co.y * size[1] * shrink + c[1]
-        v.co.z = v.co.z * size[2] * shrink + c[2]
+        d = mathutils.Vector(v.co).normalized()
+        start = c + d * span * 1.5
+        ok, loc, _nrm, _idx = src.ray_cast(inv @ start, inv.to_3x3() @ (-d))
+        if ok:
+            v.co = c + (src.matrix_world @ loc - c) * shrink
+            hits += 1
+        else:
+            # промінь нікуди не влучив (заглиблення в силуеті) — лишаємо точку на габаритах
+            v.co = c + d * span * 0.5 * shrink
     dst.data.update()
-    print("  ціль: куля %d×%d, %d граней" % (segments, rings, len(dst.data.polygons)))
+    print("  ціль: оболонка %d×%d, %d граней (влучило променів: %d з %d)"
+          % (segments, rings, len(dst.data.polygons), hits, len(dst.data.vertices)))
     return dst
 
 
@@ -248,7 +265,7 @@ def main():
     src = join_source()
     print("  джерело: %d граней" % len(src.data.polygons))
     if a.shape == "sphere":
-        dst = make_sphere_target(src, a.segments, a.rings, a.shrink)
+        dst = make_shell_target(src, a.segments, a.rings, a.shrink)
     else:
         dst = make_target(src, a.tris)
     unwrap(dst)
