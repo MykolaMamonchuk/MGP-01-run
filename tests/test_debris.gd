@@ -113,3 +113,59 @@ func test_pieces_shrink_away_at_the_end() -> void:
 		"до початку згасання — теж")
 	assert_lt(d.piece_scale(Debris.LIFE_SEC * 0.95), 0.5, "під кінець уже майже зник")
 	assert_almost_eq(d.piece_scale(Debris.LIFE_SEC), 0.0, 0.001, "наприкінці — нуль")
+
+
+## Друзки — лише для того, що справді б'ється на шматки. Жива істота, хмара чи павутина на
+## кубики не б'ються, і брунатні друзки з корови виглядали б дико. Перевіряємо ДАНІ: поле
+## "breaks": "soft" мусить стояти на всьому живому й м'якому в усіх світах.
+func test_living_and_soft_obstacles_do_not_break_into_chunks() -> void:
+	var soft := ["cow", "dog", "fox", "hedgehog", "beehive", "jellyfish", "birds",
+		"owl_branch", "bigshroom", "cloud", "raincloud", "thundercloud", "balloon",
+		"web", "kite", "net", "fountain"]
+	var dir := DirAccess.open("res://data/worlds")
+	assert_not_null(dir, "світи читаються")
+	var seen := {}
+	for file in dir.get_files():
+		if not file.ends_with(".json"):
+			continue
+		var f := FileAccess.open("res://data/worlds/%s" % file, FileAccess.READ)
+		var parsed = JSON.parse_string(f.get_as_text())
+		if typeof(parsed) != TYPE_DICTIONARY:
+			continue
+		var obstacles = (parsed as Dictionary).get("obstacles", {})
+		if typeof(obstacles) != TYPE_DICTIONARY:
+			continue
+		for kind in (obstacles as Dictionary).keys():
+			if not soft.has(String(kind)):
+				continue
+			seen[kind] = true
+			var def: Dictionary = (obstacles as Dictionary)[kind]
+			assert_eq(String(def.get("breaks", "chunks")), "soft",
+				"%s у %s мусить мати breaks=soft — це жива істота або щось м'яке" % [kind, file])
+	assert_gt(seen.size(), 10, "перевірено відчутну частину списку, а не два види")
+
+
+## І навпаки: ящик, паркан, пеньок — б'ються. Якби типове значення колись змінили, розбиття
+## тихо зникло б з усієї гри.
+func test_solid_obstacles_still_break_into_chunks() -> void:
+	var f := FileAccess.open("res://data/worlds/meadow.json", FileAccess.READ)
+	var world: Dictionary = JSON.parse_string(f.get_as_text())
+	var obstacles: Dictionary = world.get("obstacles", {})
+	for kind in ["stump", "fence", "haycart", "xbox"]:
+		assert_true(obstacles.has(kind), "%s є в Лужку" % kind)
+		if not obstacles.has(kind):
+			continue
+		var def: Dictionary = obstacles[kind]
+		assert_eq(String(def.get("breaks", "chunks")), "chunks", "%s б'ється на друзки" % kind)
+
+
+## Сам вузол мусить читати це поле зі світу, а не вигадувати.
+func test_obstacle_reads_the_breaks_field_from_the_world() -> void:
+	var soft := Obstacle3D.new()
+	add_child_autofree(soft)
+	soft.setup("корова", {"action": "side", "box": [0.8, 0.9, 0.7], "breaks": "soft"}, 0, false, false)
+	assert_eq(soft.breaks, "soft")
+	var solid := Obstacle3D.new()
+	add_child_autofree(solid)
+	solid.setup("ящик", {"action": "side", "box": [0.7, 0.7, 0.7]}, 0, false, false)
+	assert_eq(solid.breaks, "chunks", "типово — друзки")

@@ -39,18 +39,22 @@ func test_world_without_colour_keeps_the_palette() -> void:
 
 ## Кущ малюється спрайтом із восьми боків. Найлегше тут помилитись у розмірі: якщо взяти
 ## ширину всієї СМУГИ замість однієї клітинки, кущ розтягнеться у стрічку на вісім метрів.
+## Запис перевіряємо СИНТЕТИЧНИЙ, а не справжній пропс. Раніше тест брав `bush_flower`, і
+## коли кущі 18.09.2026 перевели зі спрайта на запечену модель, він упав — хоч сам механізм
+## спрайтів і далі цілий. Тест мусить стерегти КОД, а не поточне художнє рішення: спрайтів
+## у data/props.json зараз нема жодного, але `_sprite_mesh()` лишається робочим.
 func test_multi_angle_sprite_uses_one_cell_not_the_whole_strip() -> void:
-	PropLibrary.reload()
-	if not PropLibrary.has("bush_flower"):
-		pass_test("спрайта куща ще нема — крок пропущено")
-		return
-	var m := PropLibrary.mesh("bush_flower")
+	PropLibrary.use({"проба_спрайта": {
+		"sprite": "res://assets/sprites/bush_flower_1.png",
+		"width": 0.642, "height": 0.503, "frames": 8}})
+	var m := PropLibrary.mesh("проба_спрайта")
 	assert_not_null(m, "меш є")
 	var quad := m as QuadMesh
 	assert_not_null(quad, "спрайт малюється дощечкою")
 	if quad != null:
 		assert_lt(quad.size.x, 1.5, "ширина — однієї клітинки, а не всієї смуги з восьми")
 		assert_gt(quad.size.x, 0.05, "і не нульова")
+	PropLibrary.reload()
 
 
 ## Без тіней кожен предмет лежить пласкою наліпкою — саме тінь дає об'єм, і саме її

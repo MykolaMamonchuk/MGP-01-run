@@ -2,30 +2,29 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://depgxsdf22fsk"
-path.s3tc="res://.godot/imported/bush_flower_1_normal.png-c5c4ab862f38e4a28c6c58515c8cb188.s3tc.ctex"
+uid="uid://u7s3qtmr7bry"
+path="res://.godot/imported/bush_flower_2_baked_normal.jpg-b82c51efa9779899059baee35a4cf7e4.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
-"md5": "ee086430b9f6f56b1bf7e1822df67762"
+"md5": "087319d15df26e5f1b662f7e61a1660e"
 }
 
 [deps]
 
-source_file="res://assets/props/3d/bush_flower_1_normal.png"
-dest_files=["res://.godot/imported/bush_flower_1_normal.png-c5c4ab862f38e4a28c6c58515c8cb188.s3tc.ctex"]
+source_file="res://assets/props/bush_flower_2_baked_normal.jpg"
+dest_files=["res://.godot/imported/bush_flower_2_baked_normal.jpg-b82c51efa9779899059baee35a4cf7e4.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=2
+compress/normal_map=0
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
@@ -40,5 +39,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=512
+process/size_limit=0
 detect_3d/compress_to=1

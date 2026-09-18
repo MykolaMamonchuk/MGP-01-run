@@ -16,9 +16,18 @@
     "res://assets/props/fence_low_3.glb"
   ],
   "fence_rail": [
-    { "path": "res://assets/props/fence_rail_1.glb", "scale": 0.99798 },
-    { "path": "res://assets/props/fence_rail_2.glb", "scale": 0.99708 },
-    { "path": "res://assets/props/fence_rail_3.glb", "scale": 0.99783 }
+    {
+      "path": "res://assets/props/fence_rail_1.glb",
+      "scale": 0.99798
+    },
+    {
+      "path": "res://assets/props/fence_rail_2.glb",
+      "scale": 0.99708
+    },
+    {
+      "path": "res://assets/props/fence_rail_3.glb",
+      "scale": 0.99783
+    }
   ],
   "crate": [
     "res://assets/props/crate_1.glb",
@@ -29,30 +38,18 @@
   "bridge_plank": "res://assets/props/bridge_plank.glb",
   "bush_flower": [
     {
-      "sprite": "res://assets/sprites/bush_flower_1.png",
-      "width": 0.642,
-      "height": 0.5029,
-      "frames": 8
+      "path": "res://assets/props/bush_flower_1.glb"
     },
     {
-      "sprite": "res://assets/sprites/bush_flower_2.png",
-      "width": 0.2948,
-      "height": 0.3134,
-      "frames": 8
+      "path": "res://assets/props/bush_flower_2.glb"
     }
   ],
   "bush": [
     {
-      "sprite": "res://assets/sprites/bush_flower_1.png",
-      "width": 0.642,
-      "height": 0.5029,
-      "frames": 8
+      "path": "res://assets/props/bush_flower_1.glb"
     },
     {
-      "sprite": "res://assets/sprites/bush_flower_2.png",
-      "width": 0.2948,
-      "height": 0.3134,
-      "frames": 8
+      "path": "res://assets/props/bush_flower_2.glb"
     }
   ],
   "house_red": "res://assets/props/house_red.glb",

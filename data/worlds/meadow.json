@@ -201,7 +201,8 @@
       "anim": "roll",
       "shape": "x_box",
       "marker": "none",
-      "prop": "barrel"
+      "prop": "barrel",
+      "breaks": "soft"
     },
     "cow": {
       "voxel": "cow",
@@ -216,7 +217,8 @@
       "anim": "breathe",
       "shape": "critter",
       "prop": "goose",
-      "marker": "none"
+      "marker": "none",
+      "breaks": "soft"
     },
     "haycart": {
       "voxel": "haycart",

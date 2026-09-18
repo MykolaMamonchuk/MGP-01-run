@@ -98,7 +98,8 @@
       ],
       "anim": "breathe",
       "shape": "x_box",
-      "marker": "none"
+      "marker": "none",
+      "breaks": "soft"
     },
     "bridge": {
       "voxel": "log",
@@ -125,7 +126,8 @@
       ],
       "anim": "drip",
       "shape": "x_box",
-      "marker": "none"
+      "marker": "none",
+      "breaks": "soft"
     },
     "comet": {
       "voxel": "comet",
@@ -152,7 +154,8 @@
         0.3
       ],
       "anim": "sway",
-      "shape": "high_frame"
+      "shape": "high_frame",
+      "breaks": "soft"
     },
     "moonswing": {
       "voxel": "moonswing",
@@ -191,7 +194,8 @@
         0.5
       ],
       "anim": "wobble",
-      "shape": "high_frame"
+      "shape": "high_frame",
+      "breaks": "soft"
     },
     "birds": {
       "voxel": "birds",
@@ -204,7 +208,8 @@
         0.3
       ],
       "anim": "flap",
-      "shape": "high_frame"
+      "shape": "high_frame",
+      "breaks": "soft"
     },
     "rocket": {
       "voxel": "spaceship_cart",
@@ -243,7 +248,8 @@
       ],
       "anim": "bob",
       "shape": "low_bar",
-      "marker": "none"
+      "marker": "none",
+      "breaks": "soft"
     }
   }
 }

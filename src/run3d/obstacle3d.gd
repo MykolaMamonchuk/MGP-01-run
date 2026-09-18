@@ -30,6 +30,10 @@ var moves := false
 var move_speed := 0.0
 var hit := false
 var passed := false
+## Як предмет поводиться, коли його розбивають: "chunks" — розлітається на друзки,
+## "soft" — просто пшикає й зникає. Жива істота, хмара чи павутина на кубики не б'ються,
+## і брунатні друзки з корови виглядали б дико. Задається полем "breaks" у data/worlds/*.json.
+var breaks := "chunks"
 
 var _mesh: MeshInstance3D
 var _dir := 1.0
@@ -46,6 +50,7 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 	lane = l
 	auto_assist = assist
 	moves = bool(def.get("moves", false))
+	breaks = String(def.get("breaks", "chunks"))
 	move_speed = float(def.get("move_speed", 0.0))
 	anim = String(def.get("anim", ""))
 	var b: Array = def.get("box", [0.7, 0.7, 0.7])
@@ -314,10 +319,12 @@ func shatter() -> void:
 	var centre := position + Vector3(0.0, _box_y + box.y * 0.5, 0.0)
 	if is_inside_tree():
 		FX.burst(get_parent(), centre, c)
-		# ДРУЗКИ. Ставимо їх у того самого батька, що й перешкоду: Spawner3D.advance() зсуває
-		# всіх своїх дітей разом із дорогою, тож шматки їдуть із світом, а не висять у
-		# повітрі, поки дорога тікає з-під них. KILL_Z прибере те, що поїхало за спину.
-		Debris.burst(get_parent(), centre, c, box)
+		# ДРУЗКИ — лише для того, що справді б'ється на шматки. Ставимо їх у того самого
+		# батька, що й перешкоду: Spawner3D.advance() зсуває всіх своїх дітей разом із
+		# дорогою, тож шматки їдуть із світом, а не висять у повітрі, поки дорога тікає
+		# з-під них. KILL_Z прибере те, що поїхало за спину.
+		if breaks == "chunks":
+			Debris.burst(get_parent(), centre, c, box)
 	# Сам предмет зникає ШВИДКО: моменти удару тепер тримають друзки, а довга пружинка поверх
 	# них читалась би як другий, окремий предмет.
 	var tw := create_tween()

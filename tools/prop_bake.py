@@ -47,6 +47,18 @@ def parse_args(argv):
     ap.add_argument("--box", default="")
     ap.add_argument("--cage", type=float, default=0.03)
     ap.add_argument("--samples", type=int, default=4)
+    ap.add_argument("--shape", default="decimate", choices=["decimate", "sphere"],
+                    help="з чого робити ціль. decimate — спростити саму модель (типово). "
+                         "sphere — взяти просту кулю за габаритами моделі. Друге потрібне для "
+                         "форм із БАГАТЬОХ ОКРЕМИХ ОБОЛОНОК: у кущі кожен листочок сам по собі, "
+                         "і схлопування впирається в дно (104 299 → 7 108 і далі нікуди), бо "
+                         "оболонку не можна прибрати зовсім. Куля таких обмежень не має")
+    ap.add_argument("--segments", type=int, default=20, help="--shape sphere: поділів по колу")
+    ap.add_argument("--rings", type=int, default=10, help="--shape sphere: поділів по висоті")
+    ap.add_argument("--shrink", type=float, default=0.92,
+                    help="--shape sphere: наскільки підтиснути кулю всередину габаритів. "
+                         "Промені запікання йдуть НАЗОВНІ, тож ціль мусить бути трохи меншою "
+                         "за оригінал, інакше вони не долетять до поверхні й лишаться плями")
     return ap.parse_args(argv)
 
 
@@ -87,6 +99,24 @@ def join_source():
 
 ## ЦІЛЬ — копія джерела, зварена по швах і спрощена. Зварювання обов'язкове: glTF розщеплює
 ## вершину на кожному шві UV, і без нього спрощення рве оболонки на клапті.
+## Ціль-КУЛЯ за габаритами оригіналу. Для кулястих форм (кущ, крона) вона і є правильною
+## низькополігональною формою: silhouette у них і так кулястий, а всю дрібноту малює текстура.
+def make_sphere_target(src, segments, rings, shrink):
+    lo, hi = bounds([src])
+    c = [(lo[i] + hi[i]) * 0.5 for i in range(3)]
+    size = [max(hi[i] - lo[i], 1e-6) for i in range(3)]
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=0.5)
+    dst = bpy.context.view_layer.objects.active
+    dst.name = "ЦІЛЬ"
+    for v in dst.data.vertices:
+        v.co.x = v.co.x * size[0] * shrink + c[0]
+        v.co.y = v.co.y * size[1] * shrink + c[1]
+        v.co.z = v.co.z * size[2] * shrink + c[2]
+    dst.data.update()
+    print("  ціль: куля %d×%d, %d граней" % (segments, rings, len(dst.data.polygons)))
+    return dst
+
+
 def make_target(src, tris):
     select_only([src], src)
     bpy.ops.object.duplicate()
@@ -217,7 +247,10 @@ def main():
 
     src = join_source()
     print("  джерело: %d граней" % len(src.data.polygons))
-    dst = make_target(src, a.tris)
+    if a.shape == "sphere":
+        dst = make_sphere_target(src, a.segments, a.rings, a.shrink)
+    else:
+        dst = make_target(src, a.tris)
     unwrap(dst)
 
     color_img = new_image("baked_color", a.size, False)

@@ -156,7 +156,8 @@
       ],
       "anim": "pulse",
       "shape": "low_bar",
-      "marker": "none"
+      "marker": "none",
+      "breaks": "soft"
     },
     "ball": {
       "voxel": "ball",
@@ -249,7 +250,8 @@
         0.3
       ],
       "anim": "sway",
-      "shape": "high_frame"
+      "shape": "high_frame",
+      "breaks": "soft"
     }
   }
 }
