@@ -114,7 +114,7 @@ func _poll_pending() -> void:
 	if status == ResourceLoader.THREAD_LOAD_LOADED:
 		var packed := ResourceLoader.load_threaded_get(_pending_path) as PackedScene
 		if packed != null:
-			_apply(packed)
+			_apply(packed, float(_pending_index) * CHUNK_LENGTH_M)
 	else:
 		push_warning("чанк не прочитався: %s" % _pending_path)
 	_pending_index = -1
@@ -136,6 +136,19 @@ func _request_next_chunk() -> void:
 		_pending_path = path
 		return
 	_done = true              # дійшли до останнього чанку теки — рівень завантажено повністю
+
+
+## Зсув чанка за його ІМ'ЯМ файлу ("chunk_03.tscn" → 450). Потрібен тестам і інструментам, які
+## розбирають сцени текстом і не мають кому передати зсув. Поки рівень — це тека з чанками по
+## порядку, номер і є місцем; коли з'явиться збирач зі списку цеглинок, ця функція лишиться
+## для старих рівнів, а збирач рахуватиме зсув накопичувально.
+static func offset_for(file_name: String) -> float:
+	var base := file_name.get_file().get_basename()
+	if base.get_extension() == "tscn":
+		base = base.get_basename()
+	if not base.begins_with("chunk_"):
+		return 0.0
+	return float(int(base.substr(6))) * CHUNK_LENGTH_M
 
 
 func _folder_path() -> String:
@@ -180,11 +193,12 @@ func _load_chunk_resource(path: String) -> PackedScene:
 ## Перший чанк рівня, синхронно.
 func _load_first_chunk() -> void:
 	while _next_chunk_index <= _last_chunk_index:
-		var packed := _load_chunk_resource(_chunk_path(_next_chunk_index))
+		var index := _next_chunk_index
+		var packed := _load_chunk_resource(_chunk_path(index))
 		_next_chunk_index += 1
 		_loaded_through_z = float(_next_chunk_index) * CHUNK_LENGTH_M
 		if packed != null:
-			_apply(packed)
+			_apply(packed, float(index) * CHUNK_LENGTH_M)
 			return
 	_done = true
 
@@ -194,15 +208,21 @@ func _load_flat_level() -> void:
 	if packed == null:
 		_done = true
 		return
-	_apply(packed)
+	_apply(packed, 0.0)
 	_done = true               # єдиний файл — увесь рівень уже в Track/Spawner3D
 
 
+## offset_m — на якому метрі траси стоїть цей чанк. Передає ТОЙ, ХТО СТАВИТЬ, а не сама
+## сцена: цеглинку треба вміти поставити на 150-му метрі одного рівня й на 900-му іншого.
+## Поки рівень — це тека з чанками по порядку, зсув дорівнює номер × CHUNK_LENGTH_M; коли
+## з'явиться збирач зі списку цеглинок (docs/tasks/reusable-chunks.md), він рахуватиме його
+## накопичувально, і більше нічого міняти не доведеться.
+##
 ## Інстанціювати чанк ЛИШЕ заради LevelTimeline.extract() і одразу звільнити — так само, як
 ## робив старий _load_authored_level(): нічого з авторської сцени не потрапляє в живе дерево.
-func _apply(packed: PackedScene) -> void:
+func _apply(packed: PackedScene, offset_m: float) -> void:
 	var layout := packed.instantiate()
-	var extracted := LevelTimeline.extract(layout)
+	var extracted := LevelTimeline.extract(layout, offset_m)
 	# Саме free(), а не queue_free(). Вузол ніколи не потрапляв у дерево, і потрібен він рівно
 	# на один рядок вище; queue_free() же відкладає звільнення до кінця кадру, тобто тримає
 	# цілий LevelLayout з усіма маркерами живим доти, доки SceneTree не дійде до черги

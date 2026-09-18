@@ -5,7 +5,6 @@
 
 [node name="LevelLayout" type="Node3D"]
 script = ExtResource("2")
-z_offset_m = 1350.0
 
 [node name="M265_obstacle_balloon" type="Node3D" parent="." index="0"]
 script = ExtResource("1")

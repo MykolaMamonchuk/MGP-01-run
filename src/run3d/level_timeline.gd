@@ -27,17 +27,16 @@ const ROLE_KEYS := {
 ## layout_root — корінь інстанційованої авторської сцени (наприклад LevelLayout). Повертає
 ## {"decor":[...], "obstacles":[...], "pickups":[...], "buildings":[...], "landmarks":[...], "walls_near":[...]},
 ## кожен масив відсортований за зростанням z_m.
-static func extract(layout_root: Node) -> Dictionary:
+static func extract(layout_root: Node, offset_m: float = 0.0) -> Dictionary:
 	var out: Dictionary = {}
 	for key in ROLE_KEYS.values():
 		out[key] = []
 	if layout_root != null:
-		# Маркери чанка лежать у ЛОКАЛЬНИХ метрах (від початку самого чанка), щоб відкритий
-		# у редакторі чанк не виявився порожнім: раніше z була абсолютна, і chunk_05 стояв
-		# за 750 м від початку координат. Зсув місця чанка в рівні тримає корінь — LevelLayout.
-		var offset := 0.0
-		if layout_root is LevelLayout:
-			offset = (layout_root as LevelLayout).z_offset_m
+		# Маркери чанка лежать у ЛОКАЛЬНИХ метрах — від початку самого чанка. Зсув передає той,
+		# ХТО СТАВИТЬ чанк, а не сам чанк: цеглинку треба вміти поставити на 150-му метрі
+		# одного рівня й на 900-му іншого. Раніше зсув лежав у самій сцені (LevelLayout.
+		# z_offset_m) і саме це прив'язувало чанк до одного місця в одному рівні.
+		var offset := offset_m
 		_collect(layout_root, out)
 		if not is_zero_approx(offset):
 			for key in out.keys():

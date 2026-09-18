@@ -5,7 +5,6 @@
 
 [node name="LevelLayout" type="Node3D"]
 script = ExtResource("2")
-z_offset_m = 900.0
 
 [node name="M181_obstacle_ramp" type="Node3D" parent="." index="0"]
 script = ExtResource("1")

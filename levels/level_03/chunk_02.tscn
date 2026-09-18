@@ -5,7 +5,6 @@
 
 [node name="LevelLayout" type="Node3D"]
 script = ExtResource("2")
-z_offset_m = 300.0
 
 [node name="M55_decor_fence" type="Node3D" parent="." index="0"]
 script = ExtResource("1")

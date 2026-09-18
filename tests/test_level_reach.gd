@@ -32,8 +32,9 @@ func _last_obstacle_m(num: int) -> float:
 			continue
 		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
 		var text := f.get_as_text()
-		# z маркера ЛОКАЛЬНА (від початку чанка) — без зсуву чанка вона нічого не значить.
-		var offset := LevelLayout.offset_from_text(text)
+		# z маркера ЛОКАЛЬНА (від початку чанка). Зсув беремо з ІМЕНІ файлу: сама сцена його
+		# більше не знає — цеглинку треба вміти поставити в будь-яке місце будь-якого рівня.
+		var offset := LevelChunkLoader.offset_for(name)
 		for block in text.split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue

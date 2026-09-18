@@ -49,8 +49,8 @@ func _lanes_beyond(num: int, cut: float) -> Array:
 			continue
 		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
 		var text := f.get_as_text()
-		# z маркера ЛОКАЛЬНА (від початку чанка) — додаємо зсув самого чанка.
-		var offset := LevelLayout.offset_from_text(text)
+		# z маркера ЛОКАЛЬНА (від початку чанка); зсув — з імені файлу (сцена його не знає).
+		var offset := LevelChunkLoader.offset_for(name)
 		for block in text.split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue
@@ -108,8 +108,8 @@ func _lanes_within(num: int, cut: float) -> Array:
 			continue
 		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
 		var text := f.get_as_text()
-		# z маркера ЛОКАЛЬНА (від початку чанка) — додаємо зсув самого чанка.
-		var offset := LevelLayout.offset_from_text(text)
+		# z маркера ЛОКАЛЬНА (від початку чанка); зсув — з імені файлу (сцена його не знає).
+		var offset := LevelChunkLoader.offset_for(name)
 		for block in text.split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue
@@ -183,8 +183,8 @@ func _side_decor_within(num: int, cut: float, half: float) -> Array:
 			continue
 		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
 		var text := f.get_as_text()
-		# z маркера ЛОКАЛЬНА (від початку чанка) — додаємо зсув самого чанка.
-		var offset := LevelLayout.offset_from_text(text)
+		# z маркера ЛОКАЛЬНА (від початку чанка); зсув — з імені файлу (сцена його не знає).
+		var offset := LevelChunkLoader.offset_for(name)
 		for block in text.split("[node "):
 			# Godot НЕ пише властивість, що дорівнює типовій, тож у маркера декору рядка
 			# role може не бути зовсім — саме так виглядає чанк, перезбережений редактором.
