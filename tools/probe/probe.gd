@@ -85,6 +85,12 @@ func _ready() -> void:
 			await _frames_passed(10)
 			hud_after = _hud_state()
 
+	# Хто саме їсть кадр. Декор малюється шарами MultiMesh — один шар на вид моделі, — і
+	# ціна шару це «трикутники моделі × скільки копій ВИДНО зараз». Без цієї розкладки
+	# «важка модель» лишається здогадкою: у файлі модель може важити 100 тисяч граней і не
+	# коштувати нічого, бо в грі замість неї малюється спрайт (так із bush_flower).
+	var decor := _decor_cost()
+
 	var report := {
 		"stage": _stage,
 		"level": _level,
@@ -105,12 +111,42 @@ func _ready() -> void:
 			"texture_mem_mb": Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
 		},
 		"controls": _controls(_run),
+		"decor_cost": decor,
 	}
 	var f := FileAccess.open("%s/probe.json" % _out, FileAccess.WRITE)
 	f.store_string(JSON.stringify(report, "\t"))
 	f.close()
 	print("PROBE ok → %s (контролів: %d)" % [_out, (report["controls"] as Array).size()])
 	get_tree().quit()
+
+
+## [{kind, instances, tris_each, tris_total}] за спаданням ціни. Читає приватні поля Track
+## навмисно: це вимірювальний інструмент, а не частина гри, і окремий API заради нього в
+## гарячому класі заводити не варто.
+func _decor_cost() -> Array:
+	var out: Array = []
+	var track = _run.get("track") if _run != null else null
+	if track == null:
+		return out
+	var layer_of: Dictionary = track.get("_decor_layer_of")
+	var names := {}
+	for key in layer_of.keys():
+		names[int(layer_of[key])] = String(key)
+	var mms: Array = track.get("_decor_mm")
+	for i in range(mms.size()):
+		var mi: MultiMeshInstance3D = mms[i]
+		var mm := mi.multimesh as MultiMesh
+		if mm == null or mm.mesh == null or mm.visible_instance_count <= 0:
+			continue
+		var tris := mm.mesh.get_faces().size() / 3
+		out.append({
+			"kind": names.get(i, "?"),
+			"instances": mm.visible_instance_count,
+			"tris_each": tris,
+			"tris_total": tris * mm.visible_instance_count,
+		})
+	out.sort_custom(func(a, b): return int(a["tris_total"]) > int(b["tris_total"]))
+	return out
 
 
 func _frames_passed(n: int) -> void:
