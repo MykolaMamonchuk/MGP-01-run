@@ -299,3 +299,25 @@ func test_broken_seam_leaves_the_level_empty_instead_of_half_assembled() -> void
 	_loader.start(1, _track, _spawner, level)
 	_remove_brick()
 	assert_false(_spawner._authored_active, "жодного запису зі зламаної збірки не поїхало")
+
+
+## Кожен рівень із data/levels.json мусить мати непорожній план, і кожен його файл мусить
+## існувати. Сторож не про завантажувач, а про ДАНІ: сторожі-інваріанти (test_level_reach,
+## test_level_widening, test_level_decor_clearance, test_level_obstacle_types) ходять цим самим
+## планом, і рівень, який раптом перестав його давати, зробив би половину з них вічнозеленими.
+func test_every_level_in_the_data_has_a_plan_and_all_its_files_exist() -> void:
+	var f := FileAccess.open("res://data/levels.json", FileAccess.READ)
+	var levels: Array = JSON.parse_string(f.get_as_text()).get("levels", [])
+	assert_eq(levels.size(), 17, "рівнів сімнадцять")
+	for l in levels:
+		var level: Dictionary = l
+		var num := int(level["id"])
+		var plan := LevelChunkLoader.plan_of(num, level)
+		assert_false(plan.is_empty(), "рівень %d має план" % num)
+		var total := 0.0
+		for piece in plan:
+			assert_true(ResourceLoader.exists(String(piece["path"])),
+				"рівень %d: %s існує" % [num, piece["path"]])
+			assert_almost_eq(float(piece["offset_m"]), total, 0.001,
+				"рівень %d: цеглинки лягають упритул, без дір і нахлистів" % num)
+			total += float(piece["length_m"])

@@ -22,20 +22,18 @@ func _json(path: String) -> Dictionary:
 
 
 ## Найдальший маркер-перешкода рівня, у метрах.
-func _last_obstacle_m(num: int) -> float:
-	var dir := DirAccess.open("res://levels/level_%02d" % num)
-	if dir == null:
-		return 0.0
+func _last_obstacle_m(level: Dictionary) -> float:
 	var far := 0.0
-	for name in dir.get_files():
-		if not name.ends_with(".tscn"):
+	# Сцени рівня беремо ПЛАНОМ, а не скануванням теки: рівень уже може бути зібраний зі
+	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
+	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
+	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
+		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
+		if f == null:
 			continue
-		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
-		var text := f.get_as_text()
-		# z маркера ЛОКАЛЬНА (від початку чанка). Зсув беремо з ІМЕНІ файлу: сама сцена його
-		# більше не знає — цеглинку треба вміти поставити в будь-яке місце будь-якого рівня.
-		var offset := LevelChunkLoader.offset_for(name)
-		for block in text.split("[node "):
+		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
+		var offset := float(piece["offset_m"])
+		for block in f.get_as_text().split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue
 			var tr := block.find("Transform3D(")
@@ -61,7 +59,7 @@ func test_every_level_has_obstacles_all_the_way_for_the_fastest_child() -> void:
 		var level: Dictionary = l
 		var num := int(level["id"])
 		var need := fastest * float(level["speed_mult"]) * float(level["duration_sec"]) * RAMP
-		var have := _last_obstacle_m(num)
+		var have := _last_obstacle_m(level)
 		assert_gte(have, need,
 			("рівень %d: маркери сягають %.0f м, а швидка дитина пробігає %.0f — "
 			+ "хвіст без жодної перешкоди") % [num, have, need])

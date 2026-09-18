@@ -66,7 +66,7 @@ func start(num: int, track: Track, spawner: Spawner3D, level: Dictionary = {}) -
 	# переведений на бібліотеку, мовчки вантажив би дві розкладки одночасно, а зі зламаним
 	# стиком — показував би геть іншу замість помилки, яку вже надруковано.
 	var declared: Array = level.get("chunks", [])
-	_plan = _build_from_library(level) if not declared.is_empty() else _plan_from_folder()
+	_plan = plan_of(num, level)
 	_chunked = not _plan.is_empty()
 	track.clear_authored_timeline()
 	_clear_obstacles()
@@ -80,24 +80,38 @@ func start(num: int, track: Track, spawner: Spawner3D, level: Dictionary = {}) -
 		_done = true
 
 
-## План зі списку цеглинок. Зламана збірка — це порожній план, а не «зібрати як вийде»: рівень
-## зі стиком «3 доріжки віддає, 5 чекає» виглядав би як обрив дороги посеред бігу.
-func _build_from_library(level: Dictionary) -> Array:
+## План рівня БЕЗ завантаження: [{id, path, offset_m, length_m}] у порядку проходження.
+##
+## Статична навмисно. Цим самим планом ходять сторожі-інваріанти (test_level_reach,
+## test_level_widening, test_level_decor_clearance, test_level_obstacle_types), які читають
+## сцени текстом і вузлів не створюють. Доти кожен із них сам сканував теку рівня й сам
+## рахував зсув з імені файлу — чотири копії одного знання. Після збирача така копія стала б
+## не просто дублем, а мовчазною дірою: рівень, зібраний зі списку цеглинок, теки не має, і
+## сторож обходив би порожнечу, нічого не перевіряючи й не скаржачись.
+##
+## level — запис рівня з data/levels.json. Порожній словник = «дивись лише в теку».
+static func plan_of(num: int, level: Dictionary = {}) -> Array:
+	var declared: Array = level.get("chunks", [])
+	if declared.is_empty():
+		return _plan_from_folder(num)
+	# Зламана збірка — це порожній план, а не «зібрати як вийде»: рівень зі стиком «3 доріжки
+	# віддає, 5 чекає» виглядав би як обрив дороги посеред бігу.
 	var built := ChunkLibrary.assemble(level, ChunkLibrary.scan())
 	var errors: Array = built["errors"]
 	if errors.is_empty():
 		return built["pieces"]
 	for e in errors:
-		push_error("рівень %d: %s" % [_num, e])
+		push_error("рівень %d: %s" % [num, e])
 	return []
 
 
 ## Старий шлях: тека levels/level_XX/ із чанками chunk_NN.tscn по CHUNK_LENGTH_M метрів.
 ## Пропущений номер — це просто порожній відрізок рівня, а не кінець: зсув рахується від
 ## НОМЕРА, тож дірка лишається діркою й не з'їжджає.
-func _plan_from_folder() -> Array:
+static func _plan_from_folder(num: int) -> Array:
 	var out: Array = []
-	var dir := DirAccess.open(_folder_path())
+	var folder := "res://levels/level_%02d" % num
+	var dir := DirAccess.open(folder)
 	if dir == null:
 		return out
 	var indices: Array = []
@@ -111,7 +125,7 @@ func _plan_from_folder() -> Array:
 	for index in indices:
 		out.append({
 			"id": "chunk_%02d" % index,
-			"path": _chunk_path(index),
+			"path": "%s/chunk_%02d.tscn" % [folder, index],
 			"offset_m": float(index) * CHUNK_LENGTH_M,
 			"length_m": CHUNK_LENGTH_M,
 		})
@@ -193,16 +207,8 @@ static func offset_for(file_name: String) -> float:
 	return float(int(base.substr(6))) * CHUNK_LENGTH_M
 
 
-func _folder_path() -> String:
-	return "res://levels/level_%02d" % _num
-
-
 func _flat_path() -> String:
 	return "res://levels/level_%02d.tscn" % _num
-
-
-func _chunk_path(index: int) -> String:
-	return "%s/chunk_%02d.tscn" % [_folder_path(), index]
 
 
 ## Єдине місце, де чанк реально читається з диска — свідомо ізольоване від решти логіки: коли

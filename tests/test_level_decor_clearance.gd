@@ -35,15 +35,23 @@ func _edge(lanes: int) -> float:
 
 ## Бічні маркери декору, що опинились ближче до центру, ніж край дороги. Маркери по центру
 ## (|x| < 0.3) пропускаємо — це орієнтири-арки, вони над дорогою за задумом.
-func _decor_on_the_road(num: int, edge: float) -> Array:
+## seen — скільки маркерів декору взагалі переглянуто. Сам тест перевіряє ПОРОЖНЕЧУ («на дорозі
+## нікого»), тож без цього числа він лишався б зеленим і на порожньому плані.
+var _seen_decor := 0
+
+
+func _decor_on_the_road(level: Dictionary, edge: float) -> Array:
 	var out := []
-	var dir := DirAccess.open("res://levels/level_%02d" % num)
-	if dir == null:
-		return out
-	for name in dir.get_files():
-		if not name.ends_with(".tscn"):
+	_seen_decor = 0
+	# Сцени рівня беремо ПЛАНОМ, а не скануванням теки: рівень уже може бути зібраний зі
+	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
+	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
+	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
+		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
+		if f == null:
 			continue
-		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
+		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
+		var offset := float(piece["offset_m"])
 		for block in f.get_as_text().split("[node "):
 			# Godot НЕ пише властивість, що дорівнює типовій, тож у маркера декору рядка role
 			# може не бути зовсім (так виглядає чанк, перезбережений редактором). Шукати
@@ -59,6 +67,7 @@ func _decor_on_the_road(num: int, edge: float) -> Array:
 			var args := block.substr(tr + 12).split(")")[0].split(",")
 			if args.size() < 12:
 				continue
+			_seen_decor += 1
 			var x := float(args[9])
 			if absf(x) > 0.3 and absf(x) < edge:
 				var at := block.find("kind = \"")
@@ -75,7 +84,8 @@ func test_no_side_decor_stands_on_the_running_road() -> void:
 		if level.has("lanes_to"):
 			continue
 		var edge := _edge(int(level.get("lanes", 3)))
-		var bad := _decor_on_the_road(num, edge)
+		var bad := _decor_on_the_road(level, edge)
+		assert_gt(_seen_decor, 0, "рівень %d: маркери декору знайдено" % num)
 		assert_true(bad.is_empty(),
 			("рівень %d: дорога сягає ±%.2f м, а на ній стоїть декор (%d шт.): %s")
 			% [num, edge, bad.size(), bad.slice(0, 5)])

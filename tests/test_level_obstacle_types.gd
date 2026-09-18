@@ -17,15 +17,17 @@ func _json(path: String) -> Dictionary:
 	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
 
 
-func _kinds_of(num: int) -> Dictionary:
+func _kinds_of(level: Dictionary) -> Dictionary:
 	var out := {}
-	var dir := DirAccess.open("res://levels/level_%02d" % num)
-	if dir == null:
-		return out
-	for name in dir.get_files():
-		if not name.ends_with(".tscn"):
+	# Сцени рівня беремо ПЛАНОМ, а не скануванням теки: рівень уже може бути зібраний зі
+	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
+	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
+	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
+		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
+		if f == null:
 			continue
-		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
+		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
+		var offset := float(piece["offset_m"])
 		for block in f.get_as_text().split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue
@@ -46,7 +48,10 @@ func test_authored_obstacles_respect_the_levels_own_type_list() -> void:
 			continue        # порожній список = усі види біому, обмежень нема
 		var num := int(level["id"])
 		var extra := []
-		var used := _kinds_of(num)
+		var used := _kinds_of(level)
+		# Сторож стереже порожнечу («зайвих видів нема»), тож мусить довести, що взагалі щось
+		# бачив: план, який зненацька став порожнім, інакше зробив би його вічнозеленим.
+		assert_false(used.is_empty(), "рівень %d: маркери-перешкоди знайдено" % num)
 		for kind in used.keys():
 			if not allowed.has(kind):
 				extra.append("%s×%d" % [kind, used[kind]])

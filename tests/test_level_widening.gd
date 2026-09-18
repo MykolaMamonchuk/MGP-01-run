@@ -39,19 +39,18 @@ func _widen_distance(level: Dictionary, profiles: Dictionary) -> float:
 
 ## Смуги перешкод рівня далі за задану відстань — читаємо .tscn як текст, бо LevelMarker3D
 ## живе у сценах, а не в даних.
-func _lanes_beyond(num: int, cut: float) -> Array:
+func _lanes_beyond(level: Dictionary, cut: float) -> Array:
 	var lanes := {}
-	var dir := DirAccess.open("res://levels/level_%02d" % num)
-	if dir == null:
-		return []
-	for name in dir.get_files():
-		if not name.ends_with(".tscn"):
+	# Сцени рівня беремо ПЛАНОМ, а не скануванням теки: рівень уже може бути зібраний зі
+	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
+	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
+	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
+		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
+		if f == null:
 			continue
-		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
-		var text := f.get_as_text()
-		# z маркера ЛОКАЛЬНА (від початку чанка); зсув — з імені файлу (сцена його не знає).
-		var offset := LevelChunkLoader.offset_for(name)
-		for block in text.split("[node "):
+		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
+		var offset := float(piece["offset_m"])
+		for block in f.get_as_text().split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue
 			var lane_at := block.find("lane = ")
@@ -91,26 +90,25 @@ func test_no_obstacle_uses_a_wide_lane_before_the_road_widens() -> void:
 				continue
 			var v := float((p as Dictionary)["speed"]) * mult
 			soonest = minf(soonest, v * dur * (at + 0.175 * at * at))
-		for lane in _lanes_within(num, soonest):
+		for lane in _lanes_within(level, soonest):
 			assert_lte(absi(int(lane)), narrow,
 				("рівень %d: смуга %d вжита ще до розширення (найраніше на %.0f м) — "
 				+ "перешкода повисне за краєм вузької дороги") % [num, lane, soonest])
 
 
 ## Смуги перешкод, що стоять БЛИЖЧЕ за задану відстань.
-func _lanes_within(num: int, cut: float) -> Array:
+func _lanes_within(level: Dictionary, cut: float) -> Array:
 	var lanes := {}
-	var dir := DirAccess.open("res://levels/level_%02d" % num)
-	if dir == null:
-		return []
-	for name in dir.get_files():
-		if not name.ends_with(".tscn"):
+	# Сцени рівня беремо ПЛАНОМ, а не скануванням теки: рівень уже може бути зібраний зі
+	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
+	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
+	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
+		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
+		if f == null:
 			continue
-		var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
-		var text := f.get_as_text()
-		# z маркера ЛОКАЛЬНА (від початку чанка); зсув — з імені файлу (сцена його не знає).
-		var offset := LevelChunkLoader.offset_for(name)
-		for block in text.split("[node "):
+		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
+		var offset := float(piece["offset_m"])
+		for block in f.get_as_text().split("[node "):
 			if not block.contains("role = \"obstacle\""):
 				continue
 			var lane_at := block.find("lane = ")
@@ -161,7 +159,7 @@ func test_widened_levels_use_their_new_outer_lanes() -> void:
 		var num := int(level["id"])
 		var wide: int = int(level["lanes_to"]) / 2
 		var cut := _widen_distance(level, profiles) + MARGIN_M
-		var lanes := _lanes_beyond(num, cut)
+		var lanes := _lanes_beyond(level, cut)
 		assert_false(lanes.is_empty(),
 			"рівень %d має перешкоди після розширення (%.0f м)" % [num, cut])
 		if lanes.is_empty():
