@@ -720,6 +720,10 @@ func _start_level(num: int) -> void:
 	# TODO(v1.3 §5): st.luck — частота пікапів живе у Spawner3D._schedule_pickup (Pickup3D.per_minute_total), множника ще нема
 	spawner.set_level(level.get("obstacle_types", []), float(level.get("density", 1.0)), lanes, bool(level.get("tutorial", false)))
 	_chunk_loader = LevelChunkLoader.new()
+	# Рівень, розставлений У СЦЕНІ: процедурний декор вимкнено, усе кладуть маркери.
+	# Поверхні траси (дорога, узбіччя, канал, вода) лишаються процедурними завжди —
+	# див. docs/tasks/authored-levels.md.
+	track.authored_only = bool(level.get("authored", false))
 	_chunk_loader.start(level_num, track, spawner)
 	spawner.spawning = false
 	events_spawner.allowed_ids = level.get("events", [])
