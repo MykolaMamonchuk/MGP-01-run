@@ -22,6 +22,7 @@
 | `perf/` | Сцена заміру FPS (Godot) |
 | `../src/debug/face_shot.tscn` | Знімок морди героя анфас + тісний кроп ока: `OUT=/tmp/face.png HERO=lys godot res://src/debug/face_shot.tscn` |
 | `../src/debug/zoo.tscn` | Усі звірята в ряд, живі, спільні клавіші: `godot res://src/debug/zoo.tscn` (`ZOO=all` — ще й воксельні, `ZOO=lys,olen` — вибірка, `OUT=/tmp/zoo.png` — знімок і вихід) |
+| `../src/debug/shatter_shot.tscn` | Знімок РОЗБИТТЯ предмета: `OUT=/tmp/sh KIND=stump WORLD=meadow FRAMES=40 godot --path . --fixed-fps 60 res://src/debug/shatter_shot.tscn`. `--fixed-fps` обов'язковий: кожен кадр пишеться в PNG, і без фіксованої дельти ефект старіє на секунду за вісім кадрів |
 | `../src/debug/model_preview.tscn` | Показати героя зі скелетним ригом (`RIG=<ім'я>`) або, як запасний варіант, один воксель у порожній сцені: `VOXEL=<ім'я> godot res://src/debug/model_preview.tscn` |
 | `shots/` | Сцена автознімків (Godot) |
 | `probe/` | Запитати живу гру числами: геометрія всіх Control'ів + кадр З ІНТЕРФЕЙСОМ — див. розділ нижче |
