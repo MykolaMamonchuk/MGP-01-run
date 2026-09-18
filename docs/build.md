@@ -62,7 +62,7 @@ done
 Протилежна перевірка не менш важлива — що потрібне на місці:
 
 ```sh
-for p in data/props.json data/heroes.json data/worlds/meadow.json levels/level_01/chunk_00.tscn; do
+for p in data/props.json data/heroes.json data/worlds/meadow.json levels/chunks/meadow_gate/chunk.tscn; do
   printf "%-38s %s\n" "$p" "$(strings -a /tmp/game.pck | grep -cF "$p")"
 done
 ```

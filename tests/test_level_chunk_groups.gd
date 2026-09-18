@@ -27,20 +27,29 @@ const FOLDERS := {
 }
 
 
-func _chunk_paths() -> Array:
-	var out := []
-	for num in range(1, 18):
-		var dir := DirAccess.open("res://levels/level_%02d" % num)
-		if dir == null:
-			continue
-		var names := []
-		for name in dir.get_files():
-			if name.ends_with(".tscn"):
-				names.append(name)
-		names.sort()
-		for name in names:
-			out.append("res://levels/level_%02d/%s" % [num, name])
+## Усі авторські сцени проєкту: і теки рівнів levels/level_XX/, і бібліотека цеглинок
+## levels/chunks/<id>/ (сам чанк плюс його layout'и). Сканувати самі лише теки рівнів більше
+## не можна: рівень, зібраний зі списку цеглинок, теки не має, і сторож обходив би порожнечу
+## (docs/MEMORY.md, «Сторож, що перевіряє ПОРОЖНЕЧУ»).
+func _authored_scenes(root := "res://levels") -> Array:
+	var out: Array = []
+	var dir := DirAccess.open(root)
+	if dir == null:
+		return out
+	var names := dir.get_files()
+	names.sort()
+	for name in names:
+		if name.ends_with(".tscn") and root != "res://levels":
+			out.append("%s/%s" % [root, name])
+	var subdirs := dir.get_directories()
+	subdirs.sort()
+	for sub in subdirs:
+		out.append_array(_authored_scenes("%s/%s" % [root, sub]))
 	return out
+
+
+func _chunk_paths() -> Array:
+	return _authored_scenes()
 
 
 func _text(path: String) -> String:

@@ -12,32 +12,46 @@ extends GutTest
 
 
 ## Усі kind, що трапляються в чанках усіх рівнів, разом зі списком файлів, де вони стоять.
+## Усі авторські сцени проєкту: і теки рівнів levels/level_XX/, і бібліотека цеглинок
+## levels/chunks/<id>/ (сам чанк плюс його layout'и). Сканувати самі лише теки рівнів більше
+## не можна: рівень, зібраний зі списку цеглинок, теки не має, і сторож обходив би порожнечу
+## (docs/MEMORY.md, «Сторож, що перевіряє ПОРОЖНЕЧУ»).
+func _authored_scenes(root := "res://levels") -> Array:
+	var out: Array = []
+	var dir := DirAccess.open(root)
+	if dir == null:
+		return out
+	var names := dir.get_files()
+	names.sort()
+	for name in names:
+		if name.ends_with(".tscn") and root != "res://levels":
+			out.append("%s/%s" % [root, name])
+	var subdirs := dir.get_directories()
+	subdirs.sort()
+	for sub in subdirs:
+		out.append_array(_authored_scenes("%s/%s" % [root, sub]))
+	return out
+
+
 func _kinds_in_levels() -> Dictionary:
 	var out := {}
-	for num in range(1, 18):
-		var dir := DirAccess.open("res://levels/level_%02d" % num)
-		if dir == null:
-			continue
-		for name in dir.get_files():
-			if not name.ends_with(".tscn"):
+	for path in _authored_scenes():
+		var f := FileAccess.open(String(path), FileAccess.READ)
+		for block in f.get_as_text().split("[node "):
+			var at := block.find("kind = \"")
+			if at < 0:
 				continue
-			var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
-			for block in f.get_as_text().split("[node "):
-				var at := block.find("kind = \"")
-				if at < 0:
-					continue
-				var kind := block.substr(at + 8).split("\"")[0]
-				if kind == "":
-					continue
-				var role_at := block.find("role = \"")
-				var role := block.substr(role_at + 8).split("\"")[0] if role_at >= 0 else "decor"
-				# Ключ — «роль|вид»: перешкода бере модель інакше, ніж декор із тим самим ім'ям.
-				var key := "%s|%s" % [role, kind]
-				if not out.has(key):
-					out[key] = []
-				var where := "level_%02d/%s" % [num, name]
-				if not (out[key] as Array).has(where):
-					(out[key] as Array).append(where)
+			var kind := block.substr(at + 8).split("\"")[0]
+			if kind == "":
+				continue
+			var role_at := block.find("role = \"")
+			var role := block.substr(role_at + 8).split("\"")[0] if role_at >= 0 else "decor"
+			# Ключ — «роль|вид»: перешкода бере модель інакше, ніж декор із тим самим ім'ям.
+			var key := "%s|%s" % [role, kind]
+			if not out.has(key):
+				out[key] = []
+			if not (out[key] as Array).has(path):
+				(out[key] as Array).append(path)
 	return out
 
 
@@ -62,25 +76,18 @@ func test_every_kind_used_in_levels_has_a_model_or_a_voxel() -> void:
 ## Якби міграція tools/localize_chunk_z.py десь схибила, саме це й було б видно.
 func test_marker_z_stays_inside_its_chunk() -> void:
 	var checked := 0
-	for num in range(1, 18):
-		var dir := DirAccess.open("res://levels/level_%02d" % num)
-		if dir == null:
-			continue
-		for name in dir.get_files():
-			if not name.ends_with(".tscn"):
+	for path in _authored_scenes():
+		var f := FileAccess.open(String(path), FileAccess.READ)
+		var text := f.get_as_text()
+		for block in text.split("[node "):
+			var tr := block.find("Transform3D(")
+			if tr < 0:
 				continue
-			var f := FileAccess.open("res://levels/level_%02d/%s" % [num, name], FileAccess.READ)
-			var text := f.get_as_text()
-			for block in text.split("[node "):
-				var tr := block.find("Transform3D(")
-				if tr < 0:
-					continue
-				var args := block.substr(tr + 12).split(")")[0].split(",")
-				var z := absf(float(args[args.size() - 1]))
-				checked += 1
-				assert_lte(z, LevelChunkLoader.CHUNK_LENGTH_M,
-					"level_%02d/%s: маркер на локальній z=%.1f — це вже поза власним чанком"
-						% [num, name, z])
+			var args := block.substr(tr + 12).split(")")[0].split(",")
+			var z := absf(float(args[args.size() - 1]))
+			checked += 1
+			assert_lte(z, LevelChunkLoader.CHUNK_LENGTH_M,
+				"%s: маркер на локальній z=%.1f — це вже поза власним чанком" % [path, z])
 	assert_gt(checked, 0, "маркери знайшлись")
 
 
