@@ -6,98 +6,100 @@
 [node name="LevelLayout" type="Node3D"]
 script = ExtResource("2")
 
-[node name="M133_obstacle_ball" type="Node3D" parent="." index="0"]
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M133_obstacle_ball" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "ball"
 lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -3.0)
 
-[node name="M134_obstacle_crab" type="Node3D" parent="." index="1"]
+[node name="M134_obstacle_crab" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "crab"
 lane = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -13.7)
 
-[node name="M135_obstacle_rock" type="Node3D" parent="." index="2"]
+[node name="M135_obstacle_rock" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "rock"
 lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -24.5)
 
-[node name="M136_obstacle_seaweed" type="Node3D" parent="." index="3"]
+[node name="M136_obstacle_seaweed" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "seaweed"
 lane = -1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -35.3)
 
-[node name="M137_obstacle_ball" type="Node3D" parent="." index="4"]
+[node name="M137_obstacle_ball" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "ball"
 lane = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -46.1)
 
-[node name="M138_obstacle_crab" type="Node3D" parent="." index="5"]
+[node name="M138_obstacle_crab" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "crab"
 lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -56.9)
 
-[node name="M139_obstacle_rock" type="Node3D" parent="." index="6"]
+[node name="M139_obstacle_rock" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "rock"
 lane = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -67.6)
 
-[node name="M140_obstacle_seaweed" type="Node3D" parent="." index="7"]
+[node name="M140_obstacle_seaweed" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "seaweed"
 lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -78.4)
 
-[node name="M141_obstacle_ball" type="Node3D" parent="." index="8"]
+[node name="M141_obstacle_ball" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "ball"
 lane = -1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -89.2)
 
-[node name="M142_obstacle_crab" type="Node3D" parent="." index="9"]
+[node name="M142_obstacle_crab" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "crab"
 lane = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -100.0)
 
-[node name="M143_obstacle_rock" type="Node3D" parent="." index="10"]
+[node name="M143_obstacle_rock" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "rock"
 lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -110.8)
 
-[node name="M144_obstacle_seaweed" type="Node3D" parent="." index="11"]
+[node name="M144_obstacle_seaweed" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "seaweed"
 lane = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -121.5)
 
-[node name="M145_obstacle_ball" type="Node3D" parent="." index="12"]
+[node name="M145_obstacle_ball" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "ball"
 lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -132.3)
 
-[node name="M146_obstacle_crab" type="Node3D" parent="." index="13"]
+[node name="M146_obstacle_crab" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "crab"

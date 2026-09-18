@@ -6,28 +6,30 @@
 [node name="LevelLayout" type="Node3D"]
 script = ExtResource("2")
 
-[node name="M66_obstacle_puddle" type="Node3D" parent="." index="0"]
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M66_obstacle_puddle" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "puddle"
 lane = -1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -5.9)
 
-[node name="M67_obstacle_stump" type="Node3D" parent="." index="1"]
+[node name="M67_obstacle_stump" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "stump"
 lane = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -20.4)
 
-[node name="M68_obstacle_branch" type="Node3D" parent="." index="2"]
+[node name="M68_obstacle_branch" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "branch"
 lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -35.0)
 
-[node name="M69_obstacle_puddle" type="Node3D" parent="." index="3"]
+[node name="M69_obstacle_puddle" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "puddle"

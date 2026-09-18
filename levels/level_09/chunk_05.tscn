@@ -6,28 +6,30 @@
 [node name="LevelLayout" type="Node3D"]
 script = ExtResource("2")
 
-[node name="M122_obstacle_seaweed" type="Node3D" parent="." index="0"]
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M122_obstacle_seaweed" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "seaweed"
 lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -1.2)
 
-[node name="M123_obstacle_rock" type="Node3D" parent="." index="1"]
+[node name="M123_obstacle_rock" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "rock"
 lane = -1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -12.5)
 
-[node name="M124_obstacle_seaweed" type="Node3D" parent="." index="2"]
+[node name="M124_obstacle_seaweed" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "seaweed"
 lane = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -23.8)
 
-[node name="M125_obstacle_rock" type="Node3D" parent="." index="3"]
+[node name="M125_obstacle_rock" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "rock"

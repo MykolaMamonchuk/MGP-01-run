@@ -6,77 +6,79 @@
 [node name="LevelLayout" type="Node3D"]
 script = ExtResource("2")
 
-[node name="M77_obstacle_bush" type="Node3D" parent="." index="0"]
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M77_obstacle_bush" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "bush"
 lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -5.1)
 
-[node name="M78_obstacle_clothesline" type="Node3D" parent="." index="1"]
+[node name="M78_obstacle_clothesline" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "clothesline"
 lane = -1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -18.7)
 
-[node name="M79_obstacle_cow" type="Node3D" parent="." index="2"]
+[node name="M79_obstacle_cow" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "cow"
 lane = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -32.3)
 
-[node name="M80_obstacle_fence" type="Node3D" parent="." index="3"]
+[node name="M80_obstacle_fence" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "fence"
 lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -45.9)
 
-[node name="M81_obstacle_haycart" type="Node3D" parent="." index="4"]
+[node name="M81_obstacle_haycart" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "haycart"
 lane = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -59.5)
 
-[node name="M82_obstacle_puddle" type="Node3D" parent="." index="5"]
+[node name="M82_obstacle_puddle" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "puddle"
 lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -73.1)
 
-[node name="M83_obstacle_stump" type="Node3D" parent="." index="6"]
+[node name="M83_obstacle_stump" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "stump"
 lane = -1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -86.7)
 
-[node name="M84_obstacle_xbox" type="Node3D" parent="." index="7"]
+[node name="M84_obstacle_xbox" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "xbox"
 lane = 0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -100.3)
 
-[node name="M85_obstacle_beehive" type="Node3D" parent="." index="8"]
+[node name="M85_obstacle_beehive" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "beehive"
 lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -113.9)
 
-[node name="M86_obstacle_branch" type="Node3D" parent="." index="9"]
+[node name="M86_obstacle_branch" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "branch"
 lane = 2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -127.5)
 
-[node name="M87_obstacle_bush" type="Node3D" parent="." index="10"]
+[node name="M87_obstacle_bush" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "bush"

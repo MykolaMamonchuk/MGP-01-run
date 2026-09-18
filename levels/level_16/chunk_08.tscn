@@ -6,21 +6,23 @@
 [node name="LevelLayout" type="Node3D"]
 script = ExtResource("2")
 
-[node name="M236_obstacle_bridge" type="Node3D" parent="." index="0"]
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M236_obstacle_bridge" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "bridge"
 lane = -3
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -4.0)
 
-[node name="M237_obstacle_cloud" type="Node3D" parent="." index="1"]
+[node name="M237_obstacle_cloud" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "cloud"
 lane = -2
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -12.0)
 
-[node name="M238_obstacle_kite" type="Node3D" parent="." index="2"]
+[node name="M238_obstacle_kite" type="Node3D" parent="Перешкоди"]
 script = ExtResource("1")
 role = "obstacle"
 kind = "kite"
