@@ -46,6 +46,13 @@ const RAIL_W := 0.08
 ## зовсім — поручень мусить СТОЯТИ, як і в грі, інакше його не видно ні збоку, ні згори.
 const RAIL_H := 0.45
 const BRIDGE_DECK_MARGIN := 0.4
+## Берег каналу: три шари по BANK_H, завширшки BANK_W, з обох бортів кожного каналу. Числа ті
+## самі, що в Track. Саме на цій межі «вода — суша» живе мерехтіння, тож автор рівня мусить
+## бачити, де вона проходить, а не здогадуватись.
+const BANK_W := 0.18
+const BANK_H := 0.14
+const CLIFF_LAYERS := 3
+const CANAL_DEPTH := 0.35
 
 ## Відстань від старту рівня до початку цього чанка, у метрах. Для нарізки по 150 м це
 ## просто номер чанка × 150.
@@ -221,17 +228,21 @@ func _bands(w: Dictionary) -> Array:
 		if not has_canal:
 			out.append(_band(sign, half, far, w["side"]))
 			continue
-		out.append(_band(sign, half, half + offset, w["side"]))
-		out.append(_band(sign, half + offset, half + offset + width, w["water"]))
-		out.append(_band(sign, half + offset + width, far, w["side"]))
+		var near: float = half + offset
+		out.append(_band(sign, half, near, w["side"]))
+		out.append(_band(sign, near, near + width, w["water"], -CANAL_DEPTH))
+		out.append(_band(sign, near + width, far, w["side"]))
+		# стінки берега — по обидва борти каналу, як у грі
+		out.append_array(_bank(sign, near, 1.0))
+		out.append_array(_bank(sign, near + width, -1.0))
 	return out
 
 
 ## Одна смуга вздовж траси: від |x| = from до |x| = to по бік sign.
-func _band(sign: float, from: float, to: float, color: Color) -> MeshInstance3D:
+func _band(sign: float, from: float, to: float, color: Color, y := -0.02) -> MeshInstance3D:
 	var w := maxf(to - from, 0.001)
 	return _plate(Vector2(w, GUIDE_LENGTH_M),
-		Vector3(sign * (from + w * 0.5), -0.02, -GUIDE_LENGTH_M * 0.5), color)
+		Vector3(sign * (from + w * 0.5), y, -GUIDE_LENGTH_M * 0.5), color)
 
 
 ## Полотно дороги за кількістю доріжок ЦЬОГО рівня.
@@ -274,6 +285,31 @@ func _rails_and_bridges(w: Dictionary) -> Array:
 			else:
 				out.append(_rail_link(rail_x, -z - 0.5, w["wood"]))
 			z += RAIL_LINK_M
+	return out
+
+
+## Стінка берега на одному борті каналу: CLIFF_LAYERS шарів, кожен трохи глибше й трохи далі
+## в бік води — так само, як їх ставить Track. inward = +1, якщо вода праворуч від цієї межі.
+func _bank(sign: float, x: float, inward: float) -> Array:
+	var out: Array = []
+	var colors := [Color(0.79, 0.47, 0.31), Color(0.65, 0.36, 0.23), Color(0.48, 0.25, 0.16)]
+	for k in range(CLIFF_LAYERS):
+		var pm := PlaneMesh.new()
+		pm.size = Vector2(GUIDE_LENGTH_M, BANK_H)
+		pm.orientation = PlaneMesh.FACE_Z
+		var mi := MeshInstance3D.new()
+		mi.mesh = pm
+		mi.position = Vector3(sign * (x - inward * 0.03 * float(k)),
+			-BANK_H * (float(k) + 0.5), -GUIDE_LENGTH_M * 0.5)
+		# площина FACE_Z дивиться вздовж Z; стінка берега мусить іти ВЗДОВЖ траси, тож
+		# довертаємо на чверть оберту — інакше вона лягає впоперек на всю ширину світу
+		mi.rotation.y = PI * 0.5
+		var m := StandardMaterial3D.new()
+		m.albedo_color = colors[k]
+		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		m.cull_mode = BaseMaterial3D.CULL_DISABLED
+		mi.material_override = m
+		out.append(mi)
 	return out
 
 
