@@ -24,12 +24,16 @@ var _num := 0
 var _track: Track
 var _spawner: Spawner3D
 var _chunked := false          ## true — рівень зібрано з чанків, а не з одного плаского файлу
-## ПЛАН рівня: [{path, offset_m, length_m}] у порядку проходження. Раніше тут було припущення
+## ПЛАН рівня: [{id, paths, offset_m, length_m}] у порядку проходження. Раніше тут було припущення
 ## «чанк №N лежить у теці рівня й займає рівно 150 м» — і саме воно не давало ставити ту саму
 ## цеглинку двічі. Тепер план будує або збирач зі списку імен (ChunkLibrary.assemble), або, для
 ## старих рівнів-тек, сканування теки; завантажувачу однаково, звідки він узявся.
 var _plan: Array = []
-var _next := 0                 ## індекс наступного НЕзавантаженого шматка плану
+## Той самий план, розгорнутий у ЧЕРГУ ОКРЕМИХ СЦЕН: [{path, offset_m}]. Цеглинка — це один
+## або два файли (сам чанк і вибрана розкладка перешкод) на ОДНОМУ зсуві, а читається з диска
+## все одно по одному, тож черга й є тим, чим оперує завантаження.
+var _queue: Array = []
+var _next := 0                 ## індекс наступної НЕзавантаженої сцени в черзі
 ## Чанк, який ЗАРАЗ вантажиться у фоні (-1 — жодного) і його шлях.
 ## Навіщо фон. Заміряно 18.09.2026: чанк із 904 маркерами читається 46,8 мс, інстанціюється
 ## 5,9 і розбирається 17,2 — разом ~70 мс на Mac, отже 200–350 мс на телефоні. Синхронно це
@@ -67,7 +71,8 @@ func start(num: int, track: Track, spawner: Spawner3D, level: Dictionary = {}) -
 	# стиком — показував би геть іншу замість помилки, яку вже надруковано.
 	var declared: Array = level.get("chunks", [])
 	_plan = plan_of(num, level)
-	_chunked = not _plan.is_empty()
+	_queue = _flatten(_plan)
+	_chunked = not _queue.is_empty()
 	track.clear_authored_timeline()
 	_clear_obstacles()
 	if _chunked:
@@ -105,6 +110,16 @@ static func plan_of(num: int, level: Dictionary = {}) -> Array:
 	return []
 
 
+## Розгорнути цеглинки в чергу окремих сцен. Обидва шари цеглинки йдуть на ОДИН зсув: це не
+## два місця траси, а геометрія й розкладка перешкод одного місця.
+static func _flatten(plan: Array) -> Array:
+	var out: Array = []
+	for piece in plan:
+		for path in (piece as Dictionary).get("paths", []):
+			out.append({"path": String(path), "offset_m": float(piece["offset_m"])})
+	return out
+
+
 ## Старий шлях: тека levels/level_XX/ із чанками chunk_NN.tscn по CHUNK_LENGTH_M метрів.
 ## Пропущений номер — це просто порожній відрізок рівня, а не кінець: зсув рахується від
 ## НОМЕРА, тож дірка лишається діркою й не з'їжджає.
@@ -125,7 +140,7 @@ static func _plan_from_folder(num: int) -> Array:
 	for index in indices:
 		out.append({
 			"id": "chunk_%02d" % index,
-			"path": "%s/chunk_%02d.tscn" % [folder, index],
+			"paths": ["%s/chunk_%02d.tscn" % [folder, index]],
 			"offset_m": float(index) * CHUNK_LENGTH_M,
 			"length_m": CHUNK_LENGTH_M,
 		})
@@ -141,13 +156,13 @@ func update(distance_m: float) -> void:
 	if _pending_index >= 0:
 		_poll_pending()
 		return
-	if _next >= _plan.size():
+	if _next >= _queue.size():
 		_done = true
 		return
 	# Шматок замовляється до того, як гравець дійде до ЙОГО ПОЧАТКУ. Раніше порівнювали з
 	# кінцем попереднього — те саме, поки всі чанки однакової довжини, але з бібліотекою
 	# цеглинки різні, та й дірку в нумерації так було не перескочити чесно.
-	if distance_m + LOOKAHEAD_M >= float(_plan[_next]["offset_m"]):
+	if distance_m + LOOKAHEAD_M >= float(_queue[_next]["offset_m"]):
 		_request_next_chunk()
 
 
@@ -169,7 +184,7 @@ func _poll_pending() -> void:
 	if status == ResourceLoader.THREAD_LOAD_LOADED:
 		var packed := ResourceLoader.load_threaded_get(_pending_path) as PackedScene
 		if packed != null:
-			_apply(packed, float(_plan[_pending_index]["offset_m"]))
+			_apply(packed, float(_queue[_pending_index]["offset_m"]))
 	else:
 		push_warning("чанк не прочитався: %s" % _pending_path)
 	_pending_index = -1
@@ -179,8 +194,8 @@ func _poll_pending() -> void:
 ## Подати заявку на наступний чанк, ПЕРЕСТРИБУЮЧИ відсутні номери: порожній відрізок рівня —
 ## це просто відсутній файл, а не кінець рівня.
 func _request_next_chunk() -> void:
-	while _next < _plan.size():
-		var piece: Dictionary = _plan[_next]
+	while _next < _queue.size():
+		var piece: Dictionary = _queue[_next]
 		var path := String(piece["path"])
 		_pending_index = _next
 		_next += 1
@@ -220,16 +235,27 @@ func _load_chunk_resource(path: String) -> PackedScene:
 	return load(path) as PackedScene
 
 
-## Перший чанк рівня, синхронно.
+## Перша цеглинка рівня — синхронно й ЦІЛКОМ, усіма своїми шарами. Саме цілком: якби чанк
+## завантажився зараз, а його розкладка перешкод лишилась фоновому потоку, перші метри рівня
+## були б без перешкод — рідко, недетерміновано й тим гірше для пошуку. Гравець на цьому місці
+## ще дивиться на екран завантаження, тож підвисати нема де.
 func _load_first_chunk() -> void:
-	while _next < _plan.size():
-		var piece: Dictionary = _plan[_next]
+	var loaded := false
+	var offset := 0.0
+	while _next < _queue.size():
+		var piece: Dictionary = _queue[_next]
+		var at := float(piece["offset_m"])
+		if loaded and not is_equal_approx(at, offset):
+			return                       # почалась наступна цеглинка — вона вже фонова
 		_next += 1
 		var packed := _load_chunk_resource(String(piece["path"]))
-		if packed != null:
-			_apply(packed, float(piece["offset_m"]))
-			return
-	_done = true
+		if packed == null:
+			continue
+		_apply(packed, at)
+		loaded = true
+		offset = at
+	if not loaded:
+		_done = true
 
 
 func _load_flat_level() -> void:

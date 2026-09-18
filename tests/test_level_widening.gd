@@ -45,23 +45,26 @@ func _lanes_beyond(level: Dictionary, cut: float) -> Array:
 	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
 	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
 	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
-		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
-		if f == null:
-			continue
+		# Сцен у цеглинки одна або дві: сам чанк і вибрана під складність розкладка перешкод.
+		# Обидві треба переглянути — маркери лежать і там, і там.
 		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
 		var offset := float(piece["offset_m"])
-		for block in f.get_as_text().split("[node "):
-			if not block.contains("role = \"obstacle\""):
+		for scene_path in (piece as Dictionary)["paths"]:
+			var f := FileAccess.open(String(scene_path), FileAccess.READ)
+			if f == null:
 				continue
-			var lane_at := block.find("lane = ")
-			var tr_at := block.find("Transform3D(")
-			if lane_at < 0 or tr_at < 0:
-				continue
-			var lane := int(block.substr(lane_at + 7, 4).strip_edges().split("\n")[0])
-			var args := block.substr(tr_at + 12).split(")")[0].split(",")
-			var z := absf(float(args[args.size() - 1])) + offset
-			if z > cut:
-				lanes[lane] = true
+			for block in f.get_as_text().split("[node "):
+				if not block.contains("role = \"obstacle\""):
+					continue
+				var lane_at := block.find("lane = ")
+				var tr_at := block.find("Transform3D(")
+				if lane_at < 0 or tr_at < 0:
+					continue
+				var lane := int(block.substr(lane_at + 7, 4).strip_edges().split("\n")[0])
+				var args := block.substr(tr_at + 12).split(")")[0].split(",")
+				var z := absf(float(args[args.size() - 1])) + offset
+				if z > cut:
+					lanes[lane] = true
 	var out := lanes.keys()
 	out.sort()
 	return out
@@ -103,22 +106,25 @@ func _lanes_within(level: Dictionary, cut: float) -> Array:
 	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
 	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
 	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
-		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
-		if f == null:
-			continue
+		# Сцен у цеглинки одна або дві: сам чанк і вибрана під складність розкладка перешкод.
+		# Обидві треба переглянути — маркери лежать і там, і там.
 		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
 		var offset := float(piece["offset_m"])
-		for block in f.get_as_text().split("[node "):
-			if not block.contains("role = \"obstacle\""):
+		for scene_path in (piece as Dictionary)["paths"]:
+			var f := FileAccess.open(String(scene_path), FileAccess.READ)
+			if f == null:
 				continue
-			var lane_at := block.find("lane = ")
-			var tr_at := block.find("Transform3D(")
-			if lane_at < 0 or tr_at < 0:
-				continue
-			var lane := int(block.substr(lane_at + 7, 4).strip_edges().split("\n")[0])
-			var args := block.substr(tr_at + 12).split(")")[0].split(",")
-			if absf(float(args[args.size() - 1])) + offset < cut:
-				lanes[lane] = true
+			for block in f.get_as_text().split("[node "):
+				if not block.contains("role = \"obstacle\""):
+					continue
+				var lane_at := block.find("lane = ")
+				var tr_at := block.find("Transform3D(")
+				if lane_at < 0 or tr_at < 0:
+					continue
+				var lane := int(block.substr(lane_at + 7, 4).strip_edges().split("\n")[0])
+				var args := block.substr(tr_at + 12).split(")")[0].split(",")
+				if absf(float(args[args.size() - 1])) + offset < cut:
+					lanes[lane] = true
 	var out := lanes.keys()
 	out.sort()
 	return out

@@ -37,7 +37,7 @@ func test_same_chunk_twice_lands_on_two_different_metres() -> void:
 	assert_eq(built["errors"], [], "однакові цеглинки поспіль — це нормально")
 	var pieces: Array = built["pieces"]
 	assert_eq(pieces.size(), 2)
-	assert_eq(pieces[0]["path"], pieces[1]["path"], "файл той самий")
+	assert_eq(pieces[0]["paths"], pieces[1]["paths"], "файли ті самі")
 	assert_almost_eq(float(pieces[0]["offset_m"]), 0.0, 0.001)
 	assert_almost_eq(float(pieces[1]["offset_m"]), 150.0, 0.001, "друга копія — на 150-му метрі")
 	assert_almost_eq(float(built["length_m"]), 300.0, 0.001)
@@ -168,3 +168,71 @@ func test_scan_keys_the_library_by_id_from_the_description_not_the_folder_name()
 	assert_true(lib.has("meadow_brick"), "ключ — id з chunk.json")
 	assert_false(lib.has("brick"), "а не ім'я теки")
 	assert_eq(String(lib["meadow_brick"]["scene"]), "%s/brick/chunk.tscn" % FIXTURE_ROOT)
+
+
+# --- вибір розкладки ---------------------------------------------------------------------
+
+## Цеглинка — це ДВА шари на одному зсуві: чанк (те, що тут завжди однакове) і розкладка
+## перешкод під складність цього рівня. Саме тому та сама цеглинка й може бути простою на
+## рівні 1 і важкою на 17.
+func _with_layouts() -> Dictionary:
+	var desc := _straight(150.0)
+	desc["layouts"] = [
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 0.4]},
+		{"file": "layout_hard.tscn", "difficulty": [0.4, 1.0]},
+	]
+	return desc
+
+
+## Рівень 1 (складність 0.02) і рівень 17 (1.00) — крайні з data/levels.json.
+func _level(num: int, chunks: Array) -> Dictionary:
+	var f := FileAccess.open("res://data/levels.json", FileAccess.READ)
+	for l in JSON.parse_string(f.get_as_text()).get("levels", []):
+		if int((l as Dictionary)["id"]) == num:
+			var out: Dictionary = (l as Dictionary).duplicate(true)
+			out["chunks"] = chunks
+			return out
+	return {}
+
+
+## Цеглинку підганяємо під ширину рівня й знімаємо прив'язку до світу: перевіряється саме
+## ВИБІР РОЗКЛАДКИ, і стик чи біом не мають до цього діла.
+func _fit_lib(level: Dictionary, desc: Dictionary) -> Dictionary:
+	desc = desc.duplicate(true)
+	desc["worlds"] = []
+	desc["entry_lanes"] = int(level.get("lanes", 3))
+	desc["exit_lanes"] = desc["entry_lanes"]
+	return _lib({"river": desc})
+
+
+func test_the_same_chunk_gets_the_easy_layout_on_level_1_and_the_hard_one_on_level_17() -> void:
+	var l1 := _level(1, ["river"])
+	var l17 := _level(17, ["river"])
+	var easy := ChunkLibrary.assemble(l1, _fit_lib(l1, _with_layouts()))
+	var hard := ChunkLibrary.assemble(l17, _fit_lib(l17, _with_layouts()))
+	assert_eq(easy["errors"], [])
+	assert_eq(hard["errors"], [])
+	assert_true(String(easy["pieces"][0]["paths"][1]).ends_with("layout_easy.tscn"))
+	assert_true(String(hard["pieces"][0]["paths"][1]).ends_with("layout_hard.tscn"))
+	assert_eq(String(easy["pieces"][0]["paths"][0]), String(hard["pieces"][0]["paths"][0]),
+		"чанк той самий — міняється лише розкладка")
+
+
+## Чанк без layouts — це чанк, у якому перешкоди лежать прямо в chunk.tscn. Так теж можна,
+## і скарги тут бути не повинно.
+func test_chunk_without_layouts_yields_a_single_scene() -> void:
+	var built := ChunkLibrary.assemble(
+		{"world": "meadow", "lanes": 3, "chunks": ["plain"]}, _lib({"plain": _straight()}))
+	assert_eq(built["errors"], [])
+	assert_eq((built["pieces"][0]["paths"] as Array).size(), 1)
+
+
+## А ось намальовані варіанти, з яких жоден не підходить, — вада даних: на трасі був би голий
+## чанк без перешкод, і причину шукали б довго.
+func test_layouts_that_all_miss_this_difficulty_are_an_error() -> void:
+	var desc := _straight(150.0)
+	desc["layouts"] = [{"file": "layout_hard.tscn", "difficulty": [0.8, 1.0]}]
+	var l1 := _level(1, ["river"])
+	var built := ChunkLibrary.assemble(l1, _fit_lib(l1, desc))
+	assert_eq(built["errors"].size(), 1)
+	assert_string_contains(String(built["errors"][0]), "layout")

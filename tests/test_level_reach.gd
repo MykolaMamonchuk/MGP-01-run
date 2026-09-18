@@ -28,19 +28,22 @@ func _last_obstacle_m(level: Dictionary) -> float:
 	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
 	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
 	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
-		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
-		if f == null:
-			continue
+		# Сцен у цеглинки одна або дві: сам чанк і вибрана під складність розкладка перешкод.
+		# Обидві треба переглянути — маркери лежать і там, і там.
 		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
 		var offset := float(piece["offset_m"])
-		for block in f.get_as_text().split("[node "):
-			if not block.contains("role = \"obstacle\""):
+		for scene_path in (piece as Dictionary)["paths"]:
+			var f := FileAccess.open(String(scene_path), FileAccess.READ)
+			if f == null:
 				continue
-			var tr := block.find("Transform3D(")
-			if tr < 0:
-				continue
-			var args := block.substr(tr + 12).split(")")[0].split(",")
-			far = maxf(far, absf(float(args[args.size() - 1])) + offset)
+			for block in f.get_as_text().split("[node "):
+				if not block.contains("role = \"obstacle\""):
+					continue
+				var tr := block.find("Transform3D(")
+				if tr < 0:
+					continue
+				var args := block.substr(tr + 12).split(")")[0].split(",")
+				far = maxf(far, absf(float(args[args.size() - 1])) + offset)
 	return far
 
 

@@ -23,19 +23,22 @@ func _kinds_of(level: Dictionary) -> Dictionary:
 	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
 	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
 	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
-		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
-		if f == null:
-			continue
+		# Сцен у цеглинки одна або дві: сам чанк і вибрана під складність розкладка перешкод.
+		# Обидві треба переглянути — маркери лежать і там, і там.
 		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
 		var offset := float(piece["offset_m"])
-		for block in f.get_as_text().split("[node "):
-			if not block.contains("role = \"obstacle\""):
+		for scene_path in (piece as Dictionary)["paths"]:
+			var f := FileAccess.open(String(scene_path), FileAccess.READ)
+			if f == null:
 				continue
-			var at := block.find("kind = \"")
-			if at < 0:
-				continue
-			var kind := block.substr(at + 8).split("\"")[0]
-			out[kind] = int(out.get(kind, 0)) + 1
+			for block in f.get_as_text().split("[node "):
+				if not block.contains("role = \"obstacle\""):
+					continue
+				var at := block.find("kind = \"")
+				if at < 0:
+					continue
+				var kind := block.substr(at + 8).split("\"")[0]
+				out[kind] = int(out.get(kind, 0)) + 1
 	return out
 
 

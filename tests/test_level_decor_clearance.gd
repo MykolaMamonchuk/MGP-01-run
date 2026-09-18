@@ -47,31 +47,34 @@ func _decor_on_the_road(level: Dictionary, edge: float) -> Array:
 	# списку цеглинок, і теки levels/level_XX/ у нього просто нема. Сканування тоді обходило б
 	# порожнечу — сторож лишався б зеленим, нічого не стережучи.
 	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
-		var f := FileAccess.open(String(piece["path"]), FileAccess.READ)
-		if f == null:
-			continue
+		# Сцен у цеглинки одна або дві: сам чанк і вибрана під складність розкладка перешкод.
+		# Обидві треба переглянути — маркери лежать і там, і там.
 		# z маркера ЛОКАЛЬНА (від початку цеглинки) — зсув призначає той, хто її ставить.
 		var offset := float(piece["offset_m"])
-		for block in f.get_as_text().split("[node "):
-			# Godot НЕ пише властивість, що дорівнює типовій, тож у маркера декору рядка role
-			# може не бути зовсім (так виглядає чанк, перезбережений редактором). Шукати
-			# «role = "decor"» означає тихо пропустити половину маркерів — тобто сторож
-			# лишився б зеленим, нічого не стережучи.
-			if block.contains("role = \"") and not block.contains("role = \"decor\""):
+		for scene_path in (piece as Dictionary)["paths"]:
+			var f := FileAccess.open(String(scene_path), FileAccess.READ)
+			if f == null:
 				continue
-			if not block.contains("script = ExtResource"):
-				continue
-			var tr := block.find("Transform3D(")
-			if tr < 0:
-				continue
-			var args := block.substr(tr + 12).split(")")[0].split(",")
-			if args.size() < 12:
-				continue
-			_seen_decor += 1
-			var x := float(args[9])
-			if absf(x) > 0.3 and absf(x) < edge:
-				var at := block.find("kind = \"")
-				out.append("%s на x=%.1f" % [block.substr(at + 8).split("\"")[0] if at >= 0 else "?", x])
+			for block in f.get_as_text().split("[node "):
+				# Godot НЕ пише властивість, що дорівнює типовій, тож у маркера декору рядка role
+				# може не бути зовсім (так виглядає чанк, перезбережений редактором). Шукати
+				# «role = "decor"» означає тихо пропустити половину маркерів — тобто сторож
+				# лишився б зеленим, нічого не стережучи.
+				if block.contains("role = \"") and not block.contains("role = \"decor\""):
+					continue
+				if not block.contains("script = ExtResource"):
+					continue
+				var tr := block.find("Transform3D(")
+				if tr < 0:
+					continue
+				var args := block.substr(tr + 12).split(")")[0].split(",")
+				if args.size() < 12:
+					continue
+				_seen_decor += 1
+				var x := float(args[9])
+				if absf(x) > 0.3 and absf(x) < edge:
+					var at := block.find("kind = \"")
+					out.append("%s на x=%.1f" % [block.substr(at + 8).split("\"")[0] if at >= 0 else "?", x])
 	return out
 
 

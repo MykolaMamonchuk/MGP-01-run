@@ -215,18 +215,21 @@ func _make_brick() -> void:
 	desc.store_string(JSON.stringify({
 		"id": BRICK_ID, "worlds": ["meadow"],
 		"entry_lanes": 3, "exit_lanes": 3, "length_m": BRICK_LEN,
+		"layouts": [{"file": "layout.tscn", "difficulty": [0.0, 1.0]}],
 	}))
 	desc.close()
-	var scene := FileAccess.open("%s/chunk.tscn" % BRICK_DIR, FileAccess.WRITE)
-	# z_m у маркері — це -position.z (та сама умова, що й у справжніх чанках)
-	scene.store_string("""[gd_scene load_steps=3 format=3]
+	# Два шари: у чанку — те, що тут завжди однакове (декор), у розкладці — перешкоди під
+	# складність. Обидва мусять лягти на ОДИН зсув.
+	_write_scene("chunk.tscn", """
+[node name="Декор" type="Node3D" parent="."]
 
-[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
-[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
-
-[node name="LevelLayout" type="Node3D"]
-script = ExtResource("2")
-
+[node name="D1_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0, -5.0)
+""")
+	_write_scene("layout.tscn", """
 [node name="Перешкоди" type="Node3D" parent="."]
 
 [node name="M1_obstacle_stump" type="Node3D" parent="Перешкоди"]
@@ -243,11 +246,24 @@ kind = "stump"
 lane = 1
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -30.0)
 """)
+
+
+## z_m у маркері — це -position.z (та сама умова, що й у справжніх чанках).
+func _write_scene(file_name: String, body: String) -> void:
+	var scene := FileAccess.open("%s/%s" % [BRICK_DIR, file_name], FileAccess.WRITE)
+	scene.store_string("""[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+""" + body)
 	scene.close()
 
 
 func _remove_brick() -> void:
-	for name in ["chunk.json", "chunk.tscn"]:
+	for name in ["chunk.json", "chunk.tscn", "layout.tscn"]:
 		DirAccess.remove_absolute("%s/%s" % [BRICK_DIR, name])
 	DirAccess.remove_absolute(BRICK_DIR)
 
@@ -274,6 +290,13 @@ func test_level_assembled_from_library_places_the_same_brick_twice() -> void:
 	# 10 і 30 у кожній копії, зсунуті на 0 / 40 / 80 — тобто цеглинка справді стала тричі,
 	# і саме туди, куди її поклав збирач, а не туди, де лежить її файл.
 	assert_eq(zs, [10, 30, 50, 70, 90, 110])
+	# Декор лежить у ДРУГІЙ сцені цеглинки. Якби завантажувач брав лише перший файл, перешкод
+	# не було б зовсім; якби лише другий — не було б цього дерева. Отже обидва шари доїхали.
+	var trees := 0
+	for rec in _track._authored_decor:
+		if String(rec.get("kind", "")) == "tree":
+			trees += 1
+	assert_eq(trees, 3, "декор чанка приїхав разом із розкладкою, по разу на копію")
 
 
 ## Список цеглинок у рівні ПЕРЕБИВАЄ стару теку levels/level_01/: інакше рівень, переведений на
@@ -283,6 +306,9 @@ func test_chunk_list_wins_over_the_level_folder() -> void:
 	_loader.start(1, _track, _spawner, _brick_level(1))
 	_remove_brick()
 	assert_eq(_spawner._authored_obstacles.size(), 2, "лише дві перешкоди цеглинки")
+	# Обидва шари першої цеглинки читаються СИНХРОННО, ще на екрані завантаження: інакше перші
+	# метри рівня зрідка й недетерміновано лишались би без перешкод.
+	assert_true(_spawner._authored_active, "розкладка вже на місці, без жодного update()")
 
 
 ## Зламаний стик рівень не збирає взагалі. Порожній рівень помітно одразу; рівень, зібраний
@@ -316,8 +342,9 @@ func test_every_level_in_the_data_has_a_plan_and_all_its_files_exist() -> void:
 		assert_false(plan.is_empty(), "рівень %d має план" % num)
 		var total := 0.0
 		for piece in plan:
-			assert_true(ResourceLoader.exists(String(piece["path"])),
-				"рівень %d: %s існує" % [num, piece["path"]])
+			for scene_path in (piece as Dictionary)["paths"]:
+				assert_true(ResourceLoader.exists(String(scene_path)),
+					"рівень %d: %s існує" % [num, scene_path])
 			assert_almost_eq(float(piece["offset_m"]), total, 0.001,
 				"рівень %d: цеглинки лягають упритул, без дір і нахлистів" % num)
 			total += float(piece["length_m"])

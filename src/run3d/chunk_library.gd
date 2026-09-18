@@ -45,11 +45,20 @@ static func scan(root: String = ROOT) -> Dictionary:
 ## Зібрати рівень зі списку цеглинок.
 ##
 ## Повертає {"pieces": [...], "errors": [...]}. pieces — те, що потрібне завантажувачу:
-## шлях сцени, зсув від старту рівня й довжина. errors — людською мовою, ЩО саме не зійшлось;
-## якщо він не порожній, pieces брати не можна.
+## СЦЕНИ цеглинки, зсув від старту рівня й довжина. errors — людською мовою, ЩО саме не
+## зійшлось; якщо він не порожній, pieces брати не можна.
+##
+## Сцен у цеглинки одна або дві: сам чанк (геометрія й декор — те, що на цьому місці однакове
+## завжди) і вибрана під складність РОЗКЛАДКА перешкод. Обидві лягають на ОДИН зсув: це не два
+## місця траси, а два шари одного.
+##
+## Складність і дозволені види беруться з самого рівня (Difficulty.of, obstacle_types) — щоб не
+## завести другого джерела правди про те, наскільки рівень важкий.
 static func assemble(level: Dictionary, library: Dictionary) -> Dictionary:
 	var ids: Array = level.get("chunks", [])
 	var world := String(level.get("world", ""))
+	var difficulty := Difficulty.of(level)
+	var allowed: Array = level.get("obstacle_types", [])
 	var errors: Array = []
 	var pieces: Array = []
 	var offset := 0.0
@@ -73,9 +82,20 @@ static func assemble(level: Dictionary, library: Dictionary) -> Dictionary:
 		if length <= 0.0:
 			errors.append("чанк «%s»: length_m мусить бути додатною" % id)
 			length = 0.0
+		var paths: Array = [String(entry["scene"])]
+		# Розкладку вибирає САМ ЧАНК зі свого опису (ChunkDescriptor.pick_layout): збирач не
+		# знає й не мусить знати, які варіанти автор намалював. Чанк без layouts — це чанк,
+		# у якому перешкоди лежать прямо в chunk.tscn; таке теж дозволено, і скарги тут нема.
+		var layout := ChunkDescriptor.pick_layout(desc, difficulty, allowed)
+		if not layout.is_empty():
+			paths.append("%s/%s" % [String(entry["dir"]), String(layout.get("file", ""))])
+		elif not (desc.get("layouts", []) as Array).is_empty():
+			# А ось це вже вада даних: варіанти намальовано, але жоден не підходить цьому
+			# рівню — на трасі був би голий чанк без перешкод, і зрозуміти чому було б важко.
+			errors.append("чанк «%s»: жоден layout не підходить складності %.2f" % [id, difficulty])
 		pieces.append({
 			"id": id,
-			"path": String(entry["scene"]),
+			"paths": paths,
 			"offset_m": offset,
 			"length_m": length,
 		})
