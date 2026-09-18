@@ -290,6 +290,117 @@ func test_a_layout_with_neither_actions_nor_obstacles_describes_nothing() -> voi
 	_assert_complains(both_empty, "нічого не описує", "обидва списки порожні")
 
 
+# --- вибір layout'а -------------------------------------------------------------------------
+
+## pick_layout() читає з опису самі layout'и — решта полів їй ні до чого, тож і в тестах їх нема.
+func _with_layouts(layouts: Array) -> Dictionary:
+	return {"id": "river_01", "layouts": layouts}
+
+
+## Ім'я вибраного файлу; "" — не вибрано нічого. Так тест каже про ПРАВИЛО («виграв вужчий»),
+## а не порівнює словники цілком.
+func _picked(desc: Dictionary, difficulty: float, allowed := []) -> String:
+	return String(ChunkDescriptor.pick_layout(desc, difficulty, allowed).get("file", ""))
+
+
+## Обидва краї включні — та сама семантика, що в Difficulty.fits() і в перевірці покриття.
+## Автор пише [0.3, 0.7] і має право розраховувати, що рівно 0.3 і рівно 0.7 — це «так».
+func test_both_edges_of_the_difficulty_range_are_inclusive() -> void:
+	var desc := _with_layouts([
+		{"file": "layout_easy.tscn", "difficulty": [0.3, 0.7], "actions": ["jump"]},
+	])
+	for d in [0.3, 0.5, 0.7]:
+		assert_eq(_picked(desc, d), "layout_easy.tscn",
+			"складність %.2f у діапазоні [0.3, 0.7] — разом із краями" % d)
+	for d in [0.29, 0.71]:
+		assert_eq(_picked(desc, d), "",
+			"складність %.2f поза діапазоном — брати нема чого" % d)
+
+
+## Перевернутий діапазон — авторська помилка (валідатор на неї червоніє), і вибір її не
+## «виправляє»: такий layout не підходить нікому.
+func test_an_inverted_range_is_never_picked() -> void:
+	var desc := _with_layouts([
+		{"file": "layout_easy.tscn", "difficulty": [0.8, 0.2], "actions": ["jump"]},
+	])
+	for d in [0.1, 0.5, 0.9]:
+		assert_eq(_picked(desc, d), "", "перевернутий діапазон не годиться й на %.2f" % d)
+
+
+## Широкий 0..1 — це «запасний»: він написаний, щоб чанк мав що показати будь-де, і сам по собі
+## нічого не каже про цю складність. Вузький автор зробив НАВМИСНО під неї — отже, він точніший
+## і має вигравати, у якому б порядку вони не стояли.
+func test_the_narrower_range_wins_over_the_wide_fallback() -> void:
+	var narrow := {"file": "layout_hard.tscn", "difficulty": [0.4, 0.5], "actions": ["jump"]}
+	var wide := {"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "actions": ["jump"]}
+	assert_eq(_picked(_with_layouts([wide, narrow]), 0.45), "layout_hard.tscn",
+		"вужчий виграє, стоячи другим")
+	assert_eq(_picked(_with_layouts([narrow, wide]), 0.45), "layout_hard.tscn",
+		"і стоячи першим — порядок тут нічого не вирішує")
+	assert_eq(_picked(_with_layouts([wide, narrow]), 0.9), "layout_easy.tscn",
+		"за межами вузького лишається запасний — на те він і запасний")
+
+
+## За ОДНАКОВОЇ ширини виграє перший у списку: порядок у файлі — воля автора, і вона ж вирішує
+## на стику діапазонів. Тест дивиться на обидва порядки, щоб правило не вийшло випадковістю
+## обходу списку.
+func test_equal_widths_keep_the_order_the_author_wrote() -> void:
+	var first := {"file": "layout_easy.tscn", "difficulty": [0.0, 0.5], "actions": ["jump"]}
+	var second := {"file": "layout_hard.tscn", "difficulty": [0.2, 0.7], "actions": ["jump"]}
+	assert_eq(_picked(_with_layouts([first, second]), 0.3), "layout_easy.tscn",
+		"обидва діапазони завширшки 0.5 — виграє написаний першим")
+	assert_eq(_picked(_with_layouts([second, first]), 0.3), "layout_hard.tscn",
+		"переставили місцями — виграє той, що тепер перший")
+
+
+## Порожній allowed_obstacles — це «рівень не обмежує»: у data/levels.json порожній
+## obstacle_types означає «всі типи біому» (рівні 4, 8, 11, 14, 17), а не «жодного».
+func test_an_empty_allowed_list_does_not_forbid_anything() -> void:
+	var desc := _with_layouts([
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "obstacles": ["fence"]},
+	])
+	assert_eq(_picked(desc, 0.5, []), "layout_easy.tscn",
+		"рівень нічого не обмежує — пін виду годиться")
+
+
+## Пін виду — обіцянка поставити саме цю модель, і рівень мусить уміти її виконати. Бракує хоч
+## одного виду зі списку — layout не годиться, навіть якщо він точніше націлений на складність.
+func test_a_layout_pinning_a_forbidden_kind_is_skipped() -> void:
+	var desc := _with_layouts([
+		{"file": "layout_hard.tscn", "difficulty": [0.4, 0.5], "obstacles": ["stump", "fence"]},
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "actions": ["jump"]},
+	])
+	assert_eq(_picked(desc, 0.45, ["stump"]), "layout_easy.tscn",
+		"«fence» рівень не дозволяє — вужчий layout відпадає попри точніше націлення")
+	assert_eq(_picked(desc, 0.45, ["stump", "fence"]), "layout_hard.tscn",
+		"дозволені обидва види — той самий вужчий уже виграє")
+
+
+## Layout на ДІЯХ обмеження за видами не стосується: маркер каже «тут перестрибнути», а модель
+## підставить світ — уже з оглядом на obstacle_types рівня (крок 2½).
+func test_an_action_layout_is_not_filtered_by_allowed_kinds() -> void:
+	var desc := _with_layouts([
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "actions": ["jump", "side"]},
+	])
+	assert_eq(_picked(desc, 0.5, ["rock"]), "layout_easy.tscn",
+		"жодного спільного виду з рівнем, а layout на діях однаково годиться")
+
+
+## Порожнеча — чесна відповідь, а не привід вигадати. Покриття всього 0..1 стереже валідатор,
+## тож порожньо тут стає лише тоді, коли рівень просить заборонені види — і той, хто кличе,
+## мусить це побачити, а не дістати підсунутий «хоч якийсь» layout.
+func test_nothing_suitable_returns_an_empty_dictionary() -> void:
+	var pinned := _with_layouts([
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "obstacles": ["fence"]},
+	])
+	assert_true(ChunkDescriptor.pick_layout(pinned, 0.5, ["stump"]).is_empty(),
+		"єдиний layout пінить заборонений вид — вибору немає")
+	assert_true(ChunkDescriptor.pick_layout(_with_layouts([]), 0.5, []).is_empty(),
+		"layout'ів нема взагалі")
+	assert_true(ChunkDescriptor.pick_layout({}, 0.5, []).is_empty(),
+		"опис без поля «layouts» теж нічого не дає")
+
+
 # --- обхід диска (те, чим користується CLI) -------------------------------------------------
 
 ## Перевіряє не правило, а ПОШУК: що report() знаходить chunk.json у теці й доносить скаргу

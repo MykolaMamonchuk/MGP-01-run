@@ -326,6 +326,89 @@ static func exit_lanes(desc: Dictionary) -> int:
 	return int(desc.get("exit_lanes", 0))
 
 
+# --- вибір layout'а -------------------------------------------------------------------------
+
+## Який із рукотворних layout'ів чанка показати. Чанк НЕ знає, на якому він рівні: рівень дає
+## лише складність (число 0..1 з Difficulty.of) і список дозволених видів перешкод
+## (`obstacle_types` рівня), а чанк за цим вибирає сам (docs/tasks/reusable-chunks.md, крок 3).
+## Функція чиста: ні вузлів, ні диска — тому перевіряється числами, без сцени.
+##
+## `allowed_obstacles` ПОРОЖНІЙ означає «рівень не обмежує», а не «нічого не можна»: у
+## data/levels.json порожній `obstacle_types` — це «всі типи біому» (рівні 4, 8, 11, 14, 17), і
+## так само його читає Difficulty.obstacle_variety(), яка дає за порожній список МАКСИМУМ.
+##
+## Не підійшов жоден — повертається ПОРОЖНІЙ словник, і це навмисно. Покриття всього 0..1
+## вимагає валідатор (_coverage_errors), тож порожнеча може означати лише одне: рівень просить
+## види, яких цей чанк не пропонує. Хай той, хто кличе, побачить порожнечу й поскаржиться —
+## підсунутий «хоч якийсь» layout поставив би дитині перешкоду, заборонену рівнем, і вада була б
+## мовчазною.
+static func pick_layout(desc: Dictionary, difficulty: float, allowed_obstacles: Array) -> Dictionary:
+	var raw_layouts: Variant = desc.get("layouts", [])
+	if typeof(raw_layouts) != TYPE_ARRAY:
+		return {}
+	var best: Dictionary = {}
+	## Ширина діапазону в найкращого поки що; INF — ще нічого не знайшли.
+	var best_width := INF
+	for raw in (raw_layouts as Array):
+		if typeof(raw) != TYPE_DICTIONARY:
+			continue
+		var layout: Dictionary = raw
+		var span := _layout_span(layout)
+		if span.is_empty():
+			continue
+		# Краї включні — ТА САМА семантика, що в Difficulty.fits() і в перевірці покриття.
+		# Третього трактування країв тут не заводимо: розійшовшись, вибір і валідатор почали б
+		# сперечатися про той самий layout (перевернутий діапазон Difficulty.fits теж відкидає).
+		if not Difficulty.fits(float(span[0]), float(span[1]), difficulty):
+			continue
+		if not _kinds_allowed(layout, allowed_obstacles):
+			continue
+		# ВУЖЧИЙ виграє. Діапазон 0..1 — це «запасний»: він написаний, щоб чанк мав що показати
+		# будь-де, і сам по собі нічого не каже про цю складність. Вузький [0.4, 0.5] автор
+		# зробив НАВМИСНО під неї — отже, він і точніший. За однакової ширини виграє ПЕРШИЙ у
+		# списку: порядок у файлі — воля автора, і на стику діапазонів вона вже вирішує
+		# (docs/tasks/reusable-chunks.md, крок 3). Тому порівняння строге й із тим самим
+		# допуском EPS: 0.5 і 0.50000001 — це одна ширина, а не дві.
+		var width := float(span[1]) - float(span[0])
+		if width < best_width - EPS:
+			best = layout
+			best_width = width
+	return best
+
+
+## [від, до] layout'а, якщо діапазон узагалі читається; інакше порожній масив. Зіпсований опис
+## тут мовчки пропускається, а не «виправляється»: кричати про нього — робота errors().
+static func _layout_span(layout: Dictionary) -> Array:
+	var d: Variant = layout.get("difficulty", null)
+	if typeof(d) != TYPE_ARRAY or (d as Array).size() != 2:
+		return []
+	var pair: Array = d
+	if not _is_number(pair[0]) or not _is_number(pair[1]):
+		return []
+	return [float(pair[0]), float(pair[1])]
+
+
+## Чи дозволяє рівень усе, що цей layout пінить ВИДОМ. Пін виду — обіцянка поставити саме цю
+## модель, і рівень мусить уміти її виконати: бракує хоч одного виду — layout не годиться.
+## Layout на ДІЯХ під це не підпадає взагалі: маркер каже «тут перестрибнути», а конкретну
+## модель добере світ, уже з оглядом на obstacle_types рівня (крок 2½). Тому дивимось лише на
+## `obstacles`; відсутній або не-список — нема чого й забороняти.
+static func _kinds_allowed(layout: Dictionary, allowed: Array) -> bool:
+	if allowed.is_empty():
+		return true
+	if typeof(layout.get("obstacles", null)) != TYPE_ARRAY:
+		return true
+	for kind in (layout["obstacles"] as Array):
+		var found := false
+		for a in allowed:
+			if String(a) == String(kind):
+				found = true
+				break
+		if not found:
+			return false
+	return true
+
+
 # --- читання з диска ----------------------------------------------------------------------
 
 ## {ім'я світу: {"obstacles": [види], "actions": [дії]}} з data/worlds/*.json — єдине джерело
