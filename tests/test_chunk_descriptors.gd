@@ -19,8 +19,9 @@ const TMP_DIR := "user://test_chunk_descriptors"
 func _ctx(extra := {}) -> Dictionary:
 	var ctx := {
 		"worlds": {
-			"meadow": ["stump", "fence", "puddle"],
-			"forest": ["stump", "tree", "web"],
+			# Лужок уміє й ухил, Ліс — ні: на цьому й ловиться дія, якої в одному зі світів нема.
+			"meadow": {"obstacles": ["stump", "fence", "puddle"], "actions": ["jump", "side", "duck"]},
+			"forest": {"obstacles": ["tree", "web"], "actions": ["jump", "side"]},
 		},
 		"files": ["chunk.json", "chunk.tscn", "layout_easy.tscn", "layout_hard.tscn"],
 		"dir": "river_01",
@@ -40,8 +41,8 @@ func _good() -> Dictionary:
 		"exit_lanes": 3,
 		"worlds": ["meadow", "forest"],
 		"layouts": [
-			{"file": "layout_easy.tscn", "difficulty": [0.0, 0.4], "obstacles": ["stump"]},
-			{"file": "layout_hard.tscn", "difficulty": [0.4, 1.0], "obstacles": ["stump"]},
+			{"file": "layout_easy.tscn", "difficulty": [0.0, 0.4], "actions": ["jump"]},
+			{"file": "layout_hard.tscn", "difficulty": [0.4, 1.0], "actions": ["jump", "side"]},
 		],
 	}
 
@@ -171,19 +172,19 @@ func test_only_real_worlds_are_allowed() -> void:
 
 func test_a_missing_layout_scene_is_caught() -> void:
 	var desc := _broken({"layouts": [
-		{"file": "layout_none.tscn", "difficulty": [0.0, 1.0], "obstacles": []},
+		{"file": "layout_none.tscn", "difficulty": [0.0, 1.0], "actions": ["jump"]},
 	]})
 	_assert_complains(desc, "немає поруч", "файлу layout'а немає на диску")
 
 
 func test_difficulty_range_must_be_inside_zero_one_and_not_inverted() -> void:
 	var out_of_range := _broken({"layouts": [
-		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.4], "obstacles": []},
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.4], "actions": ["jump"]},
 	]})
 	_assert_complains(out_of_range, "0..1", "діапазон вийшов за 0..1")
 	var inverted := _broken({"layouts": [
-		{"file": "layout_easy.tscn", "difficulty": [0.8, 0.2], "obstacles": []},
-		{"file": "layout_hard.tscn", "difficulty": [0.0, 1.0], "obstacles": []},
+		{"file": "layout_easy.tscn", "difficulty": [0.8, 0.2], "actions": ["jump"]},
+		{"file": "layout_hard.tscn", "difficulty": [0.0, 1.0], "actions": ["jump"]},
 	]})
 	_assert_complains(inverted, "перевернута", "діапазон від більшого до меншого")
 
@@ -192,27 +193,27 @@ func test_difficulty_range_must_be_inside_zero_one_and_not_inverted() -> void:
 ## 0.4–0.6 чанк не мав би що показати.
 func test_a_hole_in_the_difficulty_coverage_is_caught() -> void:
 	var desc := _broken({"layouts": [
-		{"file": "layout_easy.tscn", "difficulty": [0.0, 0.4], "obstacles": []},
-		{"file": "layout_hard.tscn", "difficulty": [0.6, 1.0], "obstacles": []},
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 0.4], "actions": ["jump"]},
+		{"file": "layout_hard.tscn", "difficulty": [0.6, 1.0], "actions": ["jump"]},
 	]})
 	_assert_complains(desc, "не покрита", "дірка посеред діапазону")
 
 
 func test_coverage_that_stops_short_of_the_ends_is_caught() -> void:
 	var tail := _broken({"layouts": [
-		{"file": "layout_easy.tscn", "difficulty": [0.0, 0.9], "obstacles": []},
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 0.9], "actions": ["jump"]},
 	]})
 	_assert_complains(tail, "не покрита", "найскладніше лишилось без layout'а")
 	var head := _broken({"layouts": [
-		{"file": "layout_easy.tscn", "difficulty": [0.1, 1.0], "obstacles": []},
+		{"file": "layout_easy.tscn", "difficulty": [0.1, 1.0], "actions": ["jump"]},
 	]})
 	_assert_complains(head, "не покрита", "найлегше лишилось без layout'а")
 
 
 func test_overlapping_ranges_are_fine() -> void:
 	var desc := _broken({"layouts": [
-		{"file": "layout_easy.tscn", "difficulty": [0.0, 0.6], "obstacles": []},
-		{"file": "layout_hard.tscn", "difficulty": [0.4, 1.0], "obstacles": []},
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 0.6], "actions": ["jump"]},
+		{"file": "layout_hard.tscn", "difficulty": [0.4, 1.0], "actions": ["jump"]},
 	]})
 	var errors := ChunkDescriptor.errors(desc, _ctx())
 	assert_eq(errors.size(), 0, "перекриття діапазонів дозволене, а сказано: %s" % ", ".join(errors))
@@ -228,12 +229,65 @@ func test_an_obstacle_that_no_world_has_is_caught() -> void:
 
 
 ## Найпідступніший випадок: перешкода існує, але лише в ОДНОМУ із заявлених світів. На другому
-## світі той самий layout мовчки поставив би невідомий вид.
+## світі той самий layout мовчки поставив би невідомий вид. Скарга мусить ще й пояснити, куди
+## дивитись: для кількох світів пінять ДІЮ, а не вид (спільних видів між світами майже нема).
 func test_an_obstacle_missing_in_one_declared_world_is_caught() -> void:
 	var desc := _broken({"layouts": [
 		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "obstacles": ["fence"]},
 	]})
 	_assert_complains(desc, "forest", "«fence» є в Лужку, але не в Лісі")
+	_assert_complains(desc, "actions", "скарга підказує вживати дії")
+
+
+## Вид, пінений для чанка на ОДИН світ, — законний виняток.
+func test_pinning_a_kind_is_fine_for_a_single_world_chunk() -> void:
+	var desc := _broken({
+		"worlds": ["meadow"],
+		"layouts": [
+			{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "obstacles": ["fence"]},
+		],
+	})
+	var errors := ChunkDescriptor.errors(desc, _ctx())
+	assert_eq(errors.size(), 0, "вид у чанка на один світ дозволений, а сказано: %s"
+		% ", ".join(errors))
+
+
+# --- дії ------------------------------------------------------------------------------------
+
+## Заради чого й заведені дії: `jump` є в обох світах, тож багатосвітовий layout на діях живе.
+func test_actions_that_every_declared_world_has_pass() -> void:
+	var desc := _broken({"layouts": [
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "actions": ["jump", "side"]},
+	]})
+	var errors := ChunkDescriptor.errors(desc, _ctx())
+	assert_eq(errors.size(), 0, "дії є в обох світах, а сказано: %s" % ", ".join(errors))
+
+
+func test_an_action_the_game_does_not_know_is_caught() -> void:
+	var desc := _broken({"layouts": [
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "actions": ["fly"]},
+	]})
+	_assert_complains(desc, "fly", "такої дії гра не знає")
+
+
+## Дія є в одному заявленому світі й нема в другому — там маркер не було б чим наповнити.
+func test_an_action_missing_in_one_declared_world_names_the_world() -> void:
+	var desc := _broken({"layouts": [
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "actions": ["duck"]},
+	]})
+	_assert_complains(desc, "forest", "у Лісі немає перешкод з дією duck")
+	_assert_complains(desc, "duck", "названа саме дія")
+
+
+func test_a_layout_with_neither_actions_nor_obstacles_describes_nothing() -> void:
+	var empty := _broken({"layouts": [
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0]},
+	]})
+	_assert_complains(empty, "нічого не описує", "layout без дій і без видів")
+	var both_empty := _broken({"layouts": [
+		{"file": "layout_easy.tscn", "difficulty": [0.0, 1.0], "actions": [], "obstacles": []},
+	]})
+	_assert_complains(both_empty, "нічого не описує", "обидва списки порожні")
 
 
 # --- обхід диска (те, чим користується CLI) -------------------------------------------------

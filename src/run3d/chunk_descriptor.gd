@@ -24,9 +24,15 @@ extends SceneTree
 ## `_note` у data/worlds/*.json.
 const REQUIRED := ["id", "length_m", "entry_lanes", "exit_lanes", "worlds", "layouts"]
 const KNOWN := ["id", "length_m", "entry_lanes", "exit_lanes", "worlds", "layouts"]
-## Поля layout'а.
-const LAYOUT_REQUIRED := ["file", "difficulty", "obstacles"]
-const LAYOUT_KNOWN := ["file", "difficulty", "obstacles"]
+## Поля layout'а. `actions` і `obstacles` не обов'язкові поодинці, але хоча б одне з них
+## мусить бути: layout, який не каже ні дії, ні виду, не описує нічого.
+const LAYOUT_REQUIRED := ["file", "difficulty"]
+const LAYOUT_KNOWN := ["file", "difficulty", "actions", "obstacles"]
+
+## Дії, які вміє гра (поле `action` у перешкодах data/worlds/*.json). Саме ДІЮ пінить layout:
+## `jump`, `duck` і `side` має кожен світ без винятку, а спільних ВИДІВ між світами майже нема
+## (docs/tasks/reusable-chunks.md, крок 2½).
+const ACTIONS_ALLOWED := ["jump", "duck", "side", "any", "boost", "rail", "wind"]
 
 ## Скільки доріжок буває на трасі. Те саме, що стереже Difficulty.LANES_MIN/MAX.
 const LANES_ALLOWED := [3, 5, 7]
@@ -45,7 +51,7 @@ const EPS := Difficulty.EDGE_EPS
 
 ## Усі помилки одного опису людською мовою. `desc` — розібраний chunk.json, `ctx` — те, з чим
 ## його звіряти, щоб функція лишалась чистою (тест підсовує синтетику, CLI — справжній диск):
-##   ctx.worlds — {ім'я світу: [види перешкод цього світу]}
+##   ctx.worlds — {ім'я світу: {"obstacles": [види], "actions": [дії, які світ уміє]}}
 ##   ctx.files  — імена файлів, які реально лежать поруч із описом
 ##   ctx.dir    — ім'я теки (щоб id не розійшовся з нею); "" — не перевіряти
 ##   ctx.source — як називати файл у повідомленнях; "" — без префікса
@@ -190,7 +196,26 @@ static func _layout_errors(raw: Variant, index: int, desc: Dictionary, worlds: D
 			if not bad:
 				ranges.append([lo, hi])
 
-	# перешкоди — лише ті, що справді є в кожному заявленому світі
+	# дії — головний спосіб описати layout: маркер каже «тут перестрибнути», а модель добирає світ
+	if layout.has("actions"):
+		if typeof(layout["actions"]) != TYPE_ARRAY:
+			out.append("%s: «actions» має бути списком" % tag)
+		else:
+			for action in (layout["actions"] as Array):
+				if typeof(action) != TYPE_STRING:
+					out.append("%s: дія %s — має бути рядком" % [tag, str(action)])
+					continue
+				if not ACTIONS_ALLOWED.has(String(action)):
+					out.append("%s: дії «%s» гра не знає — є: %s"
+						% [tag, action, ", ".join(ACTIONS_ALLOWED)])
+					continue
+				for w in _declared_worlds(desc, worlds):
+					if not _world_list(worlds, w, "actions").has(String(action)):
+						out.append("%s: у світі «%s» немає жодної перешкоди з дією «%s»"
+							% [tag, w, action])
+
+	# види — виняток для чанка на ОДИН світ, і тому перевіряються строго: спільних видів між
+	# світами майже нема (Лужок ∩ Ліс — лише xbox), тож багатосвітовий чанк має жити на діях.
 	if layout.has("obstacles"):
 		if typeof(layout["obstacles"]) != TYPE_ARRAY:
 			out.append("%s: «obstacles» має бути списком" % tag)
@@ -199,11 +224,41 @@ static func _layout_errors(raw: Variant, index: int, desc: Dictionary, worlds: D
 				if typeof(kind) != TYPE_STRING:
 					out.append("%s: перешкода %s — має бути рядком" % [tag, str(kind)])
 					continue
-				for w in _declared_worlds(desc, worlds):
-					var kinds: Array = worlds[w]
-					if not kinds.has(String(kind)):
-						out.append("%s: перешкоди «%s» немає у світі «%s»" % [tag, kind, w])
+				var declared := _declared_worlds(desc, worlds)
+				for w in declared:
+					if _world_list(worlds, w, "obstacles").has(String(kind)):
+						continue
+					# Підказку про дії даємо лише багатосвітовому чанку: для чанка на один світ
+					# пін виду законний, і радити йому «вживай actions» було б неправдою.
+					var hint := ""
+					if declared.size() > 1:
+						hint = (" — «obstacles» пінить конкретний вид і годиться лише для чанка на "
+							+ "один світ; для кількох світів вживай «actions», дії є в кожному")
+					out.append("%s: перешкоди «%s» немає у світі «%s»%s" % [tag, kind, w, hint])
+
+	# layout, який не каже ні дії, ні виду, не описує нічого
+	if not _has_items(layout, "actions") and not _has_items(layout, "obstacles"):
+		out.append(("%s: немає ні «actions», ні «obstacles» — layout нічого не описує "
+			+ "(дія для будь-якого світу, вид — лише для чанка на один світ)") % tag)
 	return out
+
+
+## Чи є в layout'і непорожній список під таким ключем.
+static func _has_items(layout: Dictionary, key: String) -> bool:
+	if not layout.has(key) or typeof(layout[key]) != TYPE_ARRAY:
+		return false
+	return not (layout[key] as Array).is_empty()
+
+
+## Список «види» або «дії» одного світу з каталогу.
+static func _world_list(worlds: Dictionary, world: String, key: String) -> Array:
+	var entry: Variant = worlds.get(world, {})
+	if typeof(entry) != TYPE_DICTIONARY:
+		return []
+	var list: Variant = (entry as Dictionary).get(key, [])
+	if typeof(list) != TYPE_ARRAY:
+		return []
+	return list
 
 
 ## Діапазони складності мусять покривати ВЕСЬ 0..1 без дірок: інакше на якійсь складності чанк
@@ -273,8 +328,8 @@ static func exit_lanes(desc: Dictionary) -> int:
 
 # --- читання з диска ----------------------------------------------------------------------
 
-## {ім'я світу: [види перешкод]} з data/worlds/*.json — єдине джерело правди про те, які
-## перешкоди в якому світі взагалі існують.
+## {ім'я світу: {"obstacles": [види], "actions": [дії]}} з data/worlds/*.json — єдине джерело
+## правди про те, що в якому світі взагалі існує. Дія береться з поля `action` самої перешкоди.
 static func world_catalog(dir_path := WORLDS_DIR) -> Dictionary:
 	var out := {}
 	for name in _files_in(dir_path):
@@ -286,11 +341,19 @@ static func world_catalog(dir_path := WORLDS_DIR) -> Dictionary:
 		var id := String((world as Dictionary).get("id", name.get_basename()))
 		var obstacles: Variant = (world as Dictionary).get("obstacles", {})
 		var kinds: Array = []
+		var actions: Array = []
 		if typeof(obstacles) == TYPE_DICTIONARY:
-			kinds = (obstacles as Dictionary).keys()
+			for kind in (obstacles as Dictionary).keys():
+				kinds.append(String(kind))
+				var entry: Variant = (obstacles as Dictionary)[kind]
+				if typeof(entry) != TYPE_DICTIONARY:
+					continue
+				var action := String((entry as Dictionary).get("action", ""))
+				if action != "" and not actions.has(action):
+					actions.append(action)
 		elif typeof(obstacles) == TYPE_ARRAY:
 			kinds = obstacles
-		out[id] = kinds
+		out[id] = {"obstacles": kinds, "actions": actions}
 	return out
 
 
