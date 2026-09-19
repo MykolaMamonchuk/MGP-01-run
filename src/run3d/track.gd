@@ -120,6 +120,16 @@ const FAR_EVERY := [4, 6]
 ## неба знову більше (18% замість 14%). На самому референсі великі будівлі теж обрізані
 ## краєм кадру впритул до камери — це не хиба перспективи, це і є потрібна щільна забудова.
 const FAR_BUILD_SCALE := [1.1, 1.4]
+## ДРУГИЙ РЯД забудови — за першим, далі від дороги. Один ряд будинків читається як
+## однорядна вулиця з полем позаду: у прогалини між будинками видно порожню траву аж до
+## обрію, і саме це замовник назвав «світ пустий, гравець не має бачити пустоти». Другий ряд
+## затуляє ці прогалини й дає містечку глибину, як на референсі riverside.
+## Смуга починається за FAR_MAX із запасом на півширини обох будівель.
+const FAR2_MIN := 7.5
+const FAR2_MAX := 12.0
+const FAR2_EVERY := [1, 2]
+## Далі від камери — трохи більші, інакше другий ряд губиться за першим.
+const FAR2_SCALE := [1.3, 1.7]
 const FAR_FILLER_SCALE := [1.0, 1.5]
 const FAR_FILLER_CHANCE := 0.5
 ## Порожній проміжок уздовж траси між двома групами дрібниць на одному боці (референс:
@@ -278,6 +288,10 @@ var _far_left := [0, 0]
 ## будівля другого плану ще не скінчилась по Z. [ліворуч, праворуч]; рахується від РЕАЛЬНОЇ
 ## половини глибини щойно поставленої моделі (_kind_half_extent), а не з орієнтовної константи.
 var _far_clear := [0.0, 0.0]
+## Те саме для ДРУГОГО ряду забудови: свої лічильник і «зайнято до», бо ряди стоять у різних
+## смугах по x і одне одному по Z не заважають.
+var _far2_left := [0, 0]
+var _far2_clear := [0.0, 0.0]
 ## Те саме для груп дрібниць на узбіччі (props_side): до якої відстані бік «зайнятий»
 ## поточною купкою — щоб між купками лишалась порожня трава (див. PROP_GROUP_GAP).
 var _prop_clear := [0.0, 0.0]
@@ -1020,6 +1034,8 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 		_decor_layer("fence_rail", {}, PropLibrary.pick("fence_rail"))
 	_far_left = [_rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1])), _rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]), int(_d2("far_every", FAR_EVERY)[1]))]
 	_far_clear = [0.0, 0.0]
+	_far2_left = [_rng.randi_range(int(_d2("far2_every", FAR2_EVERY)[0]), int(_d2("far2_every", FAR2_EVERY)[1])), _rng.randi_range(int(_d2("far2_every", FAR2_EVERY)[0]), int(_d2("far2_every", FAR2_EVERY)[1]))]
+	_far2_clear = [0.0, 0.0]
 	_prop_clear = [0.0, 0.0]
 	_layout_canal()
 	# ближні стіни: список світу + будівлі, добудовані дитиною в діорамі
@@ -1267,7 +1283,27 @@ func _decorate(row: Node3D) -> void:
 				# наступна будівля на цьому боці — не раніше, ніж ця скінчиться по Z (+ зазор):
 				# інакше сарай і будинок поруч проростають одне в одне.
 				_far_clear[sidx] = _row_distance_m[i] + b_half.y + FAR_GAP_MIN
-			elif not _far_filler.is_empty() and _rng.randf() < _d("filler_chance", FAR_FILLER_CHANCE):
+			# ДРУГИЙ РЯД — свій лічильник, своя смуга по x, незалежно від першого. Ставиться
+			# ЗАВЖДИ, а не «замість» першого: саме ним закриваються прогалини, крізь які було
+			# видно порожнє поле. Смуга починається за FAR2_MIN, тобто не перетинається з
+			# першою; те, що все-таки налізло, відсіє заморожування (tools/freeze_chunk.py).
+			if not _sea and not _buildings_far.is_empty():
+				_far2_left[sidx] -= 1
+				if _far2_left[sidx] <= 0:
+					var b2_kind := String(_buildings_far[_rng.randi() % _buildings_far.size()])
+					var b2_scale := _rng.randf_range(_d2("far2_scale", FAR2_SCALE)[0], _d2("far2_scale", FAR2_SCALE)[1])
+					var b2_half := _kind_half_extent(b2_kind, true) * b2_scale
+					if _row_distance_m[i] - b2_half.y >= _far2_clear[sidx]:
+						var b2_lo := maxf(_d("far2_min", FAR2_MIN), _d("far_max", FAR_MAX) + b2_half.x)
+						var b2_hi := maxf(b2_lo, _d("far2_max", FAR2_MAX))
+						_add_decor(ids, data, b2_kind, {},
+							side * (edge + _rng.randf_range(b2_lo, b2_hi)), 0.0, b2_scale,
+							-PI * 0.5 if side > 0.0 else PI * 0.5, 1.0, true)
+						_far2_clear[sidx] = _row_distance_m[i] + b2_half.y + FAR_GAP_MIN
+						_far2_left[sidx] = _rng.randi_range(int(_d2("far2_every", FAR2_EVERY)[0]), int(_d2("far2_every", FAR2_EVERY)[1]))
+					else:
+						_far2_left[sidx] = 1
+			if not far_row and not _far_filler.is_empty() and _rng.randf() < _d("filler_chance", FAR_FILLER_CHANCE):
 				# заповнювач між будинками — дерева, щоб горизонт лишався закритим і в проміжках.
 				# Дерево на найбільшому масштабі (у містечка — до 1,9) не вужче за будинок — та
 				# сама перевірка реальної половини ширини, щоб крона не звисала над каналом.

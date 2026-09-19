@@ -77,7 +77,11 @@
 		"house_terra_1",
 		"house_terra_2",
 		"house_terra_3",
+		"house_terra_4",
+		"house_terra_5",
+		"house_terra_6",
 		"house_terra_7",
+		"house_terra_9",
 		"house_red",
 		"house_straw",
 		"house_teal",
@@ -277,8 +281,8 @@
 		"far_min": 2.8,
 		"far_max": 7.0,
 		"far_every": [
-			2,
-			3
+			1,
+			2
 		],
 		"build_scale": [
 			1.2,
@@ -289,6 +293,16 @@
 			1.9
 		],
 		"filler_chance": 0.75,
-		"canal_rock_chance": 0.35
+		"canal_rock_chance": 0.35,
+		"far2_min": 7.5,
+		"far2_max": 12.0,
+		"far2_every": [
+			1,
+			2
+		],
+		"far2_scale": [
+			1.3,
+			1.7
+		]
 	}
 }

@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cqq51m4bxcq5p"
-path.s3tc="res://.godot/imported/house_terra_2_baked_color.jpg-7eda394d51cd14592dc64e0fefc505c5.s3tc.ctex"
-path.etc2="res://.godot/imported/house_terra_2_baked_color.jpg-7eda394d51cd14592dc64e0fefc505c5.etc2.ctex"
+uid="uid://d0otjt468thf2"
+path.s3tc="res://.godot/imported/house_terra_4_baked_color.jpg-cf886fde90ead241e66cc42fd8f4e1e4.s3tc.ctex"
+path.etc2="res://.godot/imported/house_terra_4_baked_color.jpg-cf886fde90ead241e66cc42fd8f4e1e4.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "21a94e9341491cb29c00e375a9eff718"
+"md5": "7cda8204d31f03c0a65284a4f9ba3740"
 }
 
 [deps]
 
-source_file="res://assets/props/house_terra_2_baked_color.jpg"
-dest_files=["res://.godot/imported/house_terra_2_baked_color.jpg-7eda394d51cd14592dc64e0fefc505c5.s3tc.ctex", "res://.godot/imported/house_terra_2_baked_color.jpg-7eda394d51cd14592dc64e0fefc505c5.etc2.ctex"]
+source_file="res://assets/props/house_terra_4_baked_color.jpg"
+dest_files=["res://.godot/imported/house_terra_4_baked_color.jpg-cf886fde90ead241e66cc42fd8f4e1e4.s3tc.ctex", "res://.godot/imported/house_terra_4_baked_color.jpg-cf886fde90ead241e66cc42fd8f4e1e4.etc2.ctex"]
 
 [params]
 
@@ -42,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=512
-detect_3d/compress_to=0
+detect_3d/compress_to=1

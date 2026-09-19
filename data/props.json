@@ -122,5 +122,9 @@
 	"garden": "res://assets/props/garden.glb",
 	"lantern": "res://assets/props/lantern.glb",
 	"branch": "res://assets/props/branch.glb",
-	"stump": "res://assets/props/stump.glb"
+	"stump": "res://assets/props/stump.glb",
+	"house_terra_4": "res://assets/props/house_terra_4.glb",
+	"house_terra_5": "res://assets/props/house_terra_5.glb",
+	"house_terra_6": "res://assets/props/house_terra_6.glb",
+	"house_terra_9": "res://assets/props/house_terra_9.glb"
 }

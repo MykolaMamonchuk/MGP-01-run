@@ -48,7 +48,17 @@ SIZE_LIMIT = {"assets/models": 1024, "assets/props": 512}
 ## віконних рам розмилося, 15,9% ділянки будинку за порогом 4/255 (середнє 2,46, найбільше
 ## 89) при НУЛЬОВОМУ шумі між двома однаковими прогонами. Числом воно ще проходило (95,3%
 ## за порогом 12), але оком — ні, а приймає замовник оком.
+## Кому лишаємо повну сторону 1024. Звіряємо ТОЧНО, а не входженням підрядка: «house_terra»
+## є в назві house_terra_4_baked_color.jpg, і через це вся дев'ятка будинків їхала в пам'ять
+## по 1024 — 48,7 МБ зі стелі 45 (заміряно 19.09.2026, сторож упав одразу). Поблизу дороги
+## стоїть лише базовий house_terra; решта — забудова другого й третього плану, їй 512 досить:
+## на 7 м будинок займає ~210 px висоти екрана.
 KEEP_FULL_SIZE = ("house_terra",)
+
+
+def keeps_full_size(basename):
+    return any(basename.startswith(big + "_baked") or basename.startswith(big + ".")
+               for big in KEEP_FULL_SIZE)
 
 
 def main():
@@ -63,7 +73,7 @@ def main():
         out = text.replace("compress/mode=0", "compress/mode=2")
         if any(folder in path for folder in HIGH_QUALITY):
             out = out.replace("compress/high_quality=false", "compress/high_quality=true")
-        if not any(big in os.path.basename(path) for big in KEEP_FULL_SIZE):
+        if not keeps_full_size(os.path.basename(path)):
             for folder, limit in SIZE_LIMIT.items():
                 if folder in path:
                     out = re.sub(r"process/size_limit=\d+", "process/size_limit=%d" % limit, out)

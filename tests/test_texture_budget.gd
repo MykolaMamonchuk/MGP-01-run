@@ -92,8 +92,12 @@ func test_no_texture_is_larger_than_its_side_limit() -> void:
 		if img == null:
 			continue
 		var limit := MODEL_SIDE if path.contains("/models/") else PROP_SIDE
+		# Звіряємо ТОЧНО, а не початком рядка: «house_terra» є й на початку
+		# house_terra_4_baked_color.jpg, і через це вся дев'ятка будинків проходила як
+		# «повний розмір» — 48,7 МБ зі стелі 45. Поблизу дороги стоїть лише базовий.
+		var fname := String(path).get_file()
 		for big in KEEP_FULL_SIZE:
-			if path.get_file().begins_with(big):
+			if fname.begins_with(String(big) + "_baked") or fname.begins_with(String(big) + "."):
 				limit = MODEL_SIDE
 		assert_lte(maxi(img.get_width(), img.get_height()), limit,
 			"%s має сторону %dx%d при стелі %d" % [path.get_file(), img.get_width(), img.get_height(), limit])
