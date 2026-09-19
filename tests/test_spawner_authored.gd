@@ -210,3 +210,79 @@ func test_authored_pickups_switch_off_the_random_pickup_timer() -> void:
 	_spawner._pickup_pending = ""
 	_spawner._tick_pickups(100.0)
 	assert_eq(_spawner._pickup_pending, "", "випадковий таймер пікапів мовчить")
+
+
+# --- другий ярус на авторському рівні --------------------------------------------------
+#
+# Той самий корінь, що й у злитків: _spawn_tier2() кликався лише з процедурної гілки, тож на
+# рівні з маркерами другого ярусу не було зовсім (заміряно: 3 сегменти на 400 м проти нуля).
+# Але просто пустити сюди таймер не можна — сегмент займає 14–20 м доріжки й накрив би
+# перешкоду, яку автор поставив навмисно. Тому вибір доріжки тут усвідомлений.
+
+func _tier2_segments() -> Array:
+	var out := []
+	for c in _spawner.get_children():
+		if c is Tier2Segment:
+			out.append(c)
+	return out
+
+
+## Світ Лісу — у ньому "tier2": true (у Лужку його нема зовсім).
+func _world_forest() -> Dictionary:
+	var f := FileAccess.open("res://data/worlds/forest.json", FileAccess.READ)
+	var parsed = JSON.parse_string(f.get_as_text())
+	return parsed if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
+func test_tier2_appears_on_an_authored_level_in_a_lane_that_is_free() -> void:
+	_spawner.world = _world_forest()
+	_spawner.lanes = 5
+	# усі перешкоди в центрі — крайні доріжки вільні, ярусу є куди стати
+	var recs := []
+	for i in range(10):
+		recs.append({"z_m": 40.0 + float(i) * 15.0, "kind": "tree", "lane": 0,
+			"override": {}, "yaw_deg": 0.0, "scale": 1.0})
+	_spawner.set_authored_obstacles(recs)
+	_spawner._tier2_due = true
+	for i in range(10):
+		_spawner.advance(1.0)
+	assert_eq(_tier2_segments().size(), 1, "другий ярус з'явився")
+	for l in _tier2_segments()[0].lanes_used:
+		assert_ne(int(l), 0, "і НЕ в тій доріжці, де стоять авторські перешкоди")
+
+
+## Зайняті всі доріжки — ярус не втискається, а чекає наступної нагоди. Краще без нього, ніж
+## платформа поверх перешкоди.
+##
+## Дивимось саме на ЩЕ НЕ ЗʼЯВЛЕНІ записи, і це не дрібниця. Сегмент лягає ДАЛІ за лінію спавну
+## (z = SPAWN_Z - total_length) і перетинає її протягом наступних 14–20 м ходу — тобто заважає
+## тому, що з'явиться ПОТІМ. Перешкода, яка вже стоїть, опиняється перед пандусом, а не під
+## платформою, і заважати не може. Перша версія цього тесту ганяла трасу на 8 м, перший запис
+## устигав з'явитись, його доріжка ставала вільною — і тест вимагав від коду неправильного.
+func test_tier2_waits_when_every_lane_is_busy_nearby() -> void:
+	_spawner.world = _world_forest()
+	_spawner.lanes = 3
+	var recs := []
+	for i in range(3):
+		recs.append({"z_m": 40.0 + float(i) * 4.0, "kind": "tree", "lane": i - 1,
+			"override": {}, "yaw_deg": 0.0, "scale": 1.0})
+	_spawner.set_authored_obstacles(recs)
+	_spawner._tier2_due = true
+	for i in range(5):        # 5 м — перший запис з'явиться аж на 6-му (40 - 34)
+		_spawner.advance(1.0)
+	assert_eq(_spawner._authored_cursor, 0, "жоден запис ще не з'явився — усі три попереду")
+	assert_eq(_tier2_segments().size(), 0, "усі три доріжки зайняті — ярус почекав")
+	assert_true(_spawner._tier2_due, "і лишився в черзі, а не згорів")
+
+
+## Порожній хвіст рівня (авторські записи скінчились) — вільні всі доріжки.
+func test_tier2_appears_after_the_last_authored_obstacle() -> void:
+	_spawner.world = _world_forest()
+	_spawner.lanes = 3
+	_spawner.set_authored_obstacles([
+		{"z_m": 40.0, "kind": "tree", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	for i in range(10):
+		_spawner.advance(1.0)
+	_spawner._tier2_due = true
+	_spawner.advance(1.0)
+	assert_eq(_tier2_segments().size(), 1)

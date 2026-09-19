@@ -87,8 +87,12 @@ func _ready() -> void:
 		cam.position = Vector3(0, 60, -(from + span * 0.5))
 		cam.rotation_degrees = Vector3(-90, -90, 0)
 	else:
-		cam.position = Vector3(0, 3.0, 8.0 - from)
-		cam.rotation_degrees = Vector3(-10, 0, 0)
+		# Було 3 м заввишки й нахил -10°: дорога йшла просто в горизонт, і маркер за тридцять
+		# метрів займав кілька пікселів — приймати розкладку по такому знімку неможливо.
+		# 5,5 м і -22° кадрують приблизно 40 м попереду, тобто рівно ту ділянку, яку автор і
+		# правитиме; далі за неї однаково нічого не розгледіти.
+		cam.position = Vector3(0, 5.5, 9.0 - from)
+		cam.rotation_degrees = Vector3(-22, 0, 0)
 	cam.far = 400.0
 	add_child(cam)
 	cam.make_current()

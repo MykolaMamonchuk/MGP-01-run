@@ -290,6 +290,7 @@ func clear_authored_obstacles() -> void:
 func _advance_authored() -> void:
 	if not spawning or finish_pending:
 		return
+	_try_authored_tier2()
 	while _authored_cursor < _authored_obstacles.size():
 		var rec: Dictionary = _authored_obstacles[_authored_cursor]
 		var z := float(rec.get("z_m", 0.0))
@@ -315,6 +316,47 @@ func _advance_authored() -> void:
 				placed = true
 		if placed:
 			_spawn_authored_collectibles(free_lane)
+
+
+## Скільки метрів ходу треба другому ярусу, щоб дитина встигла заїхати й зіскочити: найдовший
+## сегмент — 16 м платформи плюс два пандуси по 2 (Tier2Segment.total_length), плюс запас на
+## приземлення.
+const TIER2_SPAN := 24.0
+
+
+## Другий ярус на АВТОРСЬКОМУ рівні. Просто пустити сюди таймер, як на процедурному, не можна:
+## сегмент займає 14–20 м доріжки, і на рукотворній розкладці він накрив би перешкоду, яку
+## автор поставив навмисно, — або вона опинилась би під платформою, де дитині нічого робити.
+##
+## Тому дивимось, у ЯКИХ доріжках найближчі TIER2_SPAN метрів нічого не стоїть, і ставимо
+## тільки туди. Немає жодної вільної — ярус просто чекає наступної нагоди, а не втискається.
+func _try_authored_tier2() -> void:
+	if not _tier2_due:
+		return
+	if _tier2 != null and is_instance_valid(_tier2):
+		return
+	var free := _authored_free_lanes(TIER2_SPAN)
+	if free.is_empty():
+		return
+	_spawn_tier2(free)
+
+
+## Доріжки, у яких на найближчі span метрів ходу нема жодної авторської перешкоди.
+func _authored_free_lanes(span: float) -> Array:
+	var busy := {}
+	var until := distance_m + span
+	var i := _authored_cursor
+	while i < _authored_obstacles.size():
+		var rec: Dictionary = _authored_obstacles[i]
+		if float(rec.get("z_m", 0.0)) - absf(SPAWN_Z) > until:
+			break
+		busy[clampi(int(rec.get("lane", 0)), -max_lane(), max_lane())] = true
+		i += 1
+	var out := []
+	for l in lane_list():
+		if not busy.has(l):
+			out.append(l)
+	return out
 
 
 ## Доріжка, у якій на цьому метрі НЕМА перешкоди. Перевага центру: саме туди дитина
@@ -700,14 +742,17 @@ func _tick_tier2(delta: float) -> void:
 
 
 ## Сегмент другого рівня замість чергової групи: платформа на 1–2 доріжках, подвійні зірочки на ній.
-func _spawn_tier2() -> void:
+## allowed — доріжки, з яких дозволено вибирати. Порожньо = будь-яка (процедурний рівень:
+## там групи ще нема, і сегмент нічому не заважає). Авторський рівень передає сюди лише ті,
+## де на найближчі метри нічого не стоїть.
+func _spawn_tier2(allowed: Array = []) -> void:
 	_tier2_due = false
 	_tier2_t = randf_range(float(TIER2_INTERVAL[0]), float(TIER2_INTERVAL[1]))
-	var lane := random_lane()
+	var lane := random_lane() if allowed.is_empty() else int(allowed[randi() % allowed.size()])
 	var used: Array = [lane]
 	if lanes >= 5 and randf() < 0.5:
 		var second := clampi(lane + (1 if lane < max_lane() else -1), -max_lane(), max_lane())
-		if second != lane:
+		if second != lane and (allowed.is_empty() or allowed.has(second)):
 			used.append(second)
 	var seg := Tier2Segment.new()
 	seg.setup(used, randf_range(10.0, 16.0))
