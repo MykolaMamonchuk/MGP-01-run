@@ -73,8 +73,12 @@
 		"rock_grey"
 	],
 	"buildings_far": [
-		"house_red",
 		"house_terra",
+		"house_terra_1",
+		"house_terra_2",
+		"house_terra_3",
+		"house_terra_7",
+		"house_red",
 		"house_straw",
 		"house_teal",
 		"city_house_a",
