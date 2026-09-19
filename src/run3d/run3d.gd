@@ -211,7 +211,10 @@ func _ready() -> void:
 	_debug = DebugOverlay.new()
 	add_child(_debug)
 	_debug.setup(self)
-	if not (OS.has_feature("debug_hud") or OS.is_debug_build()):
+	# DEBUG_HUD=0 ховає накладку примусово — щоб знімки ВИГЛЯДУ (tools/probe/) не
+	# розглядали половину кадру крізь панель із числами.
+	if OS.get_environment("DEBUG_HUD") == "0" \
+			or not (OS.has_feature("debug_hud") or OS.is_debug_build()):
 		_debug.mode = DebugOverlay.Mode.HIDDEN
 		_debug._panel.visible = false
 

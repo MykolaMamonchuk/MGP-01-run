@@ -5,6 +5,7 @@
 ##
 ## Ручки: STAGE (menu | level | map), LEVEL, FRAMES, RESET, PROFILE, RESIZE, BURST, PAUSE, NUDGE,
 ## SHADOWS=0 (зняти кадр без проходу тіней — щоб заміряти його ціну),
+## DEBUG_HUD=0 (сховати дебаг-накладку: для знімків ВИГЛЯДУ вона затуляє чверть кадру),
 ## QUALITY=smooth|middle|pretty (якість зображення — згладжування), PARENTS=1 (екран батьків).
 ##
 ## Пише:

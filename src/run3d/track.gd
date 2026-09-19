@@ -30,6 +30,24 @@ const LANES_W := 3.2         # ширина для 3 доріжок (базов�
 const SIDE_W := 8.0
 ## Море на всю видиму ширину.
 const SEA_W := 60.0
+## БЕРЕГ морського світу. Доти Пляж був голою водою до обрію: дорога невидима, забудова
+## вимкнена (будинок посеред моря без піску під ним — то була справедлива вада), і в кадрі
+## лишалися тільки буї. Замовник назвав це «світ пустий, гравець не має бачити пустоти».
+##
+## Тепер обабіч смуги, якою їде дошка, лежить пісок, а на ньому стоїть те саме, що в інших
+## світах, — забудова й пальми. Море стало затокою, а не нічим.
+##
+## SHORE_GAP — скільки метрів води від краю дороги до піску (там же плавають буї, які
+## ставляться на edge+3..5, тож шість — це «за буями»). SHORE_W — глибина самого піску.
+const SHORE_GAP := 4.5
+const SHORE_W := 18.0
+## Товщина плити піску вниз. Верх — рівно на 0,0, тобто там само, де стоять пропси всіх
+## інших світів: тоді пальма на піску стоїть, а не тоне й не висить.
+const SHORE_H := 0.6
+## Як часто на морі трапляється буй/скеля. Одиниця (щоряду) робила з них частокіл.
+const SEA_BUOY_CHANCE := 0.3
+## Скільки дрібниці кидаємо на пісок (двічі на ряд на борт, кожен кидок із цим шансом).
+const SHORE_PROP_CHANCE := 0.45
 ## Крона над дорогою. 4,6 м, а не 3,2: камера гри стоїть на висоті 3,4 м і дивиться вниз
 ## під 25°, тож крона на 3,2 опинялась рівно на рівні ока й перекривала дорогу. У лісі це
 ## було видно як суцільну зелену стіну, у «Хмаринках» — як білу.
@@ -195,6 +213,9 @@ var _mm_cliff: Array[MultiMeshInstance3D] = []
 var _mm_seam: MultiMeshInstance3D
 ## Вода внизу з обох боків плато (окрема від «моря» _water).
 var _side_water: Array[MeshInstance3D] = []
+## Пісок обабіч моря — по плиті на борт. Не по рядах: пісок однорідний, і сто рядів піску
+## коштували б сто записів у пачці заради однакових пікселів.
+var _shore: Array[MeshInstance3D] = []
 ## Пул ближніх стін світу: walls_near + добудовані в діорамі будівлі дитини.
 var _near_pool: Array = []
 ## Скільки рядів лишилось до наступного орієнтира.
@@ -495,6 +516,19 @@ func _ready() -> void:
 		sw.visible = false
 		add_child(sw)
 		_side_water.append(sw)
+	# пісок морського світу — по плиті на борт (див. SHORE_GAP/SHORE_W)
+	for i in range(2):
+		var sh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(SHORE_W, SHORE_H, float(ROWS) + 8.0)
+		sh.mesh = box
+		sh.name = "Shore%d" % i
+		# Тінь від піску нікуди не лягає: він і є найнижча поверхня свого боку, а до води
+		# не дотягується (див. _layout_water — вода кінчається рівно там, де він починається).
+		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		sh.visible = false
+		add_child(sh)
+		_shore.append(sh)
 
 
 ## Один шар полотна. AABB задаємо руками на всю трасу: інакше рушій перераховував би її
@@ -1111,6 +1145,63 @@ func _paint_road(is_water: bool) -> void:
 	for sw in _side_water:
 		sw.material_override = low_water
 		sw.visible = not _sea and not is_water
+	# пісок — лише на морі; колір беремо той, яким світ малює далекий план
+	var sand := Mats.solid(Palette.of(world.get("far", world.get("ground")), Palette.WORLD_SIDE))
+	for sh in _shore:
+		sh.material_override = sand
+		sh.visible = _sea
+
+
+## Берег морського світу: забудова й заповнювач на піску, по тих самих правилах, що й в
+## інших світах (свій лічильник на борт, «зайнято до» по глибині моделі, фасад до води).
+## Смуга рахується від краю піску, а не від краю дороги: між ними ще SHORE_GAP метрів моря.
+func _decorate_shore(ids: PackedInt32Array, data: PackedFloat32Array, side: float, i: int,
+		edge: float) -> void:
+	if _buildings_far.is_empty():
+		return
+	var sidx := 0 if side < 0.0 else 1
+	var lo := SHORE_GAP + 1.5
+	var hi := SHORE_GAP + SHORE_W - 2.0
+	# Дрібниця на піску: парасольки, ящики, каміння. Без неї берег читався як рівне жовте
+	# поле — забудова стоїть далеко й тоне в морській імлі, а перед нею порожньо. На пляжі
+	# людські речі лежать саме біля води, тож кидаємо їх у смугу від самої кромки.
+	for k in 2:
+		if _props_side.is_empty() or _rng.randf() >= SHORE_PROP_CHANCE:
+			continue
+		var kind := String(_props_side[_rng.randi() % _props_side.size()])
+		_add_decor(ids, data, kind, {},
+			side * (edge + _rng.randf_range(SHORE_GAP + 0.4, SHORE_GAP + SHORE_W * 0.6)),
+			0.0, _rng.randf_range(0.9, 1.4))
+	_far_left[sidx] -= 1
+	if _far_left[sidx] <= 0:
+		var b_kind := String(_buildings_far[_rng.randi() % _buildings_far.size()])
+		var b_scale := _rng.randf_range(_d2("build_scale", FAR_BUILD_SCALE)[0],
+			_d2("build_scale", FAR_BUILD_SCALE)[1])
+		var b_half := _kind_half_extent(b_kind, true) * b_scale
+		if _row_distance_m[i] - b_half.y >= _far_clear[sidx]:
+			_add_decor(ids, data, b_kind, {}, side * (edge + _rng.randf_range(lo, hi)), 0.0,
+				b_scale, -PI * 0.5 if side > 0.0 else PI * 0.5, 1.0, true)
+			_far_clear[sidx] = _row_distance_m[i] + b_half.y + FAR_GAP_MIN
+			_far_left[sidx] = _rng.randi_range(int(_d2("far_every", FAR_EVERY)[0]),
+				int(_d2("far_every", FAR_EVERY)[1]))
+		else:
+			_far_left[sidx] = 1
+	# другий ряд — глибше в пісок, як і в інших світах
+	_far2_left[sidx] -= 1
+	if _far2_left[sidx] <= 0:
+		var k2 := String(_buildings_far[_rng.randi() % _buildings_far.size()])
+		var s2 := _rng.randf_range(_d2("far2_scale", FAR2_SCALE)[0], _d2("far2_scale", FAR2_SCALE)[1])
+		var h2 := _kind_half_extent(k2, true) * s2
+		if _row_distance_m[i] - h2.y >= _far2_clear[sidx]:
+			var lo2 := maxf(hi, SHORE_GAP + SHORE_W * 0.55) + h2.x
+			_add_decor(ids, data, k2, {},
+				side * (edge + _rng.randf_range(lo2, SHORE_GAP + SHORE_W - 1.0)), 0.0, s2,
+				-PI * 0.5 if side > 0.0 else PI * 0.5, 1.0, true)
+			_far2_clear[sidx] = _row_distance_m[i] + h2.y + FAR_GAP_MIN
+			_far2_left[sidx] = _rng.randi_range(int(_d2("far2_every", FAR2_EVERY)[0]),
+				int(_d2("far2_every", FAR2_EVERY)[1]))
+		else:
+			_far2_left[sidx] = 1
 
 
 ## Узбіччя: стіни світу (walls_near впритул, walls_far далі й більші), ближній пояс — дрібне (квіти, гриби),
@@ -1349,15 +1440,28 @@ func _decorate(row: Node3D) -> void:
 				cr_open.setup(String(critters[randi() % critters.size()]))
 			continue
 		# стіна далека — кожен ряд, більша (буї/скелі у воді на морі)
-		if not walls_far.is_empty():
+		#
+		# На морі — НЕ щоряду. Доти буї були єдиним, що взагалі стояло в кадрі Пляжу, і
+		# суцільний ряд їх виправдовував себе. Тепер обабіч є берег із пальмами й хатинами
+		# (див. _decorate_shore), і та сама щільність читається як частокіл упоперек моря, а
+		# не як бакени, що вказують фарватер. Тому на морі кидаємо рідше й ближче до дошки.
+		if not walls_far.is_empty() and (not _sea or randf() < SEA_BUOY_CHANCE):
+			var wf_near := 1.4 if _sea else 3.0
+			var wf_far := SHORE_GAP - 1.5 if _sea else 5.0
 			_add_decor(ids, data, String(walls_far[randi() % walls_far.size()]), {},
-				side * (edge + randf_range(3.0, 5.0)),
+				side * (edge + randf_range(wf_near, wf_far)),
 				-0.05 if _sea else 0.0,
 				randf_range(float(far_scale[0]), float(far_scale[1])), -1.0, 1.0, true)
 		if _sea:
-			# гребені хвиль із піною — плавають довкола траси
+			# гребені хвиль із піною — плавають довкола траси, але лише у ВОДІ (до піску)
 			if randf() < 0.3:
-				_add_decor(ids, data, "wave_crest", {}, side * (edge + randf_range(0.8, 6.0)), 0.0, 1.0)
+				_add_decor(ids, data, "wave_crest", {},
+					side * (edge + randf_range(0.8, minf(6.0, SHORE_GAP - 0.5))), 0.0, 1.0)
+			# ЗАБУДОВА НА БЕРЕЗІ. Доти на морі її не було зовсім, і з вагомої причини: берега
+			# теж не було, тож пляжна хатина ставала посеред води без піску під нею. Тепер
+			# пісок є (див. SHORE_GAP/SHORE_W), і хатина стоїть на ньому — фасадом до води,
+			# тим самим поворотом, що й забудова решти світів.
+			_decorate_shore(ids, data, side, i, edge)
 			continue
 		# стіна близька — КОЖЕН ряд, впритул до дороги (0,4–0,8 м), висоти чергуються: суцільний пояс без дірок
 		if not walls_near.is_empty():
@@ -1759,10 +1863,18 @@ func _layout_water() -> void:
 		_side_water[i].position.x = dir * (w * 0.5 + SEA_W * 0.25)
 		_side_water[i].position.y = CLIFF_BOTTOM - 0.05
 	if _sea:
-		# море на всю видиму ширину, трохи нижче дороги (дошка сидить у воді)
-		_water.scale.x = SEA_W / (LANES_W + 0.4)
+		# Море — від берега до берега, і ЖОДНОГО перекриття з піском. Пласку воду під пісок
+		# заводити не можна: дві майже копланарні поверхні зубчаться на пологому куті — це вже
+		# третій раз у цьому проєкті (берег каналу, стики поручнів, орієнтир), і memory bank
+		# каже прямо: не «підняти на волосок», а НЕ ПЕРЕКРИВАТИ.
+		var inner := w * 0.5 + SHORE_GAP
+		_water.scale.x = (inner * 2.0) / (LANES_W + 0.4)
 		_water.position.x = 0.0
 		_water.position.y = -0.05
+		for i in range(_shore.size()):
+			var dir := -1.0 if i == 0 else 1.0
+			_shore[i].position = Vector3(dir * (inner + SHORE_W * 0.5), -SHORE_H * 0.5,
+				BEHIND - float(ROWS) * 0.5)
 	elif _sea_side != 0:
 		_water.scale.x = SIDE_W / (LANES_W + 0.4)
 		_water.position.x = float(_sea_side) * (w * 0.5 + SIDE_W * 0.5 + 1.0)

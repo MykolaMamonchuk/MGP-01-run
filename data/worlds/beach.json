@@ -19,7 +19,7 @@
 	],
 	"cliff_water": "#2FB7D9",
 	"seam": "#D8B876",
-	"fog_density": 0.02,
+	"fog_density": 0.014,
 	"decor": [
 		"rock",
 		"crab",
@@ -71,6 +71,10 @@
 		"crate"
 	],
 	"buildings_far": [
+		"beach_hut",
+		"palm",
+		"umbrella",
+		"sandcastle",
 		"beach_hut",
 		"palm"
 	],
@@ -253,5 +257,23 @@
 			"shape": "high_frame",
 			"breaks": "soft"
 		}
+	},
+	"dressing": {
+		"far_every": [
+			1,
+			2
+		],
+		"build_scale": [
+			1.2,
+			1.7
+		],
+		"far2_every": [
+			1,
+			2
+		],
+		"far2_scale": [
+			1.5,
+			2.0
+		]
 	}
 }
