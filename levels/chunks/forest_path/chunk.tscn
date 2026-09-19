@@ -1,0 +1,143 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Декор" type="Node3D" parent="."]
+
+[node name="M1_decor_mushroom" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0, -14.0)
+
+[node name="M2_decor_bush" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0, -30.0)
+
+[node name="M3_decor_mossrock" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "mossrock"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0, -46.0)
+
+[node name="M4_decor_mushroom_red" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom_red"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0, -62.0)
+
+[node name="M5_decor_flower" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0, -78.0)
+
+[node name="M6_decor_bush" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0, -94.0)
+
+[node name="M7_decor_stump" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "stump"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0, -110.0)
+
+[node name="M8_decor_mushroom" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "mushroom"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0, -126.0)
+
+[node name="M9_decor_flower_yellow" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower_yellow"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0, -142.0)
+
+[node name="Стіни" type="Node3D" parent="."]
+
+[node name="M10_wall_near_wall_tree_tall" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "wall_tree_tall"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 0, -8.0)
+
+[node name="M11_wall_near_pine_3" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "pine_3"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.8, 0, -16.0)
+
+[node name="M12_wall_near_tree" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.2, 0, -26.0)
+
+[node name="M13_wall_near_wall_tree_tall" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "wall_tree_tall"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.0, 0, -36.0)
+
+[node name="M14_wall_near_pine_3" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "pine_3"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 0, -48.0)
+
+[node name="M15_wall_near_tree_round" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "tree_round"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 0, -58.0)
+
+[node name="M16_wall_near_wall_tree_tall" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "wall_tree_tall"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.0, 0, -70.0)
+
+[node name="M17_wall_near_tree" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.2, 0, -82.0)
+
+[node name="M18_wall_near_pine_3" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "pine_3"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.8, 0, -94.0)
+
+[node name="M19_wall_near_wall_tree_tall" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "wall_tree_tall"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 4.6, 0, -106.0)
+
+[node name="M20_wall_near_tree_round" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "tree_round"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.2, 0, -118.0)
+
+[node name="M21_wall_near_tree" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 5.0, 0, -130.0)
+
+[node name="M22_wall_near_pine_3" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "pine_3"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -4.6, 0, -142.0)
