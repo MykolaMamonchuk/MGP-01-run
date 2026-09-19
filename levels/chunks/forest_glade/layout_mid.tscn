@@ -1,0 +1,58 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M1_obstacle_side" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+action = "side"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -10.0)
+
+[node name="M2_obstacle_side" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+action = "side"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -30.0)
+
+[node name="M3_obstacle_jump" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+action = "jump"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -50.0)
+
+[node name="M4_obstacle_side" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+action = "side"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -70.0)
+
+[node name="M5_obstacle_jump" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+action = "jump"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -90.0)
+
+[node name="M6_obstacle_side" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+action = "side"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -110.0)
+
+[node name="M7_obstacle_jump" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+action = "jump"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -130.0)
