@@ -1,0 +1,15 @@
+{
+  "_note": "Червоний ящик «сюди не можна» (GDD v1.4 §3): на зріст героя (1,0 м), білий X у передній грані.",
+  "size": 0.125,
+  "palette": {"r": "#EF5350", "d": "#C62828", "w": "#FFFFFF"},
+  "layers": [
+    ["wrrrrw", "rrrrrr", "rrrrrr", "dddddd"],
+    ["rwrrwr", "rrrrrr", "rrrrrr", "dddddd"],
+    ["rwrrwr", "rrrrrr", "rrrrrr", "dddddd"],
+    ["rrwwrr", "rrrrrr", "rrrrrr", "dddddd"],
+    ["rrwwrr", "rrrrrr", "rrrrrr", "dddddd"],
+    ["rwrrwr", "rrrrrr", "rrrrrr", "dddddd"],
+    ["rwrrwr", "rrrrrr", "rrrrrr", "dddddd"],
+    ["wrrrrw", "dddddd", "dddddd", "dddddd"]
+  ]
+}

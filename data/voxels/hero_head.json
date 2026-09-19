@@ -1,0 +1,13 @@
+{
+  "_note": "Голова звірятка (GDD v1.5 §5): 7×6×6 вокселів × 0,075 = 0,525 × 0,45 × 0,45 м — це ≈ 45 % зросту героя. Ряди — від морди (-Z) до потилиці (+Z). Кубічна морда попереду знизу кремова (c), носик темний (k), очні западини темні (k) на передній грані — зіниці й блик Hero3D додає окремими мешами перед ними. o — основний колір (підміняється), d — темніший верх.",
+  "size": 0.075,
+  "palette": {"o": "#F08A3C", "d": "#C86F2C", "c": "#F6E3C2", "k": "#4A2C2A"},
+  "layers": [
+    ["..ccc..", "..ccc..", ".ooooo.", ".ooooo.", ".ooooo.", "..ooo.."],
+    ["..kkk..", "..ccc..", "ooooooo", "ooooooo", "ooooooo", ".ooooo."],
+    [".kccck.", "oocccoo", "ooooooo", "ooooooo", "ooooooo", ".ooooo."],
+    [".k.o.k.", "ooooooo", "ooooooo", "ooooooo", "ooooooo", ".ooooo."],
+    [".ooooo.", "ooooooo", "ooooooo", "ooooooo", "ooooooo", ".ooooo."],
+    ["..ddd..", ".ddddd.", ".ddddd.", ".ddddd.", ".ddddd.", "..ddd.."]
+  ]
+}

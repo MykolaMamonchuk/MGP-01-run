@@ -1,0 +1,416 @@
+## LevelChunkLoader — стрімить рівень по чанках, замість вантажити його цілком.
+##
+## УСІ фікстури тут власні, збудовані тестом. Спершу перевірки стрімінгу йшли проти справжнього
+## рівня-теки, і це ламалось щоразу, як черговий рівень переїжджав на бібліотеку: спочатку
+## FOLDER_LEVEL був 1, потім 2, потім 5. Тест про ЗАВАНТАЖУВАЧ не має залежати від того, які
+## саме рівні сьогодні лежать текою; що справжні рівні збираються — стереже окремо
+## test_every_level_in_the_data_has_a_plan_and_all_its_files_exist унизу файлу.
+extends GutTest
+
+## Тимчасова тека-рівень: номери за межами справжніх сімнадцяти, щоб нічого не перетнути.
+const FOLDER_LEVEL := 91
+const FOLDER_DIR := "res://levels/level_%02d" % FOLDER_LEVEL
+## Перешкод у кожному чанку фікстури і на яких локальних метрах вони стоять.
+const CHUNK_Z := [10.0, 40.0, 70.0, 100.0]
+
+
+## Тека-рівень із чанками під заданими НОМЕРАМИ: [0, 1, 2] — суцільний рівень, [0, 2] — рівень
+## із дірою посередині. Вміст усіх чанків однаковий, тож зсув видно по z_m готових записів.
+func _make_folder_level(indices: Array) -> void:
+	DirAccess.make_dir_recursive_absolute(FOLDER_DIR)
+	var body := """[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Перешкоди" type="Node3D" parent="."]
+"""
+	for i in CHUNK_Z.size():
+		body += """
+[node name="M%d_obstacle_stump" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "stump"
+lane = %d
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -%s)
+""" % [i + 1, (i % 3) - 1, CHUNK_Z[i]]
+	for index in indices:
+		var f := FileAccess.open("%s/chunk_%02d.tscn" % [FOLDER_DIR, int(index)], FileAccess.WRITE)
+		f.store_string(body)
+		f.close()
+
+
+func _remove_folder_level() -> void:
+	var dir := DirAccess.open(FOLDER_DIR)
+	if dir == null:
+		return
+	for name in dir.get_files():
+		DirAccess.remove_absolute("%s/%s" % [FOLDER_DIR, name])
+	DirAccess.remove_absolute(FOLDER_DIR)
+
+## Чанки тепер читаються У ФОНІ (заміряно: синхронно це 70 мс на Mac і 200–350 на телефоні,
+## посеред бігу). Тест не має кадрів, щоб чекати, тому кличе update() і одразу забирає
+## результат. У грі так ніхто не робить: там update() іде щокадру.
+func _update(distance_m: float) -> void:
+	_loader.update(distance_m)
+	_loader.finish_pending()
+
+var _track: Track
+var _spawner: Spawner3D
+var _loader: LevelChunkLoader
+
+
+func before_each() -> void:
+	_track = Track.new()
+	add_child_autofree(_track)
+	_spawner = Spawner3D.new()
+	add_child_autofree(_spawner)
+	await wait_process_frames(1)
+	_loader = LevelChunkLoader.new()
+	gut.error_tracker.treat_push_error_as = GutUtils.TREAT_AS.FAILURE
+
+
+## _apply() звільняє інстанс чанку через queue_free() (не одразу) — дати рушію дійсно
+## прибрати вузли між тестами, інакше GUT рахує їх орфанами наступного тесту.
+func after_each() -> void:
+	# Прибирати саме тут, а не в кінці тіла тесту: інакше перше ж падіння лишило б теку в
+	# проєкті, і наступний прогін брав би її за справжній рівень.
+	_remove_folder_level()
+	await wait_process_frames(1)
+
+
+## Перший чанк покриває z_m ∈ [0, 150) — і після start() у Spawner3D мають лежати лише його
+## записи, без жодного з наступних.
+func test_start_loads_first_chunk_immediately() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	assert_true(_spawner._authored_active, "перший чанк уже заповнив Spawner3D")
+	assert_gt(_spawner._authored_obstacles.size(), 0)
+	for rec in _spawner._authored_obstacles:
+		assert_lt(float(rec.get("z_m", 0.0)), LevelChunkLoader.CHUNK_LENGTH_M,
+			"у Spawner3D після start() лежать лише записи першого чанку (z_m < 150)")
+
+
+func test_update_does_not_load_next_chunk_before_lookahead_threshold() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	var n0 := _spawner._authored_obstacles.size()
+	# межа першого чанку — 150; поріг дозавантаження — 150 - LOOKAHEAD_M(80) = 70
+	_update(69.0)
+	assert_eq(_spawner._authored_obstacles.size(), n0, "до порогу 70 м другий чанк ще не вантажиться")
+
+
+func test_update_loads_next_chunk_at_lookahead_threshold() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	var n0 := _spawner._authored_obstacles.size()
+	_update(70.0)   # рівно поріг: 150 - 80
+	assert_gt(_spawner._authored_obstacles.size(), n0, "на порозі 70 м другий чанк дозавантажився")
+	for rec in _spawner._authored_obstacles:
+		assert_lt(float(rec.get("z_m", 0.0)), LevelChunkLoader.CHUNK_LENGTH_M * 2.0,
+			"після другого чанку всі записи мають z_m < 300")
+
+
+func test_update_does_not_double_load_same_chunk() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	_update(70.0)
+	var n1 := _spawner._authored_obstacles.size()
+	_update(71.0)
+	_update(75.0)
+	assert_eq(_spawner._authored_obstacles.size(), n1, "повторні update() у тому самому вікні не тягнуть чанк удруге")
+
+
+## Проїхавши весь рівень, усі його authored-перешкоди мають бути дозавантажені, і жодна не
+## загубитись і не подвоїтись.
+func test_streaming_through_whole_level_loads_every_chunk_exactly_once() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	var d := 0.0
+	while d < 500.0:
+		d += 5.0
+		_update(d)
+	var want := CHUNK_Z.size() * 3   # три чанки фікстури
+	assert_eq(_spawner._authored_obstacles.size(), want,
+		"усі %d authored-перешкод рівня дозавантажені по чанках" % want)
+	var seen := {}
+	for rec in _spawner._authored_obstacles:
+		var z: float = rec.get("z_m", 0.0)
+		assert_false(seen.has(z), "z_m=%s зустрівся двічі — чанк завантажено повторно" % z)
+		seen[z] = true
+
+
+## Той самий наскрізний прогін, але на СЕМИ чанках — стільки має найдовший справжній рівень.
+## Перевіряє, що довга черга не губить і не дублює жодного запису.
+func test_streaming_through_a_seven_chunk_level_loads_every_chunk_exactly_once() -> void:
+	_make_folder_level([0, 1, 2, 3, 4, 5, 6])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	var d := 0.0
+	while d < 1100.0:
+		d += 5.0
+		_update(d)
+	assert_eq(_spawner._authored_obstacles.size(), CHUNK_Z.size() * 7)
+	var seen := {}
+	for rec in _spawner._authored_obstacles:
+		var z: float = rec.get("z_m", 0.0)
+		assert_false(seen.has(z), "z_m=%s зустрівся двічі — чанк завантажено повторно" % z)
+		seen[z] = true
+	assert_eq(seen.size(), _spawner._authored_obstacles.size())
+
+
+## Нема ані папки level_XX/, ані плаский level_XX.tscn (номер, якого не існує) — тихо
+## нічого не робить, Track/Spawner3D лишаються без authored-даних, без падіння.
+func test_missing_level_clears_authored_state_without_crash() -> void:
+	_loader.start(999, _track, _spawner)
+	assert_false(_spawner._authored_active)
+	assert_false(_track._authored_active)
+	_update(1000.0)   # не мало впасти й після цього
+
+
+## Порожній відрізок посеред рівня — це просто відсутній chunk_NN.tscn: розрізання не пише
+## файл для куска без маркерів, та й автор карти може стерти середній чанк руками в редакторі.
+## Раніше перший же відсутній номер читався як «рівень скінчився», і решта рівня мовчки не
+## вантажилась — на швидкому профілі це кілометр порожньої дороги.
+func test_missing_middle_chunk_does_not_end_the_level() -> void:
+	_make_folder_level([0, 2])          # chunk_01 свідомо відсутній
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	var n0 := _spawner._authored_obstacles.size()
+	assert_eq(n0, CHUNK_Z.size(), "chunk_00 завантажився")
+	var d := 0.0
+	while d < 500.0:
+		d += 5.0
+		_update(d)
+	assert_eq(_spawner._authored_obstacles.size(), n0 * 2,
+		"пропущений chunk_01 перестрибнуто, chunk_02 усе одно завантажився")
+	# І зсув у нього саме ТРЕТЬОГО чанка: діра лишилась дірою, а не з'їхала на місце chunk_01.
+	var far := 0.0
+	for rec in _spawner._authored_obstacles:
+		far = maxf(far, float(rec.get("z_m", 0.0)))
+	assert_almost_eq(far, 300.0 + float(CHUNK_Z[CHUNK_Z.size() - 1]), 0.01)
+
+
+## Фонове читання: update() на порозі лише ПОДАЄ ЗАЯВКУ, а не блокує. Саме це й рятує від
+## підвисання посеред бігу — заміряно, що синхронне читання зарядженого чанка коштує 70 мс на
+## Mac і 200–350 мс на телефоні, і відбувалось воно за 80 м до межі, тобто на повному ходу.
+func test_update_only_requests_the_chunk_and_does_not_block() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	var n0 := _spawner._authored_obstacles.size()
+	_loader.update(70.0)                      # БЕЗ finish_pending
+	assert_gte(_loader._pending_index, 0, "заявку подано, чанк читається у фоні")
+	assert_eq(_spawner._authored_obstacles.size(), n0,
+		"але записів ще нема — потік не закінчив, і головний потік його не чекав")
+	_loader.finish_pending()
+	assert_eq(_loader._pending_index, -1, "після завершення заявка знята")
+	assert_gt(_spawner._authored_obstacles.size(), n0, "а записи дозавантажились")
+
+
+## Доки чанк читається у фоні, друга заявка не подається: інакше два чанки поїхали б у Track
+## одночасно й у непередбачуваному порядку.
+func test_no_second_request_while_one_is_pending() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	_loader.update(70.0)
+	var pending := _loader._pending_index
+	var next_index := _loader._next
+	_loader.update(120.0)                     # поріг наступного чанку теж перейдено
+	assert_eq(_loader._pending_index, pending, "заявка та сама")
+	assert_eq(_loader._next, next_index, "черга не зрушила")
+	_loader.finish_pending()
+
+
+## --- рівень, зібраний зі списку цеглинок ------------------------------------------------
+##
+## Досі рівень був текою, і номер файлу був водночас місцем: chunk_02 = 300-й метр, і та сама
+## цеглинка не могла стояти в рівні двічі. Тут перевіряємо наскрізно — від запису в levels.json
+## до записів у Spawner3D, — що вона таки може, і що друга копія лягає на свій метр.
+## Фікстуру збираємо в справжній теці бібліотеки (як level_90 вище) і прибираємо по собі.
+const BRICK_ID := "test_brick_40m"
+const BRICK_DIR := "res://levels/chunks/%s" % BRICK_ID
+## Довжина цеглинки; маркери всередині стоять на 10-му й 30-му метрі ВІД ЇЇ ПОЧАТКУ.
+const BRICK_LEN := 40.0
+
+
+func _make_brick() -> void:
+	DirAccess.make_dir_recursive_absolute(BRICK_DIR)
+	var desc := FileAccess.open("%s/chunk.json" % BRICK_DIR, FileAccess.WRITE)
+	desc.store_string(JSON.stringify({
+		"id": BRICK_ID, "worlds": ["meadow"],
+		"entry_lanes": 3, "exit_lanes": 3, "length_m": BRICK_LEN,
+		"layouts": [{"file": "layout.tscn", "difficulty": [0.0, 1.0]}],
+	}))
+	desc.close()
+	# Два шари: у чанку — те, що тут завжди однакове (декор), у розкладці — перешкоди під
+	# складність. Обидва мусять лягти на ОДИН зсув.
+	_write_scene("chunk.tscn", """
+[node name="Декор" type="Node3D" parent="."]
+
+[node name="D1_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0, -5.0)
+""")
+	_write_scene("layout.tscn", """
+[node name="Пікапи" type="Node3D" parent="."]
+
+[node name="P1_pickup_heart" type="Node3D" parent="Пікапи"]
+script = ExtResource("1")
+role = "pickup"
+kind = "heart"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -20.0)
+
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M1_obstacle_stump" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "stump"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -10.0)
+
+[node name="M2_obstacle_stump" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "stump"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -30.0)
+""")
+
+
+## z_m у маркері — це -position.z (та сама умова, що й у справжніх чанках).
+func _write_scene(file_name: String, body: String) -> void:
+	var scene := FileAccess.open("%s/%s" % [BRICK_DIR, file_name], FileAccess.WRITE)
+	scene.store_string("""[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+""" + body)
+	scene.close()
+
+
+func _remove_brick() -> void:
+	for name in ["chunk.json", "chunk.tscn", "layout.tscn"]:
+		DirAccess.remove_absolute("%s/%s" % [BRICK_DIR, name])
+	DirAccess.remove_absolute(BRICK_DIR)
+
+
+func _brick_level(count: int) -> Dictionary:
+	var ids: Array = []
+	for i in count:
+		ids.append(BRICK_ID)
+	return {"world": "meadow", "lanes": 3, "chunks": ids}
+
+
+func test_level_assembled_from_library_places_the_same_brick_twice() -> void:
+	_make_brick()
+	_loader.start(FOLDER_LEVEL, _track, _spawner, _brick_level(3))
+	var d := 0.0
+	while d < 200.0:
+		d += 5.0
+		_update(d)
+	_remove_brick()
+	var zs: Array = []
+	for rec in _spawner._authored_obstacles:
+		zs.append(roundi(float(rec.get("z_m", 0.0))))
+	zs.sort()
+	# 10 і 30 у кожній копії, зсунуті на 0 / 40 / 80 — тобто цеглинка справді стала тричі,
+	# і саме туди, куди її поклав збирач, а не туди, де лежить її файл.
+	assert_eq(zs, [10, 30, 50, 70, 90, 110])
+	# Декор лежить у ДРУГІЙ сцені цеглинки. Якби завантажувач брав лише перший файл, перешкод
+	# не було б зовсім; якби лише другий — не було б цього дерева. Отже обидва шари доїхали.
+	var trees := 0
+	for rec in _track._authored_decor:
+		if String(rec.get("kind", "")) == "tree":
+			trees += 1
+	assert_eq(trees, 3, "декор чанка приїхав разом із розкладкою, по разу на копію")
+
+
+## Список цеглинок у рівні ПЕРЕБИВАЄ стару теку levels/level_XX/: інакше рівень, переведений на
+## бібліотеку, мовчки вантажив би дві розкладки одночасно.
+func test_chunk_list_wins_over_the_level_folder() -> void:
+	_make_brick()
+	_loader.start(FOLDER_LEVEL, _track, _spawner, _brick_level(1))
+	_remove_brick()
+	assert_eq(_spawner._authored_obstacles.size(), 2, "лише дві перешкоди цеглинки")
+	# Обидва шари першої цеглинки читаються СИНХРОННО, ще на екрані завантаження: інакше перші
+	# метри рівня зрідка й недетерміновано лишались би без перешкод.
+	assert_true(_spawner._authored_active, "розкладка вже на місці, без жодного update()")
+
+
+## Зламаний стик рівень не збирає взагалі. Порожній рівень помітно одразу; рівень, зібраний
+## «якось», обривався б дорогою на 900-му метрі — і шукали б це довго.
+func test_broken_seam_leaves_the_level_empty_instead_of_half_assembled() -> void:
+	_make_brick()
+	# цеглинка чекає 3 доріжки, а рівень заявлений на 5
+	var level := _brick_level(2)
+	level["lanes"] = 5
+	# push_error тут — не збій тесту, а ТЕ, ЩО ПЕРЕВІРЯЄТЬСЯ: зламана збірка мусить кричати.
+	# Прапорець знімає before_each, а не цей рядок: GUT звіряє помилки вже ПІСЛЯ тіла тесту,
+	# тож повернути суворість тут означало б не поставити її взагалі.
+	gut.error_tracker.treat_push_error_as = GutUtils.TREAT_AS.NOTHING
+	_loader.start(FOLDER_LEVEL, _track, _spawner, level)
+	_remove_brick()
+	assert_false(_spawner._authored_active, "жодного запису зі зламаної збірки не поїхало")
+
+
+## Кожен рівень із data/levels.json мусить мати непорожній план, і кожен його файл мусить
+## існувати. Сторож не про завантажувач, а про ДАНІ: сторожі-інваріанти (test_level_reach,
+## test_level_widening, test_level_decor_clearance, test_level_obstacle_types) ходять цим самим
+## планом, і рівень, який раптом перестав його давати, зробив би половину з них вічнозеленими.
+func test_every_level_in_the_data_has_a_plan_and_all_its_files_exist() -> void:
+	var f := FileAccess.open("res://data/levels.json", FileAccess.READ)
+	var levels: Array = JSON.parse_string(f.get_as_text()).get("levels", [])
+	assert_eq(levels.size(), 17, "рівнів сімнадцять")
+	for l in levels:
+		var level: Dictionary = l
+		var num := int(level["id"])
+		var plan := LevelChunkLoader.plan_of(num, level)
+		assert_false(plan.is_empty(), "рівень %d має план" % num)
+		var total := 0.0
+		for piece in plan:
+			for scene_path in (piece as Dictionary)["paths"]:
+				assert_true(ResourceLoader.exists(String(scene_path)),
+					"рівень %d: %s існує" % [num, scene_path])
+			assert_almost_eq(float(piece["offset_m"]), total, 0.001,
+				"рівень %d: цеглинки лягають упритул, без дір і нахлистів" % num)
+			total += float(piece["length_m"])
+
+
+## Пікап цеглинки доїжджає до спавнера. Доти LevelTimeline його діставав, а не брав ніхто:
+## маркер-зірочка зникав без жодного слова, і саме про це йшлося в «своя кількість золота на
+## чанк». Тест наскрізний навмисно — обрив був рівно на стику двох робочих половин.
+func test_pickup_markers_of_a_chunk_reach_the_spawner() -> void:
+	_make_brick()
+	_loader.start(FOLDER_LEVEL, _track, _spawner, _brick_level(3))
+	var d := 0.0
+	while d < 200.0:
+		d += 5.0
+		_update(d)
+	_remove_brick()
+	var zs: Array = []
+	for rec in _spawner._authored_pickups:
+		zs.append(roundi(float(rec.get("z_m", 0.0))))
+	zs.sort()
+	# по одному на копію цеглинки, на 20-му метрі кожної
+	assert_eq(zs, [20, 60, 100])
+	for rec in _spawner._authored_pickups:
+		assert_eq(String(rec.get("kind", "")), "heart")
+
+
+## Новий рівень не успадковує пікапів попереднього — курсор і список скидаються на старті.
+func test_starting_another_level_clears_authored_pickups() -> void:
+	_make_brick()
+	_loader.start(FOLDER_LEVEL, _track, _spawner, _brick_level(1))
+	_remove_brick()
+	assert_eq(_spawner._authored_pickups.size(), 1)
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	assert_eq(_spawner._authored_pickups.size(), 0, "тека-рівень пікапів не має — список порожній")

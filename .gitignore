@@ -15,3 +15,15 @@ Thumbs.db
 *.keystore
 *.jks
 export_credentials.cfg
+/docs/refs
+# Python-інструменти (tools/voxelize.py)
+/tools/.venv/
+__pycache__/
+# Вивід Godot Movie Maker (--write-movie): кадри m00000000.png і доріжка m.wav лягають
+# просто в корінь проєкту. Це сміття від профілювання, а не частина гри.
+/m*.png
+/m.wav
+/m.wav.import
+
+# Особисті дозволи Claude Code — не для спільного репозиторію
+.claude/settings.local.json

@@ -1,9 +1,12 @@
-## Головна сцена (3D). Стани: MENU → MAP → COUNTDOWN → RUN → FINISH → (MAP | наступний рівень) …; HEROES з меню; SLEEP по таймеру.
-## Оркеструє рівні (LevelManager), біом і його режим руху, жести (свайпи/стрілки/джойстик), туторіал,
-## міні-події, мінізавдання, живе небо/сезон, ефекти. Герой стоїть у (0,0,0), світ їде на нього.
+## Головна сцена (3D). Стани (GDD v1.4 §10): MENU → HOME (дім-діорама) → COUNTDOWN → RUN → FINISH → HOME …;
+## HEROES і MAP — з меню; PAUSED — кругла кнопка паузи; SLEEP по таймеру.
+## Гра без програшу: серця не перезапускають рівень (стан RESTART прибрано) — на нулі сердець прилітає
+## сорока й краде половину злитків рівня, далі кожен удар коштує −10%; зірки фінішу = серця, що лишились.
+## Оркеструє рівні (LevelManager), біом і його режим руху (v1.3: усі світи біжать), жести (свайпи/стрілки/джойстик),
+## туторіал, міні-події, пікапи, мінізавдання, живе небо/сезон, ефекти. Герой стоїть у (0,0,0), світ їде на нього.
 extends Node3D
 
-enum State { MENU, MAP, HEROES, COUNTDOWN, RUN, FINISH, SLEEP }
+enum State { MENU, HOME, MAP, HEROES, COUNTDOWN, RUN, FINISH, PAUSED, SLEEP }
 
 const WORLD_SWITCH_SEC := 0.9
 const MENU_SPEED := 1.1
@@ -11,12 +14,59 @@ const STICK_REARM_PX := 26.0
 const TUTORIAL_LEAD_SEC := 1.7
 const TUTORIAL_SLOW := 0.6
 const FINISH_AUTO_NEXT_SEC := 7.0
-## Останні 20% рівня — спринт ×1.15; ворота фінішу з'являються за 6 с до кінця.
+## Швидкість: v = base × level.speed_mult × (1 + 0.35 × прогрес); останні 20% рівня — спринт ×1.15;
+## ворота фінішу з'являються за 6 с до кінця.
+const SPEED_RAMP := 0.35
 const SPRINT_FROM := 0.8
 const SPRINT_MULT := 1.15
 const GATE_BEFORE_SEC := 6.0
-## Темп бігу-боба героя в покрокових режимах (світ лише дрейфує).
-const STEPWISE_BOB := 0.6
+const DEFAULT_FOG := 0.012
+## Блум (GDD v1.5 §3) — саме «м'який»: поріг ВИЩЕ за білий, мала інтенсивність.
+## v2: блум був головною причиною «вицвілого» меню — світлі шерстинки героя цвіли
+## й з'їдали насиченість. Тепер цвіте лише те, що яскравіше за 1.1.
+const GLOW_INTENSITY := 0.18
+const GLOW_BLOOM := 0.1
+const GLOW_THRESHOLD := 1.1
+## Кольорокорекція (v2): трохи насиченості й контрасту — воксельні кольори звучать як в арт-базі.
+const ADJ_SATURATION := 1.15
+const ADJ_CONTRAST := 1.05
+## Сонце 1.1 (run3d.tscn) + амбієнт 0.55: разом середні тони не перевищують 1.0 і не пересвічуються.
+const AMBIENT_ENERGY := 0.35
+## Сорока (GDD v1.4 §3): скидає X-ящик кожні 12–20 с, починаючи з 3-го рівня.
+const MAGPIE_FROM_LEVEL := 3
+const MAGPIE_DROP_INTERVAL := [12.0, 20.0]
+## Скін антагоніста за світом, поки ключа "antagonist" нема в data/worlds: Місто — голуб, Хмаринки — кометка з очима.
+const ANTAGONIST_BY_WORLD := {"city": "pigeon", "clouds": "comet"}
+## Скільки триває «стікання» лічильника злитків, коли сорока вкрала.
+const STEAL_TALLY_SEC := 1.0
+## Скільки секунд після удару герой кульгає (GDD v1.6 §5, анімація limp).
+const LIMP_AFTER_HIT_SEC := 3.0
+## ─── суперсила героя (GDD v1.6 §3c) ───
+## Стеля внеску ОДНОГО злитка в заряд суперсили (EDD §2): великий злиток не має
+## заряджати кнопку сам по собі — сила є нагородою за гру, а не за одну монету.
+const POWER_CHARGE_PER_PICKUP := 20
+## «Хитрий стрибок»: у скільки разів вищий стрибок і множник злитків у повітрі / на ярусі.
+const FOX_JUMP_SCALE := 1.45
+const FOX_COIN_MULT := 2.0
+## «Нюх-магніт»: у скільки разів більший радіус магніта.
+const DOG_MAGNET := 3.0
+## «Дев'ять життів»: стеля сердець на рівні.
+const CAT_MAX_HEARTS := 5
+## «Ведмежі обійми»: скільки ударів поглинає і на скільки множить злитки.
+const BEAR_ABSORB := 2
+const BEAR_COIN_MULT := 1.5
+## «Райдужний міст»: скільки летять злитки й скільки триває невразливість.
+const RAINBOW_PULL_SEC := 0.6
+const RAINBOW_INVULN_SEC := 3.0
+## «Хвиля-серфінг» (дельфін): злитки летять до героя, як у єдинорога, але БЕЗ невразливості
+## й сліду — водний друг притягує монети, а не захищається (GDD v1.7 §5: «злитки з води»).
+const DOLPHIN_PULL_SEC := 0.6
+## «Панцир-щит» (черепаха): чисто оборонна сила — та сама механіка поглинання, що в ведмежати,
+## але без множника злитків (GDD v1.7 §5: «Панцир-щит», повільна й захисна, не про золото).
+const TURTLE_ABSORB := 2
+## Скільки смуг у веселковому сліді (беремо кожен другий колір Palette.RAINBOW — на Mobile
+## шість систем частинок задорого).
+const RAINBOW_TRAIL_STEP := 2
 
 @onready var hero: Hero3D = $Hero
 @onready var track: Track = $Track
@@ -33,6 +83,8 @@ const STEPWISE_BOB := 0.6
 @onready var controls: ControlsLayer = $Controls
 @onready var wheel: WheelLayer = $Wheel
 @onready var ambient_root: Node3D = $Ambient
+## Дім-діорама (інший агент, res://src/run3d/diorama.gd). Може бути відсутня — усі виклики під вартою.
+@onready var diorama: Node3D = get_node_or_null("Diorama")
 
 var state: State = State.MENU
 var profiles: Dictionary = {}
@@ -52,6 +104,13 @@ var base_speed := 4.0
 var speed := 4.0
 var level_t := 0.0
 var level_duration := 90.0
+## Скільки метрів проїхала дорога від старту поточного рівня — єдине джерело правди для
+## Track.distance_m/Spawner3D.distance_m (Phase 1 level-authoring plumbing): рахуємо тут один
+## раз і передаємо той самий підсумок в обидва advance(), щоб лічильники не розійшлись.
+var level_distance_m := 0.0
+## Стрімить авторський рівень по чанках (levels/level_XX/chunk_NN.tscn) замість того, щоб
+## вантажити весь level_XX.tscn одразу — див. LevelChunkLoader.
+var _chunk_loader := LevelChunkLoader.new()
 var session_t := 0.0
 var session_total := 600.0
 var switching := false
@@ -68,6 +127,46 @@ var _finish_auto_t := 0.0
 var _pending_finish: Dictionary = {}
 var _sprint_announced := false
 var _gate_spawned := false
+## Зірочки, зібрані на цьому рівні: у SaveService потрапляють лише на фініші (перезапуск їх не зберігає).
+var level_coins := 0
+## Активні пікапи: вид → секунд лишилось; равлик множить швидкість.
+var _effects: Dictionary = {}
+var _pickup_speed := 1.0
+## Супернапій (пікап "potion"): окремий множник, щоб не сваритися з равликом.
+var _potion_speed := 1.0
+## Скільки ще кульгати після удару (GDD v1.6 §5).
+var _limp_t := 0.0
+## Множники героя (GDD v1.3 §5, stats.speed / stats.magnet) — виставляються на старті рівня.
+var _hero_speed := 1.0
+var _hero_magnet := 1.0
+## ─── суперсила героя (GDD v1.6 §3c) ───
+## Заряд 0..power_needed(); росте на кожен зібраний злиток, обнуляється на старті рівня й після сили.
+var power_charge := 0
+## Опис сили поточного героя з data/heroes.json ({} — герой без сили).
+var power_def: Dictionary = {}
+## id сили, що ДІЄ зараз ("" — жодна), скільки їй лишилось і скільки всього тривала.
+var _power_id := ""
+var _power_t := 0.0
+var _power_dur := 0.0
+## jump_scale, який стояв до сили (у Хмаринках режим ставить свій — не затираємо його).
+var _power_jump_scale := 1.0
+## Веселковий слід «Райдужного мосту» — знімається в кінці сили.
+var _power_trails: Array[GPUParticles3D] = []
+# v1.4: множник злитків, сорока, пауза
+## Скільки перешкод пройдено без удару (ламається на кожному зіткненні).
+var streak_no_hit := 0
+## Показаний множник (з ×2) і «чистий» (без ×2) — злитки вже приходять помножені на coin_mult.
+var _mult := 1
+var _mult_base := 1
+var magpie: Magpie3D
+var _magpie_t := 0.0
+## Світ, який зараз показує діорама. Окремо від world_id: той описує біом на ДОРОЗІ
+## (за ним _start_level вирішує, чи перебудовувати трасу), і стрілки в домі його не чіпають.
+var _home_world := ""
+## Сорока вже вкрала на цьому рівні (далі удари коштують −10%).
+var _stolen := false
+## Стан, з якого поставили на паузу.
+var _state_before_pause: State = State.RUN
 
 # туторіал
 var _learned: Dictionary = {}
@@ -87,6 +186,12 @@ var _idle_t := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Відтворюваний запуск на вимогу (GAME_SEED): крім власних генераторів підсистем,
+	# траса й спавнер беруть ще й ГЛОБАЛЬНИЙ randf()/randi(), тож сідаємо і на нього.
+	# Без цього два прогони гри розходяться на 37% пікселів уже до 600-го кадру —
+	# заміряно, і саме через це весь день не вдавалося порівняти «до і після».
+	if RngSeed.fixed():
+		seed(RngSeed.value())
 
 	profiles = AgeAdapt.load_profiles()
 	worlds = load_worlds()
@@ -101,6 +206,9 @@ func _ready() -> void:
 	Events.session_finished.connect(_on_session_finished)
 	Events.star_collected.connect(_on_star_collected)
 	Events.quest_completed.connect(_on_quest_completed)
+	Events.hearts_changed.connect(_on_hearts_changed)
+	Events.obstacle_passed.connect(_on_obstacle_passed)
+	Events.hero_tumbled.connect(_on_hero_tumbled)
 	hero.landed.connect(func(): AudioMgr.sfx("land"))
 	menu.play_pressed.connect(_on_play)
 	menu.heroes_pressed.connect(_on_heroes)
@@ -114,6 +222,18 @@ func _ready() -> void:
 	map_screen.closed.connect(_on_map_closed)
 	controls.action.connect(_on_control_action)
 	wheel.finished.connect(_on_wheel_finished)
+	# HUD типізований як CanvasLayer — сигнали чіпляємо за іменем (як і решта звернень до нього)
+	hud.connect("pause_pressed", Callable(self, "_on_pause_pressed"))
+	hud.connect("resume_pressed", Callable(self, "_on_resume_pressed"))
+	hud.connect("menu_pressed", Callable(self, "_on_pause_menu_pressed"))
+	hud.connect("power_pressed", Callable(self, "activate_power"))
+	_wire_diorama()
+	_make_magpie()
+
+	# лічильник кадрів — лише коли попросили (PERF=1), у звичайній грі його нема
+	var perf := load("res://src/debug/perf_overlay.gd")
+	if perf != null:
+		perf.attach(self)
 
 	_apply_profile(AgeAdapt.current)
 	_apply_hero(String(SaveService.child().get("hero", "puf")))
@@ -121,6 +241,32 @@ func _ready() -> void:
 	level = lm.get_level(level_num)
 	_enter_world(String(level.get("world", "meadow")), true)
 	_enter_menu(true)
+	_demo_jump()
+
+
+## Швидкий вхід для показу й тестування: одразу в потрібний рівень потрібним героєм, без
+## меню, вибору героя й мапи.
+##
+## Навіщо. Щоб подивитись на один рівень, доводилось щоразу проходити три екрани. Коли
+## правку треба перевірити двадцять разів поспіль, це з'їдає більше часу, ніж сама правка,
+## і — гірше — спокушає перевіряти рідше, ніж треба.
+##
+##     LEVEL=1 godot res://src/run3d/run3d.tscn
+##     LEVEL=1 HERO=lys godot res://src/run3d/run3d.tscn
+##
+## Рівень відкривається навіть якщо не куплений: це вхід для показу, а не обхід прогресу
+## в самій грі — без змінної оточення все лишається як було.
+func _demo_jump() -> void:
+	var who := OS.get_environment("HERO")
+	if who != "" and heroes.has(who):
+		_apply_hero(who)
+	var lvl := OS.get_environment("LEVEL")
+	if lvl == "":
+		return
+	var num := clampi(int(lvl), 1, maxi(lm.count(), 1))
+	_demo_any_level = true
+	print("демо: одразу рівень ", num, " героєм ", hero.hero_id)
+	_start_level(num)
 
 
 # ---------- дані ----------
@@ -159,10 +305,11 @@ static func fork_ids(allowed: Array, current: String, n: int, rng: RandomNumberG
 
 
 ## Камера під ширину дороги: 7 доріжок — вище й далі, ортографічна — ширша.
+## GDD v1.5: ×1,12 на кожен крок ширини (3→5→7), щоб ракурс 3/4 не «розвалювався» на широкій дорозі.
 static func camera_for_lanes(preset: Dictionary, n_lanes: int) -> Dictionary:
-	var k := 1.0 + float(n_lanes - 3) * 0.16
+	var k := pow(1.12, float(n_lanes - 3) * 0.5)
 	var out := preset.duplicate(true)
-	var p: Array = out.get("pos", [0.0, 3.4, 5.6])
+	var p: Array = out.get("pos", [0.0, 3.8, 4.6])
 	out["pos"] = [float(p[0]) * k, float(p[1]) * k, float(p[2]) * k]
 	if bool(out.get("ortho", false)):
 		out["size"] = float(out.get("size", 9.0)) * k
@@ -174,10 +321,12 @@ func _apply_profile(profile_name: String) -> void:
 	base_speed = float(profile.get("speed", 4.0))
 	speed = base_speed
 	hero.jump_velocity = float(profile.get("jump_velocity", 7.5))
+	# камера рухається тим спокійніше, чим менша дитина (див. CameraRig.intensity)
+	camera_rig.intensity = float(profile.get("camera_life", 1.0))
 	if mode:
 		mode.profile = profile
 		spawner.profile = profile
-		spawner.magnet = float(profile.get("star_magnet", 1.0))
+		spawner.magnet = float(profile.get("star_magnet", 1.0)) * _hero_magnet
 		events_spawner.profile = profile
 	hud.set_profile(profile_name)
 	controls.set_arrows_visible(state == State.RUN and _arrows_on())
@@ -192,23 +341,28 @@ func _joystick_on() -> bool:
 
 
 func _apply_hero(id: String) -> void:
+	# невідомий id у збереженні — беремо першого звірятка (старі legacy-id лишаються, Hero3D їх сам розв'язує)
 	if not heroes.has(id):
-		id = "puf"
+		var first := Hero3D.first_animal_id(heroes)
+		id = first if first != "" else "puf"
 	var h: Dictionary = heroes.get(id, {})
-	hero.set_hero(id, String(h.get("color", "#FFB84D")), String(h.get("feature", "tuft")))
+	hero.set_hero(id, Palette.of(h.get("color"), Palette.HERO_DEFAULT), String(h.get("feature", "tuft")))
 	Shop.apply_to(hero)
+	_apply_power_def(id)
 
 
+## v1.3: усі світи — біг. "hop"/"float" (HopMode/FloatMode) застаріли й не створюються; "slide" лишився як код на майбутнє.
 func _make_mode(kind: String) -> ModeBase:
 	match kind:
-		"hop": return HopMode.new()
-		"float": return FloatMode.new()
-		"slide": return SlideMode.new()
+		"surf": return SurfMode.new()
 		"scooter": return ScooterMode.new()
+		"float_run": return FloatRunMode.new()
+		"slide": return SlideMode.new()
 		_: return RunMode.new()
 
 
-func _enter_world(id: String, instant: bool) -> void:
+## rebuild_track false — той самий біом, дорогу не перебудовуємо (лише доріжки, якщо змінились); режим/спавнери — завжди.
+func _enter_world(id: String, instant: bool, rebuild_track: bool = true) -> void:
 	if not worlds.has(id):
 		id = String(worlds.keys()[0])
 	world = worlds[id]
@@ -221,14 +375,19 @@ func _enter_world(id: String, instant: bool) -> void:
 	mode.enter()
 	hero.lane = 0
 	hero.x_target = 0.0
-	# у покрокових режимах герой теж біжить, але повільнішим бобом — світ лише дрейфує
-	hero.run_speed_factor = STEPWISE_BOB if mode.is_stepwise() else 1.0
+	hero.run_speed_factor = 1.0
 	hero.set_running(state != State.MENU)
-	track.rebuild(world, not instant, season, lanes)
+	if rebuild_track:
+		track.rebuild(world, not instant, season, lanes)
+	elif track.lanes != lanes:
+		track.set_lanes(lanes, false)
 	hero.set_lanes(lanes)
 	if state == State.RUN:
 		# зміна біому посеред бігу (дебаг) — камеру переїжджаємо тут; на старті рівня це робить _start_level
 		camera_rig.apply(camera_for_lanes(world.get("camera", {}), lanes), 0.8)
+	# туман світу (Ліс густіший і темніший, Пляж — морська імла)
+	if env.environment:
+		env.environment.fog_density = float(world.get("fog_density", DEFAULT_FOG))
 	_set_sky(clampf(session_t / session_total, 0.0, 1.0))
 	_set_ambient()
 	spawner.configure(profile, world, hero, mode, self)
@@ -247,33 +406,59 @@ func _setup_sky() -> void:
 	# суцільний колір неба (надійно на Mobile) + м'який туман: далекий план тане, стає затишно
 	e.background_mode = Environment.BG_COLOR
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_energy = 0.8
+	e.ambient_light_energy = AMBIENT_ENERGY
 	e.fog_enabled = true
 	e.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	e.fog_density = 0.012
+	e.fog_density = DEFAULT_FOG
 	e.fog_sky_affect = 0.0
 	e.fog_aerial_perspective = 0.4
+	e.fog_light_color = Palette.W_SKY
+	e.background_color = Palette.W_SKY
+	# м'який блум (GDD v1.5 §3): світлі плити й злитки ледь світяться, без «пересвіту»
+	e.glow_intensity = GLOW_INTENSITY
+	e.glow_bloom = GLOW_BLOOM
+	e.glow_hdr_threshold = GLOW_THRESHOLD
+	e.glow_blend_mode = Environment.GLOW_BLEND_MODE_SOFTLIGHT
+	# кольорокорекція: без неї воксельні кольори в меню й каруселі виглядали вицвілими
+	e.adjustment_enabled = true
+	e.adjustment_saturation = ADJ_SATURATION
+	e.adjustment_contrast = ADJ_CONTRAST
+	e.adjustment_brightness = 1.0
+	set_fx_blur(bool(SaveService.setting("fx_blur", true)))
+
+
+## Налаштування «fx_blur» (типово увімкнене): блум + розмиття планів разом.
+## Рядок-перемикач у батьківській панелі — за hud.gd; сюди можна прийти викликом ззовні.
+func set_fx_blur(on: bool) -> void:
+	if env.environment:
+		env.environment.glow_enabled = on
+	if camera_rig:
+		camera_rig.set_dof(on)
 
 
 ## Живе небо: день → вечір протягом сесії (t 0..1); сезон і фішка рівня (ніч/вечір) підфарбовують.
 func _set_sky(t: float) -> void:
-	var day := Color(String(world.get("sky", "#9BDDFF")))
-	var evening := Color(String(world.get("sky_evening", "#F7B58A")))
+	var day := Palette.of(world.get("sky"), Palette.SKY_DAY)
+	var evening := Palette.of(world.get("sky_evening"), Palette.SKY_EVENING)
 	if not season.is_empty():
-		day = day * Color(String(season.get("sky_tint", "#FFFFFF")))
+		day = day * Palette.of(season.get("sky_tint"), Palette.GROUND_TINT_NONE)
 	if bool(level.get("evening", false)):
 		t = maxf(t, 0.8)
 	var c := day.lerp(evening, t)
-	var energy := lerpf(1.15, 0.7, t)
+	# Сонце 0.9 + амбієнт 0.35. Раніше стояло 1.1 і 0.55, і в коментарі тут писало, що
+	# «разом середні тони не виходять за 1.0» — вимірювання це спростувало: піщана плитка
+	# дороги #E9CF8A множилась на 1.65 і обрізалась у БІЛИЙ. Через це вся картина виглядала
+	# вицвілою, а найяскравіші поверхні втрачали колір повністю.
+	var energy := lerpf(0.9, 0.6, t)
 	if bool(level.get("night", false)):
-		c = c.darkened(0.55).lerp(Color("#283593"), 0.5)
+		c = c.darkened(0.55).lerp(Palette.SKY_NIGHT, 0.5)
 		energy = 0.45
 	if env.environment:
 		env.environment.background_color = c
-		env.environment.ambient_light_color = c.lightened(0.35)
+		env.environment.ambient_light_color = c.lightened(0.35).lerp(Palette.WHITE, 0.45)
 		env.environment.fog_light_color = c.lightened(0.2)
 	sun.light_energy = energy
-	sun.light_color = Color.WHITE.lerp(Color("#FFC59A"), t)
+	sun.light_color = Palette.WHITE.lerp(Palette.SUN_EVENING, t)
 	var want_fireflies := t > 0.6 or bool(level.get("night", false))
 	if want_fireflies and _fireflies == null:
 		_fireflies = FX.ambient(ambient_root, "fireflies")
@@ -291,14 +476,13 @@ func _set_ambient() -> void:
 		_weather = null
 	var kind := String(season.get("particles", ""))
 	if kind == "":
-		match String(world.get("mode", "run")):
-			"run", "scooter": kind = "petals"
-			"hop": kind = "leaves"
-			"slide": kind = "glints"
+		kind = "petals"
 	if world_id == "clouds":
 		kind = "stars"
 	elif world_id == "beach":
-		kind = "glints"   # пляж тепер «біг», але відблиски моря лишаються
+		kind = "glints"   # відблиски моря
+	elif world_id == "forest" and String(season.get("particles", "")) == "":
+		kind = "leaves"
 	if kind != "":
 		_ambient = FX.ambient(ambient_root, kind)
 	if bool(level.get("rain", false)):
@@ -315,11 +499,17 @@ func _enter_menu(instant: bool) -> void:
 		_countdown_tw = null
 	hud.hide_finish()
 	hud.hide_station()
+	hud.hide_pause()
+	_close_diorama()
+	_hide_magpie()
 	controls.set_arrows_visible(false)
 	controls.stick_hide()
 	spawner.spawning = false
 	spawner.clear()
 	events_spawner.events_enabled = false
+	_end_all_pickups()
+	hero.stand()
+	hero.set_ground(0.0)
 	hero.set_running(false)
 	hero.visible = true
 	hero.face_camera(true, 0.0 if instant else 0.5)
@@ -341,24 +531,28 @@ func _daily_gift() -> void:
 	SaveService.child()["last_gift_day"] = today
 	Events.star_collected.emit(30)
 	SaveService.save_game()
-	hud.flash("+30 подарунок дня!", 1.8, Color("#FFD54F"))
+	hud.flash("+30 подарунок дня!", 1.8, Palette.FLASH_REWARD)
 	FX.confetti(self, Vector3(0, 1.2, 0), 70)
 	hero.cheer()
 	AudioMgr.sfx("confetti")
 	AudioMgr.voice("gift")
 
 
+## «Біжимо!» веде не на мапу, а додому — у дім-діораму світу (GDD v1.4 §10).
+## Якщо діорами ще нема (інший агент), падаємо назад на стару поведінку.
 func _on_play() -> void:
 	if state != State.MENU:
 		return
 	menu.hide_menu()
-	if bool(profile.get("skip_map", false)):
+	if _has_diorama():
+		_enter_home()
+	elif bool(profile.get("skip_map", false)):
 		_start_level(lm.current())
 	else:
 		_open_map()
 
 
-## Кнопка «Мапа» в меню.
+## Кнопка «Мапа» в меню — єдиний вхід на мапу.
 func _on_menu_map() -> void:
 	if state != State.MENU:
 		return
@@ -366,10 +560,79 @@ func _on_menu_map() -> void:
 	_open_map()
 
 
+# ---------- дім-діорама (GDD v1.4 §10) ----------
+
+## Контракт діорами (src/run3d/diorama.gd, клас Diorama):
+##   open(world_id: String, lm: LevelManager) · close()
+##   сигнали play_level(num: int) · world_selected(world_id: String) · closed()
+func _has_diorama() -> bool:
+	return is_instance_valid(diorama) and diorama.has_method("open") and diorama.has_method("close")
+
+
+func _wire_diorama() -> void:
+	if not is_instance_valid(diorama):
+		return
+	if diorama.has_signal("play_level"):
+		diorama.connect("play_level", Callable(self, "_start_level"))
+	if diorama.has_signal("world_selected"):
+		diorama.connect("world_selected", Callable(self, "_on_diorama_world"))
+	if diorama.has_signal("closed"):
+		diorama.connect("closed", Callable(self, "_on_diorama_closed"))
+
+
+## Дім: діорама показує світ і рівні, у неї власний герой — нашого ховаємо.
+func _enter_home() -> void:
+	if not _has_diorama():
+		_open_map()
+		return
+	state = State.HOME
+	get_tree().paused = false
+	if _countdown_tw:
+		_countdown_tw.kill()
+		_countdown_tw = null
+	hud.hide_finish()
+	hud.hide_pause()
+	hud.set_gameplay_visible(false)
+	menu.hide_menu()
+	controls.set_arrows_visible(false)
+	controls.stick_hide()
+	spawner.spawning = false
+	spawner.clear()
+	events_spawner.events_enabled = false
+	_end_all_pickups()
+	_hide_magpie()
+	hero.set_running(false)
+	hero.visible = false
+	# дім відкриваємо на біомі поточного рівня; далі стрілки крутять лише _home_world
+	_home_world = world_id
+	diorama.call("open", _home_world, lm)
+
+
+func _close_diorama() -> void:
+	if _has_diorama():
+		diorama.call("close")
+
+
+## Стрілки в домі гортають світи діорами. world_id НЕ чіпаємо: він каже, який біом уже стоїть
+## на трасі, і _start_level за ним вирішує, чи перебудовувати дорогу (інакше рівень Пляжу побіг би Лужком).
+func _on_diorama_world(id: String) -> void:
+	if worlds.has(id):
+		_home_world = id
+
+
+func _on_diorama_closed() -> void:
+	if state == State.HOME:
+		_enter_menu(false)
+
+
 func _open_map() -> void:
 	state = State.MAP
 	get_tree().paused = false
 	hud.hide_finish()
+	hud.hide_pause()
+	_close_diorama()
+	_hide_magpie()
+	hero.visible = true
 	hud.set_gameplay_visible(false)
 	controls.set_arrows_visible(false)
 	spawner.spawning = false
@@ -383,7 +646,25 @@ func _on_map_closed() -> void:
 
 
 ## Старт рівня num: біом, доріжки, складність, туторіал → відлік.
+## Показовий вхід пускає в будь-який рівень. Прапорець, а не правка прогресу: збереження
+## дитини лишається недоторканим, і без змінної оточення гра поводиться рівно як раніше.
+var _demo_any_level := false
+var _perf_power_t := 0.0
+
+
 func _start_level(num: int) -> void:
+	if not _demo_any_level and not lm.get_level(num).is_empty() and not lm.is_open(num):
+		# рівень не куплений / попередній не пройдено (GDD v1.3 §3a) — на мапу, там купують за зірочки
+		_open_map()
+		return
+	# Меню ховаємо ТУТ, а не в _on_play(). Інваріант простий: коли рівень почався, меню не
+	# на екрані — хай яким шляхом ми сюди прийшли. Раніше hide_menu() кликав лише _on_play(),
+	# тож усі інші входи лишали меню поверх гри: демо-вхід через LEVEL=n, перехід на
+	# наступний рівень після фінішу й налагоджувальна клавіша L. Найдорожче це коштувало
+	# під час першого огляду рівнів 2–17: напис «Біжимо!/Герої/Мапа» висів посеред кожного
+	# знімка, і центр кадру подивитись було неможливо.
+	if menu != null:
+		menu.hide_menu()
 	lm.set_current(num)
 	level_num = num
 	level = lm.get_level(num)
@@ -393,23 +674,61 @@ func _start_level(num: int) -> void:
 	state = State.COUNTDOWN
 	get_tree().paused = false
 	hud.hide_finish()
+	hud.hide_pause()
+	_close_diorama()
 	hud.set_gameplay_visible(true)
 	lanes = LevelManager.lanes_for(level, profile, 0.0)
 	_lanes_changed = false
 	level_t = 0.0
+	level_distance_m = 0.0
 	level_duration = float(level.get("duration_sec", 90))
 	_slow = 1.0
 	_sprint_announced = false
 	_gate_spawned = false
 	_tutorial_action = ""
+	# v1.3: серця, зірочки рівня, пікапи — з нуля; v1.6 §3c: заряд суперсили теж
+	_end_all_pickups()
+	level_coins = 0
+	hud.set_tally(0)
+	power_charge = 0
+	hud.set_power(power_id(), hero.color)
+	hud.set_power_interactive(not _power_auto())
+	_update_power_hud()
+	# v1.4: множник, серія без ударів, сорока
+	streak_no_hit = 0
+	_stolen = false
+	_mult = 0        # 0 — щоб _update_multiplier() гарантовано оновив HUD
+	_mult_base = 1
+	_update_multiplier()
+	hero.stand()
+	hero.set_ground(0.0)
+	# характеристики героя (GDD v1.3 §5): серця й швидкість — тут, магніт — після _enter_world (configure скидає його)
+	var st := HeroSelect.stats_of(heroes, hero.hero_id)
+	hero.max_hearts = int(st.hearts)
+	hud.set_max_hearts(hero.max_hearts)   # ряд сердець під героя (3 або 4)
+	_hero_speed = float(st.speed)
+	_hero_magnet = float(st.magnet)
+	hero.reset_hearts()
+	Events.hearts_changed.emit(hero.hearts)
+	hud.set_speed(0.0)
 	var learned = SaveService.child().get("learned", {})   # батьки могли скинути підказки
 	_learned = learned if typeof(learned) == TYPE_DICTIONARY else {}
 	var wid := String(level.get("world", "meadow"))
-	_enter_world(wid, wid == world_id)
+	# той самий біом і та сама ширина — дорогу не перебудовуємо (без «перескоку» декору)
+	_enter_world(wid, wid == world_id, not (wid == world_id and lanes == track.lanes))
+	spawner.magnet = float(profile.get("star_magnet", 1.0)) * _hero_magnet
+	# TODO(v1.3 §5): st.luck — частота пікапів живе у Spawner3D._schedule_pickup (Pickup3D.per_minute_total), множника ще нема
 	spawner.set_level(level.get("obstacle_types", []), float(level.get("density", 1.0)), lanes, bool(level.get("tutorial", false)))
+	_chunk_loader = LevelChunkLoader.new()
+	# Рівень, розставлений У СЦЕНІ: процедурний декор вимкнено, усе кладуть маркери.
+	# Поверхні траси (дорога, узбіччя, канал, вода) лишаються процедурними завжди —
+	# див. docs/tasks/authored-levels.md.
+	track.authored_only = bool(level.get("authored", false))
+	_chunk_loader.start(level_num, track, spawner, level)
 	spawner.spawning = false
 	events_spawner.allowed_ids = level.get("events", [])
 	events_spawner.events_enabled = false
+	_setup_magpie()
 	quests.start_segment(AgeAdapt.current)
 	hud.set_quest(quests.icon_kind(), 0, quests.target())
 	hud.set_world("%d · %s" % [level_num, String(level.get("name_uk", ""))])
@@ -421,20 +740,26 @@ func _start_level(num: int) -> void:
 		if state == State.COUNTDOWN or state == State.RUN:
 			hero.set_running(true))
 	AudioMgr.voice("level_%d" % level_num)
+	# Прогрів шейдерів частинок саме тут: відлік триває 2,6 с, герой уже в кадрі, гри ще
+	# нема. Без цього перший пил з-під лап коштував 34 мс замість 5 — і це було видно як
+	# заїкання на самому початку рівня (виміряно: tools/perf/fx_bench.tscn).
+	FX.preheat(self, hero.position + Vector3(0.0, 0.4, 0.0))
 	if _countdown_tw:
 		_countdown_tw.kill()
 	_countdown_tw = create_tween()
 	_countdown_tw.tween_interval(0.5)
 	for i in range(3):
-		_countdown_tw.tween_callback(hud.flash.bind(str(3 - i), 0.7, Color("#FFF176")))
+		_countdown_tw.tween_callback(hud.flash.bind(str(3 - i), 0.7, Palette.FLASH_COUNT))
 		_countdown_tw.tween_callback(AudioMgr.sfx.bind("count"))
 		_countdown_tw.tween_interval(0.7)
 	_countdown_tw.tween_callback(_start_run)
 
 
+
+
 func _start_run() -> void:
 	state = State.RUN
-	hud.flash("Біжимо!", 0.9, Color("#69F0AE"))
+	hud.flash("Біжимо!", 0.9, Palette.FLASH_GO)
 	AudioMgr.voice("go")
 	spawner.spawning = true
 	events_spawner.events_enabled = true
@@ -477,9 +802,17 @@ func _finish() -> void:
 	hero.set_duck(false)
 	hero.set_running(false)
 	events_spawner.reset()
-	var stars := LevelManager.stars_for(spawner.stars_collected_segment, spawner.stars_spawned_segment, spawner.tumbles_segment)
+	_end_all_pickups()
+	_hide_magpie()
+	# злитки рівня стають справжніми лише тут
+	SaveService.add_stars(level_coins)
+	level_coins = 0
+	hud.set_tally(0)
+	# GDD v1.4 §3: зірки рівня = серця, що лишились (3/2/1, мінімум 1) — LevelManager.stars_for
+	# лишився чистою функцією для тестів, але у грі більше не використовується
+	var stars := Rules.stars_from_hearts(hero.hearts)
 	var record := lm.complete(level_num, stars)
-	SaveService.add_stars(20 + 10 * stars)
+	SaveService.add_stars(Rules.finish_bonus(level_num, stars))
 	SaveService.child()["checkpoints"] = int(SaveService.child().get("checkpoints", 0)) + 1
 	SaveService.save_game()
 	Stats.inc("levels_finished")
@@ -490,8 +823,13 @@ func _finish() -> void:
 	FX.confetti(self, Vector3(0, 1.2, 0), 60 + 30 * stars)
 	Events.checkpoint_reached.emit(level_num)   # AgeAdapt приймає рішення між рівнями
 	_finish_auto_t = -20.0   # авто-«Далі» лише після колеса
+	if stars >= 3:
+		# три зірочки — герой розвертається до камери й танцює (GDD v1.6 §5),
+		# ще до каскаду нагород: колесо крутиться через 1,2 с
+		hero.face_camera(true, 0.5)
+		hero.dance()
 	if record and stars == 3:
-		hud.flash("Три зірочки!", 1.4, Color("#FFD54F"))
+		hud.flash("Три зірочки!", 1.4, Palette.FLASH_REWARD)
 	# колесо станції → потім панель із зірками
 	_pending_finish = {"stars": stars}
 	get_tree().create_timer(1.2).timeout.connect(func():
@@ -516,14 +854,23 @@ func _on_wheel_finished(reward: Dictionary) -> void:
 	hud.show_finish(level_num, int(_pending_finish.get("stars", 1)), _on_finish_next, _open_map, not bool(profile.get("skip_map", false)))
 
 
+## Кінець каскаду нагород (GDD v1.4 §10): усі — і малята — повертаються додому, у діораму.
+## Наступний рівень малятам купується сам, щоб дім одразу пропонував його.
 func _on_finish_next() -> void:
 	if state != State.FINISH:
 		return
 	get_tree().paused = false
 	hud.hide_finish()
 	var next := mini(level_num + 1, lm.count())
-	if level_num >= lm.count():
-		# фінал: усе пройдено — на мапу для всіх (і малят): будь-який рівень можна грати знову
+	if level_num < lm.count() and bool(profile.get("skip_map", false)):
+		if not lm.is_open(next) and lm.can_buy(next) and SaveService.stars() >= lm.price_of(next):
+			lm.buy(next)
+			hud.flash("Новий рівень!", 1.2, Palette.FLASH_REWARD)
+	if _has_diorama():
+		_enter_home()
+		return
+	# діорами ще нема — стара поведінка: далі рівень або мапа
+	if level_num >= lm.count() or not lm.is_open(next):
 		_open_map()
 		return
 	_start_level(next)
@@ -535,13 +882,15 @@ func _process(delta: float) -> void:
 	if _parents_open():
 		return
 	match state:
-		State.SLEEP:
+		State.SLEEP, State.PAUSED, State.HOME:
 			return
 		State.MENU, State.HEROES, State.MAP, State.COUNTDOWN:
-			# дорога повільно їде під меню (у Стрибках світ теж дрейфує — тому й тут)
+			# дорога повільно їде під меню / відліком
 			var d := MENU_SPEED * delta
-			track.advance(d)
-			spawner.advance(d)
+			level_distance_m += d
+			track.advance(d, level_distance_m)
+			spawner.advance(d, level_distance_m)
+			_chunk_loader.update(level_distance_m)
 			return
 		State.FINISH:
 			# малюк не тисне «Далі» — гра йде далі сама
@@ -558,22 +907,36 @@ func _process(delta: float) -> void:
 	if not _lanes_changed and level.has("lanes_to") and progress >= float(level.get("lanes_at", 0.5)):
 		_lanes_changed = true
 		_change_lanes(LevelManager.lanes_for(level, profile, progress))
-	# складність: профіль × рівень × розгін до фінішу × спринт × сповільнення туторіалу
+	# складність: профіль × рівень × розгін до фінішу (+35%) × спринт × сповільнення туторіалу × равлик
 	if _slow < 1.0:
 		_slow_t -= delta
 		if _slow_t <= 0.0:
 			_slow = 1.0
-	var ramp := float(profile.get("speed_ramp", 0.2))
 	var sprint := 1.0
 	if progress >= SPRINT_FROM:
 		sprint = SPRINT_MULT
 		if not _sprint_announced:
 			_sprint_announced = true
-			hud.flash("Фініш близько!", 1.0, Color("#FF8A65"))
+			hud.flash("Фініш близько!", 1.0, Palette.FLASH_RETRY)
 			AudioMgr.voice("finish_soon")
-	speed = base_speed * float(level.get("speed_mult", 1.0)) * (1.0 + ramp * progress) * sprint * _slow
+	speed = base_speed * _hero_speed * float(level.get("speed_mult", 1.0)) * (1.0 + SPEED_RAMP * progress) * sprint * _slow * _pickup_speed * _potion_speed
 	mode.speed = speed
+	# анімація героя (GDD v1.6 §5): спринт — супернапій або фінішний ривок; кульгає —
+	# останнє серце чи перші 3 с після удару. Пріоритет станів вирішує сам Hero3D
+	# (HIT > ROCKET > CHARGE > SPRINT > LIMP > RUN).
+	if _limp_t > 0.0:
+		_limp_t = maxf(0.0, _limp_t - delta)
+	hero.set_sprint(_effects.has("potion") or progress >= SPRINT_FROM)
+	hero.set_limp(hero.hearts <= 1 or _limp_t > 0.0)
 	spawner.set_speed(speed)
+	# ЧАСТОТА ходи від швидкості НЕ залежить (фіксовані каденції, GDD v1.7 — 4+ Гц виглядали
+	# неприродно): звідси герой бере лише ±10 % розмаху кроку (Hero3D.speed_amp_k)
+	hero.set_speed_mps(speed)
+	hud.set_speed(speed)
+	_tick_pickups(delta)
+	_tick_power(delta)
+	_update_multiplier()
+	_tick_magpie(delta)
 	# ворота фінішу — за 6 с до кінця, один раз
 	if not _gate_spawned and level_duration - level_t <= GATE_BEFORE_SEC:
 		_gate_spawned = true
@@ -584,8 +947,23 @@ func _process(delta: float) -> void:
 	mode.steer(_pressed and not _swiped, _cur_pos)
 	var dist := mode.tick(delta)
 	if absf(dist) > 0.0:
-		track.advance(dist)
-		spawner.advance(dist)
+		level_distance_m += dist
+		track.advance(dist, level_distance_m)
+		spawner.advance(dist, level_distance_m)
+		_chunk_loader.update(level_distance_m)
+	# камера живе разом із героєм: кладеться в поворот, відстає на маневрі, провисає під
+	# стрибком. Сигнал один — скільки героєві лишилось до своєї доріжки (див. CameraRig.drive)
+	camera_rig.drive(delta, hero.position.x, hero.x_target - hero.position.x,
+		hero.vy(), Hero3D.LANE_W)
+	# Автозапуск суперсили для замірів: натиснути кнопку зі скрипта неможливо, а саме в цю
+	# мить гра й завмирала. PERF_POWER=1 стріляє нею раз на 5 секунд, і perf_overlay ловить
+	# найдовший кадр — тобто затримку видно числом, а не на відчуття.
+	if OS.get_environment("PERF_POWER") != "":
+		_perf_power_t += delta
+		if _perf_power_t > 5.0:
+			_perf_power_t = 0.0
+			power_charge = 9999
+			activate_power()
 	spawner.check(delta)
 	events_spawner.tick(delta)
 	_hint(delta)
@@ -604,7 +982,7 @@ func _change_lanes(n: int) -> void:
 	hero.set_lanes(n)
 	spawner.lanes = n
 	camera_rig.apply(camera_for_lanes(world.get("camera", {}), n), 0.9)
-	hud.flash("Ширше!" if wider else "Вужче!", 1.0, Color("#80DEEA"))
+	hud.flash("Ширше!" if wider else "Вужче!", 1.0, Palette.FLASH_WIDTH)
 	AudioMgr.voice("wider")
 
 
@@ -623,7 +1001,11 @@ func _hero_screen_hit(pos: Vector2) -> bool:
 
 # ---------- керування ----------
 
-## Дебаг (лише debug-збірка): 1..5 — біом на льоту, L — наступний рівень, S — фініш зараз, F — веселка, D — друг, Q — завдання, M — мапа.
+## Дебаг (лише debug-збірка): 1..5 — біом на льоту, L — наступний рівень, S — фініш зараз,
+## F — веселка, R — друг, Q — завдання, M — мапа, E — суперсила героя негайно,
+## D — присід (ковзання) вмикається/вимикається.
+## D БІЛЬШЕ НЕ КЛИЧЕ ДРУГА: на playtest 09.09 Nick тиснув D, чекаючи присід, і за хвилину
+## на дорозі стояла колона друзів. Дебаг-клавіша не має ділити літеру з ігровою дією.
 func _debug_key(event: InputEventKey) -> void:
 	if not OS.is_debug_build() or not event.pressed or event.echo:
 		return
@@ -640,12 +1022,29 @@ func _debug_key(event: InputEventKey) -> void:
 		_open_map()
 	elif event.keycode == KEY_F and state == State.RUN:
 		events_spawner.force("rainbow")
-	elif event.keycode == KEY_D and state == State.RUN:
+	elif event.keycode == KEY_R and state == State.RUN:
 		events_spawner.force("friend")
+	elif event.keycode == KEY_D and state == State.RUN:
+		hero.set_duck(not hero.ducking)
 	elif event.keycode == KEY_Q and state == State.RUN:
 		Events.quest_completed.emit("debug", 10)
 	elif event.keycode == KEY_W and state == State.RUN:
 		_change_lanes(7 if lanes < 7 else 3)
+	elif event.keycode == KEY_H and state == State.RUN:
+		# дебаг: втратити серце (нуль сердець ловить _on_hearts_changed — прилітає сорока)
+		if hero.lose_heart():
+			Events.hearts_changed.emit(hero.hearts)
+	elif event.keycode == KEY_E and state == State.RUN:
+		# дебаг: заряджаємо силу до повної й одразу вмикаємо
+		power_charge = power_needed()
+		_update_power_hud()
+		activate_power()
+	elif event.keycode == KEY_P and state == State.RUN:
+		# дебаг: випадковий пікап негайно
+		var kinds: Array = (Pickup3D.load_all().get("kinds", {}) as Dictionary).keys()
+		if not kinds.is_empty():
+			var k := String(kinds[randi() % kinds.size()])
+			on_pickup(k, Pickup3D.def_of(k))
 
 
 ## Жест від будь-якого джерела (свайп / стрілка / джойстик) — одна точка входу.
@@ -693,7 +1092,7 @@ func _unhandled_input(event: InputEvent) -> void:
 					_pressed = false
 					hero.pet()
 					return
-				State.COUNTDOWN, State.MAP:
+				State.COUNTDOWN, State.MAP, State.HOME, State.PAUSED:
 					_pressed = false
 					return
 			if _joystick_on():
@@ -735,21 +1134,448 @@ func _release_assist_duck() -> void:
 		hero.set_duck(false)
 
 
-## Відкат на клітинку після падіння (Стрибки).
-func pushback() -> void:
-	if mode is HopMode:
-		(mode as HopMode).step(-1)
-
-
 ## Падіння героя — тряска камери.
 func on_tumble() -> void:
 	camera_rig.shake(0.1)
+	camera_rig.punch(1.0)
 
 
+## Злитки під час бігу йдуть у лічильник рівня (у SaveService — на фініші); поза бігом (подарунок, колесо) — одразу.
+## Множник: n уже помножено спавнером на пікап «×2», тому тут домножуємо лише «чисту» частину.
 func _on_star_collected(n: int) -> void:
-	SaveService.add_stars(n)
 	if state == State.RUN:
-		hud.fly_star(camera_rig.cam.unproject_position(hero.global_position + Vector3(0, 0.8, 0)))
+		var gain := n * _mult_base
+		level_coins += gain
+		hud.set_tally(level_coins)
+		# суперсила заряджається від САМИХ злитків, без множника рівня — інакше на 10-му
+		# рівні кнопка була б повна з першої лінії (GDD v1.6 §3c)
+		_charge_power(mini(n, POWER_CHARGE_PER_PICKUP))
+		var screen := camera_rig.cam.unproject_position(hero.global_position + Vector3(0, 0.8, 0))
+		hud.fly_star(screen)
+		# великий злиток «+100» — спливаючий напис біля героя (реф. §4)
+		if n >= Spawner3D.BIG_VALUE:
+			hud.pop_text(screen + Vector2(0, -70), "+%d×%d" % [n, _mult_base])
+	else:
+		SaveService.add_stars(n)
+
+
+# ---------- множник злитків (GDD v1.4 §10) ----------
+
+## mult = 1 + серія_без_удару / 10, стеля ×3, ×2 з пікапом «×2» (EDD §2; номер рівня не бере участі).
+func _update_multiplier() -> void:
+	var x2 := _effects.has("coin2")
+	var base := Rules.multiplier(level_num, streak_no_hit, false)
+	var shown := Rules.multiplier(level_num, streak_no_hit, x2)
+	_mult_base = base
+	if shown != _mult:
+		_mult = shown
+		hud.set_multiplier(shown)
+		Events.multiplier_changed.emit(shown)
+
+
+func _on_obstacle_passed(_kind: String) -> void:
+	if state == State.RUN:
+		streak_no_hit += 1
+
+
+func _on_hero_tumbled(_kind: String) -> void:
+	streak_no_hit = 0
+	_limp_t = LIMP_AFTER_HIT_SEC     # 3 с кульгає (анімація limp, GDD v1.6 §5)
+
+
+# ---------- життя: серця → зірки, сорока замість перезапуску (GDD v1.4 §3) ----------
+
+## Серця змінились. Нуль — сорока краде 30 % злитків, але не більше 150 (один раз), далі −10% за удар.
+## Сердечко-пікап повертає серце — і зірку фінішу разом із ним.
+func _on_hearts_changed(hearts: int) -> void:
+	if state != State.RUN:
+		return
+	if hearts > 0:
+		_stolen = false
+		return
+	if not _stolen:
+		_stolen = true
+		_magpie_steal()
+	else:
+		_hit_penalty()
+
+
+## Сорока пікірує й забирає 30 % злитків рівня (стеля 150); герой каже «ой!», біг триває.
+func _magpie_steal() -> void:
+	var amount := Rules.steal_amount(level_coins)
+	level_coins = maxi(0, level_coins - amount)
+	hud.tween_tally(level_coins, STEAL_TALLY_SEC)
+	hud.flash("Ой! −%d" % amount, 1.2, Palette.FLASH_RETRY)
+	AudioMgr.voice("oops_gold")
+	Events.coins_stolen.emit(amount)
+	Stats.inc("magpie_steals")
+	if is_instance_valid(magpie):
+		magpie.visible = true
+		magpie.steal()
+
+
+## Кожен наступний удар без сердець: −10% злитків рівня (не менше 0).
+func _hit_penalty() -> void:
+	var amount := Rules.hit_penalty(level_coins)
+	if amount <= 0:
+		return
+	level_coins = maxi(0, level_coins - amount)
+	hud.tween_tally(level_coins, 0.4)
+	Events.coins_stolen.emit(amount)
+
+
+# ---------- сорока-антагоніст (GDD v1.4 §3) ----------
+
+func _make_magpie() -> void:
+	magpie = Magpie3D.new()
+	magpie.name = "Magpie"
+	magpie.hero = hero
+	magpie.visible = false
+	magpie.box_ready.connect(_on_magpie_box)
+	actors.add_child(magpie)
+
+
+func _setup_magpie() -> void:
+	if not is_instance_valid(magpie):
+		return
+	magpie.hero = hero
+	magpie.lanes = lanes
+	magpie.set_skin(String(world.get("antagonist", ANTAGONIST_BY_WORLD.get(world_id, "magpie"))))
+	# ящики — з 3-го рівня: на перших двох сорока просто літає попереду
+	magpie.drops_enabled = level_num >= MAGPIE_FROM_LEVEL
+	magpie.position = Vector3(0.0, Magpie3D.FLY_Y, -Magpie3D.AHEAD_MAX)
+	magpie.visible = true
+	magpie.patrol()
+	_magpie_t = randf_range(float(MAGPIE_DROP_INTERVAL[0]), float(MAGPIE_DROP_INTERVAL[1]))
+
+
+func _hide_magpie() -> void:
+	if is_instance_valid(magpie):
+		magpie.visible = false
+		magpie.drops_enabled = false
+
+
+func _tick_magpie(delta: float) -> void:
+	if not is_instance_valid(magpie) or not magpie.drops_enabled or spawner.finish_pending:
+		return
+	if magpie.phase != Magpie3D.Phase.PATROL:
+		return
+	_magpie_t -= delta
+	if _magpie_t > 0.0:
+		return
+	_magpie_t = randf_range(float(MAGPIE_DROP_INTERVAL[0]), float(MAGPIE_DROP_INTERVAL[1]))
+	magpie.lanes = lanes
+	magpie.warn_drop(spawner.random_lane())
+
+
+## Тінь виросла — ставимо X-ящик на цю доріжку (перешкода "xbox" є в кожному світі).
+func _on_magpie_box(lane: int) -> void:
+	if state != State.RUN or spawner.finish_pending:
+		return
+	var defs: Dictionary = world.get("obstacles", {})
+	if not defs.has("xbox"):
+		return
+	if spawner.has_method("spawn_obstacle_kind"):
+		spawner.call("spawn_obstacle_kind", "xbox", lane)
+	elif spawner.has_method("_spawn_obstacle"):
+		spawner.call("_spawn_obstacle", "xbox", defs["xbox"], lane)
+	AudioMgr.sfx("tumble")
+
+
+# ---------- пауза (GDD v1.4 §10) ----------
+
+var paused_by_button: bool:
+	get:
+		return state == State.PAUSED
+
+
+func _on_pause_pressed() -> void:
+	# паузу вішаємо лише на біг: під відліком твін відліку не спиняється разом із деревом
+	if state != State.RUN:
+		return
+	_state_before_pause = state
+	state = State.PAUSED
+	get_tree().paused = true
+	controls.stick_hide()
+	hud.show_pause()
+
+
+func _on_resume_pressed() -> void:
+	if state != State.PAUSED:
+		return
+	hud.hide_pause()
+	get_tree().paused = false
+	state = _state_before_pause
+
+
+func _on_pause_menu_pressed() -> void:
+	if state != State.PAUSED:
+		return
+	hud.hide_pause()
+	_enter_menu(false)
+
+
+# ---------- пікапи ----------
+
+## Spawner3D: герой підібрав пікап. def — опис із data/pickups.json.
+func on_pickup(kind: String, def: Dictionary) -> void:
+	if state != State.RUN:
+		return
+	var sec := float(def.get("seconds", 0.0))
+	match kind:
+		"snail":
+			_pickup_speed = float(def.get("speed_mult", 0.6))
+		"potion":
+			# супернапій: розганяє й вмикає анімацію спринту (див. _process)
+			_potion_speed = float(def.get("speed_mult", 1.35))
+		"heart":
+			if hero.gain_heart():
+				Events.hearts_changed.emit(hero.hearts)
+		"magnet":
+			spawner.magnet_wide = true
+		"shield":
+			hero.set_shield(true)
+		"jetpack":
+			hero.fly(sec)
+			spawner.spawn_star_arc(Hero3D.FLY_HEIGHT + 0.4, 6, hero.lane)
+		"coin2":
+			spawner.coin_mult = int(def.get("coin_mult", 2))
+	if sec > 0.0:
+		_effects[kind] = sec
+	# HUD показує пікап сам — він підписаний на Events.pickup_started(kind, seconds)
+	Events.pickup_started.emit(kind, sec)
+	hud.flash(String(def.get("name_uk", kind)), 0.8, Palette.of(def.get("color"), Palette.PICKUP_DEFAULT))
+	hero.cheer()
+	AudioMgr.voice("wow")
+
+
+## Spawner3D: щит поглинув удар — ефект закінчується раніше часу.
+func on_shield_used() -> void:
+	_end_pickup("shield")
+
+
+func _tick_pickups(delta: float) -> void:
+	for k in _effects.keys().duplicate():
+		_effects[k] = float(_effects[k]) - delta
+		if float(_effects[k]) <= 0.0:
+			_end_pickup(String(k))
+
+
+func _end_pickup(kind: String) -> void:
+	match kind:
+		"snail": _pickup_speed = 1.0
+		"potion": _potion_speed = 1.0
+		"magnet": spawner.magnet_wide = false
+		"shield": hero.set_shield(false)
+		"jetpack": hero.stop_fly()
+		"coin2": spawner.coin_mult = 1
+	var was_active := _effects.has(kind)
+	_effects.erase(kind)
+	if was_active:
+		Events.pickup_ended.emit(kind)
+	# смужка HUD — для того, що ще діє (найдовшого)
+	if _effects.is_empty():
+		hud.hide_pickup()
+	else:
+		var best := ""
+		var best_t := -1.0
+		for k in _effects.keys():
+			if float(_effects[k]) > best_t:
+				best_t = float(_effects[k])
+				best = String(k)
+		hud.show_pickup(best, best_t)
+
+
+func _end_all_pickups() -> void:
+	for k in _effects.keys().duplicate():
+		_end_pickup(String(k))
+	_pickup_speed = 1.0
+	_potion_speed = 1.0
+	_limp_t = 0.0
+	spawner.magnet_wide = false
+	spawner.coin_mult = 1
+	hero.set_shield(false)
+	hero.stop_fly()
+	hero.set_sprint(false)
+	hero.set_limp(false)
+	hud.hide_pickup()
+	_end_power()
+	power_charge = 0
+	_update_power_hud()
+
+
+# ---------- суперсила героя (GDD v1.6 §3c) ----------
+
+## Опис сили героя id → поле й кнопка HUD. Legacy-героя Hero3D показує як першого нового,
+## тож і силу беремо ту саму (resolve_def робить це за нас).
+func _apply_power_def(id: String) -> void:
+	var def := Hero3D.resolve_def(heroes, id)
+	var p = def.get("power", {})
+	power_def = p if typeof(p) == TYPE_DICTIONARY else {}
+	power_charge = 0
+	hud.set_power(power_id(), hero.color)
+	hud.set_power_interactive(not _power_auto())
+	_update_power_hud()
+
+
+## id сили поточного героя ("" — герой без сили).
+func power_id() -> String:
+	return String(power_def.get("id", ""))
+
+
+## Скільки злитків треба на силу: профіль головніший за дані героя (малятам 60).
+func power_needed() -> int:
+	return Rules.power_charge_needed(int(profile.get("power_charge", 0)), int(power_def.get("charge", 0)))
+
+
+## Сила заряджена і зараз не діє.
+func power_ready() -> bool:
+	return power_id() != "" and _power_id == "" and power_charge >= power_needed()
+
+
+## Малятам сила вмикається сама (кнопку видно, але тиснути не треба).
+func _power_auto() -> bool:
+	return bool(profile.get("power_auto", false))
+
+
+func _update_power_hud() -> void:
+	hud.set_power_progress(Rules.power_progress(power_charge, power_needed()))
+	hud.power_ready(power_ready())
+
+
+## Заряд від зібраних злитків (Events.star_collected під час бігу).
+func _charge_power(amount: int) -> void:
+	if power_id() == "" or _power_id != "" or amount <= 0:
+		return
+	power_charge = mini(power_needed(), power_charge + amount)
+	_update_power_hud()
+	if _power_auto() and power_ready():
+		activate_power()
+
+
+## Увімкнути суперсилу. Мовчки нічого не робить, якщо не в бігу, не заряджена або вже діє.
+func activate_power() -> void:
+	if state != State.RUN or not power_ready():
+		return
+	if OS.get_environment("PERF_LOG") != "":
+		print("СИЛА %s на %.2f с" % [power_id(), Time.get_ticks_msec() / 1000.0])
+	_power_id = power_id()
+	_power_dur = maxf(0.5, float(power_def.get("duration", 6.0)))
+	_power_t = _power_dur
+	power_charge = 0
+	_power_jump_scale = hero.jump_scale
+	# поза розгону: спершу 0,35 с замаху (герой присідає), далі біг із профілем CHARGE;
+	# родзинку героя (charge_accent) кличе сам Hero3D — у кінці замаху, рівно один раз
+	hero.charge(_power_dur)
+	AudioMgr.voice(String(power_def.get("voice", "power_%s" % _power_id)))
+	AudioMgr.sfx("boost")
+	# ОДИН спалах: кільце (меш, не частинки) плюс один невеликий бурст на 14 частинок.
+	# Більше сюди не додаємо — playtest 09.09: «частинок купа, а анімації не видно»
+	FX.ring(hero, Vector3(0.0, 0.12, 0.0), hero.color)
+	FX.burst(hero, Vector3(0.0, 0.8, 0.0), hero.color)
+	hud.power_fired()
+	hud.set_power_active(1.0)
+	hud.flash(String(power_def.get("name_uk", "")), 0.9, hero.color)
+	Stats.inc("power_%s" % _power_id)
+	match _power_id:
+		"fox_leap":
+			hero.jump_scale = _power_jump_scale * FOX_JUMP_SCALE
+			spawner.power_coin_mult = FOX_COIN_MULT
+			spawner.power_coin_air_only = true
+		"deer_charge":
+			spawner.break_obstacles = true
+		"dog_sniff":
+			spawner.magnet_wide = true
+			spawner.magnet = _base_magnet() * DOG_MAGNET
+		"bunny_double":
+			hero.double_jump = true
+			if is_instance_valid(magpie):
+				magpie.drops_enabled = false   # поки зайчик стрибає, сорока не кидає ящиків
+		"cat_lives":
+			hero.max_hearts = mini(CAT_MAX_HEARTS, hero.max_hearts + 1)
+			hud.set_max_hearts(hero.max_hearts)
+			# ряд сердець уже перебудований під новий максимум — далі його наповнить сигнал
+			var _got: bool = hero.gain_heart()
+			Events.hearts_changed.emit(hero.hearts)
+			spawner.absorb_hits = 1
+		"bear_hug":
+			spawner.absorb_hits = BEAR_ABSORB
+			spawner.power_coin_mult = BEAR_COIN_MULT
+			hero.set_shield(true)
+		"unicorn_rainbow":
+			spawner.pull_all_ingots(RAINBOW_PULL_SEC)
+			hero.set_invulnerable(RAINBOW_INVULN_SEC)
+			_rainbow_trail()   # іскри від рога вже насипав charge() через charge_accent()
+		"dolphin_wave":
+			spawner.pull_all_ingots(DOLPHIN_PULL_SEC)
+		"turtle_shield":
+			spawner.absorb_hits = TURTLE_ABSORB
+			hero.set_shield(true)
+
+
+## Веселковий слід єдинорога: кілька смуг кольорами Palette.RAINBOW, зсунутих по висоті.
+## Кожна смуга РІДКА (8 частинок × 0,8 с ≈ 10 на секунду): три смуги разом дають стільки ж,
+## скільки один звичайний слід, — інакше екран заливало частинками.
+const RAINBOW_TRAIL_AMOUNT := 8
+
+
+func _rainbow_trail() -> void:
+	var i := 0
+	while i < Palette.RAINBOW.size():
+		var tr := FX.trail(hero, Palette.RAINBOW[i], RAINBOW_TRAIL_AMOUNT)
+		tr.position = Vector3(0.0, 0.22 + 0.12 * float(i / RAINBOW_TRAIL_STEP), 0.3)
+		_power_trails.append(tr)
+		i += RAINBOW_TRAIL_STEP
+
+
+## Базовий радіус магніта (профіль × характеристика героя) — без пікапів і сили.
+func _base_magnet() -> float:
+	return float(profile.get("star_magnet", 1.0)) * _hero_magnet
+
+
+func _tick_power(delta: float) -> void:
+	if _power_id == "":
+		return
+	_power_t -= delta
+	hud.set_power_active(clampf(_power_t / maxf(0.01, _power_dur), 0.0, 1.0))
+	if _power_t <= 0.0:
+		_end_power()
+
+
+## Кінець сили: усі прапорці й множники назад, заряд збирається наново.
+func _end_power() -> void:
+	for tr in _power_trails:
+		if is_instance_valid(tr):
+			tr.emitting = false
+			tr.queue_free()
+	_power_trails.clear()
+	if _power_id == "":
+		return
+	var was := _power_id
+	_power_id = ""
+	_power_t = 0.0
+	hero.jump_scale = _power_jump_scale
+	hero.double_jump = false
+	spawner.reset_power()
+	# пікапи «магніт» і «щит» могли діяти паралельно — їхнє не знімаємо
+	if not _effects.has("magnet"):
+		spawner.magnet_wide = false
+	spawner.magnet = _base_magnet()
+	if (was == "bear_hug" or was == "turtle_shield") and not _effects.has("shield"):
+		hero.set_shield(false)
+	if is_instance_valid(magpie):
+		magpie.drops_enabled = level_num >= MAGPIE_FROM_LEVEL and state == State.RUN
+	power_charge = 0
+	hud.power_reset()
+	_update_power_hud()
+
+
+## Spawner3D: суперсила поглинула удар (left — скільки ще лишилось).
+func on_hit_absorbed(left: int) -> void:
+	hud.flash("Тримаюсь!" if left > 0 else "Ух!", 0.7, Palette.FLASH_REWARD)
+	hero.cheer()
+	if left <= 0 and (_power_id == "bear_hug" or _power_id == "turtle_shield"):
+		hero.pop_shield()
 
 
 # ---------- туторіал і підказки ----------
@@ -758,7 +1584,6 @@ const ACTION_HINT := {
 	"jump": ["up", "Стрибни!", "hint_jump"],
 	"duck": ["down", "Присядь!", "hint_duck"],
 	"side": ["left", "Убік!", "hint_side"],
-	"gap": ["up", "На колоду!", "hint_hop"],
 }
 
 
@@ -767,8 +1592,6 @@ func tutorial_obstacle(kind: String, action: String, free_lane: int = 99) -> voi
 	if not ACTION_HINT.has(action) or _learned.has(action):
 		return
 	var eta := mode.seconds_to_hero(-Spawner3D.SPAWN_Z)
-	if mode.is_stepwise():
-		eta = 2.0
 	get_tree().create_timer(maxf(0.1, eta - TUTORIAL_LEAD_SEC), false).timeout.connect(_tutorial_prompt.bind(action, free_lane))
 
 
@@ -796,7 +1619,7 @@ func _tutorial_register(kind: String) -> void:
 		return
 	var ok := false
 	match _tutorial_action:
-		"jump", "gap": ok = kind in ["tap", "swipe_up"]
+		"jump": ok = kind in ["tap", "swipe_up"]
 		"duck": ok = kind in ["swipe_down", "hold_start"]
 		"side": ok = kind in ["swipe_left", "swipe_right"]
 	if not ok:
@@ -818,7 +1641,6 @@ func _hint(delta: float) -> void:
 	_idle_t += delta
 	if _idle_t > float(profile.get("hint_after_sec", 5)):
 		match mode.mode_id():
-			"hop", "float": hud.show_hint("tap", "Тап — крок!")
 			"slide": hud.show_hint("hold", "Тримай збоку!")
 			_: hud.show_hint("tap", "Тап — стрибок!")
 		AudioMgr.voice("hint_tap")
@@ -869,7 +1691,7 @@ func _on_session_warning(seconds_left: int) -> void:
 
 
 func _on_session_finished() -> void:
-	if state == State.MENU or state == State.HEROES or state == State.MAP:
+	if state == State.MENU or state == State.HEROES or state == State.MAP or state == State.HOME:
 		return
 	state = State.SLEEP
 	get_tree().paused = true

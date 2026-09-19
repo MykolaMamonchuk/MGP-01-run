@@ -1,0 +1,17 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://vendor/cartoon_mouth_3d/CartoonMouth3DIntegrated.tscn" id="1"]
+
+[node name="FoxMouth3D" instance=ExtResource("1")]
+mouth_width = 1.5
+mouth_height = 0.3
+mouth_depth = 0.16
+embed_depth = 0.03
+surface_offset = 0.015
+socket_enabled = false
+smile_arc = true
+arc_segments = 26
+arc_thickness = 1.25
+arc_curve = 0.5
+rest_smile = 0.85
+smile_amount = 0.85

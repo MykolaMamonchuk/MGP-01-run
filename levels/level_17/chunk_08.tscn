@@ -1,0 +1,142 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M246_obstacle_kite" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "kite"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -4.0)
+
+[node name="M247_obstacle_moonswing" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "moonswing"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -12.0)
+
+[node name="M248_obstacle_raincloud" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "raincloud"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -20.0)
+
+[node name="M249_obstacle_rocket" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rocket"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -28.0)
+
+[node name="M250_obstacle_thundercloud" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "thundercloud"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -36.0)
+
+[node name="M251_obstacle_wind" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "wind"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -44.0)
+
+[node name="M252_obstacle_xbox" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "xbox"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -52.0)
+
+[node name="M253_obstacle_balloon" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "balloon"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -60.0)
+
+[node name="M254_obstacle_birds" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "birds"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -68.0)
+
+[node name="M255_obstacle_bridge" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bridge"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -76.0)
+
+[node name="M256_obstacle_cloud" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "cloud"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -84.0)
+
+[node name="M257_obstacle_comet" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "comet"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -92.0)
+
+[node name="M258_obstacle_kite" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "kite"
+lane = 3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -100.0)
+
+[node name="M259_obstacle_moonswing" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "moonswing"
+lane = -3
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -108.0)
+
+[node name="M260_obstacle_raincloud" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "raincloud"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -116.0)
+
+[node name="M261_obstacle_rocket" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "rocket"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -124.0)
+
+[node name="M262_obstacle_thundercloud" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "thundercloud"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -132.0)
+
+[node name="M263_obstacle_wind" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "wind"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -140.0)
+
+[node name="M264_obstacle_xbox" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "xbox"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -148.0)

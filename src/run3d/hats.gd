@@ -1,5 +1,5 @@
 ## Капелюшки — тонка обгортка над Shop (слот "hat"), щоб старі виклики (hero3d.set_hat, wheel, run3d) працювали.
-## Старий id "none" відображається на "hat_none".
+## Старий id "none" відображається на "hat_none". hero_id "" (типово) — поточний герой дитини.
 class_name Hats
 extends RefCounted
 
@@ -28,21 +28,21 @@ static func random_unowned(all: Array, owned: Array, rng: RandomNumberGenerator)
 	return Shop.random_unowned(all, owned, rng, "hat")
 
 
-static func owned() -> Array:
-	return Shop.owned()
+static func owned(hero_id: String = "") -> Array:
+	return Shop.owned(hero_id)
 
 
-static func equipped() -> String:
-	return Shop.equipped("hat")
+static func equipped(hero_id: String = "") -> String:
+	return Shop.equipped(hero_id, "hat")
 
 
-static func equip(id: String) -> void:
-	Shop.equip("hat", _id(id))
+static func equip(id: String, hero_id: String = "") -> void:
+	Shop.equip(hero_id, "hat", _id(id))
 
 
-static func buy(def: Dictionary) -> bool:
-	return Shop.buy(def)
+static func buy(def: Dictionary, hero_id: String = "") -> bool:
+	return Shop.buy(def, hero_id)
 
 
-static func grant(id: String) -> void:
-	Shop.grant(id)
+static func grant(id: String, hero_id: String = "") -> void:
+	Shop.grant(id, hero_id)

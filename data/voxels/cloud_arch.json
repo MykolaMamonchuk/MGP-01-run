@@ -1,0 +1,18 @@
+{
+  "_note": "Хмарна арка над дорогою (Хмаринки): ширина 3,2 м, висота 2,2 м. Track масштабує під ширину дороги.",
+  "size": 0.2,
+  "palette": {"c": "#FFFFFF", "b": "#CFE6F9", "s": "#B3D4F0"},
+  "layers": [
+    ["ccc..........ccc", "ccc..........ccc"],
+    ["bbb..........bbb", "bbb..........bbb"],
+    ["ccc..........ccc", "ccc..........ccc"],
+    ["ccc..........ccc", "ccc..........ccc"],
+    ["bbb..........bbb", "bbb..........bbb"],
+    ["ccc..........ccc", "ccc..........ccc"],
+    ["cccc........cccc", "cccc........cccc"],
+    ["ccccc......ccccc", "ccccc......ccccc"],
+    ["bbbbbb....bbbbbb", "bbbbbb....bbbbbb"],
+    ["cccccccccccccccc", "cccccccccccccccc"],
+    [".ssssssssssssss.", ".ssssssssssssss."]
+  ]
+}

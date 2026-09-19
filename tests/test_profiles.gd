@@ -1,15 +1,32 @@
 ## Перевіряє data/profiles.json через AgeAdapt.load_profiles().
 extends GutTest
 
-const VALID_OBSTACLES := ["stump", "branch", "puddle", "bush", "tree", "river", "hedgehog", "rock", "crab", "bench", "lamp", "cloud"]
 const VALID_WORLDS := ["meadow", "forest", "beach", "city", "clouds"]
 const AGE_KEYS := ["young", "mid", "older"]
 
 var _profiles: Dictionary
+## Дозволені типи перешкод — це те, що справді описано у світах.
+## Список НЕ дублюємо константою: інакше перейменування в data/worlds тихо розходиться з тестом.
+var _valid_obstacles: Array = []
 
 
 func before_each() -> void:
 	_profiles = AgeAdapt.load_profiles()
+	_valid_obstacles = _obstacles_from_worlds()
+
+
+func _obstacles_from_worlds() -> Array:
+	var out := {}
+	for world in VALID_WORLDS:
+		var f := FileAccess.open("res://data/worlds/%s.json" % world, FileAccess.READ)
+		if f == null:
+			continue
+		var parsed = JSON.parse_string(f.get_as_text())
+		if typeof(parsed) != TYPE_DICTIONARY:
+			continue
+		for kind in (parsed as Dictionary).get("obstacles", {}).keys():
+			out[kind] = true
+	return out.keys()
 
 
 func test_has_all_required_keys() -> void:
@@ -39,7 +56,7 @@ func test_each_profile_shape() -> void:
 			"%s: obstacle_types не порожній" % key)
 		if typeof(types) == TYPE_ARRAY:
 			for t in types:
-				assert_true(VALID_OBSTACLES.has(t), "%s: невідомий тип перешкоди %s" % [key, t])
+				assert_true(_valid_obstacles.has(t), "%s: перешкоди «%s» нема в data/worlds/*.json" % [key, t])
 
 		var assist = p.get("auto_assist_chance", -1)
 		assert_true(typeof(assist) in [TYPE_INT, TYPE_FLOAT], "%s: auto_assist_chance — число" % key)

@@ -1,0 +1,58 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Перешкоди" type="Node3D" parent="."]
+
+[node name="M96_obstacle_tree" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "tree"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -2.1)
+
+[node name="M97_obstacle_bridge" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bridge"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -14.7)
+
+[node name="M98_obstacle_tree" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "tree"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -27.4)
+
+[node name="M99_obstacle_bridge" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bridge"
+lane = 2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -40.0)
+
+[node name="M100_obstacle_tree" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "tree"
+lane = -2
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -52.7)
+
+[node name="M101_obstacle_bridge" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "bridge"
+lane = -1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -65.4)
+
+[node name="M102_obstacle_tree" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "tree"
+lane = 0
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0.0, -78.0)

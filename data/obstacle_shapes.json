@@ -1,0 +1,35 @@
+{
+  "_note": "Мова перешкод (GDD v1.4 §3, референси §3): один силует = одна дія = один маркер. Кожна перешкода світу має поле \"shape\" з цього списку; перешкода може перекрити маркер полем \"marker\": \"none\".",
+  "shapes": {
+    "low_bar": {
+      "action": "jump",
+      "marker": "stripes_red",
+      "hint_uk": "низька перекладина — перестрибни",
+      "marker_y": "top"
+    },
+    "high_frame": {
+      "action": "duck",
+      "marker": "stripes_yellow",
+      "hint_uk": "рама згори — пригнись",
+      "marker_y": "beam"
+    },
+    "x_box": {
+      "action": "side",
+      "marker": "x_white",
+      "hint_uk": "ящик із білим X — сюди не можна, обійди",
+      "marker_y": "front"
+    },
+    "vehicle": {
+      "action": "side",
+      "marker": "none",
+      "hint_uk": "транспорт: обійди або заїдь рампою на дах по злитки",
+      "marker_y": "none"
+    },
+    "critter": {
+      "action": "side",
+      "marker": "none",
+      "hint_uk": "жива перешкода — перебігає доріжками",
+      "marker_y": "none"
+    }
+  }
+}

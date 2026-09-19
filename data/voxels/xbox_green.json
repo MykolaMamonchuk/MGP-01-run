@@ -1,0 +1,15 @@
+{
+  "_note": "Зелений ящик «сюди не можна» (GDD v1.4 §3): на зріст героя (1,0 м), білий X уже вбудований у передню грань.",
+  "size": 0.125,
+  "palette": {"g": "#66BB6A", "d": "#43A047", "w": "#FFFFFF"},
+  "layers": [
+    ["wggggw", "gggggg", "gggggg", "dddddd"],
+    ["gwggwg", "gggggg", "gggggg", "dddddd"],
+    ["gwggwg", "gggggg", "gggggg", "dddddd"],
+    ["ggwwgg", "gggggg", "gggggg", "dddddd"],
+    ["ggwwgg", "gggggg", "gggggg", "dddddd"],
+    ["gwggwg", "gggggg", "gggggg", "dddddd"],
+    ["gwggwg", "gggggg", "gggggg", "dddddd"],
+    ["wggggw", "dddddd", "dddddd", "dddddd"]
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "_note": "Дерев'яний ящик (арт-база v1.5): темні кутові стійки й обв'язка.",
+  "size": 0.14,
+  "palette": {"w": "#D9A05B", "d": "#8F5A2A"},
+  "layers": [
+    ["dddd", "dddd", "dddd", "dddd"],
+    ["dwwd", "wwww", "wwww", "dwwd"],
+    ["dwwd", "wwww", "wwww", "dwwd"],
+    ["dddd", "dddd", "dddd", "dddd"]
+  ]
+}

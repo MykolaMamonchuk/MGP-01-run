@@ -1,0 +1,92 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Декор" type="Node3D" parent="."]
+
+[node name="M1_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.4, 0, -34.0)
+
+[node name="M2_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.0, 0, -66.0)
+
+[node name="M3_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.6, 0, -102.0)
+
+[node name="M4_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.4, 0, -136.0)
+
+[node name="Орієнтири" type="Node3D" parent="."]
+
+[node name="M5_landmark_tower_terracotta" type="Node3D" parent="Орієнтири"]
+script = ExtResource("1")
+role = "landmark"
+kind = "tower_terracotta"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.8, 0, -70.0)
+
+[node name="Стіни" type="Node3D" parent="."]
+
+[node name="W1_wall_near_house_terra_1" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "house_terra_1"
+yaw_deg = -90
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.8, 0, -18.38)
+
+[node name="W2_wall_near_house_terra_2" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "house_terra_2"
+yaw_deg = -90
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.81, 0, -19.35)
+
+[node name="W3_wall_near_house_terra_7" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "house_terra_7"
+yaw_deg = -90
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.61, 0, -20.26)
+
+[node name="W4_wall_near_house_terra_7" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "house_terra_7"
+yaw_deg = -90
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.61, 0, -86.32)
+
+[node name="W5_wall_near_house_terra_1" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "house_terra_1"
+yaw_deg = -90
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.8, 0, -87.05)
+
+[node name="W6_wall_near_house_terra_2" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "house_terra_2"
+yaw_deg = -90
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.81, 0, -88.02)
+
+[node name="W7_wall_near_house_terra" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "house_terra"
+yaw_deg = -90
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.6, 0, -50.0)

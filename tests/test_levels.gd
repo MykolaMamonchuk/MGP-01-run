@@ -3,6 +3,16 @@ extends GutTest
 
 const RunScript := preload("res://src/run3d/run3d.gd")
 
+## Вокселі арт-бази v1.5 (етап 6, агент вокселів). Track пропускає відсутні імена,
+## тож дані можуть посилатися на них ще до появи файлів — тест це дозволяє явним списком.
+const ART_V15_VOXELS := [
+	"crate", "barrel", "mushroom_red", "bush_cube", "tree_round", "pine_3", "fence_low",
+	"lantern_post", "signpost", "house_red", "house_terra", "house_teal", "house_straw",
+	"awning_stall", "bridge_plank", "well", "hay_bale", "rock_grey", "flower_yellow",
+	"flower_pink", "pumpkin", "palm", "beach_hut", "umbrella_stripe", "cloud_house",
+	"city_house_a", "city_house_b", "kiosk",
+]
+
 var _levels: Array = []
 var _worlds: Dictionary = {}
 
@@ -10,6 +20,15 @@ var _worlds: Dictionary = {}
 func before_each() -> void:
 	_levels = LevelManager.load_levels()
 	_worlds = RunScript.load_worlds()
+
+
+## Вид «існує», якщо його є чим намалювати. Справжня МОДЕЛЬ рахується нарівні з вокселем:
+## відколи є PropLibrary, вид цілком може жити тільки моделлю й не мати вокселя взагалі —
+## саме так і прийшов кущ. Без цього тест вимагав би заводити мертвий воксель-двійник
+## під кожну нову модель.
+func _voxel_ok(name: String) -> bool:
+	return FileAccess.file_exists("res://data/voxels/%s.json" % name) \
+		or PropLibrary.has(name) or ART_V15_VOXELS.has(name)
 
 
 func test_seventeen_levels_with_valid_worlds_and_lanes() -> void:
@@ -79,6 +98,29 @@ func test_islands_group_consecutive_worlds() -> void:
 	assert_eq(int(isl[-1]["to"]), 17)
 
 
+## EDD §2 (рішення Nick №1): світи переставлено — по три рівні на кожен пізній острів.
+func test_world_ranges_after_reorder() -> void:
+	var lm := LevelManager.new()
+	var want := [
+		{"world": "meadow", "from": 1,  "to": 4},
+		{"world": "forest", "from": 5,  "to": 8},
+		{"world": "beach",  "from": 9,  "to": 11},
+		{"world": "city",   "from": 12, "to": 14},
+		{"world": "clouds", "from": 15, "to": 17},
+	]
+	var isl := lm.islands()
+	assert_eq(isl.size(), want.size())
+	for i in range(want.size()):
+		assert_eq(String(isl[i]["world"]), String(want[i]["world"]), "острів %d" % i)
+		assert_eq(int(isl[i]["from"]), int(want[i]["from"]), "%s: перший рівень" % want[i]["world"])
+		assert_eq(int(isl[i]["to"]), int(want[i]["to"]), "%s: останній рівень" % want[i]["world"])
+	# кожен світ трапляється рівно одним суцільним шматком
+	var seen := {}
+	for isl_i in isl:
+		assert_false(seen.has(isl_i["world"]), "світ %s не повертається двічі" % isl_i["world"])
+		seen[isl_i["world"]] = true
+
+
 func test_map_positions_inside_screen() -> void:
 	var pts := MapScreen.node_positions(17, Vector2(1280, 720))
 	assert_eq(pts.size(), 17)
@@ -86,6 +128,104 @@ func test_map_positions_inside_screen() -> void:
 		assert_between(p.x, 60.0, 1220.0)
 		assert_between(p.y, 60.0, 660.0)
 	assert_lt(pts[0].x, pts[16].x, "стежинка іде зліва направо")
+
+
+# ---------- 0.7.0: ціни рівнів (GDD v1.3 §3a), стан вузла, написи островів без накладань ----------
+
+func test_prices_present_monotonic_and_first_free() -> void:
+	var prices := []
+	for l in _levels:
+		assert_true(l.has("price"), "рівень %d: є price" % int(l["id"]))
+		prices.append(int(l.get("price", -1)))
+	assert_eq(prices.size(), 17)
+	assert_eq(prices[0], 0, "рівень 1 — безплатний")
+	for i in range(1, prices.size()):
+		assert_gt(prices[i], prices[i - 1], "рівень %d: ціна росте" % (i + 1))
+	assert_eq(prices, [0, 50, 80, 120, 160, 200, 250, 300, 350, 400, 450, 500, 550, 600, 650, 700, 800], "таблиця цін GDD v1.3 §3a")
+
+
+func test_price_table_is_affordable() -> void:
+	var lm := LevelManager.new()
+	var prices := lm.prices()
+	# перший острів (рівні 1–4) — за один-три пробіги при середньому заробітку 150
+	assert_true(LevelManager.price_table_is_affordable(prices.slice(0, 4), 150), "Лужок: кожен рівень ≤ 3 × 150")
+	# усі 17 рівнів — при середньому заробітку 300 (довші рівні, колесо, завдання)
+	assert_true(LevelManager.price_table_is_affordable(prices, 300), "уся таблиця ≤ 3 × 300")
+	assert_false(LevelManager.price_table_is_affordable([1000], 150), "1000 > 3 × 150")
+	assert_true(LevelManager.price_table_is_affordable([], 1), "порожня таблиця — по кишені")
+	assert_eq(lm.price_of(1), 0)
+	assert_eq(lm.price_of(17), 800)
+	assert_eq(lm.price_of(99), 0, "нема рівня — 0")
+
+
+func test_open_state_cases() -> void:
+	assert_eq(LevelManager.open_state(1, {}, []), "open", "рівень 1 завжди відкритий")
+	assert_eq(LevelManager.open_state(2, {}, []), "locked", "рівень 1 не пройдено — 2 замкнений")
+	assert_eq(LevelManager.open_state(2, {"1": 1}, []), "buyable", "рівень 1 пройдено, 2 не куплено — купується")
+	assert_eq(LevelManager.open_state(2, {"1": 1}, [2]), "open", "куплено й попередній пройдено — відкритий")
+	assert_eq(LevelManager.open_state(2, {"1": 1}, [2.0]), "open", "число зі збереження може бути float")
+	assert_eq(LevelManager.open_state(3, {"1": 3}, [2, 3]), "locked", "рівень 2 не пройдено — 3 замкнений навіть якщо куплений")
+	assert_eq(LevelManager.open_state(3, {"1": 3, "2": 0}, [2]), "locked", "0 зірок — не пройдено")
+
+
+func test_unlocked_open_is_highest_playable() -> void:
+	assert_eq(LevelManager.unlocked_open({}, [], 17), 1)
+	assert_eq(LevelManager.unlocked_open({"1": 2}, [], 17), 1, "пройдено, але не куплено — грати можна лише 1")
+	assert_eq(LevelManager.unlocked_open({"1": 2}, [2], 17), 2)
+	assert_eq(LevelManager.unlocked_open({"1": 2, "2": 1}, [2], 17), 2, "3 не куплено")
+	assert_eq(LevelManager.unlocked_open({"1": 2, "2": 1}, [2, 3], 17), 3)
+	assert_eq(LevelManager.unlocked_open({"1": 1}, [3], 17), 1, "куплений 3 без 2 — не рахується")
+
+
+func test_place_labels_no_overlap_on_17_nodes() -> void:
+	var size := Vector2(1280, 720)
+	var pts := MapScreen.node_positions(17, size)
+	var lm := LevelManager.new()
+	var centers := []
+	for isl in lm.islands():
+		var c := Vector2.ZERO
+		var k := 0
+		for i in range(int(isl["from"]) - 1, int(isl["to"])):
+			c += pts[i]
+			k += 1
+		centers.append(c / float(k))
+	var tops := MapScreen.place_labels(centers, pts, size)
+	assert_eq(tops.size(), 5, "по напису на острів")
+	var rects: Array[Rect2] = []
+	for top in tops:
+		rects.append(Rect2(top, Vector2(MapScreen.LABEL_W, MapScreen.LABEL_H)))
+	for a in range(rects.size()):
+		assert_between(rects[a].position.x, 0.0, size.x - MapScreen.LABEL_W, "напис %d у межах екрана по x" % a)
+		for b in range(a + 1, rects.size()):
+			assert_false(rects[a].intersects(rects[b]), "написи %d і %d не накладаються" % [a, b])
+		for p in pts:
+			var q := Vector2(clampf(p.x, rects[a].position.x, rects[a].end.x), clampf(p.y, rects[a].position.y, rects[a].end.y))
+			assert_gte(q.distance_to(p), MapScreen.NODE_R, "напис %d не лягає на вузол %s" % [a, str(p)])
+
+
+func test_place_labels_shifts_up_when_overlapping() -> void:
+	var size := Vector2(1280, 720)
+	# два острови з однаковим центром — другий напис має піднятись
+	var tops := MapScreen.place_labels([Vector2(640, 400), Vector2(640, 400)], [], size)
+	assert_eq(tops.size(), 2)
+	assert_almost_eq((tops[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT, 0.001)
+	assert_lt((tops[1] as Vector2).y, (tops[0] as Vector2).y, "другий напис вище першого")
+	assert_false(Rect2(tops[0], Vector2(MapScreen.LABEL_W, MapScreen.LABEL_H)).intersects(Rect2(tops[1], Vector2(MapScreen.LABEL_W, MapScreen.LABEL_H))))
+	# вузол прямо під написом — напис піднімається
+	var one := MapScreen.place_labels([Vector2(640, 400)], [Vector2(640, 400.0 - MapScreen.LABEL_LIFT + 10.0)], size)
+	assert_lt((one[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT, "піднято через вузол")
+	# не більше 4 зсувів
+	var stuck := MapScreen.place_labels([Vector2(640, 400)], [Vector2(640, 100), Vector2(640, 140), Vector2(640, 180), Vector2(640, 220), Vector2(640, 260)], size)
+	assert_gte((one[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT - MapScreen.LABEL_STEP * MapScreen.LABEL_TRIES)
+	assert_almost_eq((stuck[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT - MapScreen.LABEL_STEP * MapScreen.LABEL_TRIES, 0.001, "рівно 4 зсуви, далі не пробуємо")
+
+
+func test_smooth_path_keeps_endpoints() -> void:
+	var pts := [Vector2(0, 0), Vector2(100, 50), Vector2(200, 0)]
+	var path := MapScreen.MapCanvas.smooth_path(pts, 4)
+	assert_eq(path.size(), 9, "2 відрізки × 4 + кінець")
+	assert_eq(path[0], pts[0])
+	assert_eq(path[-1], pts[-1])
 
 
 func test_camera_scales_with_lanes() -> void:
@@ -100,12 +240,12 @@ func test_camera_scales_with_lanes() -> void:
 
 # ---------- 0.6.0: пляж на піску, камера всередині світу, фініш ----------
 
-func test_beach_is_run_on_sand_with_sea_on_the_side() -> void:
+func test_beach_is_surf_on_sea() -> void:
 	var beach: Dictionary = _worlds["beach"]
-	assert_eq(String(beach["mode"]), "run", "Пляж — біг по піску (Хвиля лишилась у коді на майбутнє)")
-	assert_eq(int(beach.get("sea_side", 0)), -1, "море — декоративне, ліворуч")
+	assert_eq(String(beach["mode"]), "surf", "Пляж — серфінг (v1.3)")
+	assert_true(bool(beach.get("sea", false)), "море на всю ширину, герой на дошці")
 	assert_true(beach.has("water"), "колір моря для водяної площини")
-	assert_true(beach.has("speed_factor"), "speed_factor лишається для режиму Хвиля")
+	assert_true(beach.has("speed_factor"), "множник швидкості режиму Серфінг")
 
 
 func test_world_cameras_are_perspective_and_low() -> void:
@@ -163,6 +303,145 @@ func test_hop_drift_is_clamped() -> void:
 	assert_almost_eq(m.drift_rate(), 1.6, 0.001, "не швидше 1,6")
 	m.speed = 4.0
 	assert_almost_eq(m.seconds_to_hero(3.8), 2.0, 0.001, "час до перешкоди: дрейф + 1 крок/с")
+
+
+# ---------- 0.8.0: світ GDD v1.4 — камера, плато, стіни впритул, орієнтири, силуети перешкод, злитки ----------
+
+func _shapes() -> Dictionary:
+	var f := FileAccess.open("res://data/obstacle_shapes.json", FileAccess.READ)
+	assert_not_null(f, "data/obstacle_shapes.json існує")
+	var parsed = JSON.parse_string(f.get_as_text())
+	return (parsed as Dictionary).get("shapes", {}) if typeof(parsed) == TYPE_DICTIONARY else {}
+
+
+func test_obstacle_shapes_catalog() -> void:
+	var shapes := _shapes()
+	for id in ["low_bar", "high_frame", "x_box", "vehicle", "critter"]:
+		assert_true(shapes.has(id), "силует %s описано (GDD v1.4 §3)" % id)
+		if shapes.has(id):
+			var s: Dictionary = shapes[id]
+			assert_true(s.has("action"), "%s: є дія" % id)
+			assert_true(s.has("marker"), "%s: є маркер" % id)
+	assert_eq(String(shapes["low_bar"]["action"]), "jump", "низька перекладина — стрибок")
+	assert_eq(String(shapes["high_frame"]["action"]), "duck", "рама згори — присід")
+	assert_eq(String(shapes["x_box"]["marker"]), "x_white", "ящик — білий X")
+
+
+func test_every_world_obstacle_has_valid_shape() -> void:
+	var shapes := _shapes()
+	var seen := {}
+	for id in _worlds.keys():
+		var obs: Dictionary = _worlds[id]["obstacles"]
+		for k in obs.keys():
+			var o: Dictionary = obs[k]
+			var sh := String(o.get("shape", ""))
+			assert_true(shapes.has(sh), "%s/%s: силует «%s» є в каталозі" % [id, k, sh])
+			seen[sh] = true
+			if sh == "vehicle":
+				var v := String(o.get("vehicle_voxel", o.get("voxel", "")))
+				assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % v), "%s/%s: воксель транспорту %s існує" % [id, k, v])
+		# у кожному біомі має бути що обходити (транспорт) і що не чіпати (X-ящик)
+		var kinds := []
+		for k in obs.keys():
+			kinds.append(String((obs[k] as Dictionary).get("shape", "")))
+		assert_true(kinds.has("vehicle"), "%s: є транспорт другого ярусу" % id)
+		assert_true(kinds.has("x_box"), "%s: є ящик із X" % id)
+	assert_eq(seen.size(), 5, "усі п'ять силуетів справді використані")
+
+
+func test_near_walls_and_landmarks_exist() -> void:
+	for id in _worlds.keys():
+		var near: Array = _worlds[id].get("walls_near", [])
+		assert_gte(near.size(), 6, "%s: ≥ 6 видів у ближньому поясі стін (GDD v1.4 §3)" % id)
+		for v in near:
+			assert_true(_voxel_ok(String(v)), "%s: ближня стіна %s існує (або запланована в арт-базі v1.5)" % [id, v])
+		var marks: Array = _worlds[id].get("landmarks", [])
+		# Було «не менш як два», і це вимагало зайвого: Хмаринки після прибирання каналу
+		# мають один орієнтир — хмарну арку, — і цього досить. Цегляна вежа, яка там стояла
+		# другою, була меблями з річкового містечка. Стерегти треба не КІЛЬКІСТЬ, а те, що
+		# названий орієнтир справді існує (перевірка нижче) і що світ не лишився зовсім без
+		# зорової опори на обрії.
+		assert_gte(marks.size(), 1, "%s: є принаймні один орієнтир на точці сходу" % id)
+		for v in marks:
+			assert_true(FileAccess.file_exists("res://data/voxels/%s.json" % String(v)), "%s: орієнтир %s існує" % [id, v])
+		var cliff: Array = _worlds[id].get("cliff", [])
+		assert_eq(cliff.size(), Track.CLIFF_LAYERS, "%s: три шари «цегли» обриву" % id)
+		assert_true(_worlds[id].has("cliff_water"), "%s: є колір води під плато" % id)
+
+
+## GDD v1.5 §3: ракурс 3/4 зверху-ззаду — pos (0, 3.8, 4.6), look (0, 0.5, −5), fov 52.
+func test_world_cameras_are_three_quarter_view() -> void:
+	for id in _worlds.keys():
+		if String(_worlds[id].get("mode", "run")) == "slide":
+			continue
+		var cam: Dictionary = _worlds[id].get("camera", {})
+		var pos: Array = cam.get("pos", [])
+		var look: Array = cam.get("look", [])
+		assert_between(float(pos[1]), 3.4, 4.2, "%s: камера зверху-ззаду (герой ≈ 1/6 висоти екрана)" % id)
+		assert_between(float(pos[2]), 4.0, 5.2, "%s: камера позаду героя" % id)
+		assert_eq(look.size(), 3, "%s: look — 3 числа" % id)
+		assert_lt(float(look[2]), -3.0, "%s: дивимось уперед по трасі" % id)
+		assert_lte(float(cam.get("fov", 99)), 56.0, "%s: fov без «риб'ячого ока»" % id)
+
+
+# ---------- 0.9.0: узбіччя по світах (GDD v1.5 §3) ----------
+
+func test_every_world_describes_its_roadside() -> void:
+	var surfaces := ["slabs", "planks", "sand_planks", "cobble", "cloud"]
+	var sides := ["both", "left", "right", "none"]
+	for id in _worlds.keys():
+		var w: Dictionary = _worlds[id]
+		assert_true(String(w.get("roadside", "")) in ["open", "walls"], "%s: roadside — open або walls" % id)
+		assert_true(String(w.get("road_surface", "")) in surfaces, "%s: road_surface з каталогу покриттів" % id)
+		# Канал НЕ обов'язковий. Вимога «канал у кожного світу» лишилась із часів, коли всі
+		# світи були річковим містечком: у Хмаринках канал тягнув за собою 78 коричневих
+		# дерев'яних поручнів і дощаті містки, тобто меблі зовсім іншого світу. Стережемо
+		# лише те, що ЯКЩО канал описано — він описаний правильно.
+		var canal = w.get("canal")
+		if canal != null:
+			assert_eq(typeof(canal), TYPE_DICTIONARY, "%s: canal — словник" % id)
+		if typeof(canal) == TYPE_DICTIONARY:
+			var c: Dictionary = canal
+			assert_true(String(c.get("side", "")) in sides, "%s: canal.side — both/left/right/none" % id)
+			assert_gte(float(c.get("offset", 0.0)), 1.5, "%s: канал не впритул до дороги" % id)
+			assert_gt(float(c.get("width", 0.0)), 0.0, "%s: у каналу є ширина" % id)
+			if String(c.get("side", "none")) != "none":
+				assert_true(Track.bridge_clears_road(1.6, float(c["offset"]), float(c["width"])),
+					"%s: настил містка не заходить у габарит дороги" % id)
+		for key in ["props_side", "buildings_far"]:
+			var arr = w.get(key)
+			assert_eq(typeof(arr), TYPE_ARRAY, "%s: %s — масив" % [id, key])
+			assert_gt((arr as Array).size(), 0, "%s: %s не порожній" % [id, key])
+			for v in (arr as Array):
+				assert_true(_voxel_ok(String(v)), "%s: %s → %s існує (або запланований у v1.5)" % [id, key, v])
+		assert_gte(int(w.get("bridges_every", 0)), 0, "%s: bridges_every — невідʼємне число" % id)
+		if String((w.get("canal", {}) as Dictionary).get("side", "none")) != "none":
+			assert_gt(int(w.get("bridges_every", 0)), 0, "%s: через канал мають бути містки" % id)
+
+
+func test_ingot_builds_and_big_one_is_twenty() -> void:
+	var ing := Ingot3D.new()
+	add_child_autofree(ing)
+	assert_gt(ing.get_child_count(), 0, "злиток збирає меш із data/voxels/ingot.json")
+	assert_false(ing.is_big(), "звичайний злиток — не «+20»")
+	var tier2 := Ingot3D.new()
+	tier2.value = 2
+	add_child_autofree(tier2)
+	assert_false(tier2.is_big(), "подвійний злиток на даху — теж не великий")
+	var big := Ingot3D.new()
+	big.value = Spawner3D.BIG_VALUE
+	add_child_autofree(big)
+	assert_gt(big.get_child_count(), 0, "великий злиток теж збирається")
+	assert_true(big.is_big(), "EDD §2: великий злиток — це 20, а не 100")
+
+
+func test_seam_lines_between_lanes() -> void:
+	var t := Track.new()
+	add_child_autofree(t)
+	assert_eq(t.seam_xs().size(), 2, "3 доріжки — 2 шви")
+	t.set_lanes(7, false)
+	assert_eq(t.seam_xs().size(), 6, "7 доріжок — 6 швів")
+	assert_lte(t.seam_xs().size(), Track.MAX_SEAMS, "швів не більше, ніж інстансів у шарі")
 
 
 func test_finish_gate_width_follows_lanes() -> void:

@@ -1,9 +1,26 @@
 ## Перешкода. Без фізики: габарит (AABB) перевіряє Spawner3D. Рухається разом зі світом (+Z).
-## action: "jump" (перестрибнути), "duck" (присісти), "any" (можна пробігти — бризки), "side" (обійти), "gap" (річка без колоди).
+## action: "jump" (перестрибнути), "duck" (присісти), "any" (можна пробігти — бризки), "side" (обійти),
+## "boost" (трамплін), "rail" (рейка-бонус), "wind" (зносить убік).
+## Читабельність (GDD v1.3 §8): чорне обведення (вивернута оболонка) і смугаста «небезпечна» плитка під тими, що збивають.
+## Мова перешкод (GDD v1.4 §3): силует із data/obstacle_shapes.json (поле "shape" у світі) додає маркер —
+## червоно-білі смуги зверху («перестрибни»), жовто-чорні смуги на верхній балці («пригнись»),
+## великий білий X на передній грані («сюди не можна»). Перешкода може вимкнути маркер полем "marker": "none".
 class_name Obstacle3D
 extends Node3D
 
+## Дії без плитки: не збивають або є бонусом.
+const OUTLINE_SCALE := 1.04
+const SHAPES_PATH := "res://data/obstacle_shapes.json"
+
+static var _outline_mat: Material
+static var _plate_mat: ShaderMaterial
+static var _stripe_mats: Dictionary = {}
+static var _shapes: Dictionary = {}
+static var _shapes_loaded := false
+
 var kind := ""
+var shape := ""
+var marker := "none"
 var action := "any"
 var tumble := true
 var lane := 0
@@ -13,6 +30,10 @@ var moves := false
 var move_speed := 0.0
 var hit := false
 var passed := false
+## Як предмет поводиться, коли його розбивають: "chunks" — розлітається на друзки,
+## "soft" — просто пшикає й зникає. Жива істота, хмара чи павутина на кубики не б'ються,
+## і брунатні друзки з корови виглядали б дико. Задається полем "breaks" у data/worlds/*.json.
+var breaks := "chunks"
 
 var _mesh: MeshInstance3D
 var _dir := 1.0
@@ -21,11 +42,15 @@ var _box_y := 0.0
 
 func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = true) -> void:
 	kind = k
+	shape = String(def.get("shape", ""))
+	# маркер: свій у перешкоди, інакше — типовий для силуету
+	marker = String(def.get("marker", shape_def(shape).get("marker", "none")))
 	action = String(def.get("action", "any"))
 	tumble = bool(def.get("tumble", true))
 	lane = l
 	auto_assist = assist
 	moves = bool(def.get("moves", false))
+	breaks = String(def.get("breaks", "chunks"))
 	move_speed = float(def.get("move_speed", 0.0))
 	anim = String(def.get("anim", ""))
 	var b: Array = def.get("box", [0.7, 0.7, 0.7])
@@ -35,15 +60,152 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 	# у bounding box гілки враховуємо висоту підвісу
 	_box_y = y
 	if with_mesh:
-		_mesh = VoxelBuilder.instance(String(def.get("voxel", kind)))
+		# спершу бібліотека пропсів: є справжня модель для цього виду — беремо її меш,
+		# нема — лишається воксель (див. src/run3d/prop_library.gd). Саме МЕШ, а не готовий
+		# вузол сцени: нижче обведення бере `_mesh.mesh`, а анімації крутять сам MeshInstance3D.
+		# `prop` — ЦІЛЬОВА модель, `voxel` — те, чим малюємо, поки її нема. Поля різні
+		# навмисно: світ уже перетемовано (пеньок → ящик, вулик → бочка), а моделей ще нема,
+		# і якби `voxel` одразу вказував на нову назву, VoxelBuilder малював би рожевий куб
+		# «файлу не знайдено». Щойно модель з'явиться в data/props.json під іменем із `prop` —
+		# вона підміняє воксель сама, без правок у даних світу.
+		var voxel_name := String(def.get("voxel", kind))
+		var prop_name := String(def.get("prop", voxel_name))
+		# тип вибираємо ОДИН раз на екземпляр: меш і доведення мусять бути від тієї самої
+		# моделі (див. PropLibrary.pick)
+		var variant := PropLibrary.pick(prop_name)
+		var prop_mesh := PropLibrary.mesh(prop_name, variant)
+		if prop_mesh != null:
+			_mesh = MeshInstance3D.new()
+			_mesh.mesh = prop_mesh
+		else:
+			_mesh = VoxelBuilder.instance(voxel_name)
 		_mesh.position.y = y
-		_base_scale = Vector3.ONE * float(def.get("scale", 1.0))
+		# доведення моделі з data/props.json поверх масштабу зі світу (для вокселя — 1.0 / 0°)
+		var tw := PropLibrary.tweak(prop_name, variant)
+		_base_scale = Vector3.ONE * float(def.get("scale", 1.0)) * float(tw["scale"])
 		_mesh.scale = _base_scale
+		_mesh.rotation.y += deg_to_rad(float(tw["yaw_deg"]))
 		add_child(_mesh)
+		# Обведення — той самий меш, трохи роздутий і чорний. Воно робилось для ВОКСЕЛІВ:
+		# там грані великі й рівні, і чорний контур читається як мальована лінія. На
+		# низькополігональній моделі роздутий меш вилазить назовні окремими чорними
+		# трикутниками — саме це й було видно на гусці й на ринковому візку. Тому для
+		# справжніх моделей обведення не малюємо: у них силует тримає сама форма.
+		if prop_mesh == null:
+			var outline := MeshInstance3D.new()
+			outline.mesh = _mesh.mesh
+			outline.scale = Vector3.ONE * OUTLINE_SCALE
+			var om := outline_material()
+			if _base_scale != Vector3.ONE and om is ShaderMaterial:
+				# збільшена перешкода роздула б обведення разом із собою — свій матеріал із меншим grow
+				var dup := (om as ShaderMaterial).duplicate() as ShaderMaterial
+				var g = dup.get_shader_parameter("grow")   # null — не перевизначено, беремо дефолт шейдера
+				var grow := float(g) if g != null else 0.03
+				dup.set_shader_parameter("grow", grow / maxf(0.01, _base_scale.x))
+				om = dup
+			outline.material_override = om
+			outline.name = "Outline"
+			_mesh.add_child(outline)
+		_add_marker()
+		# Плиту небезпеки (червоно-біле тло під перешкодою) прибрано на прохання замовника:
+		# вона з'явилась як підказка «сюди не можна», але поруч зі справжніми моделями
+		# читається як технічна розмітка, а не як частина світу. Сама перешкода тепер
+		# помітна власним виглядом.
 	else:
-		# невидима «дірка» (річка без колоди) — меш-заглушка, щоб анімації не падали
+		# невидима перешкода — меш-заглушка, щоб анімації не падали
 		_mesh = MeshInstance3D.new()
 		add_child(_mesh)
+
+
+
+
+## Каталог силуетів (data/obstacle_shapes.json) — читається один раз на запуск.
+static func shapes() -> Dictionary:
+	if not _shapes_loaded:
+		_shapes_loaded = true
+		var f := FileAccess.open(SHAPES_PATH, FileAccess.READ)
+		if f != null:
+			var parsed = JSON.parse_string(f.get_as_text())
+			if typeof(parsed) == TYPE_DICTIONARY and typeof(parsed.get("shapes", null)) == TYPE_DICTIONARY:
+				_shapes = (parsed as Dictionary)["shapes"] as Dictionary
+	return _shapes
+
+
+## Опис силуету (порожній словник, якщо силует не заданий/невідомий).
+static func shape_def(id: String) -> Dictionary:
+	var v = shapes().get(id, {})
+	return v if typeof(v) == TYPE_DICTIONARY else {}
+
+
+## Смугастий матеріал маркера: пара кольорів на смуги (кеш — один на пару).
+static func stripe_material(a: Color, b: Color, width: float = 0.12) -> ShaderMaterial:
+	var key := "%s|%s|%.3f" % [a.to_html(false), b.to_html(false), width]
+	if not _stripe_mats.has(key):
+		var m := ShaderMaterial.new()
+		m.shader = load("res://addons/mgp_core/voxel/stripes.gdshader")
+		m.set_shader_parameter("color_a", a)
+		m.set_shader_parameter("color_b", b)
+		m.set_shader_parameter("stripe_width", width)
+		_stripe_mats[key] = m
+	return _stripe_mats[key] as ShaderMaterial
+
+
+## Маркер силуету: смуги зверху / на балці або білий X на передній грані.
+func _add_marker() -> void:
+	match marker:
+		"stripes_red":
+			# «перестрибни»: червоно-біла стрічка по верху перешкоди
+			var top := Mats.box(Vector3(box.x * 0.92, 0.06, box.z * 0.8), Palette.WHITE)
+			top.material_override = stripe_material(Palette.OBSTACLE_STRIPE, Palette.OBSTACLE_STRIPE_ALT)
+			top.position.y = _box_y + box.y + 0.03
+			top.name = "MarkJump"
+			add_child(top)
+		"stripes_yellow":
+			# «пригнись»: жовто-чорна стрічка на верхній балці
+			var beam := Mats.box(Vector3(box.x * 0.98, 0.07, box.z * 0.9), Palette.WHITE)
+			beam.material_override = stripe_material(Palette.AMBER, Palette.INK)
+			beam.position.y = _box_y + box.y + 0.04
+			beam.name = "MarkDuck"
+			add_child(beam)
+		"x_white":
+			# «сюди не можна»: дві білі перекладини хрестом на передній грані
+			var length := sqrt(box.x * box.x + box.y * box.y) * 0.92
+			for s in [1.0, -1.0]:
+				var bar := Mats.box(Vector3(0.07, length, 0.04), Palette.WHITE)
+				bar.position = Vector3(0.0, _box_y + box.y * 0.5, -box.z * 0.5 - 0.03)
+				bar.rotation.z = s * atan2(box.x, box.y)
+				bar.name = "MarkX%s" % ("A" if s > 0.0 else "B")
+				add_child(bar)
+		_:
+			pass
+
+
+## Матеріал обведення (один на всі перешкоди): шейдер-оболонка, якщо є; інакше чорний unshaded cull_front.
+static func outline_material() -> Material:
+	if _outline_mat == null:
+		var path := "res://addons/mgp_core/voxel/voxel_outline.gdshader"
+		if ResourceLoader.exists(path):
+			var sm := ShaderMaterial.new()
+			sm.shader = load(path)
+			_outline_mat = sm
+		else:
+			var m := StandardMaterial3D.new()
+			m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			m.albedo_color = Color(0.08, 0.08, 0.1)
+			m.cull_mode = BaseMaterial3D.CULL_FRONT
+			_outline_mat = m
+	return _outline_mat
+
+
+## Червоно-білі смуги для плитки небезпеки (один матеріал на всі).
+static func plate_material() -> ShaderMaterial:
+	if _plate_mat == null:
+		_plate_mat = ShaderMaterial.new()
+		_plate_mat.shader = load("res://addons/mgp_core/voxel/stripes.gdshader")
+		_plate_mat.set_shader_parameter("color_a", Palette.OBSTACLE_STRIPE)
+		_plate_mat.set_shader_parameter("color_b", Palette.OBSTACLE_STRIPE_ALT)
+		_plate_mat.set_shader_parameter("stripe_width", 0.15)
+	return _plate_mat
 
 
 func aabb() -> AABB:
@@ -71,7 +233,12 @@ func side_dir(hero_lane: int) -> int:
 var anim := ""
 var _t := randf() * TAU
 var _drip_t := 0.0
+## Наскільки бочка, що котиться, швидша за саму трасу, м/с. Менше — майже не помітно,
+## більше — дитина не встигає відреагувати (перевірено на профілі young: 2,8 м/с біг).
+const ROLL_SPEED := 1.6
+
 var _base_scale := Vector3.ONE
+var _roll := 0.0                   ## накопичений кут котіння бочки
 
 
 func tick(delta: float) -> void:
@@ -91,6 +258,25 @@ func tick(delta: float) -> void:
 			_mesh.rotation.y += delta * 1.5
 		"bob":
 			_mesh.position.y = _box_y + sin(_t * 2.2) * 0.12
+		"roll":
+			# Бочка КОТИТЬСЯ на героя: крутиться навколо поперечної осі й наздоганяє його
+			# швидше за саму трасу. Перешкода, яка наближається сама, читається дитині
+			# інакше, ніж нерухома: її видно здалеку й на неї встигаєш зреагувати, але
+			# вона змушує рухатись, а не просто оминати.
+			#
+			# Швидкість обертання пов'язана з розміром: бочка радіусом 0,3 м за метр шляху
+			# робить метр/(2πr) обороту. Інакше вона або ковзає, або крутиться дзиґою.
+			# Бочка мусить ЛЕЖАТИ на боці: її вісь — поперек дороги. Раніше я крутив її
+			# навколо X, не поклавши, і вона перекидалась через голову, ніби кубик.
+			# Кладемо один раз (поворот навколо Z на чверть оберту), далі крутимо навколо
+			# тієї самої осі, якою вона тепер лежить.
+			var r: float = maxf(box.x * 0.5, 0.05)
+			position.z += ROLL_SPEED * delta
+			_roll += (ROLL_SPEED * delta) / r
+			_mesh.rotation = Vector3(_roll, 0.0, PI * 0.5)
+			# Початок координат моделі — унизу, тож поворот на бік «топить» половину бочки
+			# під землю. Піднімаємо на радіус: тепер вона лежить НА землі, а не в ній.
+			_mesh.position.y = _box_y + r
 		"breathe":
 			var s := 1.0 + sin(_t * 2.0) * 0.04
 			_mesh.scale = _base_scale * Vector3(s, 1.0 / s, s)
@@ -113,9 +299,38 @@ func tick(delta: float) -> void:
 			_drip_t += delta
 			if _drip_t > 0.7 and is_inside_tree():
 				_drip_t = 0.0
-				FX.splash(get_parent(), position + Vector3(0, 0.1, 0), Color("#90CAF9"))
+				FX.splash(get_parent(), position + Vector3(0, 0.1, 0), Palette.SPLASH_WATER)
 		_:
 			pass
+
+
+## Суперсила «Роги напролом» (GDD v1.6 §3c): перешкода РОЗЛІТАЄТЬСЯ.
+## Меш роздувається й зникає, з нього летять кубики кольору самої перешкоди — і вузол іде геть.
+## Плитка небезпеки й маркер зникають разом із ним (вони діти цього ж вузла).
+func shatter() -> void:
+	hit = true
+	passed = true
+	# Колір предмета шукає Debris.color_of(): вершинні кольори (вокселі), інакше середній
+	# колір текстури (справжні .glb), інакше albedo. Раніше тут була лише перша гілка, і в
+	# моделі з текстурою друзки виходили кремовою заглушкою замість кольору предмета.
+	var c := Palette.W_CRATE
+	if is_instance_valid(_mesh) and _mesh.mesh != null:
+		c = Debris.color_of(_mesh.mesh, Palette.W_CRATE)
+	var centre := position + Vector3(0.0, _box_y + box.y * 0.5, 0.0)
+	if is_inside_tree():
+		FX.burst(get_parent(), centre, c)
+		# ДРУЗКИ — лише для того, що справді б'ється на шматки. Ставимо їх у того самого
+		# батька, що й перешкоду: Spawner3D.advance() зсуває всіх своїх дітей разом із
+		# дорогою, тож шматки їдуть із світом, а не висять у повітрі, поки дорога тікає
+		# з-під них. KILL_Z прибере те, що поїхало за спину.
+		if breaks == "chunks":
+			Debris.burst(get_parent(), centre, c, box)
+	# Сам предмет зникає ШВИДКО: моменти удару тепер тримають друзки, а довга пружинка поверх
+	# них читалась би як другий, окремий предмет.
+	var tw := create_tween()
+	tw.tween_property(self, "scale", Vector3(1.3, 0.55, 1.3), 0.05)
+	tw.tween_property(self, "scale", Vector3.ZERO, 0.09).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+	tw.finished.connect(queue_free)
 
 
 ## Реакція на зіткнення без перекиду (калюжа/кущ): маленький «пшик».

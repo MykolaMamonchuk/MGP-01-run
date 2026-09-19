@@ -1,0 +1,10 @@
+{
+  "_note": "Крона над дорогою (Ліс): широка плоска «стеля» з листя, малюється на висоті ~3,2 м зі scale 2.5.",
+  "size": 0.16,
+  "palette": {"g": "#2E7D32", "l": "#43A047", "h": "#66BB6A"},
+  "layers": [
+    ["..gggggggg..", ".gggggggggg.", "gggggggggggg", ".gggggggggg.", "..gggggggg.."],
+    [".llgggglggl.", "lgggglgggggl", "lggggggglggl", "lgglggggggll", ".lgggglgggl."],
+    ["...hgghggh..", "..hgggggggh.", "..ggghgggg..", "..hgggghgg..", "...hhgghh..."]
+  ]
+}

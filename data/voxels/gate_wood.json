@@ -1,0 +1,16 @@
+{
+  "_note": "Дерев'яні ворота-орієнтир (GDD v1.4 §3): 2,4 × 1,8 м, стоять збоку дороги.",
+  "size": 0.2,
+  "palette": {"w": "#8D6E63", "l": "#A1887F", "d": "#5D4037", "g": "#7CC46B"},
+  "layers": [
+    ["dd........dd", "dd........dd"],
+    ["ww........ww", "ww........ww"],
+    ["ww........ww", "ww........ww"],
+    ["wwllllllllww", "ww........ww"],
+    ["ww........ww", "ww........ww"],
+    ["ww........ww", "ww........ww"],
+    ["wwwwwwwwwwww", "wwwwwwwwwwww"],
+    [".wwwwwwwwww.", ".wwwwwwwwww."],
+    ["..gggggggg..", "..gggggggg.."]
+  ]
+}

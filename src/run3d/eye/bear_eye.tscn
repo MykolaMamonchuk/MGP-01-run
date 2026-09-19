@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="PackedScene" path="res://src/run3d/eye/cartoon_eye.tscn" id="1"]
+
+[node name="BearEye" instance=ExtResource("1")]
+eye_scale = Vector2(0.26, 0.25)
+iris_scale = 0.76
+pupil_scale = 0.9
+highlight_scale = 1.2
+max_look_offset = 0.22

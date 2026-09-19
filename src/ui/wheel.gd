@@ -4,15 +4,16 @@ extends CanvasLayer
 
 signal finished(reward: Dictionary)   # {"stars": int, "hat": String}
 
+## Нагороди по секторах; колір i-го сектора — Palette.WHEEL_SECTORS[i].
 const SECTORS := [
-	{"stars": 10, "color": "#42A5F5"},
-	{"stars": 20, "color": "#66BB6A"},
-	{"stars": 10, "color": "#FFCA28"},
-	{"stars": 50, "color": "#EF5350"},
-	{"stars": 20, "color": "#26C6DA"},
-	{"stars": 30, "color": "#FFA726"},
-	{"hat": true, "color": "#AB47BC"},
-	{"stars": 20, "color": "#EC407A"},
+	{"stars": 10},
+	{"stars": 20},
+	{"stars": 10},
+	{"stars": 50},
+	{"stars": 20},
+	{"stars": 30},
+	{"hat": true},
+	{"stars": 20},
 ]
 
 var _root: Control
@@ -40,19 +41,19 @@ class WheelDisc:
 			for k in range(9):
 				var a := lerpf(a0, a1, float(k) / 8.0)
 				pts.append(c + Vector2(cos(a), sin(a)) * r)
-			draw_colored_polygon(pts, Color(String(SECTORS[i]["color"])))
+			draw_colored_polygon(pts, Palette.WHEEL_SECTORS[i % Palette.WHEEL_SECTORS.size()])
 			var mid := (a0 + a1) * 0.5
 			var p := c + Vector2(cos(mid), sin(mid)) * r * 0.65
 			if SECTORS[i].has("hat"):
-				draw_rect(Rect2(p + Vector2(-22, -6), Vector2(44, 12)), Color.WHITE)
-				draw_rect(Rect2(p + Vector2(-12, -26), Vector2(24, 20)), Color.WHITE)
+				draw_rect(Rect2(p + Vector2(-22, -6), Vector2(44, 12)), Palette.WHITE)
+				draw_rect(Rect2(p + Vector2(-12, -26), Vector2(24, 20)), Palette.WHITE)
 			else:
-				draw_string(ThemeDB.fallback_font, p + Vector2(-20, 12), str(int(SECTORS[i]["stars"])), HORIZONTAL_ALIGNMENT_CENTER, 40, 34, Color.WHITE)
-		draw_arc(c, r, 0.0, TAU, 64, Color("#FFF8E1"), 10.0, true)
-		draw_circle(c, 26.0, Color("#FFF8E1"))
+				draw_string(ThemeDB.fallback_font, p + Vector2(-20, 12), str(int(SECTORS[i]["stars"])), HORIZONTAL_ALIGNMENT_CENTER, 40, 34, Palette.WHITE)
+		draw_arc(c, r, 0.0, TAU, 64, Palette.PANEL, 10.0, true)
+		draw_circle(c, 26.0, Palette.PANEL)
 		# стрілка зверху
 		var tip := c + Vector2(0, -r - 4)
-		draw_colored_polygon(PackedVector2Array([tip + Vector2(0, 26), tip + Vector2(-20, -14), tip + Vector2(20, -14)]), Color("#3E2723"))
+		draw_colored_polygon(PackedVector2Array([tip + Vector2(0, 26), tip + Vector2(-20, -14), tip + Vector2(20, -14)]), Palette.ICON_EDGE)
 
 
 func _ready() -> void:
@@ -82,7 +83,7 @@ func _ready() -> void:
 	_disc.offset_top = -190
 	_disc.offset_bottom = 230
 	_root.add_child(_disc)
-	_result = UIKit.title("", 64, Color("#FFD54F"))
+	_result = UIKit.title("", 64, Palette.STAR)
 	_result.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
 	_result.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	_result.grow_vertical = Control.GROW_DIRECTION_BEGIN

@@ -2,7 +2,7 @@
 extends GutTest
 
 const RunScript := preload("res://src/run3d/run3d.gd")
-const VALID_MODES := ["run", "hop", "slide", "scooter", "float"]
+const VALID_MODES := ["run", "surf", "scooter", "float_run", "slide", "hop", "float"]
 const VALID_ACTIONS := ["jump", "duck", "any", "side", "gap", "boost", "rail", "wind"]
 
 var _rng := RandomNumberGenerator.new()
@@ -47,7 +47,7 @@ func test_worlds_load_and_have_required_fields() -> void:
 	assert_eq(worlds.size(), 5, "п'ять біомів на запуску (GDD v1.2 §3a)")
 	for id in worlds.keys():
 		var w: Dictionary = worlds[id]
-		assert_true(VALID_MODES.has(w.get("mode", "")), "%s: mode один із run/hop/slide" % id)
+		assert_true(VALID_MODES.has(w.get("mode", "")), "%s: mode один із run/surf/scooter/float_run/slide" % id)
 		assert_true(w.has("camera"), "%s: є пресет камери" % id)
 		assert_true(w.has("sky") and w.has("sky_evening"), "%s: небо день/вечір" % id)
 		var obstacles: Dictionary = w.get("obstacles", {})
@@ -65,8 +65,8 @@ func test_all_three_base_modes_present() -> void:
 	var modes := []
 	for id in worlds.keys():
 		modes.append(worlds[id]["mode"])
-	# 0.6.0: Пляж став бігом по піску; Хвиля (slide) лишилась як код на майбутнє
-	for m in ["run", "hop", "scooter", "float"]:
+	# v1.3: усі світи біжать — біг, серфінг, самокат, невагомий біг; Хвиля (slide) лишилась як код на майбутнє
+	for m in ["run", "surf", "scooter", "float_run"]:
 		assert_true(modes.has(m), "є біом з механікою %s" % m)
 	assert_false(modes.has("slide"), "Хвиля поки не використовується жодним біомом")
 	var slide := SlideMode.new()

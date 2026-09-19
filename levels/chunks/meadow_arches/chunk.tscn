@@ -1,0 +1,77 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Декор" type="Node3D" parent="."]
+
+[node name="M1_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0, -10.0)
+
+[node name="M2_decor_bush" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0, -34.0)
+
+[node name="M3_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0, -50.0)
+
+[node name="M4_decor_flower" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0, -74.0)
+
+[node name="M5_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0, -92.0)
+
+[node name="M6_decor_bush" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0, -116.0)
+
+[node name="M7_decor_tree" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "tree"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0, -140.0)
+
+[node name="Орієнтири" type="Node3D" parent="."]
+
+[node name="M8_landmark_gate_wood" type="Node3D" parent="Орієнтири"]
+script = ExtResource("1")
+role = "landmark"
+kind = "gate_wood"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -20.0)
+
+[node name="M9_landmark_arch_terracotta" type="Node3D" parent="Орієнтири"]
+script = ExtResource("1")
+role = "landmark"
+kind = "arch_terracotta"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -62.0)
+
+[node name="M10_landmark_gate_wood" type="Node3D" parent="Орієнтири"]
+script = ExtResource("1")
+role = "landmark"
+kind = "gate_wood"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.0, 0, -104.0)
+
+[node name="M11_landmark_tower_terracotta" type="Node3D" parent="Орієнтири"]
+script = ExtResource("1")
+role = "landmark"
+kind = "tower_terracotta"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.8, 0, -130.0)
