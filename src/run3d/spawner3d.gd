@@ -101,6 +101,11 @@ var _pickups: Dictionary = {}
 var _pickup_t := 20.0
 var _pickup_pending := ""
 ## Другий рівень: активний сегмент і таймер до наступного.
+## Усі злитки кадру малюються ДВОМА MultiMesh — звичайні й великі. Кожен злиток окремим
+## MeshInstance3D коштував свого draw call: заміряно 244 → 298 рівно тоді, коли злитки вперше
+## з'явились на авторському рівні, при цілі GDD ≤150. Логіка злитків лишилась вузлам.
+var _ingot_mm := [null, null]          ## [звичайні, великі] — MultiMeshInstance3D
+
 var _tier2: Tier2Segment
 var _tier2_t := 30.0
 var _tier2_due := false
@@ -117,6 +122,7 @@ var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
 	_pickups = Pickup3D.load_all()
+	_make_ingot_meshes()
 	RngSeed.start(_rng, "spawner_action")
 
 
@@ -208,6 +214,12 @@ func set_speed(s: float) -> void:
 
 func clear() -> void:
 	for c in get_children():
+		if c is MultiMeshInstance3D:
+			# Пачки злитків переживають зміну рівня: вони не вміст траси, а спосіб її
+			# намалювати. Знести їх означало б лишити _ingot_mm із звільненими вузлами —
+			# і рівень мовчки лишився б без жодного злитка.
+			(c as MultiMeshInstance3D).multimesh.visible_instance_count = 0
+			continue
 		c.queue_free()
 	_tier2 = null
 
@@ -240,6 +252,8 @@ func _tier2_lanes() -> Array:
 func advance(dist: float, total_distance_m: Variant = null) -> void:
 	distance_m = float(total_distance_m) if total_distance_m != null else distance_m + dist
 	for c in get_children():
+		if c is MultiMeshInstance3D:
+			continue   # пачки злитків не «їдуть» і не гинуть: вони не вміст траси, а спосіб її намалювати
 		if c is Node3D:
 			c.position.z += dist
 			if c.position.z > KILL_Z:
@@ -875,6 +889,11 @@ func check(delta: float) -> void:
 					run.call("on_pickup", p.kind, p.def)
 
 
+	# Пачки злитків — в САМОМУ КІНЦІ кадру: доти вони ще рухаються магнітом, збираються й
+	# зникають, і знімати з них трансформи раніше означало б малювати вчорашній кадр.
+	_refresh_ingot_meshes()
+
+
 ## Зіткнення: бонуси/бризки, інакше — падіння, серце, невразливість; щит поглинає удар; малятам перший раз прощається.
 func _resolve(o: Obstacle3D) -> void:
 	o.hit = true
@@ -965,3 +984,62 @@ func _clear_ahead(seconds: float) -> void:
 	for c in get_children():
 		if c is Obstacle3D and not (c as Obstacle3D).hit and c.position.z < 0.0 and mode.seconds_to_hero(-c.position.z) < seconds:
 			c.queue_free()
+
+
+# ---------- малювання злитків ----------
+
+## Скільки місця тримаємо в пачці. Більше за все, що буває в кадрі: злитки живуть лише у
+## вікні траси, і шістдесят — це вже щедро.
+const INGOT_CAP := 256
+
+
+## Дві пачки: звичайні злитки й великі. Робимо раз на старті — меш і матеріал у них однакові
+## назавжди, міняються лише трансформи.
+##
+## Місце виділяємо ОДИН РАЗ, а щокадру міняємо тільки visible_instance_count. Спершу я міняв
+## instance_count щокадру — і записані одразу по ньому трансформи не доїжджали: буфер
+## перевиділяється, і читалися нулі. Так само робить і траса (Track._decor_layer).
+func _make_ingot_meshes() -> void:
+	for i in 2:
+		var mesh := Ingot3D.mesh_for(i == 1)
+		if mesh == null:
+			continue
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = mesh
+		mm.instance_count = INGOT_CAP
+		mm.visible_instance_count = 0
+		var mi := MultiMeshInstance3D.new()
+		mi.name = "ЗлиткиВеликі" if i == 1 else "Злитки"
+		mi.multimesh = mm
+		mi.material_override = Ingot3D.glow_material()
+		# Межі задаємо руками: без них пачку рахують за інстансами, а порожню — за точку в
+		# нулі, і вона зникає з кадру разом з усіма злитками.
+		# Від точки вбивання (KILL_Z, за спиною) до глибини спавну з запасом.
+		var box := AABB(Vector3(-8.0, -2.0, SPAWN_Z - 12.0), Vector3(16.0, 8.0, KILL_Z - SPAWN_Z + 16.0))
+		mm.custom_aabb = box
+		mi.custom_aabb = box
+		# Пачка не «їде» разом із дорогою: трансформи в ній АБСОЛЮТНІ й перезаписуються щокадру
+		# з позицій самих злитків, тож advance() її не чіпає — і не сміє, інакше зсув подвоївся б.
+		mi.top_level = true
+		add_child(mi)
+		_ingot_mm[i] = mi
+
+
+## Перекласти місця живих злитків у пачки. Щокадру: злитки рухаються магнітом, крутяться й
+## зникають, тож попередній кадр не переживає жодної секунди.
+func _refresh_ingot_meshes() -> void:
+	var lists := [[], []]
+	for c in get_children():
+		if c is Ingot3D:
+			var s := c as Ingot3D
+			lists[1 if s.is_big() else 0].append(s)
+	for i in 2:
+		var mi: MultiMeshInstance3D = _ingot_mm[i]
+		if mi == null:
+			continue
+		var live: Array = lists[i]
+		var n := mini(live.size(), INGOT_CAP)
+		for j in n:
+			mi.multimesh.set_instance_transform(j, (live[j] as Ingot3D).visual_transform())
+		mi.multimesh.visible_instance_count = n

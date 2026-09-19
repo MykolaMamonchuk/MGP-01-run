@@ -286,3 +286,94 @@ func test_tier2_appears_after_the_last_authored_obstacle() -> void:
 	_spawner._tier2_due = true
 	_spawner.advance(1.0)
 	assert_eq(_tier2_segments().size(), 1)
+
+
+# --- малювання злитків пачкою -----------------------------------------------------------
+#
+# Злиток більше не носить власного меша: усі злитки кадру малює один MultiMesh. Кожен окремим
+# вузлом коштував свого draw call, а їх на екрані під шістдесят — заміряно 244 → 298 рівно
+# тоді, коли злитки вперше з'явились на авторському рівні, при цілі GDD ≤150.
+#
+# ЩО ТУТ ПЕРЕВІРИТИ МОЖНА, А ЧОГО НІ. У --headless рендерер підставний, і MultiMesh НЕ ЗБЕРІГАЄ
+# трансформів: set_instance_transform() записує, get_instance_transform() віддає нулі. Заміряно
+# на голій MultiMesh: у вікні round-trip повертає (0.5, 0.6, -10), у headless — (0, 0, 0).
+# Тому місця інстансів тут не перевіряються взагалі; замість них перевіряється visual_transform()
+# самого злитка — саме там і живе вся арифметика, а пачка лише переписує її в буфер.
+# Кількість видимих інстансів headless переживає, тож її питаємо.
+#
+# Кличемо _refresh_ingot_meshes() прямо, а не check(): у цій фікстурі нема героя, і check()
+# обірветься на hero.hit_box() задовго до малювання.
+
+func _pack(big: bool) -> MultiMeshInstance3D:
+	for c in _spawner.get_children():
+		if c is MultiMeshInstance3D and c.name == ("ЗлиткиВеликі" if big else "Злитки"):
+			return c
+	return null
+
+
+func test_ingots_are_drawn_by_one_pack_not_one_node_each() -> void:
+	assert_not_null(_pack(false), "пачка звичайних злитків є")
+	assert_not_null(_pack(true), "і пачка великих")
+	_spawner.spawn_star_at(Vector3(0.0, 0.6, -10.0))
+	_spawner.spawn_star_at(Vector3(1.0, 0.6, -12.0))
+	_spawner.spawn_star_at(Vector3(-1.0, 0.7, -14.0), Spawner3D.BIG_VALUE)
+	_spawner._refresh_ingot_meshes()
+	assert_eq(_pack(false).multimesh.visible_instance_count, 2, "два звичайні злитки в своїй пачці")
+	assert_eq(_pack(true).multimesh.visible_instance_count, 1, "великий — в своїй")
+
+
+## Місце в пачці бере visual_transform() злитка, тож перевіряємо саме його: дорога їде —
+## намальоване мусить їхати разом із нею, і вбік при цьому не з'їжджати.
+func test_visual_transform_follows_the_ingot() -> void:
+	_spawner.spawn_star_at(Vector3(0.5, 0.6, -10.0))
+	var ing: Ingot3D = null
+	for c in _spawner.get_children():
+		if c is Ingot3D:
+			ing = c
+	assert_not_null(ing)
+	assert_almost_eq(ing.visual_transform().origin.z, -10.0, 0.01)
+	_spawner.advance(4.0)
+	assert_almost_eq(ing.visual_transform().origin.z, -6.0, 0.01, "проїхало разом із дорогою")
+	assert_almost_eq(ing.visual_transform().origin.x, 0.5, 0.01, "а вбік не з'їхало")
+
+
+## Погойдування й обертання НЕ чіпають місця вузла: position міряє відстань до героя, і хитати
+## його означало б хитати й дальність збирання. Хитається лише намальоване.
+func test_bobbing_moves_the_drawing_but_not_the_ingot() -> void:
+	_spawner.spawn_star_at(Vector3(0.0, 0.6, -10.0))
+	var ing: Ingot3D = null
+	for c in _spawner.get_children():
+		if c is Ingot3D:
+			ing = c
+	var y := ing.position.y
+	ing.tick(0.5, _spawner.hero if _spawner.hero != null else Node3D.new(), 1.0)
+	assert_eq(ing.position.y, y, "сам злиток лишився на місці")
+	assert_ne(ing.visual_transform().origin.y, y, "а намальоване гойднулось")
+
+
+## Пачки — не вміст траси, а спосіб її намалювати: advance() не сміє їх ані посувати, ані
+## вбивати, а clear() при зміні рівня — зносити. Інакше рівень мовчки лишився б без злитків.
+func test_packs_survive_the_road_moving_and_the_level_changing() -> void:
+	_spawner.spawning = false     # інакше тисяча метрів наспавнить сотні злитків
+	for i in 200:
+		_spawner.advance(5.0)     # далеко за KILL_Z — звичайного вузла давно б не було
+	assert_not_null(_pack(false), "пачка пережила тисячу метрів дороги")
+	assert_almost_eq(_pack(false).position.z, 0.0, 0.001, "і лишилась на місці")
+	_spawner.spawn_star_at(Vector3(0.0, 0.6, -10.0))
+	_spawner._refresh_ingot_meshes()
+	assert_eq(_pack(false).multimesh.visible_instance_count, 1)
+	_spawner.clear()
+	assert_not_null(_pack(false), "і зміну рівня теж")
+	assert_eq(_pack(false).multimesh.visible_instance_count, 0, "але спорожніла")
+
+
+## Стеля пачки. Злитків у кадрі буває шістдесят, але випадковий спавнер за тисячу метрів
+## наробить їх сотні — і пачка мусить це пережити, показавши стільки, скільки вміщає, а не
+## впасти на виході за межі буфера. Перша версія тесту вище на цьому й спіймалась: ганяла
+## трасу з увімкненим спавном і отримала 256 замість одного.
+func test_pack_does_not_overflow_when_there_are_more_ingots_than_it_holds() -> void:
+	for i in Spawner3D.INGOT_CAP + 20:
+		_spawner.spawn_star_at(Vector3(0.0, 0.6, -float(i)))
+	_spawner._refresh_ingot_meshes()
+	assert_eq(_pack(false).multimesh.visible_instance_count, Spawner3D.INGOT_CAP,
+		"показано рівно стільки, скільки вміщає пачка")

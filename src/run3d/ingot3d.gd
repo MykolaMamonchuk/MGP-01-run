@@ -1,4 +1,11 @@
 ## Золотий злиток (GDD v1.4 §3 «Злитки») — те, що лежить на дорозі замість зірочок.
+##
+## МАЛЮЄ ЙОГО НЕ ВІН САМ. Злиток лишається вузлом із власним місцем, магнітом, збиранням і
+## лічильниками — але меша в нього нема: усі злитки кадру малює один MultiMesh у Spawner3D
+## (_refresh_ingot_meshes). Кожен окремий MeshInstance3D коштував свого draw call, і на екрані
+## їх під шістдесят — заміряно 244 → 298 draw calls рівно тоді, коли злитки вперше з'явились
+## на авторському рівні. Логіку це не чіпає зовсім: спавнер бере transform вузла й домальовує
+## до нього обертання й погойдування, які раніше жили на дитині-меші.
 ## Повільно крутиться, погойдується, притягується магнітом, зникає з «дзинь» і золотим вибухом.
 ## value — скільки монеток дає (2 — на даху транспорту / платформі, 20 — великий злиток «+20»).
 ## API навмисно такий самий, як у Star3D: Spawner3D працює з ними однаково.
@@ -16,7 +23,10 @@ static var _glow_mat: StandardMaterial3D
 
 var collected := false
 var value := 1
-var _mesh: MeshInstance3D
+## Обертання й погойдування — ВЛАСНІ, а не в трансформі вузла: position вузла міряє відстань
+## до героя, і хитати його означало б хитати й дальність збирання.
+var spin := 0.0
+var bob := 0.0
 var _t := randf() * TAU
 
 
@@ -38,23 +48,31 @@ func is_big() -> bool:
 	return value >= BIG_VALUE
 
 
-func _ready() -> void:
-	var kind := "ingot_big" if is_big() else "ingot"
-	# спершу бібліотека пропсів (справжня модель), нема — воксель, як раніше
-	_mesh = PropLibrary.node_for(kind)
-	if _mesh == null:
-		_mesh = VoxelBuilder.instance(kind)
-	_mesh.material_override = glow_material()
-	if value == 2:
-		_mesh.scale = Vector3.ONE * 1.25   # подвійний злиток на даху — помітніший
-	add_child(_mesh)
+## Меш злитка (один на всі однакові) — його бере Spawner3D для свого MultiMesh.
+static func mesh_for(big: bool) -> Mesh:
+	var kind := "ingot_big" if big else "ingot"
+	var m := PropLibrary.mesh(kind)
+	if m != null:
+		return m
+	# нема моделі — воксель, як і раніше; беремо саме меш, вузол тут ні до чого
+	var mi := VoxelBuilder.instance(kind)
+	return mi.mesh if mi != null else null
+
+
+## Куди й як намалювати цей злиток: місце вузла плюс власне обертання, погойдування й масштаб.
+## Подвійний злиток на даху транспорту — помітніший, як і був.
+func visual_transform() -> Transform3D:
+	var t := Transform3D.IDENTITY.rotated(Vector3.UP, spin)
+	t = t.scaled(scale * (1.25 if value == 2 else 1.0))
+	t.origin = position + Vector3(0.0, bob, 0.0)
+	return t
 
 
 ## magnet — радіус із профілю (клітинок); wide — пікап «магніт»: тягне з сусідніх доріжок і з більшої відстані.
 func tick(delta: float, hero: Node3D, magnet: float, wide: bool = false) -> bool:
 	_t += delta
-	_mesh.rotation.y += delta * 1.6        # повільніше за зірочку — злиток важкий
-	_mesh.position.y = sin(_t * 2.6) * 0.05
+	spin += delta * 1.6                    # повільніше за зірочку — злиток важкий
+	bob = sin(_t * 2.6) * 0.05
 	var hero_pos := Vector3(hero.position.x, hero.position.y + 0.5, 0.0)
 	var d := position.distance_to(hero_pos)
 	if wide:

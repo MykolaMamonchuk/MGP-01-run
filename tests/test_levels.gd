@@ -422,7 +422,9 @@ func test_every_world_describes_its_roadside() -> void:
 func test_ingot_builds_and_big_one_is_twenty() -> void:
 	var ing := Ingot3D.new()
 	add_child_autofree(ing)
-	assert_gt(ing.get_child_count(), 0, "злиток збирає меш із data/voxels/ingot.json")
+	# Меша В САМОМУ злитку більше нема: усі злитки кадру малює один MultiMesh у Spawner3D.
+	# Гарантія лишилась та сама — є що малювати, — тільки питаємо про неї інакше.
+	assert_not_null(Ingot3D.mesh_for(false), "злиток має меш із data/voxels/ingot.json")
 	assert_false(ing.is_big(), "звичайний злиток — не «+20»")
 	var tier2 := Ingot3D.new()
 	tier2.value = 2
@@ -431,7 +433,7 @@ func test_ingot_builds_and_big_one_is_twenty() -> void:
 	var big := Ingot3D.new()
 	big.value = Spawner3D.BIG_VALUE
 	add_child_autofree(big)
-	assert_gt(big.get_child_count(), 0, "великий злиток теж збирається")
+	assert_not_null(Ingot3D.mesh_for(true), "великий злиток теж має меш")
 	assert_true(big.is_big(), "EDD §2: великий злиток — це 20, а не 100")
 
 

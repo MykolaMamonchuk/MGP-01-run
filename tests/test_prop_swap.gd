@@ -38,11 +38,11 @@ func test_star_draws_without_a_model() -> void:
 	assert_not_null(_mesh_of(s), "зірочка-збиралка малюється вокселем, поки моделі нема")
 
 
+## Злиток меша в собі не тримає — його малює MultiMesh у Spawner3D. Але запасний воксель має
+## знаходитись так само, як і раніше: без моделі гра не сміє лишитись без злитків.
 func test_ingot_draws_without_a_model() -> void:
-	var i := Ingot3D.new()
-	add_child_autofree(i)
-	await wait_process_frames(1)
-	assert_not_null(_mesh_of(i), "злиток малюється вокселем")
+	assert_not_null(Ingot3D.mesh_for(false), "злиток малюється вокселем")
+	assert_not_null(Ingot3D.mesh_for(true), "великий — теж")
 
 
 ## Бабка створює меш у setup(), а не в _ready() — на цьому перший варіант тесту й спіймався.
