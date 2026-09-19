@@ -80,3 +80,48 @@ func test_switching_world_reuses_layers_and_clears_old_ones() -> void:
 	_track.rebuild(_world("beach"), false)
 	await wait_process_frames(2)
 	assert_eq(_visible(), _records(), "після зміни світу старі шари не показують зайвого")
+
+
+## Хмари (OPT-03): 24 клубки — це ОДНА пачка, а не 24 вузли.
+func test_clouds_are_one_batch_not_twenty_four_nodes() -> void:
+	_track.rebuild(_world("meadow"), false)
+	await wait_process_frames(2)
+	assert_eq((_track._mm_clouds.multimesh as MultiMesh).instance_count,
+		Track.CLOUDS * Track.PUFFS_PER_CLOUD, "усі клубки хмар в одній пачці")
+	# стара хмара була вузлом Node3D рівно з трьома мешами-клубками всередині
+	var loose := 0
+	for c in _track._far.get_children():
+		if c is MultiMeshInstance3D or c is MeshInstance3D:
+			continue
+		var puffs := 0
+		for g in (c as Node).get_children():
+			if g is MeshInstance3D:
+				puffs += 1
+		if puffs == Track.PUFFS_PER_CLOUD:
+			loose += 1
+	assert_eq(loose, 0, "хмар-вузлів по три клубки в далекому плані не лишилось")
+
+
+## Клубки різного розміру, але меш один: різницю робить масштаб інстанса. Якщо всі
+## розміри збіглися — значить розмір загубився й хмари стали однаковими цеглинками.
+func test_puffs_keep_their_own_size_through_the_batch() -> void:
+	_track.rebuild(_world("meadow"), false)
+	await wait_process_frames(2)
+	assert_eq(_track._puff_size.size(), Track.CLOUDS * Track.PUFFS_PER_CLOUD,
+		"розмір записано на кожен клубок")
+	var seen := {}
+	for s in _track._puff_size:
+		assert_gt(s.x, 0.0, "клубок не нульового розміру")
+		seen[snappedf(s.x, 0.001)] = true
+	assert_gt(seen.size(), 1, "клубки різної ширини, а не однакові")
+
+
+## Пагорби НАВМИСНО лишились вузлами: MultiMesh крутить нормаль базисом інстанса, і
+## еліпсоїдний пагорб від цього темнішає (заміряно 6 433 пікселі). Сторож, щоб наступний
+## захід «дооптимізувати далекий план» не зробив цього не глянувши.
+func test_hills_stay_separate_nodes_on_purpose() -> void:
+	_track.rebuild(_world("meadow"), false)
+	await wait_process_frames(2)
+	assert_eq(_track._hills.size(), Track.HILLS, "пагорби лишаються окремими вузлами")
+	for h in _track._hills:
+		assert_true((h as MeshInstance3D).mesh is SphereMesh, "пагорб — своя куля зі своїми нормалями")
