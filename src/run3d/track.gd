@@ -387,6 +387,8 @@ func _ready() -> void:
 	_far = Node3D.new()
 	_far.name = "Far"
 	add_child(_far)
+	# Далекий план тіні не кидає — прапорець ставиться самим пагорбам нижче (_far — простий
+	# Node3D, і cast_shadow у нього немає).
 	# Порядок звернень до ГЛОБАЛЬНОГО randf() тут строго той самий, що був до OPT-03: місця
 	# пагорбів і хмар жеребкуються ним, тож інший порядок — інший далекий план на знімку.
 	# ПАГОРБИ ЛИШАЮТЬСЯ ВУЗЛАМИ. Звести їх у пачку не вийшло, і причина не в коді:
@@ -409,6 +411,10 @@ func _ready() -> void:
 		hill.mesh = sm
 		hill.position = Vector3(side * randf_range(9.0, 16.0), -rad * 0.55, BEHIND - float(i) * 3.4 - 6.0)
 		hill.name = "Hill"
+		# Пагорб стоїть за 9–16 м від дороги й на десятки метрів попереду: його тінь до
+		# видимої частини траси не дістає. Заміряно: −8 draw calls при ДВОХ різних пікселях
+		# із 4 469 760.
+		hill.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_far.add_child(hill)
 		_hills.append(hill)
 	_cloud_pos.resize(CLOUDS)
@@ -454,6 +460,7 @@ func _ready() -> void:
 		sw.name = "SideWater%d" % i
 		sw.position = Vector3(0.0, CLIFF_BOTTOM - 0.05, BEHIND - ROWS * 0.5)
 		sw.material_override = Mats.solid(Palette.CYAN)
+		sw.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # вода — пласка площина, її тінь нікуди не лягає
 		sw.visible = false
 		add_child(sw)
 		_side_water.append(sw)
@@ -473,6 +480,11 @@ func _make_canvas(mesh: Mesh, count: int, height := 6.0, colors := false) -> Mul
 	var mi := MultiMeshInstance3D.new()
 	mi.multimesh = mm
 	mi.custom_aabb = box
+	# ПОЛОТНО ТІНЬ КИДАЄ, і це перевірено спробою зняти. Здавалося очевидним, що пласка земля
+	# тіні не дає; насправді плато дороги затінює траву й воду обабіч, і без цього кадр
+	# міняється на 12% пікселів — стає помітно пласкішим. Мінус 61 draw call такої ціни не
+	# вартий. Якщо колись повертатись до цього — знімати прапорець ПОШАРОВО й дивитись на
+	# пікселі після кожного шару, а не з усіх одразу.
 	add_child(mi)
 	return mi
 
@@ -1467,6 +1479,7 @@ func _layout_canal() -> void:
 			pm.subdivide_width = 6
 			mi.mesh = pm
 			mi.name = "Canal%d" % s
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # те саме, що й бічна вода
 			var mat := ShaderMaterial.new()
 			mat.shader = load("res://src/run3d/water.gdshader")
 			mat.set_shader_parameter("amplitude", 0.03)
@@ -1509,6 +1522,10 @@ func _layout_canal() -> void:
 					bm.size = Vector3(BANK_W, BANK_H, length)
 					b.mesh = bm
 					b.name = "Bank%d" % _canal_banks.size()
+					# СТІНКА БЕРЕГА ТІНЬ КИДАЄ — і це перевірено спробою зняти. Здавалося, що
+					# вона стоїть у воді й тінь її нікуди не лягає; насправді лягає в канал, а
+					# канал у кадрі. Без неї міняється 0.52% пікселів (найбільше відхилення 95),
+					# а виграш лише −12 draw calls. Не варте того.
 					add_child(b)
 					_canal_banks.append(b)
 				var bank := _canal_banks[idx]

@@ -125,3 +125,36 @@ func test_hills_stay_separate_nodes_on_purpose() -> void:
 	assert_eq(_track._hills.size(), Track.HILLS, "пагорби лишаються окремими вузлами")
 	for h in _track._hills:
 		assert_true((h as MeshInstance3D).mesh is SphereMesh, "пагорб — своя куля зі своїми нормалями")
+
+
+# --- хто кидає тінь -----------------------------------------------------------------------
+#
+# Прохід карти тіней малює кожен тінекидач ДРУГИЙ РАЗ, і коштує він 111 draw calls із 295
+# (заміряно 19.09.2026 вимкненням shadow_enabled: 295 → 184). Тому склад тінекидачів — це
+# бюджет, а не дрібниця, і кожне рішення тут заміряне на пікселях.
+
+func test_far_plane_and_water_do_not_cast_shadows() -> void:
+	var t := Track.new()
+	add_child_autofree(t)
+	await wait_process_frames(2)
+	for h in t._hills:
+		assert_eq(h.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+			"пагорб далекого плану тіні не кидає: −8 draw calls при ДВОХ різних пікселях")
+	for w in t._side_water:
+		assert_eq(w.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+			"бічна вода тіні не кидає — це пласка площина")
+
+
+## А ось це — навпаки: сторож проти «дооптимізації». Обидві спроби зняти тінь звідси вже
+## робились і обидві заміряні як ПОГАНІ, тож наступний захід має спершу прочитати числа.
+func test_road_canvas_and_banks_still_cast_shadows_on_purpose() -> void:
+	var t := Track.new()
+	add_child_autofree(t)
+	await wait_process_frames(2)
+	assert_ne(t._mm_center[0].cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		("полотно дороги тінь КИДАЄ навмисно: плато затінює траву й воду обабіч, і без цього "
+		+ "кадр міняється на 12% пікселів заради −61 draw call"))
+	if not t._canal_banks.is_empty():
+		assert_ne(t._canal_banks[0].cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+			("стінка берега тінь КИДАЄ навмисно: вона лягає в канал, а канал у кадрі — "
+			+ "0.52% пікселів заради −12 draw calls"))
