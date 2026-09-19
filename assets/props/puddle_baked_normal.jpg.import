@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://dii8bwac5n712"
 path.s3tc="res://.godot/imported/puddle_baked_normal.jpg-def7e2e253c51b875fdf084bd9f01e93.s3tc.ctex"
+path.etc2="res://.godot/imported/puddle_baked_normal.jpg-def7e2e253c51b875fdf084bd9f01e93.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/props/puddle_baked_normal.jpg"
-dest_files=["res://.godot/imported/puddle_baked_normal.jpg-def7e2e253c51b875fdf084bd9f01e93.s3tc.ctex"]
+dest_files=["res://.godot/imported/puddle_baked_normal.jpg-def7e2e253c51b875fdf084bd9f01e93.s3tc.ctex", "res://.godot/imported/puddle_baked_normal.jpg-def7e2e253c51b875fdf084bd9f01e93.etc2.ctex"]
 
 [params]
 

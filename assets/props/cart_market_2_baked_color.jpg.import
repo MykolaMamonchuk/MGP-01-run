@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bmx2qk2ikgfv7"
-path="res://.godot/imported/cart_market_2_baked_color.jpg-b7b6160e1c65e14b36f59602121818a8.ctex"
+path.s3tc="res://.godot/imported/cart_market_2_baked_color.jpg-b7b6160e1c65e14b36f59602121818a8.s3tc.ctex"
+path.etc2="res://.godot/imported/cart_market_2_baked_color.jpg-b7b6160e1c65e14b36f59602121818a8.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "96310dcec1fe1c68c3710cb0405d1124"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/props/cart_market_2_baked_color.jpg"
-dest_files=["res://.godot/imported/cart_market_2_baked_color.jpg-b7b6160e1c65e14b36f59602121818a8.ctex"]
+dest_files=["res://.godot/imported/cart_market_2_baked_color.jpg-b7b6160e1c65e14b36f59602121818a8.s3tc.ctex", "res://.godot/imported/cart_market_2_baked_color.jpg-b7b6160e1c65e14b36f59602121818a8.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

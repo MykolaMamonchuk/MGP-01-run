@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://m02s5kq682gk"
 path.bptc="res://.godot/imported/fawn_mesh_texture_0.png-165b49d6cd3add392e90248e03709627.bptc.ctex"
+path.astc="res://.godot/imported/fawn_mesh_texture_0.png-165b49d6cd3add392e90248e03709627.astc.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/fawn_mesh_texture_0.png"
-dest_files=["res://.godot/imported/fawn_mesh_texture_0.png-165b49d6cd3add392e90248e03709627.bptc.ctex"]
+dest_files=["res://.godot/imported/fawn_mesh_texture_0.png-165b49d6cd3add392e90248e03709627.bptc.ctex", "res://.godot/imported/fawn_mesh_texture_0.png-165b49d6cd3add392e90248e03709627.astc.ctex"]
 
 [params]
 

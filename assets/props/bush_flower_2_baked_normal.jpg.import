@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://u7s3qtmr7bry"
 path.s3tc="res://.godot/imported/bush_flower_2_baked_normal.jpg-b82c51efa9779899059baee35a4cf7e4.s3tc.ctex"
+path.etc2="res://.godot/imported/bush_flower_2_baked_normal.jpg-b82c51efa9779899059baee35a4cf7e4.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/props/bush_flower_2_baked_normal.jpg"
-dest_files=["res://.godot/imported/bush_flower_2_baked_normal.jpg-b82c51efa9779899059baee35a4cf7e4.s3tc.ctex"]
+dest_files=["res://.godot/imported/bush_flower_2_baked_normal.jpg-b82c51efa9779899059baee35a4cf7e4.s3tc.ctex", "res://.godot/imported/bush_flower_2_baked_normal.jpg-b82c51efa9779899059baee35a4cf7e4.etc2.ctex"]
 
 [params]
 

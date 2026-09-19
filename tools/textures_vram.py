@@ -53,9 +53,13 @@ def main():
         for folder, limit in SIZE_LIMIT.items():
             if folder in path:
                 out = re.sub(r"process/size_limit=\d+", "process/size_limit=%d" % limit, out)
-        # нормаль має свій канальний розклад: без цієї позначки стиснення псує їй освітлення
+        # Нормаль має свій канальний розклад: її беруть двоканальним RGTC/EAC, а не
+        # кольоровим DXT1. `compress/normal_map` — це перелік «Detect, Enable, Disabled»,
+        # тобто потрібна ОДИНИЦЯ. Двійка — «Disabled», і саме вона тут стояла до 19.09.2026:
+        # десять карт нормалей лягли в пам'ять як DXT1 (fmt=17, 565 без альфи) замість
+        # RGTC_RG (fmt=21). Видно заміром `tools/vram/vram_audit.gd` — формат друкується.
         if "_normal." in os.path.basename(path):
-            out = out.replace("compress/normal_map=0", "compress/normal_map=2")
+            out = re.sub(r"compress/normal_map=[02]", "compress/normal_map=1", out)
         if out == text:
             continue
         open(path, "w", encoding="utf-8").write(out)
