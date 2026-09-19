@@ -25,12 +25,25 @@ def main():
     # самих моделей (на цьому 18.09.2026 прилад показав «57% схожості» для куща, якого на
     # око не відрізнити).
     fit = "--fit" in argv
+    # --yaws 0,90,180,270 — зняти модель із кількох боків ЗА ОДИН запуск Blender. Один імпорт
+    # на чотири кадри замість чотирьох запусків: на шести десятках пропсів це різниця між
+    # п'ятьма хвилинами й двадцятьма. Файли лягають як <out без .png>_<кут>.png.
+    yaws = [0.0]
+    if "--yaws" in argv:
+        yaws = [float(v) for v in argv[argv.index("--yaws") + 1].split(",")]
 
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=src)
     objs = [o for o in bpy.data.objects if o.type == "MESH"]
     if not objs:
         raise SystemExit("у файлі нема мешів")
+    # Відв'язуємо меші від порожняка, у який їх складає імпортер glTF: інакше поворот, заданий
+    # мешу, губиться в трансформі батька, і всі чотири боки виходять однаковісінькі.
+    if len(yaws) > 1:
+        for o in bpy.data.objects:
+            o.select_set(o.type == "MESH")
+        bpy.context.view_layer.objects.active = objs[0]
+        bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
 
     lo = [1e9] * 3
     hi = [-1e9] * 3
@@ -73,8 +86,18 @@ def main():
     scene.render.engine = "BLENDER_EEVEE_NEXT" if "BLENDER_EEVEE_NEXT" in engines else "BLENDER_EEVEE"
     scene.render.resolution_x = size
     scene.render.resolution_y = size
-    scene.render.filepath = out
-    bpy.ops.render.render(write_still=True)
+    for yaw in yaws:
+        # Крутимо саму модель, а не камеру: камера, світло й кадрування мусять лишатись тими
+        # самими, інакше боки не порівняти між собою.
+        for o in objs:
+            # rotation_mode ОБОВ'ЯЗКОВО: імпортер glTF лишає об'єкти в режимі кватерніона, а в
+            # ньому rotation_euler не читається взагалі — присвоєння мовчки нічого не робить, і
+            # всі чотири боки виходять однаковісінькі. Ловилось лише порівнянням matrix_world.
+            o.rotation_mode = "XYZ"
+            o.rotation_euler[2] = math.radians(yaw)
+        bpy.context.view_layer.update()
+        scene.render.filepath = out if len(yaws) == 1 else "%s_%d.png" % (out[:-4] if out.endswith(".png") else out, int(yaw))
+        bpy.ops.render.render(write_still=True)
 
 
 main()
