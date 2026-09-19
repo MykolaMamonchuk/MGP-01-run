@@ -134,3 +134,36 @@ func test_maps_differ_from_each_other() -> void:
 		PropLibrary.use_world(w)
 		seen[PropLibrary.pick("barrel")] = true
 	assert_gt(seen.size(), 1, "різні мапи беруть різні типи")
+
+
+## Кожен .glb у assets/props мусить бути КОМУСЬ потрібен — тобто згаданий у data/props.json.
+##
+## Навіщо. Модель заміняють кращою, стару лишають «про всяк випадок», і вона тихо лежить далі.
+## Шкода не в мегабайтах: такий файл потрапляє в аркуші приймання (tools/prop_sheet.py,
+## tools/prop_sides.py) і виглядає там як вміст гри, хоча в грі його нема. На цьому вже
+## згаяли час: cart_market.glb на аркуші рендерився майже прозорим, бо в ньому взагалі нема
+## матеріалу — і питання «чому модель зламана» коштувало розслідування, хоча правильна
+## відповідь була «вона не вживається з минулого року».
+##
+## Зворотний бік — шлях у props.json, за яким файлу нема, — ловить
+## test_missing_file_falls_back_to_voxel вище (гра переживає це, малюючи воксель).
+func test_every_model_file_is_referenced_from_props_json() -> void:
+	var f := FileAccess.open("res://data/props.json", FileAccess.READ)
+	var text := f.get_as_text()
+	var dir := DirAccess.open("res://assets/props")
+	assert_not_null(dir, "тека моделей є")
+	var names := dir.get_files()
+	names.sort()
+	var orphans := []
+	var checked := 0
+	for name in names:
+		if not name.ends_with(".glb"):
+			continue
+		checked += 1
+		if not text.contains(name):
+			orphans.append(name)
+	assert_gt(checked, 0, "моделі знайшлись — інакше сторож стереже порожнечу")
+	assert_eq(orphans, [],
+		("моделі, на які не веде жоден запис data/props.json: %s. Або вписати їх, або "
+		+ "прибрати — інакше вони й далі виглядатимуть вмістом гри в аркушах приймання")
+		% [orphans])
