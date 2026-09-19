@@ -1,7 +1,13 @@
 ## Знімок одного чанка рівня — щоб бачити карту, не відкриваючи редактор.
 ##
-##   OUT=/tmp/chunk.png LEVEL=1 CHUNK=1 \
+##   OUT=/tmp/chunk.png CHUNK=meadow_village LAYOUT=easy \
 ##     /Applications/Godot.app/Contents/MacOS/Godot --path . res://src/debug/chunk_shot.tscn
+##
+## CHUNK — id цеглинки з levels/chunks/ (тоді LAYOUT — яку розкладку накласти: easy/mid/hard,
+## типово easy; LAYOUT= порожнє — сам чанк без перешкод). Обидві сцени малюються РАЗОМ, бо
+## цеглинка — це саме вони вдвох; дивитись на чанк без розкладки — це дивитись на півцеглинки.
+##
+## Старий виклик для рівнів, які ще лежать текою, лишився: LEVEL=2 CHUNK=1.
 ##
 ## Показує те саме, що й редактор: дорогу-орієнтир LevelLayout і прев'ю кожного маркера
 ## (справжня модель, інакше воксель, інакше кольорова заглушка за роллю). Потрібен саме для
@@ -15,23 +21,43 @@
 extends Node
 
 var _out: String = OS.get_environment("OUT") if OS.has_environment("OUT") else "chunk.png"
-var _level: int = int(OS.get_environment("LEVEL")) if OS.has_environment("LEVEL") else 1
-var _chunk: int = int(OS.get_environment("CHUNK")) if OS.has_environment("CHUNK") else 0
+var _level: int = int(OS.get_environment("LEVEL")) if OS.has_environment("LEVEL") else 0
+var _chunk: String = OS.get_environment("CHUNK") if OS.has_environment("CHUNK") else "0"
+var _what := ""
+
+
+## Які сцени малювати. Цеглинка бібліотеки — це ДВІ сцени на одному місці (чанк і розкладка),
+## і показувати лише одну означає показувати півцеглинки.
+func _paths() -> Array:
+	if _level > 0:
+		return ["res://levels/level_%02d/chunk_%02d.tscn" % [_level, int(_chunk)]]
+	var dir := "res://levels/chunks/%s" % _chunk
+	var out := ["%s/chunk.tscn" % dir]
+	var which := OS.get_environment("LAYOUT") if OS.has_environment("LAYOUT") else "easy"
+	if which != "":
+		out.append("%s/layout_%s.tscn" % [dir, which])
+	return out
 
 
 func _ready() -> void:
-	var path := "res://levels/level_%02d/chunk_%02d.tscn" % [_level, _chunk]
-	if not ResourceLoader.exists(path):
-		push_error("нема такого чанка: %s" % path)
+	var drawn := 0
+	for path in _paths():
+		if not ResourceLoader.exists(String(path)):
+			# Не мовчати: «порожня цеглинка» й «переплутане ім'я» на знімку виглядають однаково.
+			push_error("нема такої сцени: %s" % path)
+			continue
+		var layout := (load(String(path)) as PackedScene).instantiate()
+		add_child(layout)
+		# Поза редактором прев'ю саме не будується (і не повинно — у грі його не існує), тож
+		# тут будуємо його руками: інструмент для того й потрібен, щоб ПОБАЧИТИ розкладку.
+		_build_previews(layout)
+		if layout is LevelLayout and drawn == 0:
+			(layout as LevelLayout)._rebuild_guide_forced()   # путівник досить намалювати раз
+		drawn += 1
+		_what = "%s%s%s" % [_what, ", " if _what != "" else "", String(path).get_file()]
+	if drawn == 0:
 		get_tree().quit(1)
 		return
-	var layout := (load(path) as PackedScene).instantiate()
-	add_child(layout)
-	# Поза редактором прев'ю саме не будується (і не повинно — у грі його не існує), тож
-	# тут будуємо його руками: інструмент для того й потрібен, щоб ПОБАЧИТИ розкладку.
-	_build_previews(layout)
-	if layout is LevelLayout:
-		(layout as LevelLayout)._rebuild_guide_forced()
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-50, -35, 0)
@@ -70,7 +96,7 @@ func _ready() -> void:
 	for i in range(4):
 		await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(_out)
-	print("знімок чанка %d рівня %d → %s" % [_chunk, _level, _out])
+	print("знімок: %s → %s" % [_what, _out])
 	get_tree().quit()
 
 

@@ -648,10 +648,36 @@ func _add_authored_record(ids: PackedInt32Array, data: PackedFloat32Array, rec: 
 	var kind := String(rec.get("kind", ""))
 	if kind == "" or not _kind_exists(kind):
 		return   # автор указав неіснуючий воксель/пропс — мовчки пропускаємо (як і випадкові списки узбіччя)
+	if kind == "bridge_plank":
+		_add_authored_bridge(ids, data, float(rec.get("x_m", 0.0)))
+		return
 	var override: Dictionary = rec.get("override", {}) if typeof(rec.get("override", {})) == TYPE_DICTIONARY else {}
 	_add_decor(ids, data, kind, override,
 		float(rec.get("x_m", 0.0)), float(rec.get("y_m", 0.0)), float(rec.get("scale", 1.0)),
 		deg_to_rad(float(rec.get("yaw_deg", 0.0))), 1.0, no_sway)
+
+
+## Авторський місток. Маркер каже ЛИШЕ «тут місток і на цьому борті» — розмір і точне місце
+## рахує траса. Так і має бути: ширина каналу та його відступ від дороги задані світом
+## (data/worlds/*.json → canal), а ширина дороги — кількістю доріжок рівня. Автор не може знати
+## обох наперед, бо цеглинку ставлять у різні світи й на різну ширину.
+##
+## Без цього авторський місток був НЕДОТЯГНУТИЙ: _add_authored_record ішов загальним шляхом із
+## stretch = 1.0, тобто клав базову дошку 2.2 м через канал Лужка завширшки 3.0 — дошка
+## обривалась над водою. Поручні при цьому вже вміли розступатись перед авторським містком
+## (_authored_bridge_near), тобто половина задуму працювала, а половини не було.
+func _add_authored_bridge(ids: PackedInt32Array, data: PackedFloat32Array, x_m: float) -> void:
+	if x_m == 0.0:
+		return   # місток посеред дороги — не буває; борт визначити нічим (те саме правило, що в _index_authored_bridges)
+	var side := signf(x_m)
+	if _sea or not _canal_sides.has(side):
+		return   # на цьому борті каналу нема — містку нема через що йти
+	var edge := road_width() * 0.5
+	var c_offset := float(_canal.get("offset", 2.0))
+	var c_width := float(_canal.get("width", 1.2))
+	if not bridge_clears_road(edge, c_offset, c_width):
+		return   # настил заліз би на дорогу — те саме правило, що й для процедурного містка
+	_add_bridge(ids, data, side * (edge + c_offset + c_width * 0.5), c_width)
 
 
 ## Декор одного ряду з авторського таймлайну: усі записи, чиє z_m потрапляє у вікно цього ряду

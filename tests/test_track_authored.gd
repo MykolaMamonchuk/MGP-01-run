@@ -150,3 +150,78 @@ func test_add_authored_timeline_new_records_appear_after_wrap() -> void:
 		_track.advance(1.0)
 	await wait_process_frames(2)
 	assert_eq(_records_of("balloon"), 1, "далекий запис із дозавантаженого чанку з'явився у своєму ряду")
+
+
+## Авторський місток: маркер каже ЛИШЕ «тут місток і на цьому борті», а розмір і точне місце
+## рахує траса. Без цього він був НЕДОТЯГНУТИЙ — загальний шлях _add_authored_record клав базову
+## дошку 2.2 м через канал Лужка завширшки 3.0, і настил обривався над водою. Помітити це
+## тестом було нічим: жоден рівень маркерів bridge_plank не вживав, а поручні вже вміли
+## розступатись перед авторським містком, тож половина задуму виглядала робочою.
+const DECOR_STRIDE := 7   ## x, y, зсув, поворот, масштаб, фаза, розтяг — див. Track._add_decor()
+
+
+## Усі екземпляри виду: [{x, stretch}]. Беремо саме з _decor_data, бо розтяг живе лише там.
+func _instances_of(kind: String) -> Array:
+	var layers := {}
+	for key in _track._decor_layer_of.keys():
+		if String(key).split("|")[0].split("#")[0] == kind:
+			layers[int(_track._decor_layer_of[key])] = true
+	var out := []
+	for row in _track._decor_ids.size():
+		var ids: PackedInt32Array = _track._decor_ids[row]
+		var data: PackedFloat32Array = _track._decor_data[row]
+		for j in ids.size():
+			if layers.has(ids[j]):
+				out.append({"x": data[j * DECOR_STRIDE], "stretch": data[j * DECOR_STRIDE + 6]})
+	return out
+
+
+func _bridge_marker(z: float, x: float) -> Dictionary:
+	return {"z_m": z, "x_m": x, "y_m": 0.0, "kind": "bridge_plank", "lane": 0,
+		"override": {}, "yaw_deg": 0.0, "scale": 1.0}
+
+
+func test_authored_bridge_spans_the_canal_instead_of_stopping_over_water() -> void:
+	var world := _world("meadow")
+	_track.set_authored_timeline([_bridge_marker(10.0, -2.0)], [])
+	_track.rebuild(world, false)
+	await wait_process_frames(2)
+	var canal: Dictionary = world["canal"]
+	var c_width := float(canal["width"])
+	var deck := Track.bridge_deck_len(c_width)
+	# Довжина настилу — це базова дошка, розтягнута рівно під канал. Саме розтяг і був 1.0.
+	var want_stretch := deck / 2.2
+	var found := []
+	for inst in _instances_of("bridge_plank"):
+		# процедурні містки в Лужку теж є (bridges_every = 9) — беремо лише лівий борт біля z=10
+		if float(inst["x"]) < 0.0:
+			found.append(inst)
+	assert_gt(found.size(), 0, "місток лівого борту поставлено")
+	for inst in found:
+		assert_almost_eq(float(inst["stretch"]), want_stretch, 0.01,
+			"настил розтягнуто під ширину каналу %.1f м, а не лишився базовою дошкою" % c_width)
+		assert_gt(absf(float(inst["x"])) - deck * 0.5, _track.road_width() * 0.5,
+			"настил не залазить на дорогу")
+
+
+## Знак x у маркері обирає БОРТ, а сама величина не важить: канал стоїть там, де його поставив
+## світ, і підганяти число руками автор не може — воно залежить і від світу, і від ширини дороги.
+func test_only_the_sign_of_x_matters_for_an_authored_bridge() -> void:
+	var world := _world("meadow")
+	_track.set_authored_timeline([_bridge_marker(10.0, -0.3), _bridge_marker(14.0, -9.0)], [])
+	_track.rebuild(world, false)
+	await wait_process_frames(2)
+	var xs := {}
+	for inst in _instances_of("bridge_plank"):
+		if float(inst["x"]) < 0.0:
+			xs["%.3f" % float(inst["x"])] = true
+	assert_eq(xs.size(), 1, "обидва маркери дали місток на тому самому місці: %s" % xs.keys())
+
+
+## Борт без каналу містка не дістає — інакше настил висів би над травою.
+func test_authored_bridge_is_skipped_on_a_side_without_a_canal() -> void:
+	var world := _world("forest")     # Ліс: canal.side = none
+	_track.set_authored_timeline([_bridge_marker(10.0, -2.0)], [])
+	_track.rebuild(world, false)
+	await wait_process_frames(2)
+	assert_eq(_instances_of("bridge_plank").size(), 0, "у Лісі каналу нема — містка теж")

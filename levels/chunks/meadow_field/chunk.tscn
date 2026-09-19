@@ -1,0 +1,71 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Декор" type="Node3D" parent="."]
+
+[node name="M1_decor_hay_bale" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "hay_bale"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0, -14.0)
+
+[node name="M2_decor_flower_yellow" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower_yellow"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0, -30.0)
+
+[node name="M3_decor_rock_grey" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock_grey"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0, -48.0)
+
+[node name="M4_decor_hay_bale" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "hay_bale"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0, -62.0)
+
+[node name="M5_decor_flower_pink" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower_pink"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.3, 0, -80.0)
+
+[node name="M6_decor_bush" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "bush"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0, -96.0)
+
+[node name="M7_decor_hay_bale" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "hay_bale"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.1, 0, -112.0)
+
+[node name="M8_decor_rock_grey" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "rock_grey"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.3, 0, -128.0)
+
+[node name="M9_decor_flower_yellow" type="Node3D" parent="Декор"]
+script = ExtResource("1")
+role = "decor"
+kind = "flower_yellow"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0, -142.0)
+
+[node name="Орієнтири" type="Node3D" parent="."]
+
+[node name="M10_landmark_mill" type="Node3D" parent="Орієнтири"]
+script = ExtResource("1")
+role = "landmark"
+kind = "mill"
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.5, 0, -76.0)
