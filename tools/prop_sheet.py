@@ -7,7 +7,7 @@ Godot, знайти файл, покрутити. Через це легко н�
 кривою або в чужому стилі. Тут усі вони поруч, з однакового ракурсу й з числами під кожною.
 
 Кожна клітинка підписана: назва, трикутники, розмір файлу. Модель, що не вкладається в стелю
-tests/test_prop_budget.gd (4000 граней / 2,5 МБ), обводиться червоним.
+tests/test_prop_budget.gd (7000 граней / 2,5 МБ), обводиться червоним.
 
     python3 tools/prop_sheet.py                       # усі assets/props/*.glb → prop_sheet.png
     python3 tools/prop_sheet.py --out /tmp/s.png --cols 8 --cell 220
@@ -22,7 +22,8 @@ import subprocess
 import tempfile
 
 BLENDER = "/Applications/Blender.app/Contents/MacOS/Blender"
-MAX_TRIS = 4000
+## Тримати однаковим із tests/test_prop_budget.gd — саме він і є сторожем.
+MAX_TRIS = 7000
 MAX_BYTES = 2_500_000
 
 

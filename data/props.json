@@ -53,7 +53,13 @@
     }
   ],
   "house_red": "res://assets/props/house_red.glb",
-  "house_terra": "res://assets/props/house_terra.glb",
+  "_house_terra": "Чотири різні будинки одного виду: широкий фахверковий і три вузькі надрічкові. Список означає, що КОЖЕН екземпляр бере свій — село перестає бути з клонів. Запечено tools/prop_bake.py із 425–627 тис. граней; схожість 99 / 90 / 99%.",
+  "house_terra": [
+    "res://assets/props/house_terra.glb",
+    "res://assets/props/house_terra_1.glb",
+    "res://assets/props/house_terra_2.glb",
+    "res://assets/props/house_terra_7.glb"
+  ],
   "house_teal": "res://assets/props/house_teal.glb",
   "house_straw": "res://assets/props/house_straw.glb",
   "city_house_a": "res://assets/props/city_house_a.glb",

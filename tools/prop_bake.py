@@ -134,6 +134,13 @@ def make_shell_target(src, segments, rings, shrink):
     return dst
 
 
+## Скільки проходів спрощення дозволено й на скільки може зсістись габарит. Одним проходом
+## нижче 1% Blender не йде (ratio там працює ненадійно), тож кільком проходам бути; але кожен
+## наступний прохід ріже вже спрощену сітку, і з якогось моменту він не спрощує, а ламає.
+MAX_PASSES = 4
+SHRINK_LIMIT = 0.05
+
+
 def make_target(src, tris):
     select_only([src], src)
     bpy.ops.object.duplicate()
@@ -144,12 +151,38 @@ def make_target(src, tris):
     bpy.ops.mesh.remove_doubles(threshold=0.0005)
     bpy.ops.object.mode_set(mode="OBJECT")
     have = len(dst.data.polygons)
-    if have > tris:
+    # Спрощуємо ЗА КІЛЬКА ПРОХОДІВ, а не одним. Ratio модифікатора Blender нижче 1% працює
+    # ненадійно, і тут стояв відповідний запобіжник — max(..., 0.01). На моделі з генератора
+    # у 30 тисяч граней це було байдуже, але наступні прийшли по 425–627 тисяч, і той самий
+    # запобіжник давав 4 835 граней замість замовлених 2 000 — тобто понад стелю
+    # tests/test_prop_budget.gd (4 000). Кілька помірних проходів і форму бережуть краще за
+    # один екстремальний.
+    guard = 0
+    box0 = bounds([dst])
+    while len(dst.data.polygons) > tris and guard < MAX_PASSES:
+        guard += 1
+        before = len(dst.data.polygons)
         m = dst.modifiers.new("d", "DECIMATE")
-        m.ratio = max(tris / float(have), 0.01)
+        m.ratio = max(tris / float(before), 0.01)
         m.use_collapse_triangulate = True
         bpy.ops.object.modifier_apply(modifier=m.name)
-    print("  ціль: %d → %d граней" % (have, len(dst.data.polygons)))
+        if len(dst.data.polygons) >= before:
+            break        # спрощення вперлось у дно — далі проходи нічого не дадуть
+    # ГАБАРИТ — найпростіша ознака того, що модель не спростилась, а схлопнулась. Без цієї
+    # перевірки house_terra_2 (626 тис. граней) пройшов п'ять проходів і перетворився на чорну
+    # скалку: схожість 12.9% замість 99%, а в консолі все виглядало нормально — «ціль: 616793
+    # → 3732». Число граней про форму не каже нічого.
+    box1 = bounds([dst])
+    shrink = max((box0[1][i] - box0[0][i] - (box1[1][i] - box1[0][i]))
+                 / max(box0[1][i] - box0[0][i], 1e-6) for i in range(3))
+    print("  ціль: %d → %d граней (проходів: %d, габарит зсів на %.0f%%)"
+          % (have, len(dst.data.polygons), guard, shrink * 100))
+    if shrink > SHRINK_LIMIT:
+        raise SystemExit(
+            "модель не спрощується до %d граней: габарит зсівся на %.0f%% (межа %.0f%%) — "
+            "форма схлопнулась, а не спростилась.\nВізьми більший --tris "
+            "(tools/prop_budget_search.py підкаже найменший придатний) або --shape sphere, "
+            "якщо це листяна форма з багатьох оболонок." % (tris, shrink * 100, SHRINK_LIMIT * 100))
     return dst
 
 
