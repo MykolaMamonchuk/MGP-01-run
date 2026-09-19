@@ -2,24 +2,23 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cf8mt205jhd20"
-path.s3tc="res://.godot/imported/barrel_2_Image_0.jpg-426ce7e5ac523f8f78cf287eaf2f74de.s3tc.ctex"
+uid="uid://dvga04i0gka1h"
+path="res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
-"md5": "531d23ce4a34e444fe367a46d6e01c83"
+"md5": "768aade98342aaf44ee5651ada17eadb"
 }
 
 [deps]
 
-source_file="res://assets/props/barrel_2_Image_0.jpg"
-dest_files=["res://.godot/imported/barrel_2_Image_0.jpg-426ce7e5ac523f8f78cf287eaf2f74de.s3tc.ctex"]
+source_file="res://assets/props/cart_market_2_baked_normal.jpg"
+dest_files=["res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.ctex"]
 
 [params]
 
-compress/mode=2
+compress/mode=0
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,5 +39,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=512
-detect_3d/compress_to=0
+process/size_limit=0
+detect_3d/compress_to=1
