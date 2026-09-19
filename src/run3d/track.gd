@@ -1255,9 +1255,15 @@ func _decorate(row: Node3D) -> void:
 				if _canal_sides.has(side):
 					b_lo = maxf(_d("far_min", FAR_MIN), c_offset + c_width + 0.15 + b_half.x)
 				var b_hi := maxf(b_lo, _d("far_max", FAR_MAX))
+				# Будівля стоїть ФАСАДОМ ДО ДОРОГИ. Моделі дивляться вперед по +Z, тож
+				# поворот беремо той самий, що й рукотворні маркери терас у цеглинках:
+				# праворуч від дороги −90°, ліворуч +90° (див. meadow_wide_village).
+				# Доти тут стояло 0 і PI — будівля дивилась уздовж дороги, і з траси було
+				# видно її бік або зад. Саме на це й скаржився замовник: «будинки досі
+				# стоять задом, а не до дверей».
 				_add_decor(ids, data, b_kind, {},
 					side * (edge + _rng.randf_range(b_lo, b_hi)), 0.0, b_scale,
-					0.0 if side > 0.0 else PI, 1.0, true)
+					-PI * 0.5 if side > 0.0 else PI * 0.5, 1.0, true)
 				# наступна будівля на цьому боці — не раніше, ніж ця скінчиться по Z (+ зазор):
 				# інакше сарай і будинок поруч проростають одне в одне.
 				_far_clear[sidx] = _row_distance_m[i] + b_half.y + FAR_GAP_MIN

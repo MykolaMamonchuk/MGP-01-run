@@ -3,7 +3,7 @@
 ##   OUT=/tmp/probe STAGE=level LEVEL=1 FRAMES=300 \
 ##     /Applications/Godot.app/Contents/MacOS/Godot --path . --fixed-fps 60 res://tools/probe/probe.tscn
 ##
-## Ручки: STAGE, LEVEL, FRAMES, RESET, PROFILE, RESIZE, BURST, PAUSE, NUDGE,
+## Ручки: STAGE (menu | level | map), LEVEL, FRAMES, RESET, PROFILE, RESIZE, BURST, PAUSE, NUDGE,
 ## QUALITY=smooth|middle|pretty (якість зображення — згладжування), PARENTS=1 (екран батьків).
 ##
 ## Пише:
@@ -50,7 +50,14 @@ func _ready() -> void:
 	add_child(_run)
 	await _frames_passed(30)
 
-	if _stage == "level":
+	if _stage == "map":
+		# Мапа рівнів. Без цієї гілки перевірити «чому не тапається вузол» можна було лише
+		# оком: усі кнопки мапи будуються кодом, тож у звіт вони потрапляють лише тоді,
+		# коли екран справді відкрито.
+		_run.menu.hide_menu()
+		_run._open_map()
+		await _frames_passed(_frames)
+	elif _stage == "level":
 		# Профіль задає швидкість бігу, а швидкість прямо впливає на мерехтіння — без
 		# фіксації два прогони порівнювати НЕ МОЖНА (наступив 17.09.2026: «до» вийшло
 		# older на 42 км/год, «після» young на 28, і різниця в числах була від швидкості).

@@ -3,6 +3,11 @@
 extends Node
 
 const SAVE_PATH := "user://save.json"
+## Куди пише ТЕСТОВИЙ прогін. Окремий файл, бо тести ганяють справжній SaveService і
+## справжній save_game(): повний набір додавав у збереження дитини +278 зірочок і +2
+## чекпоінти за прогін (заміряно 19.09.2026). Тобто прогрес дитини тихо ріс від кожного
+## запуску тестів, а «до/після» в грі порівнювати було нічим.
+const SAVE_PATH_TEST := "user://save_test.json"
 const SCHEMA_VERSION := 1
 
 ## Версія НУМЕРАЦІЇ РІВНІВ у збереженні (окремо від schema: міняється тоді, коли переставили світи).
@@ -14,6 +19,15 @@ const LEVELS_VERSION := 2
 const LEVELS_V2_REMAP := {"13": "12", "14": "13", "15": "14", "16": "15", "17": "16"}
 
 var data: Dictionary = {}
+
+## Файл цього запуску. Під GUT — тестовий: у командному рядку стоїть його запускач, і це
+## єдина ознака, яка не залежить від того, чи згадав хтось виставити змінну оточення.
+static func save_path() -> String:
+	for a in OS.get_cmdline_args():
+		if String(a).contains("gut_cmdln.gd"):
+			return SAVE_PATH_TEST
+	return SAVE_PATH
+
 
 func _ready() -> void:
 	load_game()
@@ -43,18 +57,19 @@ func _default_child(child_name: String) -> Dictionary:
 	}
 
 func load_game() -> void:
-	if not FileAccess.file_exists(SAVE_PATH):
+	var path := save_path()
+	if not FileAccess.file_exists(path):
 		data = default_data()
 		save_game()
 		return
-	var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	var f := FileAccess.open(path, FileAccess.READ)
 	var parsed = JSON.parse_string(f.get_as_text())
 	f.close()
 	data = parsed if typeof(parsed) == TYPE_DICTIONARY else default_data()
 	_migrate()
 
 func save_game() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	var f := FileAccess.open(save_path(), FileAccess.WRITE)
 	f.store_string(JSON.stringify(data, "\t"))
 	f.close()
 

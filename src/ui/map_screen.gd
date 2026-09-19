@@ -9,6 +9,19 @@ signal level_chosen(num: int)
 signal closed
 
 const NODE_R := 48.0
+## Просвіт між сусідніми вузлами. Нуль тут означав би «кола торкаються», і тап на краю
+## однаково потрапляв би в сусіда; 10 px — палець дитини вже не плутається.
+const NODE_GAP := 10.0
+## Менше вузол не робимо навіть на найтіснішому екрані: 60 px — нижня межа тапу для дитини.
+const NODE_R_MIN := 30.0
+## Відступ плашки ціни від краю вузла з кожного боку.
+const BADGE_INSET := 4.0
+## Розмах хвилястої стежки в частках висоти — рівно такий, як її було намальовано. Тіснява
+## лікується меншими вузлами (node_radius), а не сильнішою хвилею: розгойдана стежка забирає
+## місце в написів островів, і «Пляж» їхав просто в заголовок мапи.
+const WAVE_AMP := 0.22
+## На скільки ланок ріжемо хвилю, коли міряємо її довжину. 400 дає похибку кроку < 0,1 px.
+const WAVE_SAMPLES := 400
 const REDRAW_DT := 0.05     # ~20 к/с — достатньо для хвиль
 ## Напис острова: розмір і на скільки вище «центру» стоїть його верх; зсув при накладанні і скільки разів пробуємо.
 const LABEL_W := 240.0
@@ -16,6 +29,8 @@ const LABEL_H := 34.0
 const LABEL_LIFT := 165.0
 const LABEL_STEP := 40.0
 const LABEL_TRIES := 4
+## Нижче цього напис острова не піднімається: вище стоїть заголовок мапи («Рівень N — …»).
+const LABEL_TOP_MIN := 112.0
 
 var _root: Control
 var _canvas: MapCanvas
@@ -48,6 +63,7 @@ class MapCanvas:
 	static var _elev: Dictionary = {}     # назва вокселя → [{x, y, color}] (кеш фронтальної проєкції)
 
 	var points: Array = []
+	var node_r := MapScreen.NODE_R      # справжній радіус вузла цього розкладу
 	var islands: Array = []      # [{world, color, accent, from, to, name}]
 	var unlocked := 1
 	var current := 1
@@ -243,7 +259,7 @@ class MapCanvas:
 			return
 		var p: Vector2 = points[current - 1]
 		var k := 0.5 + 0.5 * sin(t * 3.0)
-		var r := 48.0   # = NODE_R
+		var r := node_r
 		draw_circle(p, r + 26.0 + k * 8.0, Color(1.0, 0.95, 0.6, 0.25))
 		draw_circle(p, r + 12.0 + k * 4.0, Color(1.0, 0.95, 0.6, 0.35))
 
@@ -262,15 +278,53 @@ class MapCanvas:
 		draw_rect(Rect2(p + Vector2(-40, 14) * k, Vector2(80, 4) * k), col.darkened(0.12))
 
 
-## Позиції вузлів — хвилястою стежкою зліва направо. Чиста функція.
+## Точка хвилястої стежки за часткою шляху u (0..1).
+static func _wave(size: Vector2, u: float) -> Vector2:
+	return Vector2(lerpf(120.0, size.x - 120.0, u),
+		size.y * 0.55 + sin(u * PI * 3.0) * size.y * WAVE_AMP)
+
+
+## Позиції вузлів — хвилястою стежкою зліва направо, через РІВНУ ДОВЖИНУ СТЕЖКИ.
+##
+## Раніше вузли стояли через рівний X, і на злеті хвилі крок сходився до 69 px між колами
+## діаметром 96: вісім пар із шістнадцяти налазили одна на одну (заміряно на 1336×720).
+## Оком це видно як тісняву, а пальцем — як «рівень не купується»: сусідній вузол
+## створюється ПІЗНІШЕ, тобто лежить зверху, і забирає тап собі. Саме так замкнений
+## рівень 4 крав половину купованого рівня 3 разом із його плашкою ціни.
+##
+## Сама стежка не міняється — міняється лише те, ЯК на ній стоять вузли. Чиста функція.
 static func node_positions(n: int, size: Vector2) -> Array:
+	# наростальні довжини ламаної — по них і відкладаємо рівні кроки
+	var pts := [_wave(size, 0.0)]
+	var acc := [0.0]
+	for i in range(1, WAVE_SAMPLES + 1):
+		var p := _wave(size, float(i) / float(WAVE_SAMPLES))
+		acc.append(float(acc[-1]) + (pts[-1] as Vector2).distance_to(p))
+		pts.append(p)
+	var total: float = acc[-1]
 	var out := []
+	var j := 0
 	for i in range(n):
-		var t := float(i) / float(maxi(1, n - 1))
-		var x := lerpf(120.0, size.x - 120.0, t)
-		var y := size.y * 0.55 + sin(t * PI * 3.0) * size.y * 0.22
-		out.append(Vector2(x, y))
+		var want := total * float(i) / float(maxi(1, n - 1))
+		while j < acc.size() - 2 and float(acc[j + 1]) < want:
+			j += 1
+		var span: float = float(acc[j + 1]) - float(acc[j])
+		var k: float = 0.0 if span <= 0.0 else clampf((want - float(acc[j])) / span, 0.0, 1.0)
+		out.append((pts[j] as Vector2).lerp(pts[j + 1] as Vector2, k))
 	return out
+
+
+## Радіус вузла за вже розкладеними точками: півкроку мінус просвіт, але не більший за
+## NODE_R і не менший за NODE_R_MIN. Сімнадцять кіл діаметром 96 не влазять у стежку вужчу
+## за ~1560 px, тож на звичайному телефоні вони МУСЯТЬ трохи поменшати: накладка краде тап
+## у сусіда (саме через це «не купувався» рівень 3), а менший вузол — просто менший.
+static func node_radius(points: Array) -> float:
+	if points.size() < 2:
+		return NODE_R
+	var step := INF
+	for i in range(points.size() - 1):
+		step = minf(step, (points[i] as Vector2).distance_to(points[i + 1] as Vector2))
+	return clampf((step - NODE_GAP) * 0.5, NODE_R_MIN, NODE_R)
 
 
 ## Чи перетинає прямокутник коло (центр c, радіус r).
@@ -300,9 +354,21 @@ static func place_labels(centers: Array, node_points: Array, size: Vector2) -> A
 	for c in centers:
 		var cc: Vector2 = c
 		var x := clampf(cc.x - LABEL_W * 0.5, 0.0, maxf(0.0, size.x - LABEL_W))
-		var top := Vector2(x, cc.y - LABEL_LIFT)
-		for _try in range(LABEL_TRIES + 1):
-			var r := Rect2(top, Vector2(LABEL_W, LABEL_H))
+		# Спершу пробуємо піднімати напис, як і раніше, а вже потім опускати: над високим
+		# вузлом місця вгорі може не бути зовсім, і напис в'їжджав у заголовок мапи
+		# («Пляж» поверх «Рівень 2 — Гілочки»). Нижче LABEL_TOP_MIN не піднімаємось ніколи.
+		var base := cc.y - LABEL_LIFT
+		var tries: Array[float] = []
+		for k in range(LABEL_TRIES + 1):
+			tries.append(base - k * LABEL_STEP)
+		for k in range(1, LABEL_TRIES + 1):
+			tries.append(base + k * LABEL_STEP)
+		var top := Vector2(x, maxf(base, LABEL_TOP_MIN))
+		var found := false
+		for y in tries:
+			if y < LABEL_TOP_MIN:
+				continue
+			var r := Rect2(Vector2(x, y), Vector2(LABEL_W, LABEL_H))
 			var hit := false
 			for pr in placed:
 				if pr.intersects(r):
@@ -313,9 +379,13 @@ static func place_labels(centers: Array, node_points: Array, size: Vector2) -> A
 					if _rect_hits_circle(r, p, NODE_R):
 						hit = true
 						break
-			if not hit or _try == LABEL_TRIES:
+			if not hit:
+				top = Vector2(x, y)
+				found = true
 				break
-			top.y -= LABEL_STEP
+		if not found:
+			# чистого місця нема — беремо найвище дозволене, аби напис бодай не ліз у заголовок
+			top = Vector2(x, maxf(base, LABEL_TOP_MIN))
 		placed.append(Rect2(top, Vector2(LABEL_W, LABEL_H)))
 		out.append(top)
 	return out
@@ -378,9 +448,11 @@ func _build(pop_num: int = 0) -> void:
 	_nodes.clear()
 	var n := _lm.count()
 	var pts := node_positions(n, _root.size)
+	var r := node_radius(pts)
 	var unlocked := _lm.unlocked()
 	var current := _lm.current()
 	_canvas.points = pts
+	_canvas.node_r = r
 	_canvas.unlocked = unlocked
 	_canvas.current = current
 	_canvas.islands = []
@@ -399,31 +471,35 @@ func _build(pop_num: int = 0) -> void:
 		var stars := _lm.stars_of(num)
 		var st := _lm.open_state_of(num)
 		var col := accent if st != "locked" else Palette.LOCKED
-		var b := UIKit.button(str(num) if st == "open" else "", col, Vector2(NODE_R * 2, NODE_R * 2), 36)
+		var b := UIKit.button(str(num) if st == "open" else "", col, Vector2(r * 2, r * 2), 36)
 		for sname in ["normal", "hover", "pressed"]:
 			var sb := b.get_theme_stylebox(sname)
 			if sb is StyleBoxFlat:
-				(sb as StyleBoxFlat).set_corner_radius_all(int(NODE_R))
-		b.position = pts[i] - Vector2(NODE_R, NODE_R)
+				(sb as StyleBoxFlat).set_corner_radius_all(int(r))
+		b.position = pts[i] - Vector2(r, r)
 		b.tooltip_text = String(lvl.get("name_uk", "")) + " — " + String(lvl.get("feature", ""))
 		match st:
 			"open":
 				b.pressed.connect(_on_node.bind(num))
 			"buyable":
-				var badge := PriceBadge.new(_lm.price_of(num))
-				badge.position = Vector2(NODE_R - badge.size.x * 0.5, NODE_R * 2 - 24.0)
+				# Плашка ціни — ВСЕРЕДИНІ кнопки: саме по ній і тапають, бо на ній написано
+				# ціну. Доти вона звисала на 8 px донизу, а на тісному екрані й з боків.
+				var badge := PriceBadge.new(_lm.price_of(num),
+					minf(1.0, (r * 2.0 - BADGE_INSET * 2.0) / PriceBadge.BASE.x))
+				badge.position = Vector2(r - badge.size.x * 0.5,
+					r * 2.0 - BADGE_INSET - badge.size.y)
 				b.add_child(badge)
 				b.pressed.connect(_on_buy.bind(num, b, badge))
 			_:
 				b.pressed.connect(func(): UIKit.shake(b); AudioMgr.sfx("locked"))
 				var lock := LockIcon.new()
-				lock.position = Vector2(NODE_R - 14, NODE_R - 16)
+				lock.position = Vector2(r - 14, r - 16)
 				b.add_child(lock)
 		if stars > 0:
 			# рядок зірок над вузлом
 			var row := HBoxContainer.new()
 			row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			row.position = Vector2(NODE_R - 13.0 * stars - 1.0 * (stars - 1), -32)
+			row.position = Vector2(r - 13.0 * stars - 1.0 * (stars - 1), -32)
 			row.add_theme_constant_override("separation", 2)
 			for s in range(stars):
 				row.add_child(Icons.StarIcon.new(26.0))
@@ -479,7 +555,7 @@ func _on_buy(num: int, b: Button, badge: Control) -> void:
 	_busy = true
 	AudioMgr.sfx("confetti")
 	AudioMgr.voice("level_bought")
-	var centre := b.position + Vector2(NODE_R, NODE_R)
+	var centre := b.position + b.size * 0.5
 	_build(num)          # вузол став відкритим — пружно з'являється
 	_burst(centre)
 	get_tree().create_timer(0.5).timeout.connect(func():

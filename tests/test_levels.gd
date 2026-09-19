@@ -214,10 +214,18 @@ func test_place_labels_shifts_up_when_overlapping() -> void:
 	# вузол прямо під написом — напис піднімається
 	var one := MapScreen.place_labels([Vector2(640, 400)], [Vector2(640, 400.0 - MapScreen.LABEL_LIFT + 10.0)], size)
 	assert_lt((one[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT, "піднято через вузол")
-	# не більше 4 зсувів
-	var stuck := MapScreen.place_labels([Vector2(640, 400)], [Vector2(640, 100), Vector2(640, 140), Vector2(640, 180), Vector2(640, 220), Vector2(640, 260)], size)
 	assert_gte((one[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT - MapScreen.LABEL_STEP * MapScreen.LABEL_TRIES)
-	assert_almost_eq((stuck[0] as Vector2).y, 400.0 - MapScreen.LABEL_LIFT - MapScreen.LABEL_STEP * MapScreen.LABEL_TRIES, 0.001, "рівно 4 зсуви, далі не пробуємо")
+	# Угорі місця нема — тоді напис іде ВНИЗ. Доти він просто впирався в стелю чотирьох
+	# зсувів і лишався лежати на вузлі, а на високій частині хвилі ще й в'їжджав у
+	# заголовок мапи («Пляж» поверх «Рівень 2 — Гілочки»).
+	var stuck := MapScreen.place_labels([Vector2(640, 400)], [Vector2(640, 100), Vector2(640, 140), Vector2(640, 180), Vector2(640, 220), Vector2(640, 260)], size)
+	var top: Vector2 = stuck[0]
+	assert_gte(top.y, MapScreen.LABEL_TOP_MIN, "напис не лізе в заголовок")
+	var rect := Rect2(top, Vector2(MapScreen.LABEL_W, MapScreen.LABEL_H))
+	for y in [100.0, 140.0, 180.0, 220.0, 260.0]:
+		var p := Vector2(640, y)
+		var q := Vector2(clampf(p.x, rect.position.x, rect.end.x), clampf(p.y, rect.position.y, rect.end.y))
+		assert_gte(q.distance_to(p), MapScreen.NODE_R, "і знайшов чисте місце повз вузол %s" % p)
 
 
 func test_smooth_path_keeps_endpoints() -> void:
