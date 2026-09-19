@@ -4,15 +4,16 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://ck65qrhmvlvk1"
 path.bptc="res://.godot/imported/dolphine_mesh_Image_1.jpg-aeec42f5244e65ae58171cc2c8169868.bptc.ctex"
+path.astc="res://.godot/imported/dolphine_mesh_Image_1.jpg-aeec42f5244e65ae58171cc2c8169868.astc.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 
 [deps]
 
 source_file="res://assets/models/dolphine_mesh_Image_1.jpg"
-dest_files=["res://.godot/imported/dolphine_mesh_Image_1.jpg-aeec42f5244e65ae58171cc2c8169868.bptc.ctex"]
+dest_files=["res://.godot/imported/dolphine_mesh_Image_1.jpg-aeec42f5244e65ae58171cc2c8169868.bptc.ctex", "res://.godot/imported/dolphine_mesh_Image_1.jpg-aeec42f5244e65ae58171cc2c8169868.astc.ctex"]
 
 [params]
 

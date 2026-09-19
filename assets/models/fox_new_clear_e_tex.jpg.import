@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://bpmsvxniwss7n"
 path.bptc="res://.godot/imported/fox_new_clear_e_tex.jpg-868f3b550a2c9133bfc60ce10db81296.bptc.ctex"
+path.astc="res://.godot/imported/fox_new_clear_e_tex.jpg-868f3b550a2c9133bfc60ce10db81296.astc.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/fox_new_clear_e_tex.jpg"
-dest_files=["res://.godot/imported/fox_new_clear_e_tex.jpg-868f3b550a2c9133bfc60ce10db81296.bptc.ctex"]
+dest_files=["res://.godot/imported/fox_new_clear_e_tex.jpg-868f3b550a2c9133bfc60ce10db81296.bptc.ctex", "res://.godot/imported/fox_new_clear_e_tex.jpg-868f3b550a2c9133bfc60ce10db81296.astc.ctex"]
 
 [params]
 

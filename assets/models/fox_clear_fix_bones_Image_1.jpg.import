@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://kkdd3ljjq634"
 path.bptc="res://.godot/imported/fox_clear_fix_bones_Image_1.jpg-091d81187ec9ceaf1e145a9d40c39913.bptc.ctex"
+path.astc="res://.godot/imported/fox_clear_fix_bones_Image_1.jpg-091d81187ec9ceaf1e145a9d40c39913.astc.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/fox_clear_fix_bones_Image_1.jpg"
-dest_files=["res://.godot/imported/fox_clear_fix_bones_Image_1.jpg-091d81187ec9ceaf1e145a9d40c39913.bptc.ctex"]
+dest_files=["res://.godot/imported/fox_clear_fix_bones_Image_1.jpg-091d81187ec9ceaf1e145a9d40c39913.bptc.ctex", "res://.godot/imported/fox_clear_fix_bones_Image_1.jpg-091d81187ec9ceaf1e145a9d40c39913.astc.ctex"]
 
 [params]
 

@@ -55,6 +55,13 @@ pointing/emulate_touch_from_mouse=true
 
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
+; Стиснення текстур у ВІДЕОПАМ'ЯТІ під цільову платформу. Мішень у гри мобільна
+; (веб на телефоні, далі Android), а мобільні GPU не вміють S3TC/BPTC — вони вміють
+; ETC2 і ASTC. Поки тут стояв лише desktop-набір, `compress/mode=2` у `.import`
+; економив пам'ять на Маку й НІЧОГО не давав на телефоні: рушій не знаходив свого
+; формату й розпаковував картинку назад у RGBA8.
+textures/vram_compression/import_etc2_astc=true
+textures/vram_compression/import_s3tc_bptc=true
 lights_and_shadows/directional_shadow/size=2048
 textures/default_filters/anisotropic_filtering_level=3
 anti_aliasing/quality/msaa_3d=2

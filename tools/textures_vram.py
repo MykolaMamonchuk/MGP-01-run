@@ -35,7 +35,20 @@ HIGH_QUALITY = ("assets/models",)
 ## Стеля роздільності при ІМПОРТІ. Саме так, а не переекспортом моделі: герої риговані, і
 ## прогін .glb через Blender може перетасувати кістки, від яких залежить уся анімація.
 ## Godot же просто зменшує картинку на вході, джерело лишається недоторканим.
-SIZE_LIMIT = {"assets/models": 1024}
+##
+## Пропсам стеля 512, і це не «на око». Міряти треба ЩІЛЬНІСТЬ ТЕКСЕЛІВ — пікселів текстури
+## на метр моделі, — бо саме вона вирішує, розмито чи ні. Габарити взято рушієм
+## (`tools/vram/prop_closeup.gd` друкує їх): віз 0,95 м, бочка 0,70 м, будинок 2,06 м.
+## При 512 віз має 539 пк/м, бочка 731 — більше за будинок на 1024 (497 пк/м), який ми
+## визнали добрим. Тобто 512 для метрового пропса це НЕ економія за рахунок вигляду.
+SIZE_LIMIT = {"assets/models": 1024, "assets/props": 512}
+
+## Виняток зі стелі 512: те, що більше за півтора метра. При 512 будинок мав би 248 пк/м —
+## удвічі менше, ніж він займає на екрані, і це видно: 19.09.2026 у кадрі рівня 2 різьблення
+## віконних рам розмилося, 15,9% ділянки будинку за порогом 4/255 (середнє 2,46, найбільше
+## 89) при НУЛЬОВОМУ шумі між двома однаковими прогонами. Числом воно ще проходило (95,3%
+## за порогом 12), але оком — ні, а приймає замовник оком.
+KEEP_FULL_SIZE = ("house_terra",)
 
 
 def main():
@@ -50,12 +63,17 @@ def main():
         out = text.replace("compress/mode=0", "compress/mode=2")
         if any(folder in path for folder in HIGH_QUALITY):
             out = out.replace("compress/high_quality=false", "compress/high_quality=true")
-        for folder, limit in SIZE_LIMIT.items():
-            if folder in path:
-                out = re.sub(r"process/size_limit=\d+", "process/size_limit=%d" % limit, out)
-        # нормаль має свій канальний розклад: без цієї позначки стиснення псує їй освітлення
+        if not any(big in os.path.basename(path) for big in KEEP_FULL_SIZE):
+            for folder, limit in SIZE_LIMIT.items():
+                if folder in path:
+                    out = re.sub(r"process/size_limit=\d+", "process/size_limit=%d" % limit, out)
+        # Нормаль має свій канальний розклад: її беруть двоканальним RGTC/EAC, а не
+        # кольоровим DXT1. `compress/normal_map` — це перелік «Detect, Enable, Disabled»,
+        # тобто потрібна ОДИНИЦЯ. Двійка — «Disabled», і саме вона тут стояла до 19.09.2026:
+        # десять карт нормалей лягли в пам'ять як DXT1 (fmt=17, 565 без альфи) замість
+        # RGTC_RG (fmt=21). Видно заміром `tools/vram/vram_audit.gd` — формат друкується.
         if "_normal." in os.path.basename(path):
-            out = out.replace("compress/normal_map=0", "compress/normal_map=2")
+            out = re.sub(r"compress/normal_map=[02]", "compress/normal_map=1", out)
         if out == text:
             continue
         open(path, "w", encoding="utf-8").write(out)

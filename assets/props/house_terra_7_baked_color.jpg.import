@@ -4,8 +4,9 @@ importer="texture"
 type="CompressedTexture2D"
 uid="uid://b156vbwj5fgkm"
 path.s3tc="res://.godot/imported/house_terra_7_baked_color.jpg-5b6cc9847862fcfefcf973e7d6d98773.s3tc.ctex"
+path.etc2="res://.godot/imported/house_terra_7_baked_color.jpg-5b6cc9847862fcfefcf973e7d6d98773.etc2.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc"],
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
@@ -15,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/props/house_terra_7_baked_color.jpg"
-dest_files=["res://.godot/imported/house_terra_7_baked_color.jpg-5b6cc9847862fcfefcf973e7d6d98773.s3tc.ctex"]
+dest_files=["res://.godot/imported/house_terra_7_baked_color.jpg-5b6cc9847862fcfefcf973e7d6d98773.s3tc.ctex", "res://.godot/imported/house_terra_7_baked_color.jpg-5b6cc9847862fcfefcf973e7d6d98773.etc2.ctex"]
 
 [params]
 
