@@ -4,6 +4,7 @@
 ##     /Applications/Godot.app/Contents/MacOS/Godot --path . --fixed-fps 60 res://tools/probe/probe.tscn
 ##
 ## Ручки: STAGE (menu | level | map), LEVEL, FRAMES, RESET, PROFILE, RESIZE, BURST, PAUSE, NUDGE,
+## SHADOWS=0 (зняти кадр без проходу тіней — щоб заміряти його ціну),
 ## QUALITY=smooth|middle|pretty (якість зображення — згладжування), PARENTS=1 (екран батьків).
 ##
 ## Пише:
@@ -71,6 +72,24 @@ func _ready() -> void:
 	# PARENTS=1 — відкрити екран батьків перед знімком. Панель налаштувань будується кодом
 	# і росте від кожного нового рядка, тож перевіряти її треба геометрією (вона потрапляє
 	# в "controls" звіту) і кадром, а не вірою.
+	# SHADOWS=0 — вимкнути прохід тіней і зняти кадр без нього. Потрібно, щоб ЗАМІРЯТИ, у
+	# скільки draw calls він обходиться саме зараз: число залежить від того, скільки в кадрі
+	# тінекидачів, а забудова росте. Вимикаємо ПІСЛЯ прогону, щоб гра йшла однаково.
+	# SHADOW_DIST=14 — дальність проходу тіней (directional_shadow_max_distance). Тінь від
+	# другого ряду забудови лягає туди, куди гравець і так майже не дивиться, а коштує вона
+	# стільки ж, скільки від першого. Ручка — щоб підібрати межу заміром, а не на око.
+	if OS.has_environment("SHADOW_DIST"):
+		var sun_d := _run.get_node_or_null("Sun") as DirectionalLight3D
+		if sun_d != null:
+			sun_d.directional_shadow_max_distance = float(OS.get_environment("SHADOW_DIST"))
+			await _frames_passed(5)
+
+	if OS.get_environment("SHADOWS") == "0":
+		var sun := _run.get_node_or_null("Sun") as DirectionalLight3D
+		if sun != null:
+			sun.shadow_enabled = false
+			await _frames_passed(5)
+
 	if OS.get_environment("PARENTS") == "1":
 		var hud := _run.get_node_or_null("HUD")
 		if hud != null:

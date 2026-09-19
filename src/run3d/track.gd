@@ -140,6 +140,23 @@ const PROP_GROUP_GAP := [0.7, 1.5]
 ## Запас між сусідніми будівлями другого плану ПОНАД їхні реальні половини глибини (з мешів):
 ## щільно, як на референсі, але не крізь стіни одна одної.
 const FAR_GAP_MIN := 0.3
+## Види, які НЕ дихають НІКОЛИ — хоч де їх поставили. Гойдалку вирішує місце постановки
+## (див. _decor_layer), і це правильно для куща: біля дороги він хитається, у стіні лісу —
+## ні. Але будівля не хитається ніде, а розділення за місцем коштувало ДВІЧІ:
+##
+##   — два MultiMesh на той самий меш (house_terra_7 і house_terra_7#wall), тобто зайвий
+##     draw call у кольоровому проході й ЩЕ ОДИН у тіньовому;
+##   — заморожене оздоблення пише всім маркерам role = "decor", тож у грі будинки з цеглинок
+##     таки дихали: 2% масштабу й 2° нахилу щокадру. Саме про це попереджає коментар у
+##     _sync_decor — «дах на тлі неба — пряма межа геометрії, і гойдалка ворушить власний
+##     силует навіть на нерухомій камері».
+##
+## Тобто це водночас і вада вигляду, і плата за неї.
+const NEVER_SWAYS := ["house_terra", "house_terra_1", "house_terra_2", "house_terra_3",
+	"house_terra_4", "house_terra_5", "house_terra_6", "house_terra_7", "house_terra_9",
+	"house_red", "house_small", "house_straw", "house_teal", "city_house_a", "city_house_b",
+	"hut", "mill", "well", "barn", "kiosk", "tower_terracotta", "arch_terracotta",
+	"wall_house", "awning_stall"]
 ## Канал: вода занурена на CANAL_DEPTH, береги — три тонкі теракотові шари.
 const CANAL_DEPTH := 0.35
 const BANK_H := 0.14
@@ -538,6 +555,8 @@ func _sync_far() -> void:
 ## Кожен тип отримує СВІЙ шар: MultiMesh малює один меш на пачку, тож змішати їх в одному
 ## шарі неможливо — це не обмеження, яке варто обходити, а те, як влаштоване пакетне малювання.
 func _decor_layer(kind: String, override: Dictionary, variant: int = 0, no_sway: bool = false) -> int:
+	if NEVER_SWAYS.has(kind):
+		no_sway = true          # будівля не дихає ніде — і шар у неї один, а не два
 	var key := kind if override.is_empty() else kind + "|" + JSON.stringify(override)
 	if variant > 0:
 		key += "#%d" % variant

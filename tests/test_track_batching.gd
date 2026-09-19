@@ -158,3 +158,40 @@ func test_road_canvas_and_banks_still_cast_shadows_on_purpose() -> void:
 		assert_ne(t._canal_banks[0].cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
 			("стінка берега тінь КИДАЄ навмисно: вона лягає в канал, а канал у кадрі — "
 			+ "0.52% пікселів заради −12 draw calls"))
+
+
+## Будівля не дихає ніде, тож і шар у неї ОДИН.
+##
+## Гойдалку («дихання» 2% масштабу й нахил 2°) вирішує місце постановки: біля дороги кущ
+## хитається, у стіні лісу — ні, і це правильно. Але будівлю розділення за місцем коштувало
+## двічі. По-перше, два MultiMesh на той самий меш: house_terra_7 і house_terra_7#wall — це
+## зайвий draw call у кольоровому проході й ЩЕ ОДИН у тіньовому. По-друге, заморожене
+## оздоблення пише всім маркерам role = "decor", тож у грі будинки з цеглинок таки дихали —
+## а про дахи на тлі неба код сам попереджає в _sync_decor.
+##
+## Заміряно 19.09.2026 на рівні 1: шарів у кадрі 48 → 36, подвоєних будівель 12 → 0,
+## draw calls 258 → 226, primitives 184 094 → 171 866.
+func test_a_building_gets_one_layer_not_two() -> void:
+	var kind := String(Track.NEVER_SWAYS[0])
+	var swaying := _track._decor_layer(kind, {}, 0, false)
+	var still := _track._decor_layer(kind, {}, 0, true)
+	assert_eq(swaying, still, "%s: той самий шар, хоч як його поставили" % kind)
+	assert_true(_track._decor_no_sway[swaying], "і цей шар не дихає")
+
+
+## А те, що МАЄ хитатись біля дороги й завмирати у стіні, і далі дістає два шари — інакше
+## кущ уздовж дороги завмер би разом із лісовою стіною.
+func test_foliage_still_splits_by_placement() -> void:
+	assert_false(Track.NEVER_SWAYS.has("bush"), "кущ не в списку нерухомих")
+	var road := _track._decor_layer("bush", {}, 0, false)
+	var wall := _track._decor_layer("bush", {}, 0, true)
+	assert_ne(road, wall, "кущ біля дороги й кущ у стіні — різні шари")
+
+
+## І список нерухомих не бреше: кожен вид у ньому справді існує.
+func test_never_sways_names_real_kinds() -> void:
+	var missing := []
+	for kind in Track.NEVER_SWAYS:
+		if not _track._kind_exists(String(kind)):
+			missing.append(kind)
+	assert_eq(missing.size(), 0, "у списку нерухомих є неіснуючі види: %s" % [missing])
