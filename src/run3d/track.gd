@@ -41,6 +41,9 @@ const CANOPY_SCALE := 2.5
 ## щоб місток не товщав і не вищав разом з довжиною, див. _add_bridge()).
 const DECOR_STRIDE := 7
 ## Обрив плато: три шари «цегли» по 0,4 м під узбіччями (разом 1,2 м).
+const HILLS := 14
+const CLOUDS := 8
+const PUFFS_PER_CLOUD := 3
 const CLIFF_LAYERS := 3
 const CLIFF_STEP := 0.4
 const CLIFF_BOTTOM := -0.4 - CLIFF_STEP * float(CLIFF_LAYERS)
@@ -303,8 +306,16 @@ var _water: MeshInstance3D
 var _water_mat: ShaderMaterial
 var _scroll := 0.0
 var _far: Node3D
+## Пагорби лишились окремими вузлами НАВМИСНО — див. _build_far(). Спроба звести їх у пачку
+## міняє відтінок далекого плану, а це вже не оптимізація, а правка вигляду.
 var _hills: Array[MeshInstance3D] = []
-var _clouds: Array[Node3D] = []
+## Хмари — пачкою (OPT-03): 24 клубки це один одиничний кубик із масштабом на інстанс.
+## Стан (де хмара, якого розміру клубок) живе в масивах, а _sync_far() переносить його в буфер.
+var _mm_clouds: MultiMeshInstance3D
+var _cloud_pos := PackedVector3Array()
+## По PUFFS_PER_CLOUD клубків на хмару: зсув відносно хмари й власний розмір.
+var _puff_off := PackedVector3Array()
+var _puff_size := PackedVector3Array()
 ## Декоративне море збоку дороги (Пляж): -1 — ліворуч, 1 — праворуч, 0 — нема (world "sea_side").
 var _sea_side := 0
 ## Море на всю ширину (world "sea": true) — дорога під героєм невидима, герой на дошці.
@@ -376,7 +387,17 @@ func _ready() -> void:
 	_far = Node3D.new()
 	_far.name = "Far"
 	add_child(_far)
-	for i in range(14):
+	# Порядок звернень до ГЛОБАЛЬНОГО randf() тут строго той самий, що був до OPT-03: місця
+	# пагорбів і хмар жеребкуються ним, тож інший порядок — інший далекий план на знімку.
+	# ПАГОРБИ ЛИШАЮТЬСЯ ВУЗЛАМИ. Звести їх у пачку не вийшло, і причина не в коді:
+	# SphereMesh(radius=r, height=h) зберігає СПРАВЖНІ нормалі еліпсоїда, а MultiMesh
+	# крутить нормаль базисом інстанса як є. Заміряно на голих сітках: вершини одиничної
+	# кулі, масштабованої (r, h/2, r), збігаються з SphereMesh(r, h) до 0.000000 м, а
+	# нормалі розходяться до 45.7° (через обернено-транспоновану — 0.004°, тобто діло саме
+	# в ній). У кадрі це 6 433 пікселі: пагорби темніють на третину. Виграш −6 draw calls
+	# такої ціни не вартий; якщо колись знадобиться — потрібен свій шейдер із
+	# INSTANCE_CUSTOM, а не просто ще одна пачка.
+	for i in range(HILLS):
 		var side := -1.0 if i % 2 == 0 else 1.0
 		var hill := MeshInstance3D.new()
 		var sm := SphereMesh.new()
@@ -390,22 +411,27 @@ func _ready() -> void:
 		hill.name = "Hill"
 		_far.add_child(hill)
 		_hills.append(hill)
-	for i in range(8):
-		var cloud := Node3D.new()
-		for j in range(3):
-			var puff := Mats.box(Vector3(randf_range(0.8, 1.6), 0.5, 0.7), Color(1, 1, 1, 1))
-			puff.position = Vector3(float(j) * 0.7 - 0.7, randf_range(0.0, 0.25), 0.0)
-			# Хмара НЕ кидає тіні. Вона висить за 5–8 м над дорогою, і її тінь лягає просто
-			# на бігову доріжку великою м'якою темною плямою. Заміряно: хмари рівно над
-			# дорогою дають 16 648 темних пікселів на покритті проти 6 435 без тіні.
-			# Гірше за вигляд те, що місце хмари жеребкує ГЛОБАЛЬНИЙ randf(), тож пляма
-			# з'являється не щоразу — рівень виглядає по-різному в різних запусках. А для
-			# дитини темна пляма на світлій доріжці читається як перешкода, якої там нема.
-			puff.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			cloud.add_child(puff)
-		cloud.position = Vector3(randf_range(-12.0, 12.0), randf_range(5.0, 8.0), BEHIND - float(i) * 5.5 - 4.0)
-		_far.add_child(cloud)
-		_clouds.append(cloud)
+	_cloud_pos.resize(CLOUDS)
+	_puff_off.resize(CLOUDS * PUFFS_PER_CLOUD)
+	_puff_size.resize(CLOUDS * PUFFS_PER_CLOUD)
+	for i in range(CLOUDS):
+		for j in range(PUFFS_PER_CLOUD):
+			var p := i * PUFFS_PER_CLOUD + j
+			_puff_size[p] = Vector3(randf_range(0.8, 1.6), 0.5, 0.7)
+			_puff_off[p] = Vector3(float(j) * 0.7 - 0.7, randf_range(0.0, 0.25), 0.0)
+		_cloud_pos[i] = Vector3(randf_range(-12.0, 12.0), randf_range(5.0, 8.0), BEHIND - float(i) * 5.5 - 4.0)
+	var puff_mesh := BoxMesh.new()
+	puff_mesh.size = Vector3.ONE
+	_mm_clouds = _make_far(puff_mesh, CLOUDS * PUFFS_PER_CLOUD)
+	_mm_clouds.material_override = Mats.solid(Color(1, 1, 1, 1))
+	# Хмара НЕ кидає тіні. Вона висить за 5–8 м над дорогою, і її тінь лягає просто
+	# на бігову доріжку великою м'якою темною плямою. Заміряно: хмари рівно над
+	# дорогою дають 16 648 темних пікселів на покритті проти 6 435 без тіні.
+	# Гірше за вигляд те, що місце хмари жеребкує ГЛОБАЛЬНИЙ randf(), тож пляма
+	# з'являється не щоразу — рівень виглядає по-різному в різних запусках. А для
+	# дитини темна пляма на світлій доріжці читається як перешкода, якої там нема.
+	_mm_clouds.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_sync_far()
 	# вода для Хвилі — одна площина з вершинним шейдером
 	_water = MeshInstance3D.new()
 	var pm := PlaneMesh.new()
@@ -449,6 +475,35 @@ func _make_canvas(mesh: Mesh, count: int, height := 6.0, colors := false) -> Mul
 	mi.custom_aabb = box
 	add_child(mi)
 	return mi
+
+
+## Пачка далекого плану. Живе в _far (туди ж сідають пташки), а AABB беремо з великим
+## запасом: пагорби стоять за 16 м обабіч і на 50 м углиб, і рахувати цю коробку щокадру
+## по інстансах немає сенсу — вона й так більша за екран.
+func _make_far(mesh: Mesh, count: int) -> MultiMeshInstance3D:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = count
+	var box := AABB(Vector3(-24.0, -8.0, BEHIND - 56.0), Vector3(48.0, 24.0, 72.0))
+	mm.custom_aabb = box
+	var mi := MultiMeshInstance3D.new()
+	mi.multimesh = mm
+	mi.custom_aabb = box
+	_far.add_child(mi)
+	return mi
+
+
+## Переносить хмари в буфер пачки. 24 записи на кадр — дешевше, ніж 24 вузли в дереві.
+func _sync_far() -> void:
+	if _mm_clouds == null:
+		return
+	var clouds := _mm_clouds.multimesh as MultiMesh
+	for i in range(CLOUDS):
+		var base := _cloud_pos[i]
+		for j in range(PUFFS_PER_CLOUD):
+			var p := i * PUFFS_PER_CLOUD + j
+			clouds.set_instance_transform(p, Transform3D(Basis().scaled(_puff_size[p]), base + _puff_off[p]))
 
 
 ## Шар під конкретний вид вокселя; створюється при першій появі й лишається (порожній нічого не коштує).
@@ -1529,6 +1584,7 @@ func _process(delta: float) -> void:
 	# полотно синхронізуємо і тут: під час анімацій перебудови advance() не викликають
 	_sync_road()
 	_sync_decor(delta)
+	_sync_far()
 	_bird_t -= delta
 	if _bird_t < 0.0:
 		_bird_t = randf_range(6.0, 14.0)
@@ -1649,11 +1705,13 @@ func advance(dist: float, total_distance_m: Variant = null) -> void:
 		h.position.z += dist * 0.35
 		if h.position.z > BEHIND + 8.0:
 			h.position.z -= 48.0
-	for c in _clouds:
-		c.position.z += dist * 0.15
-		c.position.x += 0.002
-		if c.position.z > BEHIND + 6.0:
-			c.position.z -= 46.0
-			c.position.x = randf_range(-12.0, 12.0)
+	for i in range(CLOUDS):
+		var c := _cloud_pos[i]
+		c.z += dist * 0.15
+		c.x += 0.002
+		if c.z > BEHIND + 6.0:
+			c.z -= 46.0
+			c.x = randf_range(-12.0, 12.0)
+		_cloud_pos[i] = c
 	# синхронізацію в пачки робить _process (батько Run3D обробляється раніше за Track — той самий кадр);
 	# тут не дублюємо: подвійний _sync_* = ~900 зайвих set_instance_transform на кадр

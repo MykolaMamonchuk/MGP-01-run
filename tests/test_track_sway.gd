@@ -82,11 +82,9 @@ func test_visiting_another_world_does_not_freeze_decor_here() -> void:
 func test_clouds_do_not_cast_shadows_on_the_road() -> void:
 	_track.rebuild(_world("meadow"), false)
 	await wait_process_frames(2)
-	assert_gt(_track._clouds.size(), 0, "хмари в небі є")
-	for c in _track._clouds:
-		for puff in (c as Node3D).get_children():
-			var gi := puff as GeometryInstance3D
-			if gi == null:
-				continue
-			assert_eq(gi.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
-				"клубок хмари не кидає тіні на доріжку")
+	assert_gt(_track._cloud_pos.size(), 0, "хмари в небі є")
+	# Після OPT-03 усі клубки малює одна пачка, тож і тінь вимикається на ній.
+	assert_eq(_track._mm_clouds.cast_shadow, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+		"пачка клубків не кидає тіні на доріжку")
+	assert_eq((_track._mm_clouds.multimesh as MultiMesh).instance_count,
+		Track.CLOUDS * Track.PUFFS_PER_CLOUD, "у пачці стільки клубків, скільки хмар × клубків")
