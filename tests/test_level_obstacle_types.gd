@@ -42,6 +42,20 @@ func _kinds_of(level: Dictionary) -> Dictionary:
 	return out
 
 
+## Скільки взагалі маркерів-перешкод у зібраному рівні — байдуже, видом вони названі чи дією.
+func _obstacle_markers(level: Dictionary) -> int:
+	var n := 0
+	for piece in LevelChunkLoader.plan_of(int(level["id"]), level):
+		for scene_path in (piece as Dictionary)["paths"]:
+			var f := FileAccess.open(String(scene_path), FileAccess.READ)
+			if f == null:
+				continue
+			for block in f.get_as_text().split("[node "):
+				if block.contains("role = \"obstacle\""):
+					n += 1
+	return n
+
+
 func test_authored_obstacles_respect_the_levels_own_type_list() -> void:
 	var levels: Array = _json("res://data/levels.json").get("levels", [])
 	for l in levels:
@@ -54,7 +68,11 @@ func test_authored_obstacles_respect_the_levels_own_type_list() -> void:
 		var used := _kinds_of(level)
 		# Сторож стереже порожнечу («зайвих видів нема»), тож мусить довести, що взагалі щось
 		# бачив: план, який зненацька став порожнім, інакше зробив би його вічнозеленим.
-		assert_false(used.is_empty(), "рівень %d: маркери-перешкоди знайдено" % num)
+		#
+		# Рахуємо саме МАРКЕРИ, а не види. Рівень, зібраний із розкладок на ДІЯХ, видів не
+		# називає зовсім і законно дає порожній used — так виглядає рівень 3. Вимагати тут
+		# видів означало б забороняти дії.
+		assert_gt(_obstacle_markers(level), 0, "рівень %d: маркери-перешкоди знайдено" % num)
 		for kind in used.keys():
 			if not allowed.has(kind):
 				extra.append("%s×%d" % [kind, used[kind]])

@@ -113,20 +113,35 @@ func _world_data() -> Dictionary:
 		"water": Color(0.29, 0.51, 0.66), "road": Color(0.93, 0.87, 0.70),
 		"wood": Color(0.55, 0.36, 0.22), "bridges_every": 0, "level": 0,
 		"canal_side": "", "canal_offset": 0.0, "canal_width": 0.0}
-	var num := _level_number()
-	if num <= 0:
+	var world_id := ""
+	var desc := _chunk_descriptor()
+	if not desc.is_empty():
+		# Цеглинка бібліотеки рівня не має й мати не може — вона лягає в різні. Світ і ширину
+		# бере зі свого ж chunk.json: саме там автор і заявив, для чого ця цеглинка придатна.
+		# Без цього автор бачив би в редакторі голу трисмугову дорогу без каналу й води й
+		# ставив би декор наосліп — а на п'ятисмуговій цеглинці ще й у воду.
+		out["lanes"] = int(desc.get("entry_lanes", 3))
+		var worlds: Array = desc.get("worlds", [])
+		if not worlds.is_empty():
+			world_id = String(worlds[0])
+	else:
+		var num := _level_number()
+		if num <= 0:
+			return out
+		var levels: Array = _json("res://data/levels.json").get("levels", [])
+		var level := {}
+		for l in levels:
+			if int((l as Dictionary).get("id", 0)) == num:
+				level = l
+				break
+		if level.is_empty():
+			return out
+		out["lanes"] = int(level.get("lanes", 3))
+		out["level"] = num
+		world_id = String(level.get("world", "meadow"))
+	if world_id == "":
 		return out
-	var levels: Array = _json("res://data/levels.json").get("levels", [])
-	var level := {}
-	for l in levels:
-		if int((l as Dictionary).get("id", 0)) == num:
-			level = l
-			break
-	if level.is_empty():
-		return out
-	out["lanes"] = int(level.get("lanes", 3))
-	out["level"] = num
-	var world := _json("res://data/worlds/%s.json" % String(level.get("world", "meadow")))
+	var world := _json("res://data/worlds/%s.json" % world_id)
 	if world.is_empty():
 		return out
 	out["ground"] = _color(world.get("ground", ""), out["ground"])
@@ -142,6 +157,17 @@ func _world_data() -> Dictionary:
 		out["canal_offset"] = float((canal as Dictionary).get("offset", 0.0))
 		out["canal_width"] = float((canal as Dictionary).get("width", 0.0))
 	return out
+
+
+## Опис цеглинки, якщо сцена лежить у бібліотеці (levels/chunks/<id>/chunk.tscn або
+## layout_*.tscn). Порожньо — сцена не з бібліотеки, і рівень шукаємо по-старому, за номером.
+func _chunk_descriptor() -> Dictionary:
+	var path := scene_file_path
+	if path == "":
+		path = get_scene_file_path()
+	if path == "":
+		return {}
+	return _json("%s/chunk.json" % path.get_base_dir())
 
 
 ## levels/level_07/chunk_02.tscn → 7. Нуль — шлях не той, малюємо типове.
