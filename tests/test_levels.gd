@@ -377,7 +377,11 @@ func test_near_walls_and_landmarks_exist() -> void:
 		assert_true(_worlds[id].has("cliff_water"), "%s: є колір води під плато" % id)
 
 
-## GDD v1.5 §3: ракурс 3/4 зверху-ззаду — pos (0, 3.8, 4.6), look (0, 0.5, −5), fov 52.
+## GDD v1.5 §3: ракурс 3/4 зверху-ззаду. Числа тут — СМУГА, а не точка: сторож стежить, щоб
+## камера не з'їхала ні в перше лице, ні у вигляд згори, а не за конкретним значенням.
+## 19.09.2026 камеру наблизили до (0, 3.45, 3.95) / look −4.2 на прохання замовника: з
+## попередньої точки в кадр лізли край «картки» світу й прірва за ним, а хотілось як на
+## референсі riverside — будинки обабіч затуляють обрій. Через це нижню межу по z зсунуто.
 func test_world_cameras_are_three_quarter_view() -> void:
 	for id in _worlds.keys():
 		if String(_worlds[id].get("mode", "run")) == "slide":
@@ -386,7 +390,7 @@ func test_world_cameras_are_three_quarter_view() -> void:
 		var pos: Array = cam.get("pos", [])
 		var look: Array = cam.get("look", [])
 		assert_between(float(pos[1]), 3.4, 4.2, "%s: камера зверху-ззаду (герой ≈ 1/6 висоти екрана)" % id)
-		assert_between(float(pos[2]), 4.0, 5.2, "%s: камера позаду героя" % id)
+		assert_between(float(pos[2]), 3.6, 5.2, "%s: камера позаду героя" % id)
 		assert_eq(look.size(), 3, "%s: look — 3 числа" % id)
 		assert_lt(float(look[2]), -3.0, "%s: дивимось уперед по трасі" % id)
 		assert_lte(float(cam.get("fov", 99)), 56.0, "%s: fov без «риб'ячого ока»" % id)

@@ -20,7 +20,16 @@ const SPEED_RAMP := 0.35
 const SPRINT_FROM := 0.8
 const SPRINT_MULT := 1.15
 const GATE_BEFORE_SEC := 6.0
+## Туман по глибині: до FOG_NEAR_M його нема зовсім, на FOG_FAR_M він суцільний.
+## FOG_FAR_M трохи ближче за найдальший ряд траси (Track.BEHIND + Track.ROWS = 42,6 м від
+## камери), щоб кінець дороги ховався ЩЕ до того, як його видно.
+const FOG_NEAR_M := 20.0
+const FOG_FAR_M := 40.0
+const FOG_CURVE := 1.0
 const DEFAULT_FOG := 0.012
+## Межі, у які вкладається початок туману: ближче за 6 м світ став би молочним під ногами,
+## далі за 30 м кінець дороги не встиг би розчинитись.
+const FOG_BEGIN_RANGE := [6.0, 30.0]
 ## Блум (GDD v1.5 §3) — саме «м'який»: поріг ВИЩЕ за білий, мала інтенсивність.
 ## v2: блум був головною причиною «вицвілого» меню — світлі шерстинки героя цвіли
 ## й з'їдали насиченість. Тепер цвіте лише те, що яскравіше за 1.1.
@@ -304,6 +313,16 @@ static func fork_ids(allowed: Array, current: String, n: int, rng: RandomNumberG
 	return out
 
 
+## Звідки починається туман для світу з такою густиною. Густина лишилась у даних світів
+## (Ліс 0,03 — густий і темний, Лужок 0,012 — прозорий), але в режимі глибини вона керує не
+## силою, а ВІДСТАННЮ: що густіший світ, то ближче туман береться. Чиста функція.
+static func fog_begin_for(density: float) -> float:
+	if density <= 0.0:
+		return float(FOG_BEGIN_RANGE[1])
+	return clampf(FOG_NEAR_M * DEFAULT_FOG / density,
+		float(FOG_BEGIN_RANGE[0]), float(FOG_BEGIN_RANGE[1]))
+
+
 ## Камера під ширину дороги: 7 доріжок — вище й далі, ортографічна — ширша.
 ## GDD v1.5: ×1,12 на кожен крок ширини (3→5→7), щоб ракурс 3/4 не «розвалювався» на широкій дорозі.
 static func camera_for_lanes(preset: Dictionary, n_lanes: int) -> Dictionary:
@@ -387,7 +406,8 @@ func _enter_world(id: String, instant: bool, rebuild_track: bool = true) -> void
 		camera_rig.apply(camera_for_lanes(world.get("camera", {}), lanes), 0.8)
 	# туман світу (Ліс густіший і темніший, Пляж — морська імла)
 	if env.environment:
-		env.environment.fog_density = float(world.get("fog_density", DEFAULT_FOG))
+		env.environment.fog_depth_begin = fog_begin_for(
+			float(world.get("fog_density", DEFAULT_FOG)))
 	_set_sky(clampf(session_t / session_total, 0.0, 1.0))
 	_set_ambient()
 	spawner.configure(profile, world, hero, mode, self)
@@ -408,8 +428,20 @@ func _setup_sky() -> void:
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_energy = AMBIENT_ENERGY
 	e.fog_enabled = true
-	e.fog_mode = Environment.FOG_MODE_EXPONENTIAL
-	e.fog_density = DEFAULT_FOG
+	# Туман по ГЛИБИНІ, а не показниковий. Показниковий нівечить усе однаково: щоб сховати
+	# кінець дороги на 42 м, треба така густина, що й бочка за три кроки блякне. Тут ближче
+	# за FOG_NEAR_M нема туману зовсім (референс різкий під ногами), а на FOG_FAR_M —
+	# суцільний колір неба. FOG_FAR_M береться від самої траси: вона 44 ряди по 1 м, тобто
+	# найдальший ряд на 42,6 м від камери. Замовник бачив саме це: «не має далі дороги і
+	# видно, що вона підгружається».
+	e.fog_mode = Environment.FOG_MODE_DEPTH
+	e.fog_depth_begin = fog_begin_for(DEFAULT_FOG)
+	e.fog_depth_end = FOG_FAR_M
+	e.fog_depth_curve = FOG_CURVE
+	# У режимі глибини `fog_density` — це МНОЖНИК готового туману, а не густина на метр.
+	# Зі старими 0,012 туману не було видно взагалі (перевірено кадром), тому тут одиниця,
+	# а різницю між світами дає fog_begin_for().
+	e.fog_density = 1.0
 	e.fog_sky_affect = 0.0
 	e.fog_aerial_perspective = 0.4
 	e.fog_light_color = Palette.W_SKY
