@@ -45,6 +45,17 @@ python3 tools/serve_web.py                                              # дру
 `tools/probe/` на Маку**: це різні рушії, різні проходи й різні draw calls. Веб годиться, щоб
 відчути гру пальцем на справжньому телефоні; міряти «до/після» — і далі проба.
 
+Перевірено консоллю зібраної сторінки (20.09.2026):
+
+    OpenGL API OpenGL ES 3.0 (WebGL 2.0) - Compatibility
+    Build configuration: Emscripten 4.0.20, single-threaded, no GDExtension support
+    WARNING: Screen-space AA is only available when using the Forward+ or Mobile renderer
+
+Останній рядок — не дрібниця. `project.godot` тримає `screen_space_aa=1` і має при цьому
+коментар «FXAA лишається в усіх станах якості»; на вебі це НЕПРАВДА — Compatibility його не
+вміє. Тобто краї у веб-збірці твердіші, ніж на Маку, і це не вада збірки, а рушій. MSAA
+(налаштування «Якість зображення») у Compatibility працює.
+
 ## Числа просто в кадрі
 
 Накладка `src/ui/debug_overlay.gd`: к/с і найгірший кадр за три секунди, draw calls,
