@@ -36,6 +36,9 @@ var _root: Control
 var _hint_t := 0.0
 var _sleep_button: Button
 var _parents_panel: Control
+## Кнопки «Якість зображення» на екрані батьків: стан → Button. Поле, щоб тести
+## знаходили їх не за назвою вузла (назви міняються), а за станом.
+var _quality_btns: Dictionary = {}
 var _hint_arrow: Control
 var _hint_label: Label
 var _finish_panel: Control
@@ -985,6 +988,17 @@ func _on_gate_closed() -> void:
 func _request_buy() -> void:
 	ParentGate.request("money", Purchase.buy_full_game)
 
+## Вибір якості зображення. Застосовується ОДРАЗУ (Quality міняє msaa_3d в'юпорта,
+## а не лише параметр проєкту), тож перезапуск не потрібен навіть із відкритої сцени гри.
+func _set_quality(name: String) -> void:
+	Quality.set_current(name)
+	var chosen := Quality.current()
+	for key in _quality_btns:
+		var b: Button = _quality_btns[key]
+		if is_instance_valid(b):
+			b.button_pressed = (String(key) == chosen)
+
+
 func _set_session_minutes(m: int) -> void:
 	SaveService.set_setting("session_minutes", m)
 	SessionTimer.start(float(m))
@@ -994,6 +1008,7 @@ func _close_parents() -> void:
 	if is_instance_valid(_parents_panel):
 		_parents_panel.queue_free()
 	_parents_panel = null
+	_quality_btns = {}
 	if has_node("ParentsDim"):
 		get_node("ParentsDim").queue_free()
 	if not _run_is_busy():
@@ -1011,7 +1026,7 @@ func _open_parents() -> void:
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	add_child(dim)
 	var p := PanelContainer.new()
-	ParentGate._center(p, Vector2(800, 480))
+	ParentGate._center(p, Vector2(800, 620))
 	add_child(p)
 	_parents_panel = p
 	var v := VBoxContainer.new()
@@ -1091,6 +1106,35 @@ func _open_parents() -> void:
 		s.save_game()
 		b_tut.text = "Скинуто ✓")
 	ctl.add_child(b_tut)
+	# Якість зображення (OPT-11). Згладжування країв — найдорожчий шматок відеопам'яті
+	# в грі: 4× коштує ~153 МБ на М1 і близько 80 МБ на телефоні, тобто вчетверо більше,
+	# ніж уся графіка гри. Тому вибір віддано дорослому, а типове — «Плавно» (Quality).
+	var qrow := HBoxContainer.new()
+	qrow.add_theme_constant_override("separation", 12)
+	v.add_child(qrow)
+	var q_label := Label.new()
+	q_label.text = "Якість зображення:"
+	q_label.add_theme_font_size_override("font_size", 24)
+	q_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	qrow.add_child(q_label)
+	_quality_btns = {}
+	var q_group := ButtonGroup.new()
+	for q in Quality.ORDER:
+		var qb := Button.new()
+		qb.text = Quality.label_of(q)
+		qb.custom_minimum_size = Vector2(170, 64)
+		qb.add_theme_font_size_override("font_size", 22)
+		qb.toggle_mode = true
+		qb.button_group = q_group
+		qb.button_pressed = (String(q) == Quality.current())
+		qb.pressed.connect(_set_quality.bind(String(q)))
+		qrow.add_child(qb)
+		_quality_btns[String(q)] = qb
+	var q_hint := Label.new()
+	q_hint.text = Quality.HINT
+	q_hint.add_theme_font_size_override("font_size", 18)
+	q_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(q_hint)
 	var buy := Button.new()
 	buy.text = "Купити «Повну гру» (4,99 $)"
 	buy.custom_minimum_size = Vector2(400, 80)
