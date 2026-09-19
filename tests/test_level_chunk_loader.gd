@@ -1,13 +1,55 @@
-## LevelChunkLoader — стрімить levels/level_XX/chunk_NN.tscn по одному, замість вантажити
-## увесь рівень одразу. Перевірки стрімінгу йдуть проти РЕАЛЬНОГО рівня-теки (FOLDER_LEVEL,
-## чанки по 150 м), перевірки збірки зі списку — проти власної цеглинки-фікстури внизу файлу.
+## LevelChunkLoader — стрімить рівень по чанках, замість вантажити його цілком.
+##
+## УСІ фікстури тут власні, збудовані тестом. Спершу перевірки стрімінгу йшли проти справжнього
+## рівня-теки, і це ламалось щоразу, як черговий рівень переїжджав на бібліотеку: спочатку
+## FOLDER_LEVEL був 1, потім 2, потім 5. Тест про ЗАВАНТАЖУВАЧ не має залежати від того, які
+## саме рівні сьогодні лежать текою; що справжні рівні збираються — стереже окремо
+## test_every_level_in_the_data_has_a_plan_and_all_its_files_exist унизу файлу.
 extends GutTest
 
-## Рівень-ФІКСТУРА для перевірок стрімінгу: той, що досі лежить текою levels/level_XX/ із
-## чанками по порядку. Спершу тут був рівень 1, потім 2 — обидва переїхали на бібліотеку, і
-## теки в них не стало. Беремо наступний, який ще лежить текою. Коли текою не лишиться жодного рівня, ці перевірки
-## переїдуть на власну фікстуру — як уже зробили нижчі тести про збірку зі списку.
-const FOLDER_LEVEL := 5
+## Тимчасова тека-рівень: номери за межами справжніх сімнадцяти, щоб нічого не перетнути.
+const FOLDER_LEVEL := 91
+const FOLDER_DIR := "res://levels/level_%02d" % FOLDER_LEVEL
+## Перешкод у кожному чанку фікстури і на яких локальних метрах вони стоять.
+const CHUNK_Z := [10.0, 40.0, 70.0, 100.0]
+
+
+## Тека-рівень із чанками під заданими НОМЕРАМИ: [0, 1, 2] — суцільний рівень, [0, 2] — рівень
+## із дірою посередині. Вміст усіх чанків однаковий, тож зсув видно по z_m готових записів.
+func _make_folder_level(indices: Array) -> void:
+	DirAccess.make_dir_recursive_absolute(FOLDER_DIR)
+	var body := """[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://src/run3d/level_marker_3d.gd" id="1"]
+[ext_resource type="Script" path="res://src/run3d/level_layout.gd" id="2"]
+
+[node name="LevelLayout" type="Node3D"]
+script = ExtResource("2")
+
+[node name="Перешкоди" type="Node3D" parent="."]
+"""
+	for i in CHUNK_Z.size():
+		body += """
+[node name="M%d_obstacle_stump" type="Node3D" parent="Перешкоди"]
+script = ExtResource("1")
+role = "obstacle"
+kind = "stump"
+lane = %d
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -%s)
+""" % [i + 1, (i % 3) - 1, CHUNK_Z[i]]
+	for index in indices:
+		var f := FileAccess.open("%s/chunk_%02d.tscn" % [FOLDER_DIR, int(index)], FileAccess.WRITE)
+		f.store_string(body)
+		f.close()
+
+
+func _remove_folder_level() -> void:
+	var dir := DirAccess.open(FOLDER_DIR)
+	if dir == null:
+		return
+	for name in dir.get_files():
+		DirAccess.remove_absolute("%s/%s" % [FOLDER_DIR, name])
+	DirAccess.remove_absolute(FOLDER_DIR)
 
 ## Чанки тепер читаються У ФОНІ (заміряно: синхронно це 70 мс на Mac і 200–350 на телефоні,
 ## посеред бігу). Тест не має кадрів, щоб чекати, тому кличе update() і одразу забирає
@@ -34,12 +76,16 @@ func before_each() -> void:
 ## _apply() звільняє інстанс чанку через queue_free() (не одразу) — дати рушію дійсно
 ## прибрати вузли між тестами, інакше GUT рахує їх орфанами наступного тесту.
 func after_each() -> void:
+	# Прибирати саме тут, а не в кінці тіла тесту: інакше перше ж падіння лишило б теку в
+	# проєкті, і наступний прогін брав би її за справжній рівень.
+	_remove_folder_level()
 	await wait_process_frames(1)
 
 
 ## Перший чанк покриває z_m ∈ [0, 150) — і після start() у Spawner3D мають лежати лише його
 ## записи, без жодного з наступних.
 func test_start_loads_first_chunk_immediately() -> void:
+	_make_folder_level([0, 1, 2])
 	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	assert_true(_spawner._authored_active, "перший чанк уже заповнив Spawner3D")
 	assert_gt(_spawner._authored_obstacles.size(), 0)
@@ -49,6 +95,7 @@ func test_start_loads_first_chunk_immediately() -> void:
 
 
 func test_update_does_not_load_next_chunk_before_lookahead_threshold() -> void:
+	_make_folder_level([0, 1, 2])
 	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	var n0 := _spawner._authored_obstacles.size()
 	# межа першого чанку — 150; поріг дозавантаження — 150 - LOOKAHEAD_M(80) = 70
@@ -57,6 +104,7 @@ func test_update_does_not_load_next_chunk_before_lookahead_threshold() -> void:
 
 
 func test_update_loads_next_chunk_at_lookahead_threshold() -> void:
+	_make_folder_level([0, 1, 2])
 	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	var n0 := _spawner._authored_obstacles.size()
 	_update(70.0)   # рівно поріг: 150 - 80
@@ -67,6 +115,7 @@ func test_update_loads_next_chunk_at_lookahead_threshold() -> void:
 
 
 func test_update_does_not_double_load_same_chunk() -> void:
+	_make_folder_level([0, 1, 2])
 	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	_update(70.0)
 	var n1 := _spawner._authored_obstacles.size()
@@ -78,25 +127,13 @@ func test_update_does_not_double_load_same_chunk() -> void:
 ## Проїхавши весь рівень, усі його authored-перешкоди мають бути дозавантажені, і жодна не
 ## загубитись і не подвоїтись.
 func test_streaming_through_whole_level_loads_every_chunk_exactly_once() -> void:
+	_make_folder_level([0, 1, 2])
 	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	var d := 0.0
 	while d < 500.0:
 		d += 5.0
 		_update(d)
-	# Скільки саме перешкод у рівні — не сталість тесту: хвости рівнів дотягували під
-	# швидкий профіль (tools/extend_level_tails.py), і число мінялося. Тест стереже інше —
-	# що жоден чанк не завантажено двічі й жодного не загублено, тому рахуємо очікуване
-	# просто з файлів рівня.
-	var want := 0
-	var dir := DirAccess.open("res://levels/level_%02d" % FOLDER_LEVEL)
-	for name in dir.get_files():
-		if not name.ends_with(".tscn"):
-			continue
-		var f := FileAccess.open("res://levels/level_%02d/%s" % [FOLDER_LEVEL, name], FileAccess.READ)
-		for block in f.get_as_text().split("[node "):
-			if block.contains("role = \"obstacle\""):
-				want += 1
-	assert_gt(want, 0, "у рівні 1 є перешкоди")
+	var want := CHUNK_Z.size() * 3   # три чанки фікстури
 	assert_eq(_spawner._authored_obstacles.size(), want,
 		"усі %d authored-перешкод рівня дозавантажені по чанках" % want)
 	var seen := {}
@@ -106,16 +143,16 @@ func test_streaming_through_whole_level_loads_every_chunk_exactly_once() -> void
 		seen[z] = true
 
 
-## Найдовший рівень (17, 7 чанків, 218 маркерів) — той самий наскрізний прогін, що й для
-## рівня-фікстури вище, лише на найбільшому реальному рівні: перевіряє, що дроблення на 7 чанків
-## не губить і не дублює жодного запису.
-func test_streaming_through_longest_level_loads_every_chunk_exactly_once() -> void:
-	_loader.start(17, _track, _spawner)
+## Той самий наскрізний прогін, але на СЕМИ чанках — стільки має найдовший справжній рівень.
+## Перевіряє, що довга черга не губить і не дублює жодного запису.
+func test_streaming_through_a_seven_chunk_level_loads_every_chunk_exactly_once() -> void:
+	_make_folder_level([0, 1, 2, 3, 4, 5, 6])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	var d := 0.0
-	while d < 1000.0:
+	while d < 1100.0:
 		d += 5.0
 		_update(d)
-	assert_gt(_spawner._authored_obstacles.size(), 0)
+	assert_eq(_spawner._authored_obstacles.size(), CHUNK_Z.size() * 7)
 	var seen := {}
 	for rec in _spawner._authored_obstacles:
 		var z: float = rec.get("z_m", 0.0)
@@ -136,48 +173,30 @@ func test_missing_level_clears_authored_state_without_crash() -> void:
 ## Порожній відрізок посеред рівня — це просто відсутній chunk_NN.tscn: розрізання не пише
 ## файл для куска без маркерів, та й автор карти може стерти середній чанк руками в редакторі.
 ## Раніше перший же відсутній номер читався як «рівень скінчився», і решта рівня мовчки не
-## вантажилась — на швидкому профілі це кілометр порожньої дороги. Фікстура тимчасова: теку
-## level_90 збираємо тут із чанка рівня-фікстури і прибираємо одразу по перевірці.
-const GAP_LEVEL := 90
-const GAP_DIR := "res://levels/level_%02d" % GAP_LEVEL
-
-
-func _make_gap_level() -> void:
-	DirAccess.make_dir_recursive_absolute(GAP_DIR)
-	var src := FileAccess.get_file_as_bytes("res://levels/level_%02d/chunk_00.tscn" % FOLDER_LEVEL)
-	for name in ["chunk_00.tscn", "chunk_02.tscn"]:   # chunk_01 свідомо відсутній
-		var f := FileAccess.open("%s/%s" % [GAP_DIR, name], FileAccess.WRITE)
-		f.store_buffer(src)
-		f.close()
-
-
-func _remove_gap_level() -> void:
-	var dir := DirAccess.open(GAP_DIR)
-	if dir == null:
-		return
-	for name in dir.get_files():
-		DirAccess.remove_absolute("%s/%s" % [GAP_DIR, name])
-	DirAccess.remove_absolute(GAP_DIR)
-
-
+## вантажилась — на швидкому профілі це кілометр порожньої дороги.
 func test_missing_middle_chunk_does_not_end_the_level() -> void:
-	_make_gap_level()
-	_loader.start(GAP_LEVEL, _track, _spawner)
+	_make_folder_level([0, 2])          # chunk_01 свідомо відсутній
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	var n0 := _spawner._authored_obstacles.size()
-	assert_gt(n0, 0, "chunk_00 завантажився")
+	assert_eq(n0, CHUNK_Z.size(), "chunk_00 завантажився")
 	var d := 0.0
 	while d < 500.0:
 		d += 5.0
 		_update(d)
 	assert_eq(_spawner._authored_obstacles.size(), n0 * 2,
 		"пропущений chunk_01 перестрибнуто, chunk_02 усе одно завантажився")
-	_remove_gap_level()
+	# І зсув у нього саме ТРЕТЬОГО чанка: діра лишилась дірою, а не з'їхала на місце chunk_01.
+	var far := 0.0
+	for rec in _spawner._authored_obstacles:
+		far = maxf(far, float(rec.get("z_m", 0.0)))
+	assert_almost_eq(far, 300.0 + float(CHUNK_Z[CHUNK_Z.size() - 1]), 0.01)
 
 
 ## Фонове читання: update() на порозі лише ПОДАЄ ЗАЯВКУ, а не блокує. Саме це й рятує від
 ## підвисання посеред бігу — заміряно, що синхронне читання зарядженого чанка коштує 70 мс на
 ## Mac і 200–350 мс на телефоні, і відбувалось воно за 80 м до межі, тобто на повному ходу.
 func test_update_only_requests_the_chunk_and_does_not_block() -> void:
+	_make_folder_level([0, 1, 2])
 	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	var n0 := _spawner._authored_obstacles.size()
 	_loader.update(70.0)                      # БЕЗ finish_pending
@@ -192,6 +211,7 @@ func test_update_only_requests_the_chunk_and_does_not_block() -> void:
 ## Доки чанк читається у фоні, друга заявка не подається: інакше два чанки поїхали б у Track
 ## одночасно й у непередбачуваному порядку.
 func test_no_second_request_while_one_is_pending() -> void:
+	_make_folder_level([0, 1, 2])
 	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	_loader.update(70.0)
 	var pending := _loader._pending_index
@@ -391,5 +411,6 @@ func test_starting_another_level_clears_authored_pickups() -> void:
 	_loader.start(FOLDER_LEVEL, _track, _spawner, _brick_level(1))
 	_remove_brick()
 	assert_eq(_spawner._authored_pickups.size(), 1)
+	_make_folder_level([0, 1, 2])
 	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	assert_eq(_spawner._authored_pickups.size(), 0, "тека-рівень пікапів не має — список порожній")
