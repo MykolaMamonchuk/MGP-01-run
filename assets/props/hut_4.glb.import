@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://7x844x2l1dpj"
-path="res://.godot/imported/hut.glb-a5ae5fc6880dbeb59902adf6df06eb71.scn"
+uid="uid://bpx3b7my0h0gt"
+path="res://.godot/imported/hut_4.glb-dd30c574c11f771903a35652004040ff.scn"
 
 [deps]
 
-source_file="res://assets/props/hut.glb"
-dest_files=["res://.godot/imported/hut.glb-a5ae5fc6880dbeb59902adf6df06eb71.scn"]
+source_file="res://assets/props/hut_4.glb"
+dest_files=["res://.godot/imported/hut_4.glb-dd30c574c11f771903a35652004040ff.scn"]
 
 [params]
 

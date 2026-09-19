@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dvga04i0gka1h"
-path.s3tc="res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.s3tc.ctex"
-path.etc2="res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.etc2.ctex"
+uid="uid://b0fqu7dsjos8x"
+path.s3tc="res://.godot/imported/hut_3_baked_normal.jpg-cb138fe9d9e144b9e995a4b85f8a3fae.s3tc.ctex"
+path.etc2="res://.godot/imported/hut_3_baked_normal.jpg-cb138fe9d9e144b9e995a4b85f8a3fae.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "768aade98342aaf44ee5651ada17eadb"
+"md5": "0d295ba2eb233a265b022d2606f60538"
 }
 
 [deps]
 
-source_file="res://assets/props/cart_market_2_baked_normal.jpg"
-dest_files=["res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.s3tc.ctex", "res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.etc2.ctex"]
+source_file="res://assets/props/hut_3_baked_normal.jpg"
+dest_files=["res://.godot/imported/hut_3_baked_normal.jpg-cb138fe9d9e144b9e995a4b85f8a3fae.s3tc.ctex", "res://.godot/imported/hut_3_baked_normal.jpg-cb138fe9d9e144b9e995a4b85f8a3fae.etc2.ctex"]
 
 [params]
 
@@ -42,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=512
-detect_3d/compress_to=0
+detect_3d/compress_to=1

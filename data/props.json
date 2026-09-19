@@ -1,121 +1,126 @@
 {
-  "_note": "kind -> справжня модель замість згенерованого вокселя. Ключ той самий, що й у data/voxels/<kind>.json та в маркерах levels/*, тож розкладку рівнів міняти не треба. Значення — шлях рядком, {path, scale, yaw_deg}, або СПИСОК таких: список означає кілька РІЗНИХ типів одного виду (три несхожі бочки), і кожен екземпляр бере свій. Виду тут нема (чи файл відсутній) — малюється воксель, як і раніше. Значення може задавати СПРАЙТ замість моделі: {sprite, height, billboard} — дощечка з картинкою замість геометрії, 3–6 КБ замість мегабайтів. Список того, що варто згенерувати, — docs/tasks/props.md",
-  "_приклад": {
-    "path": "res://assets/props/tree_oak.glb",
-    "scale": 1.0,
-    "yaw_deg": 0.0
-  },
-  "barrel": [
-    "res://assets/props/barrel_1.glb",
-    "res://assets/props/barrel_2.glb",
-    "res://assets/props/barrel_3.glb"
-  ],
-  "fence_low": [
-    "res://assets/props/fence_low_1.glb",
-    "res://assets/props/fence_low_2.glb",
-    "res://assets/props/fence_low_3.glb"
-  ],
-  "fence_rail": [
-    {
-      "path": "res://assets/props/fence_rail_1.glb",
-      "scale": 0.99814
-    },
-    {
-      "path": "res://assets/props/fence_rail_2.glb",
-      "scale": 0.9969
-    },
-    {
-      "path": "res://assets/props/fence_rail_3.glb",
-      "scale": 0.99897
-    }
-  ],
-  "crate": [
-    "res://assets/props/crate_1.glb",
-    "res://assets/props/crate_2.glb",
-    "res://assets/props/crate_3.glb"
-  ],
-  "puddle": "res://assets/props/puddle.glb",
-  "bridge_plank": "res://assets/props/bridge_plank.glb",
-  "bush_flower": [
-    {
-      "path": "res://assets/props/bush_flower_1.glb"
-    },
-    {
-      "path": "res://assets/props/bush_flower_2.glb"
-    }
-  ],
-  "bush": [
-    {
-      "path": "res://assets/props/bush_flower_1.glb"
-    },
-    {
-      "path": "res://assets/props/bush_flower_2.glb"
-    }
-  ],
-  "house_red": "res://assets/props/house_red.glb",
-  "_house_terra": "Широкий фахверковий будинок, детальний З УСІХ ЧОТИРЬОХ боків — тому ним можна ставити окремо, і він годиться процедурній забудові (walls_near у data/worlds/meadow.json).",
-  "house_terra": "res://assets/props/house_terra.glb",
-  "_house_terra_1": "Три вузькі надрічкові будинки. Окремі види, а не варіанти одного: їх ставлять РЯДОМ, впритул, і місце кожного треба знати точно — випадковий вибір із трьох різних ширин лишав би між ними щілини. Детальний у них ЛИШЕ фасад (згенеровано з однієї картинки), і саме тому вони працюють тільки в ряду: сусід затуляє голий бік, а фасад дивиться до води.",
-  "house_terra_1": "res://assets/props/house_terra_1.glb",
-  "house_terra_2": "res://assets/props/house_terra_2.glb",
-  "house_terra_3": "res://assets/props/house_terra_3.glb",
-  "house_terra_7": "res://assets/props/house_terra_7.glb",
-  "house_teal": "res://assets/props/house_teal.glb",
-  "house_straw": "res://assets/props/house_straw.glb",
-  "city_house_a": "res://assets/props/city_house_a.glb",
-  "city_house_b": "res://assets/props/city_house_b.glb",
-  "hut": "res://assets/props/hut.glb",
-  "wall_house": "res://assets/props/wall_house.glb",
-  "tree_round": "res://assets/props/tree_round.glb",
-  "tree": "res://assets/props/tree.glb",
-  "wall_tree_tall": "res://assets/props/wall_tree_tall.glb",
-  "pine_3": "res://assets/props/pine_3.glb",
-  "bush_cube": "res://assets/props/bush_cube.glb",
-  "flower": "res://assets/props/flower.glb",
-  "flower_yellow": "res://assets/props/flower_yellow.glb",
-  "flower_pink": "res://assets/props/flower_pink.glb",
-  "mushroom": "res://assets/props/mushroom.glb",
-  "mushroom_red": "res://assets/props/mushroom_red.glb",
-  "rock": "res://assets/props/rock.glb",
-  "rock_grey": "res://assets/props/rock_grey.glb",
-  "mossrock": "res://assets/props/mossrock.glb",
-  "hay_bale": "res://assets/props/hay_bale.glb",
-  "kiosk": "res://assets/props/kiosk.glb",
-  "awning_stall": "res://assets/props/awning_stall.glb",
-  "barn": "res://assets/props/barn.glb",
-  "house_small": "res://assets/props/house_small.glb",
-  "well": "res://assets/props/well.glb",
-  "mill": "res://assets/props/mill.glb",
-  "cart_market": [
-    "res://assets/props/cart_market_1.glb",
-    "res://assets/props/cart_market_2.glb",
-    "res://assets/props/cart_market_3.glb"
-  ],
-  "arch_terracotta": "res://assets/props/arch_terracotta.glb",
-  "gate_wood": "res://assets/props/gate_wood.glb",
-  "tower_terracotta": "res://assets/props/tower_terracotta.glb",
-  "clothesline": "res://assets/props/clothesline.glb",
-  "banner_line": "res://assets/props/banner_line.glb",
-  "xbox_red": "res://assets/props/xbox_red.glb",
-  "goose": "res://assets/props/goose.glb",
-  "gate_post": "res://assets/props/gate_post.glb",
-  "fence": [
-    "res://assets/props/fence_low_1.glb",
-    "res://assets/props/fence_low_2.glb",
-    "res://assets/props/fence_low_3.glb"
-  ],
-  "haycart": [
-    "res://assets/props/cart_market_1.glb",
-    "res://assets/props/cart_market_2.glb",
-    "res://assets/props/cart_market_3.glb"
-  ],
-  "beehive": [
-    "res://assets/props/barrel_1.glb",
-    "res://assets/props/barrel_2.glb",
-    "res://assets/props/barrel_3.glb"
-  ],
-  "garden": "res://assets/props/garden.glb",
-  "lantern": "res://assets/props/lantern.glb",
-  "branch": "res://assets/props/branch.glb",
-  "stump": "res://assets/props/stump.glb"
+	"_note": "kind -> справжня модель замість згенерованого вокселя. Ключ той самий, що й у data/voxels/<kind>.json та в маркерах levels/*, тож розкладку рівнів міняти не треба. Значення — шлях рядком, {path, scale, yaw_deg}, або СПИСОК таких: список означає кілька РІЗНИХ типів одного виду (три несхожі бочки), і кожен екземпляр бере свій. Виду тут нема (чи файл відсутній) — малюється воксель, як і раніше. Значення може задавати СПРАЙТ замість моделі: {sprite, height, billboard} — дощечка з картинкою замість геометрії, 3–6 КБ замість мегабайтів. Список того, що варто згенерувати, — docs/tasks/props.md",
+	"_приклад": {
+		"path": "res://assets/props/tree_oak.glb",
+		"scale": 1.0,
+		"yaw_deg": 0.0
+	},
+	"barrel": [
+		"res://assets/props/barrel_1.glb",
+		"res://assets/props/barrel_2.glb",
+		"res://assets/props/barrel_3.glb"
+	],
+	"fence_low": [
+		"res://assets/props/fence_low_1.glb",
+		"res://assets/props/fence_low_2.glb",
+		"res://assets/props/fence_low_3.glb"
+	],
+	"fence_rail": [
+		{
+			"path": "res://assets/props/fence_rail_1.glb",
+			"scale": 0.99814
+		},
+		{
+			"path": "res://assets/props/fence_rail_2.glb",
+			"scale": 0.9969
+		},
+		{
+			"path": "res://assets/props/fence_rail_3.glb",
+			"scale": 0.99897
+		}
+	],
+	"crate": [
+		"res://assets/props/crate_1.glb",
+		"res://assets/props/crate_2.glb",
+		"res://assets/props/crate_3.glb"
+	],
+	"puddle": "res://assets/props/puddle.glb",
+	"bridge_plank": "res://assets/props/bridge_plank.glb",
+	"bush_flower": [
+		{
+			"path": "res://assets/props/bush_flower_1.glb"
+		},
+		{
+			"path": "res://assets/props/bush_flower_2.glb"
+		}
+	],
+	"bush": [
+		{
+			"path": "res://assets/props/bush_flower_1.glb"
+		},
+		{
+			"path": "res://assets/props/bush_flower_2.glb"
+		}
+	],
+	"house_red": "res://assets/props/house_red.glb",
+	"_house_terra": "Широкий фахверковий будинок, детальний З УСІХ ЧОТИРЬОХ боків — тому ним можна ставити окремо, і він годиться процедурній забудові (walls_near у data/worlds/meadow.json).",
+	"house_terra": "res://assets/props/house_terra.glb",
+	"_house_terra_1": "Три вузькі надрічкові будинки. Окремі види, а не варіанти одного: їх ставлять РЯДОМ, впритул, і місце кожного треба знати точно — випадковий вибір із трьох різних ширин лишав би між ними щілини. Детальний у них ЛИШЕ фасад (згенеровано з однієї картинки), і саме тому вони працюють тільки в ряду: сусід затуляє голий бік, а фасад дивиться до води.",
+	"house_terra_1": "res://assets/props/house_terra_1.glb",
+	"house_terra_2": "res://assets/props/house_terra_2.glb",
+	"house_terra_3": "res://assets/props/house_terra_3.glb",
+	"house_terra_7": "res://assets/props/house_terra_7.glb",
+	"house_teal": "res://assets/props/house_teal.glb",
+	"house_straw": "res://assets/props/house_straw.glb",
+	"city_house_a": "res://assets/props/city_house_a.glb",
+	"city_house_b": "res://assets/props/city_house_b.glb",
+	"hut": [
+		"res://assets/props/hut_1.glb",
+		"res://assets/props/hut_2.glb",
+		"res://assets/props/hut_3.glb",
+		"res://assets/props/hut_4.glb"
+	],
+	"wall_house": "res://assets/props/wall_house.glb",
+	"tree_round": "res://assets/props/tree_round.glb",
+	"tree": "res://assets/props/tree.glb",
+	"wall_tree_tall": "res://assets/props/wall_tree_tall.glb",
+	"pine_3": "res://assets/props/pine_3.glb",
+	"bush_cube": "res://assets/props/bush_cube.glb",
+	"flower": "res://assets/props/flower.glb",
+	"flower_yellow": "res://assets/props/flower_yellow.glb",
+	"flower_pink": "res://assets/props/flower_pink.glb",
+	"mushroom": "res://assets/props/mushroom.glb",
+	"mushroom_red": "res://assets/props/mushroom_red.glb",
+	"rock": "res://assets/props/rock.glb",
+	"rock_grey": "res://assets/props/rock_grey.glb",
+	"mossrock": "res://assets/props/mossrock.glb",
+	"hay_bale": "res://assets/props/hay_bale.glb",
+	"kiosk": "res://assets/props/kiosk.glb",
+	"awning_stall": "res://assets/props/awning_stall.glb",
+	"barn": "res://assets/props/barn.glb",
+	"house_small": "res://assets/props/house_small.glb",
+	"well": "res://assets/props/well.glb",
+	"mill": "res://assets/props/mill.glb",
+	"cart_market": [
+		"res://assets/props/cart_market_1.glb",
+		"res://assets/props/cart_market_2.glb",
+		"res://assets/props/cart_market_3.glb"
+	],
+	"arch_terracotta": "res://assets/props/arch_terracotta.glb",
+	"gate_wood": "res://assets/props/gate_wood.glb",
+	"tower_terracotta": "res://assets/props/tower_terracotta.glb",
+	"clothesline": "res://assets/props/clothesline.glb",
+	"banner_line": "res://assets/props/banner_line.glb",
+	"xbox_red": "res://assets/props/xbox_red.glb",
+	"goose": "res://assets/props/goose.glb",
+	"gate_post": "res://assets/props/gate_post.glb",
+	"fence": [
+		"res://assets/props/fence_low_1.glb",
+		"res://assets/props/fence_low_2.glb",
+		"res://assets/props/fence_low_3.glb"
+	],
+	"haycart": [
+		"res://assets/props/cart_market_1.glb",
+		"res://assets/props/cart_market_2.glb",
+		"res://assets/props/cart_market_3.glb"
+	],
+	"beehive": [
+		"res://assets/props/barrel_1.glb",
+		"res://assets/props/barrel_2.glb",
+		"res://assets/props/barrel_3.glb"
+	],
+	"garden": "res://assets/props/garden.glb",
+	"lantern": "res://assets/props/lantern.glb",
+	"branch": "res://assets/props/branch.glb",
+	"stump": "res://assets/props/stump.glb"
 }

@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dvga04i0gka1h"
-path.s3tc="res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.s3tc.ctex"
-path.etc2="res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.etc2.ctex"
+uid="uid://by17fqgnyy2th"
+path.s3tc="res://.godot/imported/hut_2_baked_color.jpg-7823489ffbfada5fb608df714a18bf56.s3tc.ctex"
+path.etc2="res://.godot/imported/hut_2_baked_color.jpg-7823489ffbfada5fb608df714a18bf56.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "768aade98342aaf44ee5651ada17eadb"
+"md5": "f0c96261af2b060620f9d44cd39d4455"
 }
 
 [deps]
 
-source_file="res://assets/props/cart_market_2_baked_normal.jpg"
-dest_files=["res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.s3tc.ctex", "res://.godot/imported/cart_market_2_baked_normal.jpg-a06cc9e2a589e27a53ba24e9d0837be0.etc2.ctex"]
+source_file="res://assets/props/hut_2_baked_color.jpg"
+dest_files=["res://.godot/imported/hut_2_baked_color.jpg-7823489ffbfada5fb608df714a18bf56.s3tc.ctex", "res://.godot/imported/hut_2_baked_color.jpg-7823489ffbfada5fb608df714a18bf56.etc2.ctex"]
 
 [params]
 
@@ -26,7 +26,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=0
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
@@ -42,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=512
-detect_3d/compress_to=0
+detect_3d/compress_to=1
