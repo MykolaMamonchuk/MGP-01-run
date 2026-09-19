@@ -12,6 +12,10 @@
 extends Node3D
 
 const SIZE := 660
+## Кадр підганяється під розмір моделі: будинок 2,1 м у кадрі на 3,4 м не вміщався й обрізався
+## згори й з боків, а саме по цьому знімку моделі й приймають. ZOOM= більший — ширший кадр.
+var CAM_SIZE: float = float(OS.get_environment("ZOOM")) if OS.has_environment("ZOOM") else 3.4
+var SPREAD: float = CAM_SIZE / 3.4 * 1.05
 const ANGLES := [0.0, 90.0, 180.0, 270.0]
 
 var _done := false
@@ -57,7 +61,7 @@ func _ready() -> void:
 	# чотири копії по колу — щоб усі боки були в одному кадрі, а не в чотирьох запусках
 	for i in ANGLES.size():
 		var inst := scene.instantiate() as Node3D
-		inst.position = Vector3((float(i) - 1.5) * 1.05, 0.0, 0.0)
+		inst.position = Vector3((float(i) - 1.5) * SPREAD, 0.0, 0.0)
 		inst.rotation_degrees.y = float(ANGLES[i]) + _num("YAW", 0.0)
 		var s := _num("SCALE", 1.0)
 		inst.scale = Vector3.ONE * s
@@ -77,8 +81,8 @@ func _ready() -> void:
 
 	var cam := Camera3D.new()
 	cam.projection = Camera3D.PROJECTION_ORTHOGONAL
-	cam.size = 3.4
-	cam.position = Vector3(0.0, 0.85, 5.0)
+	cam.size = CAM_SIZE
+	cam.position = Vector3(0.0, CAM_SIZE * 0.25, 5.0)
 	cam.rotation_degrees = Vector3(-8.0, 0.0, 0.0)
 	add_child(cam)
 	cam.current = true

@@ -56,52 +56,61 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.0, 0, -140.0)
 script = ExtResource("1")
 role = "wall_near"
 kind = "house_terra"
+yaw_deg = 90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.8, 0, -14.0)
 
 [node name="M9_wall_near_house_red" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "house_red"
+yaw_deg = -90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.6, 0, -28.0)
 
 [node name="M10_wall_near_barn" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "barn"
+yaw_deg = 90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.4, 0, -44.0)
 
 [node name="M11_wall_near_kiosk" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "kiosk"
+yaw_deg = -90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.8, 0, -58.0)
 
 [node name="M12_wall_near_house_small" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "house_small"
+yaw_deg = 90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.6, 0, -74.0)
 
 [node name="M13_wall_near_awning_stall" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "awning_stall"
+yaw_deg = -90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 9.0, 0, -88.0)
 
 [node name="M14_wall_near_house_red" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "house_red"
+yaw_deg = 90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -9.0, 0, -104.0)
 
 [node name="M15_wall_near_house_terra" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "house_terra"
+yaw_deg = -90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.6, 0, -118.0)
 
 [node name="M16_wall_near_barn" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "barn"
+yaw_deg = 90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.8, 0, -134.0)

@@ -24,9 +24,16 @@ const EPS := 0.01
 ## Ролі, які стоять ОБАБІЧ дороги. Перешкоди й пікапи сюди не входять — вони живуть у смугах,
 ## і їхній x завжди нуль (місце задає `lane`).
 const SIDE_ROLES := ["decor", "landmark", "wall_near", "building"]
-## Ці мусять стояти ще й ЗА каналом — так само, як процедурна забудова (Track.FAR_MIN і
-## c_offset + c_width у _decorate()).
+## Ці мусять стояти ще й ЗА каналом. Причому не «початком координат за водою», а З ЗАПАСОМ на
+## власну товщину: маркер задає центр, а будинок розходиться від нього на всі боки, та ще й
+## повертається (вхід дивиться до води), тож до води тягнеться то ширина, то глибина.
+##
+## Запас беремо в самої гри — так процедурна забудова і вибирає собі місце (Track._decorate):
+##   far_min = max(FAR_MIN, c_offset + c_width + 0.15 + BUILD_HALF_W)
 const BEYOND_CANAL := ["wall_near", "building"]
+## Track.BUILD_HALF_W — половина ширини типового будинку; 0.15 — зазор до берега.
+const BUILD_HALF_W := 1.3
+const BANK_GAP := 0.15
 
 
 func _json(path: String) -> Dictionary:
@@ -121,7 +128,9 @@ func test_no_side_marker_stands_on_the_road_or_in_the_water() -> void:
 							assert_false(absf(x) > water_lo - EPS and absf(x) < water_hi + EPS,
 								"%s: канал тут на %.2f…%.2f — маркер у воді" % [where, water_lo, water_hi])
 							if BEYOND_CANAL.has(String(m["role"])):
-								assert_gt(absf(x), water_hi - EPS,
-									"%s: забудова мусить стояти ЗА каналом (далі за %.2f)"
-									% [where, water_hi])
+								var build_min := water_hi + BANK_GAP + BUILD_HALF_W
+								assert_gt(absf(x), build_min - EPS,
+									("%s: забудова мусить стояти за каналом ІЗ ЗАПАСОМ на власну "
+									+ "товщину — далі за %.2f м (вода до %.2f)")
+									% [where, build_min, water_hi])
 	assert_gt(checked, 0, "бічні маркери знайшлись — інакше сторож стереже порожнечу")
