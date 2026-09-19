@@ -29,3 +29,6 @@ __pycache__/
 .claude/settings.local.json
 # Робочі копії агентів: окремі checkout-и того самого репозиторію, у git їм не місце
 .claude/worktrees/
+
+# веб-збірка: 117 МБ, збирається за хвилину з джерел
+export/

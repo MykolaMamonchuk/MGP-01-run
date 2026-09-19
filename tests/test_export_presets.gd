@@ -1,0 +1,68 @@
+## Що НЕ сміє потрапити у збірку для гравця.
+##
+## `docs/MCP.md` каже прямо: міст MCP не має сторожа релізної збірки, тож його треба прибрати
+## перед експортом. Прибирає його лише рядок `exclude_filter` у `export_presets.cfg` — файлі,
+## який редагують мишею в діалозі експорту й у якому легко загубити кому. Помилка тут не
+## падає й нічого не друкує: збірка просто виходить із мостом усередині.
+##
+## Міст відкриває виконання GDScript ззовні. У грі для дитини цьому місця немає.
+##
+## Сюди ж — тести, GUT та інструменти: вони нічого не ламають, але це десятки мегабайтів у
+## збірці, яку дитина качає по телефонній мережі.
+extends GutTest
+
+const PRESETS := "res://export_presets.cfg"
+## Має бути виключено з КОЖНОГО пресета. Перше — про безпеку, решта — про вагу.
+const MUST_EXCLUDE := ["addons/godot_mcp_server/*", "addons/gut/*", "tests/*", "tools/*",
+	"src/debug/*", "docs/*"]
+
+
+## Пресети як [{name, exclude}]. Читаємо текстом: у грі цей файл не потрібен, тож тягти
+## заради нього ConfigFile з редакторськими особливостями сенсу немає.
+func _presets() -> Array:
+	var f := FileAccess.open(PRESETS, FileAccess.READ)
+	if f == null:
+		return []
+	var out := []
+	var name := ""
+	for line in f.get_as_text().split("\n"):
+		var s := String(line).strip_edges()
+		if s.begins_with("name=\""):
+			name = s.substr(6).split("\"")[0]
+		elif s.begins_with("exclude_filter=\"") and name != "":
+			out.append({"name": name, "exclude": s.substr(16).split("\"")[0]})
+			name = ""
+	return out
+
+
+func test_presets_are_readable() -> void:
+	assert_true(FileAccess.file_exists(PRESETS), "export_presets.cfg на місці")
+	assert_gt(_presets().size(), 0, "пресети прочитались — інакше сторож стереже порожнечу")
+
+
+func test_no_preset_ships_the_mcp_bridge() -> void:
+	var bad := []
+	for p in _presets():
+		for rule in MUST_EXCLUDE:
+			if not String((p as Dictionary)["exclude"]).contains(String(rule)):
+				bad.append("%s: нема правила %s" % [(p as Dictionary)["name"], rule])
+	assert_eq(bad.size(), 0, "у пресетах експорту бракує виключень: %s" % [bad])
+
+
+## І навпаки: дебаг-накладку у збірці для дитини не показуємо самі — вона вмикається лише за
+## прапорцем `debug_hud`, який стоїть у випробувальній веб-збірці. Тут стережемо, що прапорець
+## не розповзся по решті пресетів: інакше дитина отримає екран цифр замість гри.
+func test_debug_hud_flag_only_where_intended() -> void:
+	var f := FileAccess.open(PRESETS, FileAccess.READ)
+	assert_not_null(f, "export_presets.cfg читається")
+	var name := ""
+	var flagged := []
+	for line in f.get_as_text().split("\n"):
+		var s := String(line).strip_edges()
+		if s.begins_with("name=\""):
+			name = s.substr(6).split("\"")[0]
+		elif s.begins_with("custom_features=\"") and s.contains("debug_hud"):
+			flagged.append(name)
+	assert_eq(flagged, ["Web"],
+		"прапорець debug_hud має стояти лише у веб-збірці для випробувань, а стоїть у: %s"
+		% [flagged])

@@ -125,6 +125,7 @@ var session_total := 600.0
 var switching := false
 var quests := Quests.new()
 
+var _debug: DebugOverlay
 var _ambient: GPUParticles3D
 var _weather: GPUParticles3D
 var _fireflies: GPUParticles3D
@@ -202,6 +203,18 @@ func _ready() -> void:
 	if RngSeed.fixed():
 		seed(RngSeed.value())
 
+	# Дебаг-накладка (к/с, виклики, стан гри). Показується сама лише там, де вона потрібна:
+	# у збірці з прапорцем "debug_hud" (веб-збірка для випробувань, див. export_presets.cfg)
+	# і в запуску з редактора. У звичайній збірці для дитини вона мовчить, але лишається —
+	# F3 дістає її й там, і це навмисно: коли щось піде не так на чужому телефоні, числа
+	# мають бути за одну клавішу, а не за перезбірку.
+	_debug = DebugOverlay.new()
+	add_child(_debug)
+	_debug.setup(self)
+	if not (OS.has_feature("debug_hud") or OS.is_debug_build()):
+		_debug.mode = DebugOverlay.Mode.HIDDEN
+		_debug._panel.visible = false
+
 	profiles = AgeAdapt.load_profiles()
 	worlds = load_worlds()
 	heroes = HeroSelect.load_heroes()
@@ -239,10 +252,14 @@ func _ready() -> void:
 	_wire_diorama()
 	_make_magpie()
 
-	# лічильник кадрів — лише коли попросили (PERF=1), у звичайній грі його нема
-	var perf := load("res://src/debug/perf_overlay.gd")
-	if perf != null:
-		perf.attach(self)
+	# Лічильник кадрів для замірів (PERF=1) живе в `src/debug/`, а ця тека ВИКЛЮЧЕНА з
+	# експорту. Без запитання до ResourceLoader кожен запуск веб-збірки починався з двох
+	# червоних рядків у консолі про ненайдений скрипт — знайдено headless-браузером на
+	# першій же зібраній сторінці. У самій грі числа показує DebugOverlay, він у src/ui/.
+	if ResourceLoader.exists("res://src/debug/perf_overlay.gd"):
+		var perf := load("res://src/debug/perf_overlay.gd")
+		if perf != null:
+			perf.attach(self)
 
 	_apply_profile(AgeAdapt.current)
 	_apply_hero(String(SaveService.child().get("hero", "puf")))
