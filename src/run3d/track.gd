@@ -1268,6 +1268,14 @@ func _decorate(row: Node3D) -> void:
 				var f_kind := String(_far_filler[_rng.randi() % _far_filler.size()])
 				var f_scale := _rng.randf_range(_d2("filler_scale", FAR_FILLER_SCALE)[0], _d2("filler_scale", FAR_FILLER_SCALE)[1])
 				var f_half := _kind_half_extent(f_kind) * f_scale
+				# ЗАПОВНЮВАЧ ТЕЖ МУСИТЬ ЧЕКАТИ, доки скінчиться попередня будівля. Будинки
+				# стежили одне за одним через _far_clear, а дерева — ні: гілка elif спрацьовує,
+				# коли будинок не ставиться В ЦЬОМУ ряду, але поставлений три ряди тому займає
+				# ще кілька метрів по Z, і дерево лягало просто в нього. Заміряно на
+				# заморожених цеглинках: 2627 накладок, майже всі виду «дерево в будинку»
+				# (mill + tree_round, house_terra + pine_3). Саме це замовник і бачив у грі.
+				if _row_distance_m[i] - f_half.y < _far_clear[sidx]:
+					continue
 				var f_lo := far_min
 				if _canal_sides.has(side):
 					f_lo = maxf(_d("far_min", FAR_MIN), c_offset + c_width + 0.15 + f_half.x)
