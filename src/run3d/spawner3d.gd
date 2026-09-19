@@ -82,6 +82,10 @@ var distance_m := 0.0
 ## якщо заданий — advance() спавнить по ньому курсором замість _next_gap()/_spawn_group().
 var _authored_obstacles: Array = []
 var _authored_cursor := 0
+## Авторські пікапи — маркери role = "pickup" з цеглинки. Свій курсор, бо йдуть вони своїм
+## розкладом, а не за перешкодами.
+var _authored_pickups: Array = []
+var _authored_pickup_cursor := 0
 var _authored_active := false
 
 var _gap_left := 8.0
@@ -135,6 +139,7 @@ func configure(p: Dictionary, w: Dictionary, h: Hero3D, m: ModeBase, r: Node) ->
 	_seen_kinds.clear()
 	_pickup_pending = ""
 	_schedule_pickup()
+	_authored_pickup_cursor = 0
 	_tier2 = null
 	_tier2_due = false
 	_tier2_t = randf_range(float(TIER2_INTERVAL[0]), float(TIER2_INTERVAL[1]))
@@ -244,6 +249,7 @@ func advance(dist: float, total_distance_m: Variant = null) -> void:
 	_gap_left -= dist
 	# рядок останньої групи їде разом із дорогою
 	_last_free_z += dist
+	_advance_authored_pickups()
 	if _authored_active:
 		_advance_authored()
 		return
@@ -286,28 +292,113 @@ func _advance_authored() -> void:
 		return
 	while _authored_cursor < _authored_obstacles.size():
 		var rec: Dictionary = _authored_obstacles[_authored_cursor]
+		var z := float(rec.get("z_m", 0.0))
+		if distance_m < z - absf(SPAWN_Z):
+			break
+		# Беремо ВСЮ групу цього метра, а не запис поодинці: вільну доріжку визначає група.
+		# Поки автор ставить по одній перешкоді на місце, група — це один запис; але щойно
+		# він поставить дві поруч, «вільною» не сміє виявитись зайнята.
+		var group: Array = []
+		while _authored_cursor < _authored_obstacles.size():
+			var r: Dictionary = _authored_obstacles[_authored_cursor]
+			if absf(float(r.get("z_m", 0.0)) - z) > 0.5:
+				break
+			group.append(r)
+			_authored_cursor += 1
+		var used := {}
+		for r in group:
+			used[clampi(int((r as Dictionary).get("lane", 0)), -max_lane(), max_lane())] = true
+		var free_lane := _free_lane_among(used)
+		var placed := false
+		for r in group:
+			if _spawn_authored_obstacle(r, free_lane):
+				placed = true
+		if placed:
+			_spawn_authored_collectibles(free_lane)
+
+
+## Доріжка, у якій на цьому метрі НЕМА перешкоди. Перевага центру: саме туди дитина
+## повертається сама, і саме туди має вести доріжка зі злитків.
+func _free_lane_among(used: Dictionary) -> int:
+	if not used.has(0):
+		return 0
+	for step in range(1, max_lane() + 1):
+		for l in [-step, step]:
+			if not used.has(l):
+				return int(l)
+	return 0   # усі доріжки зайняті — рівень і так непрохідний, вести нікуди
+
+
+## Збірне за авторською групою — ТЕ САМЕ, що ставить _spawn_group() за випадковою.
+##
+## Без цього авторський рівень не давав дитині нічого. Заміряно на 400 м: випадковий рівень —
+## 80 перешкод і 276 злитків, авторський — 20 перешкод і НУЛЬ злитків, нуль пікапів. Причина
+## була проста й тому непомітна: злитки й пікапи ставить _spawn_group(), а авторська гілка
+## advance() виходить із функції до нього. Квест «збери 15 зірочок» на рівні 1 був недосяжний.
+func _spawn_authored_collectibles(free_lane: int) -> void:
+	_spawn_ingot_pattern(free_lane, SPAWN_Z - STARS_BEHIND_MIN)
+	# Пікап, що чекає своєї черги, — лише коли цеглинки не розставили пікапи САМІ: інакше
+	# автор просив би одне, а рівень давав би це плюс ще випадкове зверху.
+	if _pickup_pending != "" and _authored_pickups.is_empty():
+		_spawn_pickup(_pickup_pending, free_lane, SPAWN_Z - PICKUP_BEHIND)
+		_pickup_pending = ""
+
+
+## Курсор по авторських пікапах: маркер сам каже, ЩО й У ЯКІЙ доріжці, і з'являється на тій
+## самій лінії спавну, що й перешкоди.
+func _advance_authored_pickups() -> void:
+	if not spawning or finish_pending:
+		return
+	while _authored_pickup_cursor < _authored_pickups.size():
+		var rec: Dictionary = _authored_pickups[_authored_pickup_cursor]
 		if distance_m < float(rec.get("z_m", 0.0)) - absf(SPAWN_Z):
 			break
-		_spawn_authored_obstacle(rec)
-		_authored_cursor += 1
+		_authored_pickup_cursor += 1
+		var kind := String(rec.get("kind", ""))
+		if not (_pickups.get("kinds", {}) as Dictionary).has(kind):
+			push_warning("пікап «%s» не описаний у data/pickups.json — маркер пропущено" % kind)
+			continue
+		_spawn_pickup(kind, clampi(int(rec.get("lane", 0)), -max_lane(), max_lane()), SPAWN_Z)
+
+
+func set_authored_pickups(records: Array) -> void:
+	clear_authored_pickups()
+	add_authored_pickups(records)
+
+
+func add_authored_pickups(records: Array) -> void:
+	_authored_pickups.append_array(records)
+	_authored_pickups.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
+
+
+func clear_authored_pickups() -> void:
+	_authored_pickups = []
+	_authored_pickup_cursor = 0
 
 
 ## Один запис із авторського списку — тим самим _spawn_obstacle(), що й випадкові групи.
 ## Запис без kind, але з action («тут треба перестрибнути») — вид добирає СВІТ.
-func _spawn_authored_obstacle(rec: Dictionary) -> void:
+## free_lane — доріжка БЕЗ перешкоди, порахована по всій групі цього метра. Раніше сюди йшла
+## доріжка самої перешкоди, тобто «вільною» оголошувалась зайнята: авто-допомога й підказка
+## «убік» вели дитину рівно в те, що треба обійти.
+##
+## Повертає true, якщо перешкоду справді поставлено, — за поставленою групою йдуть злитки, а
+## за пропущеною їм іти нема за чим.
+func _spawn_authored_obstacle(rec: Dictionary, free_lane: int) -> bool:
 	var kind := String(rec.get("kind", ""))
 	var defs: Dictionary = world.get("obstacles", {})
 	if kind == "":
 		kind = _kind_for_action(String(rec.get("action", "")))
 		if kind == "":
-			return   # дії в цьому світі нема (або нема й самої дії) — запис пропущено
+			return false   # дії в цьому світі нема (або нема й самої дії) — запис пропущено
 	if not defs.has(kind):
-		return   # автор указав перешкоду, якої нема в цьому світі — пропускаємо, а не падаємо
+		return false   # автор указав перешкоду, якої нема в цьому світі — пропускаємо, а не падаємо
 	var lane := clampi(int(rec.get("lane", 0)), -max_lane(), max_lane())
-	_last_free_lane = lane
+	_last_free_lane = free_lane
 	_last_free_z = SPAWN_Z
 	var ob := _spawn_obstacle(kind, defs[kind], lane)
-	ob.free_lane = lane
+	ob.free_lane = free_lane
+	return true
 
 
 ## Вид перешкоди під ЗАДАНУ ДІЮ в поточному світі. Чанк пише дію («jump»), бо спільних видів
@@ -563,6 +654,8 @@ func _schedule_pickup() -> void:
 func _tick_pickups(delta: float) -> void:
 	if _pickups.is_empty() or _pickup_pending != "" or finish_pending:
 		return
+	if not _authored_pickups.is_empty():
+		return   # пікапи розставив автор — випадкові поверх них були б чужими в його задумі
 	_pickup_t -= delta
 	if _pickup_t > 0.0:
 		return

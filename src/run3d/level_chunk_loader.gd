@@ -51,6 +51,7 @@ var _done := false             ## усі чанки рівня вже заван
 func _clear_obstacles() -> void:
 	if _spawner != null:
 		_spawner.clear_authored_obstacles()
+		_spawner.clear_authored_pickups()
 
 
 ## Почати стрімінг рівня num: визначає, з чого рівень зібрано, вантажить перший шматок (або весь
@@ -289,3 +290,6 @@ func _apply(packed: PackedScene, offset_m: float) -> void:
 	_track.add_authored_timeline(decor, extracted.get("buildings", []))
 	if _spawner != null:
 		_spawner.add_authored_obstacles(extracted.get("obstacles", []))
+		# Пікапи цеглинки. Доти LevelTimeline їх діставав, а не брав ніхто: маркер-зірочка
+		# зникав без жодного слова. Саме про них і йшлося в «своя кількість золота на чанк».
+		_spawner.add_authored_pickups(extracted.get("pickups", []))

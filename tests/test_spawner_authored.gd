@@ -110,3 +110,103 @@ func test_add_authored_obstacles_spawns_new_chunk_records_at_their_distance() ->
 	_spawner.advance(1.0)   # distance_m = 6.0
 	assert_eq(_obstacles().size(), 2, "запис із дозавантаженого чанку з'явився рівно на порозі")
 	assert_eq(_obstacles()[1].kind, "branch")
+
+
+# --- збірне на авторському рівні --------------------------------------------------------
+#
+# Найдорожча вада цього файлу, і знайшлась вона не тестом, а заміром. Злитки й пікапи ставить
+# _spawn_group(), а авторська гілка advance() виходить із функції ДО нього — тобто на рівні,
+# розставленому маркерами, дитина не збирала нічого взагалі. Заміряно на 400 м до правки:
+# випадковий рівень — 80 перешкод і 276 злитків, авторський — 20 перешкод і НУЛЬ злитків.
+# Квест «збери 15 зірочок» на рівні 1 був недосяжний, і жоден тест цього не бачив.
+
+func _ingots() -> Array:
+	var out := []
+	for c in _spawner.get_children():
+		if c is Ingot3D:
+			out.append(c)
+	return out
+
+
+func _pickups_spawned() -> Array:
+	var out := []
+	for c in _spawner.get_children():
+		if c is Pickup3D:
+			out.append(c)
+	return out
+
+
+func _line(count: int, step := 15.0, first := 40.0) -> Array:
+	var out := []
+	for i in range(count):
+		out.append({"z_m": first + float(i) * step, "kind": "stump", "lane": (i % 3) - 1,
+			"override": {}, "yaw_deg": 0.0, "scale": 1.0})
+	return out
+
+
+func test_authored_obstacles_are_followed_by_ingots() -> void:
+	_spawner.set_authored_obstacles(_line(3))
+	for i in range(80):
+		_spawner.advance(1.0)
+	assert_eq(_obstacles().size(), 3, "усі три перешкоди з'явились")
+	assert_gt(_ingots().size(), 0,
+		"за авторською перешкодою йде доріжка зі злитків — так само, як за випадковою групою")
+
+
+## Вільна доріжка — та, у якій перешкоди НЕМА. Раніше сюди писалась доріжка самої перешкоди,
+## і авто-допомога вела дитину рівно в те, що треба обійти.
+func test_free_lane_is_not_the_lane_the_obstacle_stands_in() -> void:
+	_spawner.set_authored_obstacles([
+		{"z_m": 40.0, "kind": "stump", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	for i in range(10):
+		_spawner.advance(1.0)
+	assert_eq(_obstacles().size(), 1)
+	assert_ne(_obstacles()[0].free_lane, 0, "вільна доріжка не та, у якій стоїть пеньок")
+
+
+## Дві перешкоди на ОДНОМУ метрі: вільною мусить лишитись третя доріжка, а не котрась із двох.
+func test_free_lane_accounts_for_the_whole_group_on_one_metre() -> void:
+	_spawner.set_authored_obstacles([
+		{"z_m": 40.0, "kind": "stump", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0},
+		{"z_m": 40.0, "kind": "stump", "lane": -1, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	for i in range(10):
+		_spawner.advance(1.0)
+	assert_eq(_obstacles().size(), 2)
+	for ob in _obstacles():
+		assert_eq(ob.free_lane, 1, "вільна лишилась +1 — єдина, де нічого не стоїть")
+
+
+# --- авторські пікапи -------------------------------------------------------------------
+
+func test_authored_pickup_markers_spawn_at_their_own_place() -> void:
+	_spawner.set_authored_pickups([
+		{"z_m": 40.0, "kind": "heart", "lane": 1, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	for i in range(5):
+		_spawner.advance(1.0)
+	assert_eq(_pickups_spawned().size(), 0, "до порогу 40-34=6 пікапа ще нема")
+	_spawner.advance(1.0)
+	assert_eq(_pickups_spawned().size(), 1, "на порозі пікап з'явився")
+	assert_eq(_pickups_spawned()[0].kind, "heart")
+	assert_almost_eq(_pickups_spawned()[0].position.x, Hero3D.LANE_W, 0.01,
+		"і саме в тій доріжці, яку назвав маркер")
+
+
+## Пікап, якого нема в data/pickups.json, — пропуск із попередженням, а не падіння: помилка
+## в описі цеглинки не мусить валити рівень.
+func test_unknown_authored_pickup_is_skipped_not_crashed() -> void:
+	gut.error_tracker.treat_push_error_as = GutUtils.TREAT_AS.NOTHING
+	_spawner.set_authored_pickups([
+		{"z_m": 40.0, "kind": "нема_такого", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	for i in range(10):
+		_spawner.advance(1.0)
+	assert_eq(_pickups_spawned().size(), 0)
+
+
+## Автор розставив пікапи сам — випадкові поверх них не додаються: інакше він просив би одне,
+## а рівень давав би це плюс ще щось зверху.
+func test_authored_pickups_switch_off_the_random_pickup_timer() -> void:
+	_spawner.set_authored_pickups([
+		{"z_m": 40.0, "kind": "heart", "lane": 0, "override": {}, "yaw_deg": 0.0, "scale": 1.0}])
+	_spawner._pickup_pending = ""
+	_spawner._tick_pickups(100.0)
+	assert_eq(_spawner._pickup_pending, "", "випадковий таймер пікапів мовчить")

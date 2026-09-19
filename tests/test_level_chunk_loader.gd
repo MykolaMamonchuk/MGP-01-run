@@ -235,6 +235,15 @@ kind = "tree"
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.1, 0, -5.0)
 """)
 	_write_scene("layout.tscn", """
+[node name="Пікапи" type="Node3D" parent="."]
+
+[node name="P1_pickup_heart" type="Node3D" parent="Пікапи"]
+script = ExtResource("1")
+role = "pickup"
+kind = "heart"
+lane = 1
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -20.0)
+
 [node name="Перешкоди" type="Node3D" parent="."]
 
 [node name="M1_obstacle_stump" type="Node3D" parent="Перешкоди"]
@@ -353,3 +362,34 @@ func test_every_level_in_the_data_has_a_plan_and_all_its_files_exist() -> void:
 			assert_almost_eq(float(piece["offset_m"]), total, 0.001,
 				"рівень %d: цеглинки лягають упритул, без дір і нахлистів" % num)
 			total += float(piece["length_m"])
+
+
+## Пікап цеглинки доїжджає до спавнера. Доти LevelTimeline його діставав, а не брав ніхто:
+## маркер-зірочка зникав без жодного слова, і саме про це йшлося в «своя кількість золота на
+## чанк». Тест наскрізний навмисно — обрив був рівно на стику двох робочих половин.
+func test_pickup_markers_of_a_chunk_reach_the_spawner() -> void:
+	_make_brick()
+	_loader.start(FOLDER_LEVEL, _track, _spawner, _brick_level(3))
+	var d := 0.0
+	while d < 200.0:
+		d += 5.0
+		_update(d)
+	_remove_brick()
+	var zs: Array = []
+	for rec in _spawner._authored_pickups:
+		zs.append(roundi(float(rec.get("z_m", 0.0))))
+	zs.sort()
+	# по одному на копію цеглинки, на 20-му метрі кожної
+	assert_eq(zs, [20, 60, 100])
+	for rec in _spawner._authored_pickups:
+		assert_eq(String(rec.get("kind", "")), "heart")
+
+
+## Новий рівень не успадковує пікапів попереднього — курсор і список скидаються на старті.
+func test_starting_another_level_clears_authored_pickups() -> void:
+	_make_brick()
+	_loader.start(FOLDER_LEVEL, _track, _spawner, _brick_level(1))
+	_remove_brick()
+	assert_eq(_spawner._authored_pickups.size(), 1)
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	assert_eq(_spawner._authored_pickups.size(), 0, "тека-рівень пікапів не має — список порожній")
