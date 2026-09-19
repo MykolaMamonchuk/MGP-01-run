@@ -3,6 +3,9 @@
 ##   OUT=/tmp/probe STAGE=level LEVEL=1 FRAMES=300 \
 ##     /Applications/Godot.app/Contents/MacOS/Godot --path . --fixed-fps 60 res://tools/probe/probe.tscn
 ##
+## Ручки: STAGE, LEVEL, FRAMES, RESET, PROFILE, RESIZE, BURST, PAUSE, NUDGE,
+## QUALITY=smooth|middle|pretty (якість зображення — згладжування), PARENTS=1 (екран батьків).
+##
 ## Пише:
 ##   OUT/probe.json — кожен Control сцени з глобальним прямокутником, текстом і видимістю,
 ##                    плюс лічильники продуктивності й розмір вікна;
@@ -31,6 +34,18 @@ func _ready() -> void:
 	# STAGE дає різні екрани на різних машинах, тобто порівнювати «до/після» нічим.
 	if OS.get_environment("RESET") == "1":
 		DirAccess.remove_absolute(ProjectSettings.globalize_path("user://save.json"))
+		# Видалити файл мало: SaveService прочитав його ЩЕ ДО старту проби, і в пам'яті
+		# лишається стан попереднього прогону (а він же й запишеться назад). Через це два
+		# прогони поспіль ішли з різних станів: заміряно 19.09.2026 — кадр одного прогону
+		# показував 5 монет і одне серце, наступного 63 монети й три серця, тобто
+		# порівнювати їх було нічим. Перечитуємо явно: файлу нема — буде чистий дефолт.
+		SaveService.load_game()
+	# QUALITY=smooth|middle|pretty — стан налаштування «Якість зображення» (автолоад Quality).
+	# Без цієї ручки проба міряла б у тому стані, який лишився у ВАШОМУ збереженні: RESET
+	# видаляє файл, але SaveService прочитав його ще до старту проби, тож у пам'яті лишається
+	# старе значення. Застосовуємо ДО першого кадру й НЕ пишемо в збереження.
+	if OS.has_environment("QUALITY"):
+		Quality.apply_state(OS.get_environment("QUALITY"))
 	_run = load("res://src/run3d/run3d.tscn").instantiate()
 	add_child(_run)
 	await _frames_passed(30)
@@ -46,8 +61,31 @@ func _ready() -> void:
 	else:
 		await _frames_passed(_frames)
 
+	# PARENTS=1 — відкрити екран батьків перед знімком. Панель налаштувань будується кодом
+	# і росте від кожного нового рядка, тож перевіряти її треба геометрією (вона потрапляє
+	# в "controls" звіту) і кадром, а не вірою.
+	if OS.get_environment("PARENTS") == "1":
+		var hud := _run.get_node_or_null("HUD")
+		if hud != null:
+			hud._open_parents()
+			await _frames_passed(5)
+
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png("%s/frame.png" % _out)
+
+	# QUALITY_LIVE=smooth|middle|pretty — перемкнути якість НА ХОДУ, як це робить кнопка на
+	# екрані батьків, і зняти другий кадр (frame_live.png). Гру спиняємо паузою, щоб між
+	# двома знімками змінилось РІВНО згладжування, а не ще й положення героя. Порівняння
+	# frame_live.png із кадром прогону, що СТАРТУВАВ у цьому стані, і є доказ, що
+	# застосування працює без перезапуску.
+	if OS.has_environment("QUALITY_LIVE"):
+		get_tree().paused = true
+		await _frames_passed(2)
+		Quality.set_current(OS.get_environment("QUALITY_LIVE"))
+		await _frames_passed(3)
+		await RenderingServer.frame_post_draw
+		get_viewport().get_texture().get_image().save_png("%s/frame_live.png" % _out)
+		get_tree().paused = false
 
 	# BURST=N — N кадрів ПОСПІЛЬ, без пропусків. Для пошуку миготіння: воно має підпис
 	# «змінилось і повернулось», а рух камери такого не дає — там піксель їде далі.
