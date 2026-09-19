@@ -66,19 +66,19 @@ kind = "house_terra_7"
 yaw_deg = 90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.61, 0, -13.1)
 
-[node name="W3_wall_near_house_terra_2" type="Node3D" parent="Стіни"]
+[node name="W3_wall_near_house_terra_3" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "house_terra_3"
+yaw_deg = 90
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.78, 0, -13.91)
+
+[node name="W4_wall_near_house_terra_2" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "house_terra_2"
 yaw_deg = 90
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.81, 0, -14.01)
-
-[node name="W4_wall_near_house_terra_1" type="Node3D" parent="Стіни"]
-script = ExtResource("1")
-role = "wall_near"
-kind = "house_terra_1"
-yaw_deg = 90
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.8, 0, -14.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8.81, 0, -14.97)
 
 [node name="W5_wall_near_house_terra" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
@@ -164,26 +164,26 @@ kind = "house_terra_1"
 yaw_deg = -90
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.8, 0, -86.38)
 
-[node name="W17_wall_near_house_terra_2" type="Node3D" parent="Стіни"]
+[node name="W17_wall_near_house_terra_3" type="Node3D" parent="Стіни"]
+script = ExtResource("1")
+role = "wall_near"
+kind = "house_terra_3"
+yaw_deg = -90
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.78, 0, -87.25)
+
+[node name="W18_wall_near_house_terra_2" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "house_terra_2"
 yaw_deg = -90
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.81, 0, -87.34)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.81, 0, -88.3)
 
-[node name="W18_wall_near_house_terra_7" type="Node3D" parent="Стіни"]
+[node name="W19_wall_near_house_terra_7" type="Node3D" parent="Стіни"]
 script = ExtResource("1")
 role = "wall_near"
 kind = "house_terra_7"
 yaw_deg = -90
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.61, 0, -88.26)
-
-[node name="W19_wall_near_house_terra_1" type="Node3D" parent="Стіни"]
-script = ExtResource("1")
-role = "wall_near"
-kind = "house_terra_1"
-yaw_deg = -90
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.8, 0, -88.98)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8.61, 0, -89.22)
 
 [node name="W20_wall_near_house_terra" type="Node3D" parent="Стіни"]
 script = ExtResource("1")

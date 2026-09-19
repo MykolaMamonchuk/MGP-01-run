@@ -58,6 +58,7 @@
   "_house_terra_1": "Три вузькі надрічкові будинки. Окремі види, а не варіанти одного: їх ставлять РЯДОМ, впритул, і місце кожного треба знати точно — випадковий вибір із трьох різних ширин лишав би між ними щілини. Детальний у них ЛИШЕ фасад (згенеровано з однієї картинки), і саме тому вони працюють тільки в ряду: сусід затуляє голий бік, а фасад дивиться до води.",
   "house_terra_1": "res://assets/props/house_terra_1.glb",
   "house_terra_2": "res://assets/props/house_terra_2.glb",
+  "house_terra_3": "res://assets/props/house_terra_3.glb",
   "house_terra_7": "res://assets/props/house_terra_7.glb",
   "house_teal": "res://assets/props/house_teal.glb",
   "house_straw": "res://assets/props/house_straw.glb",
