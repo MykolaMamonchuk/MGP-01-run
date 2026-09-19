@@ -15,6 +15,9 @@ extends GutTest
 ## Точно як у грі: Track.road_width() = lanes * Hero3D.LANE_W + 0.2.
 const LANE_W := 1.0
 const ROAD_PAD := 0.2
+## З якої висоти предмет вважається НАВІСОМ, а не перепоною. Герой має близько метра зросту;
+## 2,5 м — удвічі з гаком, туди він не дістає навіть у стрибку.
+const OVERHEAD_Y := 2.5
 
 
 func _json(path: String) -> Dictionary:
@@ -71,6 +74,11 @@ func _decor_on_the_road(level: Dictionary, edge: float) -> Array:
 				if args.size() < 12:
 					continue
 				_seen_decor += 1
+				# НАВІС не стоїть на дорозі — він над нею. У Лісі листя крони висить на 4.6 м, тобто
+				# вчетверо вище за героя, і дитина під ним пробігає. Те саме правило, що й для
+				# арок-орієнтирів по центру, лише за іншою ознакою: там |x|, тут висота.
+				if float(args[10]) >= OVERHEAD_Y:
+					continue
 				var x := float(args[9])
 				if absf(x) > 0.3 and absf(x) < edge:
 					var at := block.find("kind = \"")

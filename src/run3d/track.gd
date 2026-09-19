@@ -793,7 +793,12 @@ func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, o
 ## Абсолютна відстань = відстань ряду мінус власний зсув предмета по Z (у _sync_decor вони
 ## складаються так само). Ім'я виду дістаємо з ключа шару: усе до першого "#" або "|".
 func _log_decor(i: int, ids: PackedInt32Array, data: PackedFloat32Array) -> void:
-	if _layer_names.is_empty():
+	# Перебудовуємо, ЩОЙНО шарів побільшало. Шари декору створюються ліниво, у міру появи
+	# нових видів, а перша версія будувала цей словник один раз — і все, що з'явилось пізніше,
+	# лягало в журнал як «?». У Лісі це було 286 записів із тисячі, тобто чверть оздоблення
+	# втрачала назву й не переживала заморожування.
+	if _layer_names.size() != _decor_layer_of.size():
+		_layer_names.clear()
 		for key in _decor_layer_of.keys():
 			_layer_names[int(_decor_layer_of[key])] = String(key).split("#")[0].split("|")[0]
 	for j in range(ids.size()):
