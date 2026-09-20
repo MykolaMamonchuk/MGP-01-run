@@ -13,11 +13,28 @@
 ##     godot res://src/debug/props_zoo.tscn                  запустити
 ##     OUT=/tmp/zoo.png godot res://src/debug/props_zoo.tscn знімок і вихід
 ##
+## Щоб дивитись НЕ ВСЕ, а одну родину: поле `only` в інспекторі («house_terra») або
+## ZOO=house_terra у командному рядку. Тоді сітка коротка, а камера стоїть близько — саме те,
+## що треба, коли оцінюєш якість після перепікання.
+##
 ## Бере САМЕ ТЕ, що бачить гра: список із data/props.json через PropLibrary, з усіма
 ## варіантами. Модель, якої нема на диску, показується червоним кубиком — так одразу видно
 ## биті записи, а не мовчазну порожнечу.
 @tool
 extends Node3D
+
+## Показати лише ті види, у назві яких є цей рядок. Порожньо — усі.
+##
+## Навіщо. Сітка з усіх моделей добра, щоб ловити «щось приїхало вдвічі більшим», але щоб
+## ОЦІНИТИ ЯКІСТЬ однієї родини (наприклад дев'яти будинків після перепікання), решта
+## шістдесят заважає: вони розганяють сітку, і камера стоїть далеко.
+##
+## Поле редаговане просто в інспекторі — вписав «house_terra», і сцена перебудувалась.
+@export var only: String = "":
+	set(value):
+		only = value
+		if is_inside_tree():
+			_build()
 
 ## Крок сітки в метрах і скільки моделей у рядку. Крок навмисно більший за найбільшу модель
 ## (будинок ~2.3 м), щоб сусіди не налазили одне на одного.
@@ -39,9 +56,10 @@ func _build() -> void:
 	for entry in kinds:
 		var kind: String = entry["kind"]
 		var variant: int = entry["variant"]
-		var col := i % COLS
-		var row := i / COLS
-		var at := Vector3((float(col) - float(COLS - 1) * 0.5) * STEP, 0.0, -float(row) * STEP)
+		var cols := _cols(kinds.size())
+		var col := i % cols
+		var row := i / cols
+		var at := Vector3((float(col) - float(cols - 1) * 0.5) * STEP, 0.0, -float(row) * STEP)
 		_place(kind, variant, at, entry["label"])
 		i += 1
 	_ground(kinds.size())
@@ -69,6 +87,16 @@ func _kinds() -> Array:
 		if not String(key).begins_with("_"):     # ключі з підкресленням — коментарі, не пропси
 			names.append(String(key))
 	names.sort()
+	# ZOO=house_terra — те саме, що поле `only`, але для знімка з командного рядка.
+	var want := only
+	if want == "" and OS.has_environment("ZOO"):
+		want = OS.get_environment("ZOO")
+	if want != "":
+		var kept: Array = []
+		for kind in names:
+			if String(kind).contains(want):
+				kept.append(kind)
+		names = kept
 	for kind in names:
 		var n := maxi(1, PropLibrary.variants(String(kind)))
 		for v in n:
@@ -105,11 +133,19 @@ func _place(kind: String, variant: int, at: Vector3, label: String) -> void:
 	holder.add_child(text)
 
 
+## Скільки стовпців сітка ЗАЙМАЄ насправді. Коли фільтр лишив три моделі, тримати вісім
+## стовпців означає малювати п'ять порожніх — і камера тоді відлітає так, що моделей не
+## роздивитись. Саме через це фільтр був би марний.
+func _cols(count: int) -> int:
+	return maxi(1, mini(COLS, count))
+
+
 func _ground(count: int) -> void:
-	var rows := int(ceil(float(count) / float(COLS)))
+	var cols := _cols(count)
+	var rows := int(ceil(float(count) / float(cols)))
 	var mi := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(float(COLS + 1) * STEP, float(rows + 1) * STEP)
+	plane.size = Vector2(float(cols + 1) * STEP, float(rows + 1) * STEP)
 	mi.mesh = plane
 	mi.position = Vector3(0.0, -0.01, -float(rows - 1) * STEP * 0.5)
 	var m := StandardMaterial3D.new()
@@ -141,9 +177,10 @@ const CAM_PITCH := -58.0
 
 
 func _camera(count: int) -> void:
-	var rows := int(ceil(float(count) / float(COLS)))
+	var cols := _cols(count)
+	var rows := int(ceil(float(count) / float(cols)))
 	var centre := -float(rows - 1) * STEP * 0.5
-	var wide := float(COLS + 1) * STEP
+	var wide := float(cols + 1) * STEP
 	# Глибина сітки в кадрі стискається косинусом нахилу, плюс місце під підписи.
 	var deep := float(rows + 1) * STEP * cos(deg_to_rad(CAM_PITCH)) + LABEL_Y * 2.0
 	var cam := Camera3D.new()
