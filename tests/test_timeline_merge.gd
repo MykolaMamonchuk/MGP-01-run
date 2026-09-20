@@ -64,3 +64,38 @@ func test_zhoden_zapys_ne_hubytsia() -> void:
 		kinds.append(String((r as Dictionary).get("kind", "")))
 	kinds.sort()
 	assert_eq(kinds, ["a", "b", "c", "d"])
+
+
+## ЧЕРГУВАННЯ — не рідкість, а звичайний випадок. Цеглинка складається з ДВОХ сцен на одному
+## зсуві (геометрія та розкладка перешкод), і друга починається з нуля там, де перша вже
+## дійшла до півтораста метрів. Заміряно 21.09.2026: стик не сходився ЖОДНОГО разу за прогін,
+## тобто дешевий шлях «дописати в кінець» не спрацьовував ніколи, а спрацьовувало повне
+## sort_custom на 1600 записів — 7,1 мс, найдорожчий крок усього збирання цеглинки.
+## Тепер це справжнє злиття двох упорядкованих списків: 7,4 → 1,1 мс.
+func test_dva_shmatky_shcho_cherhuiutsia_zlyvaiutsia_vporiadkovano() -> void:
+	var old_recs := [_rec(0.0, "a"), _rec(50.0, "b"), _rec(150.0, "c")]
+	var merged := LevelTimeline.merge_by_z(old_recs, [_rec(10.0, "d"), _rec(60.0, "e")])
+	assert_eq(_zs(merged), [0.0, 10.0, 50.0, 60.0, 150.0])
+	assert_true(LevelTimeline.sorted_by_z(merged), "після злиття список упорядкований")
+
+
+## Рівні z_m на стику — найлегше місце, де злиття може загубити або подвоїти запис.
+func test_rivni_z_na_styku_ne_hubliatsia() -> void:
+	var merged := LevelTimeline.merge_by_z([_rec(5.0, "a"), _rec(5.0, "b")],
+		[_rec(5.0, "c"), _rec(5.0, "d")])
+	assert_eq(merged.size(), 4)
+	assert_eq(_zs(merged), [5.0, 5.0, 5.0, 5.0])
+
+
+## Великий випадок — саме той, на якому міряли: два шматки по кілька сотень, що чергуються.
+func test_velyke_zlyttia_nichoho_ne_hubyt() -> void:
+	var a := []
+	var b := []
+	for i in range(400):
+		a.append(_rec(float(i) * 2.0, "a"))
+		b.append(_rec(float(i) * 2.0 + 1.0, "b"))
+	var merged := LevelTimeline.merge_by_z(a, b)
+	assert_eq(merged.size(), 800)
+	assert_true(LevelTimeline.sorted_by_z(merged), "упорядковано")
+	assert_eq(float((merged[0] as Dictionary)["z_m"]), 0.0)
+	assert_eq(float((merged[-1] as Dictionary)["z_m"]), 799.0)

@@ -43,6 +43,24 @@ var _next := 0                 ## індекс наступної НЕзаван
 var _pending_index := -1
 var _pending_path := ""
 var _done := false             ## усі чанки рівня вже завантажені — update() більше не працює
+## Скільки часу на кадр дозволено збиранню цеглинки. 1,5 мс — десята частина кадру на 60 к/с:
+## помітити це неможливо, а десять міліметрів роботи розходяться кадрів на сім, тобто за
+## одну восьму секунди при запасі в шість.
+const STREAM_BUDGET_MS := 1.5
+## Скільки маркерів розбирати за одну скибку. 120 із 780 — шість скибок приблизно по 0,4 мс.
+const MARKERS_PER_STEP := 120
+## Ближче за стільки метрів до початку цеглинки бюджет уже не тримаємо: краще один смик, ніж
+## шматок дороги без перешкод і декору.
+const STREAM_HURRY_M := 12.0
+## Стан покрокового збирання: 0 — нічого не збираємо, далі стадії за _step_apply().
+var _job_stage := 0
+var _job_packed: PackedScene = null
+var _job_layout: Node = null
+var _job_markers: Array = []
+var _job_cursor := 0
+var _job_out: Dictionary = {}
+var _job_offset := 0.0
+var _job_decor: Array = []
 
 
 ## Спавнер може бути null — так його передає знімальний інструмент src/debug/track_shot.gd,
@@ -149,7 +167,15 @@ static func _plan_from_folder(num: int) -> Array:
 
 
 func update(distance_m: float) -> void:
-	if _done or not _chunked:
+	if not _chunked:
+		return
+	# Цеглинка вже прочитана й ЗБИРАЄТЬСЯ — крутимо стільки, скільки дозволяє бюджет кадру.
+	# Поки не зібрали, нової не чіпаємо: два розбори водночас поклали б у Track записи
+	# упереміш.
+	if _job_stage != 0:
+		_drain_jobs(distance_m + STREAM_HURRY_M >= _job_offset)
+		return
+	if _done:
 		return
 	# Чанк уже читається у фоні — просто перевіряємо, чи готовий. Нової заявки не подаємо,
 	# доки не заберемо попередню: інакше два чанки поїхали б у Track одночасно й у різному
@@ -175,6 +201,9 @@ func finish_pending() -> void:
 		_poll_pending()
 		if _pending_index >= 0:
 			OS.delay_msec(1)
+	# І дозбирати те, що поклав _poll_pending(): для тих, хто кличе finish_pending(), «готово»
+	# означає «записи вже в Track і Spawner3D», а не «сцену прочитано».
+	_drain_jobs(true)
 
 
 ## Забрати чанк, якщо він уже прочитався. Нічого не робить, доки потік не закінчив.
@@ -185,7 +214,9 @@ func _poll_pending() -> void:
 	if status == ResourceLoader.THREAD_LOAD_LOADED:
 		var packed := ResourceLoader.load_threaded_get(_pending_path) as PackedScene
 		if packed != null:
-			_apply(packed, float(_queue[_pending_index]["offset_m"]))
+			# У БІГУ не збираємо одразу: заводимо покрокову роботу, яку update() дотягне за
+			# кілька кадрів по STREAM_BUDGET_MS. Саме тут і був смик на кожній межі цеглинки.
+			_begin_apply(packed, float(_queue[_pending_index]["offset_m"]))
 	else:
 		push_warning("чанк не прочитався: %s" % _pending_path)
 	_pending_index = -1
@@ -276,20 +307,108 @@ func _load_flat_level() -> void:
 ##
 ## Інстанціювати чанк ЛИШЕ заради LevelTimeline.extract() і одразу звільнити — так само, як
 ## робив старий _load_authored_level(): нічого з авторської сцени не потрапляє в живе дерево.
+## Зібрати цеглинку ОДРАЗУ, за один виклик. Лишається для тих, кому нема куди подіти кадри:
+## старт рівня (екран завантаження й так стоїть), плаский рівень, тести та інструменти.
 func _apply(packed: PackedScene, offset_m: float) -> void:
-	var layout := packed.instantiate()
-	var extracted := LevelTimeline.extract(layout, offset_m)
-	# Саме free(), а не queue_free(). Вузол ніколи не потрапляв у дерево, і потрібен він рівно
-	# на один рядок вище; queue_free() же відкладає звільнення до кінця кадру, тобто тримає
-	# цілий LevelLayout з усіма маркерами живим доти, доки SceneTree не дійде до черги
-	# видалення. На завантаженні рівня кадри саме й не крутяться — і чанки накопичуються.
-	layout.free()
-	# landmarks/walls_near ідуть тим самим шляхом _add_decor(), що й decor, — Track приймає лише
-	# два масиви (decor, buildings), тож зливаємо їх тут, а не плодимо ширший API.
-	var decor: Array = extracted.get("decor", []) + extracted.get("landmarks", []) + extracted.get("walls_near", [])
-	_track.add_authored_timeline(decor, extracted.get("buildings", []))
-	if _spawner != null:
-		_spawner.add_authored_obstacles(extracted.get("obstacles", []))
-		# Пікапи цеглинки. Доти LevelTimeline їх діставав, а не брав ніхто: маркер-зірочка
-		# зникав без жодного слова. Саме про них і йшлося в «своя кількість золота на чанк».
-		_spawner.add_authored_pickups(extracted.get("pickups", []))
+	_begin_apply(packed, offset_m)
+	while _step_apply():
+		pass
+
+
+## Зібрати цеглинку ПОКРОКОВО, вкладаючись у STREAM_BUDGET_MS на кадр.
+##
+## Навіщо. Читання давно фонове, а от збирання — instantiate, розбір маркерів, злиття —
+## лишалось на головному потоці одним шматком: 24 мс до оптимізацій і ~10 мс після, тобто
+## пропущений кадр рівно на стику цеглинок, кожні 150 м, і втричі гірше на телефоні.
+## Стискати цей шматок далі нема сенсу: роботи там рівно стільки, скільки її є. Зате часу
+## вдосталь — цеглинка замовляється за LOOKAHEAD_M (80 м, понад шість секунд), — тож робота
+## ріжеться на кроки, і кожен кадр їй дозволено лише трохи.
+##
+## Кроки (стадії) свідомо різного розміру: найдорожче — розбір маркерів, і саме він ріжеться
+## на скибки по MARKERS_PER_STEP. Решта — окремі стадії, кожна сама по собі дешевша за бюджет.
+func _begin_apply(packed: PackedScene, offset_m: float) -> void:
+	_job_packed = packed
+	_job_offset = offset_m
+	_job_stage = 1
+	_job_cursor = 0
+	_job_markers = []
+	_job_out = {}
+	_job_layout = null
+
+
+## Один крок збирання. true — роботи ще лишилось.
+func _step_apply() -> bool:
+	match _job_stage:
+		1:
+			# Інстанс — єдиний крок, який не ріжеться нічим: або сцена розгорнулась, або ні.
+			_job_layout = _job_packed.instantiate()
+			_job_packed = null
+			_job_stage = 2
+		2:
+			# Плоский список маркерів: рекурсію посеред кадру не спинити, а прохід по
+			# готовому списку — скільки завгодно разів по скибці.
+			_job_markers = LevelTimeline.markers(_job_layout)
+			_job_out = LevelTimeline.begin_out()
+			_job_stage = 3
+		3:
+			var to: int = mini(_job_cursor + MARKERS_PER_STEP, _job_markers.size())
+			while _job_cursor < to:
+				LevelTimeline.append_marker(_job_markers[_job_cursor] as LevelMarker3D, _job_out)
+				_job_cursor += 1
+			if _job_cursor >= _job_markers.size():
+				_job_stage = 4
+		4:
+			# Саме free(), а не queue_free(). Вузол ніколи не потрапляв у дерево, і потрібен
+			# він рівно доти; queue_free() же відкладає звільнення до кінця кадру, тобто
+			# тримає цілий LevelLayout з усіма маркерами живим доти, доки SceneTree не дійде
+			# до черги видалення. На завантаженні рівня кадри саме й не крутяться — і чанки
+			# накопичуються.
+			_job_layout.free()
+			_job_layout = null
+			_job_markers = []
+			LevelTimeline.finish(_job_out, _job_offset)
+			_job_stage = 5
+		5:
+			# landmarks/walls_near ідуть тим самим шляхом _add_decor(), що й decor, — Track
+			# приймає лише два масиви (decor, buildings), тож зливаємо їх тут, а не плодимо
+			# ширший API. Своя стадія, бо `a + b + c` на трьох масивах по сотні словників —
+			# не копійка: заміряно, разом із add_authored_timeline це був найдорожчий крок
+			# усього збирання.
+			_job_decor = []
+			_job_decor.append_array(_job_out.get("decor", []))
+			_job_decor.append_array(_job_out.get("landmarks", []))
+			_job_decor.append_array(_job_out.get("walls_near", []))
+			_job_stage = 6
+		6:
+			_track.add_authored_timeline(_job_decor, _job_out.get("buildings", []), false)
+			_job_stage = 7
+		7:
+			# Прогрів шарів — свій крок: близько мілісекунди, тобто майже цілий бюджет кадру.
+			_track.prewarm_authored(_job_decor, _job_out.get("buildings", []))
+			_job_decor = []
+			_job_stage = 8
+		8:
+			if _spawner != null:
+				_spawner.add_authored_obstacles(_job_out.get("obstacles", []))
+				# Пікапи цеглинки. Доти LevelTimeline їх діставав, а не брав ніхто:
+				# маркер-зірочка зникав без жодного слова. Саме про них і йшлося в «своя
+				# кількість золота на чанк».
+				_spawner.add_authored_pickups(_job_out.get("pickups", []))
+			_job_out = {}
+			_job_stage = 0
+		_:
+			return false
+	return _job_stage != 0
+
+
+## Крутити збирання, поки не вичерпається бюджет кадру. hurry — гравець уже надто близько до
+## цеглинки, дотягуємо без бюджету (краще один смик, ніж дорога без перешкод).
+func _drain_jobs(hurry: bool) -> void:
+	if _job_stage == 0:
+		return
+	var until := Time.get_ticks_usec() + int(STREAM_BUDGET_MS * 1000.0)
+	while _job_stage != 0:
+		if not _step_apply():
+			break
+		if not hurry and Time.get_ticks_usec() >= until:
+			return

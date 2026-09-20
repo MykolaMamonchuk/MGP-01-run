@@ -414,3 +414,61 @@ func test_starting_another_level_clears_authored_pickups() -> void:
 	_make_folder_level([0, 1, 2])
 	_loader.start(FOLDER_LEVEL, _track, _spawner)
 	assert_eq(_spawner._authored_pickups.size(), 0, "тека-рівень пікапів не має — список порожній")
+
+
+## ПОКРОКОВЕ ЗБИРАННЯ. Цеглинка більше не збирається в одному кадрі: читання й так було
+## фоновим, а от instantiate + розбір маркерів + злиття лишались на головному потоці одним
+## шматком і давали пропущений кадр рівно на стику, кожні 150 м. Тепер робота ріжеться на
+## стадії, і кожному кадру дозволено лише STREAM_BUDGET_MS.
+##
+## Заміряно 21.09.2026 на рівні 1: збирання розходиться на 4 кадри, найдорожчий із них
+## 2,7 мс замість ~10 мс одним шматком.
+##
+## Стерегти тут треба не швидкість (її міряє проба), а те, що покроковість НІЧОГО НЕ ЗАГУБИЛА:
+## зникла б частина записів — рівень просто пройшов би з порожнім шматком дороги, мовчки.
+func test_pokrokove_zbyrannia_ne_hubyt_zapysiv() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	var first := _spawner._authored_obstacles.size()
+	assert_gt(first, 0, "перша цеглинка дала записи")
+	# Крутимо рівень до кінця, віддаючи збиранню по кадру, а не дотягуючи силою.
+	for m in range(0, 460, 10):
+		_loader.update(float(m))
+		await wait_process_frames(1)
+	_loader.finish_pending()
+	assert_eq(_loader._job_stage, 0, "незавершеної роботи не лишилось")
+	assert_gt(_spawner._authored_obstacles.size(), first, "решта цеглинок теж доїхала")
+	assert_true(LevelTimeline.sorted_by_z(_spawner._authored_obstacles),
+		"перешкоди лишились упорядкованими за z_m")
+
+
+## Бюджет — не обіцянка «ніколи не збирати одразу». Коли гравець підійшов упритул до цеглинки
+## (STREAM_HURRY_M), краще один смик, ніж шматок дороги без перешкод і декору.
+func test_pid_samu_tsehlynku_zbyraie_bez_biudzhetu() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	# Замовляємо другу цеглинку (поріг — LOOKAHEAD_M до її початку)…
+	_loader.update(LevelChunkLoader.CHUNK_LENGTH_M - LevelChunkLoader.LOOKAHEAD_M)
+	while _loader._pending_index >= 0:
+		_loader._poll_pending()
+		await wait_process_frames(1)
+	# …і одразу опиняємось біля її початку: один update() мусить дозбирати все.
+	_loader.update(LevelChunkLoader.CHUNK_LENGTH_M)
+	assert_eq(_loader._job_stage, 0,
+		"біля самої цеглинки збирання доводиться до кінця в одному кадрі")
+
+
+## finish_pending() мусить означати «записи ВЖЕ в Track», а не «сцену прочитано». Інакше
+## тести й знімальні інструменти, які не крутять кадрів, діставали б порожню трасу — і
+## виглядало б це як зникла забудова, а не як незавершена робота.
+func test_finish_pending_dotiahuie_i_zbyrannia() -> void:
+	_make_folder_level([0, 1, 2])
+	_loader.start(FOLDER_LEVEL, _track, _spawner)
+	# Цеглинки цього тестового рівня складаються з самих перешкод (див. _make_folder_level),
+	# тож і рахуємо їх — декору там немає взагалі.
+	var before := _spawner._authored_obstacles.size()
+	_loader.update(LevelChunkLoader.CHUNK_LENGTH_M - LevelChunkLoader.LOOKAHEAD_M)
+	_loader.finish_pending()
+	assert_eq(_loader._job_stage, 0, "після finish_pending() незавершеної роботи не лишилось")
+	assert_gt(_spawner._authored_obstacles.size(), before,
+		"друга цеглинка справді доїхала у Spawner3D")

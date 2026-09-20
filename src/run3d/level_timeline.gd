@@ -43,15 +43,47 @@ static func merge_by_z(old_recs: Array, add: Array) -> Array:
 		add.sort_custom(_by_z)
 	if old_recs.is_empty():
 		return add
-	# Обидві половини впорядковані, тож перевіряти треба лише СТИК: якщо новий шматок
-	# починається не раніше, ніж кінчається старий, дописування вже дає правильний порядок.
-	# Повторний прохід по всьому списку тут був чистою витратою, яка росла з довжиною рівня.
-	var joins: bool = float((old_recs[-1] as Dictionary).get("z_m", 0.0)) \
-		<= float((add[0] as Dictionary).get("z_m", 0.0))
-	old_recs.append_array(add)
-	if not joins:
+	# Найдешевший випадок: новий шматок цілком праворуч від старого — просто дописати.
+	if float((old_recs[-1] as Dictionary).get("z_m", 0.0)) \
+			<= float((add[0] as Dictionary).get("z_m", 0.0)):
+		old_recs.append_array(add)
+		return old_recs
+	# Шматки ЧЕРГУЮТЬСЯ. Це не рідкість і не вада даних: цеглинка — це ДВІ сцени на одному
+	# зсуві (геометрія та розкладка перешкод), і друга починається з нуля там, де перша вже
+	# дійшла до півтораста метрів. Заміряно 21.09.2026: стик не сходився ЖОДНОГО разу, тобто
+	# тут щоразу йшло повне sort_custom на 1600 записів — 7,1 мс, найдорожчий крок усього
+	# збирання цеглинки.
+	#
+	# Обидві половини вже впорядковані, тож сортувати нема чого: досить пройти їх пліч-о-пліч.
+	# Це O(n+m) порівнянь float замість O(n log n) ВИКЛИКІВ GDScript-лямбди — саме виклики й
+	# коштували, а не порівняння.
+	if not sorted_by_z(old_recs):
+		old_recs.append_array(add)      # інваріант порушено кимось іншим — чесно пересортувати
 		old_recs.sort_custom(_by_z)
-	return old_recs
+		return old_recs
+	var out: Array = []
+	out.resize(old_recs.size() + add.size())
+	var i := 0
+	var j := 0
+	var k := 0
+	while i < old_recs.size() and j < add.size():
+		if float((old_recs[i] as Dictionary).get("z_m", 0.0)) \
+				<= float((add[j] as Dictionary).get("z_m", 0.0)):
+			out[k] = old_recs[i]
+			i += 1
+		else:
+			out[k] = add[j]
+			j += 1
+		k += 1
+	while i < old_recs.size():
+		out[k] = old_recs[i]
+		i += 1
+		k += 1
+	while j < add.size():
+		out[k] = add[j]
+		j += 1
+		k += 1
+	return out
 
 
 ## Чи лежать записи за неспадним z_m. Один прохід порівнянь float проти тисяч викликів лямбди.
@@ -69,24 +101,65 @@ static func _by_z(a, b) -> bool:
 	return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0))
 
 
+## Розбір цеглинки за один раз. Лишається для всіх, кому ніколи чекати кадрів: старт рівня
+## (екран завантаження й так стоїть), плаский рівень, тести та інструменти. У БІГУ ж цим
+## ходить LevelChunkLoader покроково — begin_out/markers/append_marker/finish, — бо ті самі
+## 2,6 мс розбору разом із рештою збирання давали видимий смик на межі цеглинки.
 static func extract(layout_root: Node, offset_m: float = 0.0) -> Dictionary:
+	var out := begin_out()
+	for m in markers(layout_root):
+		append_marker(m as LevelMarker3D, out)
+	finish(out, offset_m)
+	return out
+
+
+## Порожній розбір: по масиву на кожну роль. Окремо, щоб покроковий розбір мав куди складати
+## з першого ж кроку.
+static func begin_out() -> Dictionary:
 	var out: Dictionary = {}
 	for key in ROLE_KEYS.values():
 		out[key] = []
-	if layout_root != null:
-		# Маркери чанка лежать у ЛОКАЛЬНИХ метрах — від початку самого чанка. Зсув передає той,
-		# ХТО СТАВИТЬ чанк, а не сам чанк: цеглинку треба вміти поставити на 150-му метрі
-		# одного рівня й на 900-му іншого. Раніше зсув лежав у самій сцені (LevelLayout.
-		# z_offset_m) і саме це прив'язувало чанк до одного місця в одному рівні.
-		var offset := offset_m
-		_collect(layout_root, out)
-		if not is_zero_approx(offset):
-			for key in out.keys():
-				for rec in (out[key] as Array):
-					rec["z_m"] = float(rec["z_m"]) + offset
-	for key in out.keys():
-		(out[key] as Array).sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
 	return out
+
+
+## УСІ маркери піддерева одним плоским списком. Потрібно, щоб розбір можна було різати на
+## шматки: рекурсію посеред кадру не спинити, а прохід по готовому списку — скільки завгодно.
+## Сам обхід дешевий (вузли вже в пам'яті), тож його не ріжемо.
+static func markers(layout_root: Node) -> Array:
+	var out: Array = []
+	if layout_root != null:
+		_flatten_markers(layout_root, out)
+	return out
+
+
+static func _flatten_markers(node: Node, out: Array) -> void:
+	for child in node.get_children():
+		if child is LevelMarker3D:
+			out.append(child)
+		_flatten_markers(child, out)
+
+
+## Додати один маркер до розбору. Зсув тут НЕ застосовується — його накладає finish(), один
+## раз на всі записи, бо інакше довелось би тягнути його через кожен крок.
+static func append_marker(marker: LevelMarker3D, out: Dictionary) -> void:
+	_append(marker, out)
+
+
+## Завершити розбір: накласти зсув цеглинки й упорядкувати кожну роль за z_m.
+##
+## Маркери чанка лежать у ЛОКАЛЬНИХ метрах — від початку самого чанка. Зсув передає той,
+## ХТО СТАВИТЬ чанк, а не сам чанк: цеглинку треба вміти поставити на 150-му метрі одного
+## рівня й на 900-му іншого. Раніше зсув лежав у самій сцені (LevelLayout.z_offset_m) і саме
+## це прив'язувало чанк до одного місця в одному рівні.
+static func finish(out: Dictionary, offset_m: float) -> void:
+	if not is_zero_approx(offset_m):
+		for key in out.keys():
+			for rec in (out[key] as Array):
+				rec["z_m"] = float(rec["z_m"]) + offset_m
+	for key in out.keys():
+		var recs: Array = out[key]
+		if not sorted_by_z(recs):
+			recs.sort_custom(_by_z)
 
 
 ## Рекурсивний обхід — навмисно не find_children(): так певно працює для будь-якого способу

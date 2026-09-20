@@ -784,11 +784,20 @@ func set_authored_timeline(decor: Array, buildings: Array) -> void:
 ## Дозавантажити ще декору/будівель до вже наявного таймлайну (LevelChunkLoader — наступний
 ## чанк рівня). Сортуємо за z_m — _decorate() лінійно фільтрує по вікну одного ряду (~1 м),
 ## запис одного чанку невеликий, тож зайвого коштує копійки.
-func add_authored_timeline(decor: Array, buildings: Array) -> void:
+## warm=false — прогріти шари ОКРЕМИМ кроком, пізніше (prewarm_authored). Потрібно
+## LevelChunkLoader'у, який збирає цеглинку по шматочках у межах бюджету кадру: прогрів
+## коштує близько мілісекунди, тобто сам по собі майже цілий бюджет, і разом зі злиттям
+## уже не влазив. На записи це не впливає — прогрів лише заводить шари наперед.
+func add_authored_timeline(decor: Array, buildings: Array, warm: bool = true) -> void:
 	_authored_decor = LevelTimeline.merge_by_z(_authored_decor, decor)
 	_authored_buildings = LevelTimeline.merge_by_z(_authored_buildings, buildings)
 	_authored_active = true
 	_index_authored_bridges()
+	if warm:
+		prewarm_authored(decor, buildings)
+
+
+func prewarm_authored(decor: Array, buildings: Array) -> void:
 	_prewarm_authored(decor, false)
 	_prewarm_authored(buildings, true)
 
