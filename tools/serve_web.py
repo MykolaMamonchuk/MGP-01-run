@@ -73,7 +73,26 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             super().log_message(fmt, *args)
 
 
-class TLSServer(socketserver.TCPServer):
+## Скільки чекати перший байт з'єднання. Chrome відкриває з'єднання НАПЕРЕД (preconnect) і
+## нічого в них не шле — без таймауту очікування такого байта вішало сервер намертво, і
+## вкладка вмирала з ERR_TIMED_OUT. Півсекунди вистачає будь-якому справжньому запиту.
+PEEK_TIMEOUT = 0.5
+
+
+class Threaded(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    """Кожне з'єднання — свій потік.
+
+    Однопотоковий сервер тут не годиться принципово: сторінка тягне .wasm на 38 МБ і .pck на
+    79 МБ, а браузер просить їх ПАРАЛЕЛЬНО з рештою. Поки один потік віддає 79 мегабайтів,
+    решта запитів стоїть у черзі — і браузер здається раніше, ніж діждеться.
+    """
+
+    daemon_threads = True
+    # черга очікування: браузер відкриває шість-вісім з'єднань одразу
+    request_queue_size = 32
+
+
+class TLSServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     """TLS на тому самому порту, але з розпізнаванням «зайшли по http://».
 
     Браузер сам https не додає: у рядок вбивають `192.168.7.104:8070/...`, Chrome робить із
@@ -85,15 +104,29 @@ class TLSServer(socketserver.TCPServer):
     Літера — відповідаємо 301 на https і закриваємо; 0x16 — загортаємо в TLS, як і задумано.
     """
 
+    daemon_threads = True
+    request_queue_size = 32
     ssl_ctx = None
 
     def get_request(self):
         sock, addr = self.socket.accept()
+        # Підглядаємо перший байт із ТАЙМАУТОМ. Без нього мовчазне з'єднання (а Chrome
+        # відкриває такі наперед) блокувало accept назавжди: сервер живий, порт слухає, а
+        # відповіді немає на жоден запит. Саме це й було «не відкривається» вдруге.
         try:
+            sock.settimeout(PEEK_TIMEOUT)
             head = sock.recv(2048, socket.MSG_PEEK)
         except OSError:
             head = b""
-        if head and head[0] != 0x16:
+        finally:
+            try:
+                sock.settimeout(None)
+            except OSError:
+                pass
+        if not head:
+            sock.close()
+            raise BlockingIOError("з'єднання без запиту")
+        if head[0] != 0x16:
             self._redirect(sock, head)
             raise BlockingIOError("перенаправлено на https")
         return self.ssl_ctx.wrap_socket(sock, server_side=True), addr
@@ -201,7 +234,7 @@ def main():
             scheme = "https"
 
     socketserver.TCPServer.allow_reuse_address = True
-    server_cls = TLSServer if ctx is not None else socketserver.TCPServer
+    server_cls = TLSServer if ctx is not None else Threaded
     with server_cls(("0.0.0.0", a.port), Handler) as httpd:
         if ctx is not None:
             httpd.ssl_ctx = ctx
