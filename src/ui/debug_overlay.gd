@@ -8,9 +8,16 @@
 ## Накладка живе в `src/ui/`, а НЕ в `src/debug/`: тека `src/debug/*` виключена з експорту
 ## (див. export_presets.cfg), тож звідти вона у веб-збірку просто не потрапила б.
 ##
-## Перемикання: клавіша F3 на комп'ютері або ТАП по самій накладці на телефоні. Три стани по
-## колу — повний, лише к/с, сховано. Сховано теж потрібне: коли дивишся на вигляд, числа
-## заважають.
+## Перемикання: клавіша ` (тильда, ліворуч від 1), або F3, або ТАП ПО КУТКУ зліва вгорі.
+## Три стани по колу — повний, лише к/с, сховано. Сховано теж потрібне: коли дивишся на
+## вигляд, числа заважають.
+##
+## Чому саме так. F3 на Маку зайнята системою (Mission Control), і без «використовувати
+## F1–F12 як звичайні функційні» вона до гри просто не доходить — замовник це й повідомив.
+## Тому головна клавіша тепер ` , а F3 лишається для тих, у кого вона працює.
+##
+## І куток. Доти тап був ПО САМІЙ ПАНЕЛІ — а коли стан «сховано», панелі немає, тобто на
+## телефоні накладку не можна було повернути взагалі. Куток є завжди.
 class_name DebugOverlay
 extends CanvasLayer
 
@@ -18,6 +25,9 @@ enum Mode { FULL, FPS_ONLY, HIDDEN }
 
 ## Над HUD (10) і над усіма екранами, інакше меню перекриє накладку.
 const LAYER := 20
+## Невидимий куток зліва вгорі, тап по якому перемикає накладку. Він є ЗАВЖДИ, і саме тому
+## з нього можна повернути СХОВАНУ накладку. Розмір — під палець.
+const CORNER := 72.0
 ## Як часто перемальовуємо. Кожен кадр не потрібно — очі однаково не читають швидше, а
 ## збирання тексту саме по собі коштує кадру.
 const REFRESH_SEC := 0.2
@@ -32,6 +42,7 @@ var mode: Mode = Mode.FULL
 
 var _run: Node = null
 var _panel: PanelContainer
+var _corner: Control
 var _text: Label
 var _acc := 0.0
 ## [час, мс] — вікно останніх кадрів, щоб дістати найгірший.
@@ -65,6 +76,14 @@ func _ready() -> void:
 	_text.add_theme_color_override("font_color", Palette.WHITE)
 	_panel.add_child(_text)
 
+	# Невидимий перемикач у кутку. Додаємо ПІСЛЯ панелі, тож він лежить зверху й ловить тап
+	# і тоді, коли панель видно, і тоді, коли її нема.
+	_corner = Control.new()
+	_corner.size = Vector2(CORNER, CORNER)
+	_corner.mouse_filter = Control.MOUSE_FILTER_STOP
+	_corner.gui_input.connect(_on_panel_input)
+	root.add_child(_corner)
+
 
 ## Кого розпитувати. Виклик необов'язковий: без нього накладка покаже кадр і пам'ять, тобто
 ## те, що вона знає й сама. Так вона не падає, якщо її почепили не на Run3D.
@@ -78,8 +97,10 @@ func _on_panel_input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventKey and (event as InputEventKey).pressed \
-			and (event as InputEventKey).keycode == KEY_F3:
+	if not (event is InputEventKey) or not (event as InputEventKey).pressed:
+		return
+	var code := (event as InputEventKey).keycode
+	if code == KEY_QUOTELEFT or code == KEY_F3:
 		cycle()
 
 
@@ -149,7 +170,7 @@ func _full_text() -> String:
 	rows.append_array(_game_rows())
 	rows.append("——")
 	rows.append(_screen_row())
-	rows.append("F3 або тап — повний / к/с / сховати")
+	rows.append("` або F3 або тап по кутку — повний / к/с / сховати")
 	return "\n".join(rows)
 
 

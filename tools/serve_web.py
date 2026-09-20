@@ -21,12 +21,26 @@
 
   КЕШ. Між двома експортами файли називаються однаково. Без заборони кешувати телефон
   показує вчорашню збірку, і півгодини йде на пошук вади, якої вже немає.
+
+І найголовніше — HTTPS.
+
+  ЗАХИЩЕНИЙ КОНТЕКСТ. Godot для вебу вимагає secure context. Браузер уважає захищеним
+  `https://` та `http://localhost`, але НЕ `http://192.168.x.x`. Тобто на самому Маку
+  збірка відкривається, а з телефона та сама адреса дає «Secure Context - Check web server
+  configuration (use HTTPS)» і далі не йде. Тому сервер типово підіймається під TLS із
+  самопідписаним сертифікатом, у який вписано і `localhost`, і поточну адресу в мережі.
+
+  Телефон при першому заході скаже, що з'єднання не приватне. Так і має бути: сертифікат
+  нічий, його ніхто не підписував. Треба розгорнути «Подробиці» й погодитись — це локальна
+  мережа й власна машина. `--http` вимикає TLS, якщо колись знадобиться.
 """
 import argparse
 import http.server
 import os
 import socket
 import socketserver
+import ssl
+import subprocess
 
 TYPES = {
     ".wasm": "application/wasm",
@@ -72,10 +86,40 @@ def lan_ip():
         s.close()
 
 
+CERT_DIR = os.path.join(os.path.expanduser("~"), ".cache", "bizhy-web-cert")
+
+
+def make_cert(ip):
+    """Самопідписаний сертифікат на `localhost` і поточну адресу в мережі. Робимо один раз і
+    кешуємо: адреса в домашньому Wi-Fi міняється рідко, а перевипуск щоразу означав би, що
+    телефон щоразу питає наново. Якщо адреса змінилась — перевипускаємо."""
+    os.makedirs(CERT_DIR, exist_ok=True)
+    cert = os.path.join(CERT_DIR, "cert.pem")
+    key = os.path.join(CERT_DIR, "key.pem")
+    stamp = os.path.join(CERT_DIR, "for-ip.txt")
+    have = os.path.exists(cert) and os.path.exists(key) \
+        and os.path.exists(stamp) and open(stamp).read().strip() == ip
+    if have:
+        return cert, key
+    san = "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:%s" % ip
+    cmd = ["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes",
+           "-keyout", key, "-out", cert, "-days", "825",
+           "-subj", "/CN=bizhy-bizhy.local", "-addext", san]
+    try:
+        subprocess.run(cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (OSError, subprocess.CalledProcessError):
+        return None, None
+    open(stamp, "w").write(ip)
+    return cert, key
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", default="export")
     ap.add_argument("--port", type=int, default=8060)
+    ap.add_argument("--http", action="store_true",
+                    help="без TLS. З телефона тоді НЕ відкриється: Godot вимагає "
+                         "захищеного контексту, а http://<адреса> ним не є")
     a = ap.parse_args()
 
     if not os.path.isdir(a.dir):
@@ -85,11 +129,30 @@ def main():
         raise SystemExit("у %s немає .html — експорт не завершився" % a.dir)
 
     os.chdir(a.dir)
+    ip = lan_ip()
+    scheme = "http"
+    ctx = None
+    if not a.http:
+        cert, key = make_cert(ip)
+        if cert is None:
+            print("! openssl не спрацював — піднімаю без TLS; з телефона не відкриється",
+                  flush=True)
+        else:
+            ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+            ctx.load_cert_chain(cert, key)
+            scheme = "https"
+
     socketserver.TCPServer.allow_reuse_address = True
     with socketserver.TCPServer(("0.0.0.0", a.port), Handler) as httpd:
-        print("тут:       http://localhost:%d/%s" % (a.port, page), flush=True)
-        print("з телефона: http://%s:%d/%s   (той самий Wi-Fi)"
-              % (lan_ip(), a.port, page), flush=True)
+        if ctx is not None:
+            httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
+        print("тут:        %s://localhost:%d/%s" % (scheme, a.port, page), flush=True)
+        print("з телефона: %s://%s:%d/%s   (той самий Wi-Fi)"
+              % (scheme, ip, a.port, page), flush=True)
+        if ctx is not None:
+            print("Телефон скаже, що з'єднання не приватне — сертифікат самопідписаний.",
+                  flush=True)
+            print("Це нормально: розгорни «Подробиці» / «Advanced» і погодься.", flush=True)
         print("Ctrl+C — спинити", flush=True)
         httpd.serve_forever()
 
