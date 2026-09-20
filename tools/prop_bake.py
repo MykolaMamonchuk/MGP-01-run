@@ -31,6 +31,7 @@ LOD, тож відстань нічого не здешевлює.
     --samples  семплів Cycles на запікання (типово 4; колір і нахил шуму майже не дають)
 """
 import argparse
+import math
 import os
 import sys
 
@@ -56,6 +57,15 @@ def parse_args(argv):
                          "оболонку не можна прибрати зовсім. Куля таких обмежень не має")
     ap.add_argument("--segments", type=int, default=20, help="--shape sphere: поділів по колу")
     ap.add_argument("--rings", type=int, default=10, help="--shape sphere: поділів по висоті")
+    # ПЕРЕВІРЕНО 20.09.2026 на house_terra_4, щоб не пробували вдруге: різниці між `after` і
+    # `before` око не бачить, а `auto` ВІДЧУТНО ГІРШИЙ — черепиця перетворюється на ковбаски.
+    # Тобто типове `after` і лишається; вибір тут для того, щоб це можна було переперевірити.
+    ap.add_argument("--smooth", default="after",
+                    choices=["after", "before", "auto"],
+                    help="коли й як згладжувати ціль: after — типово, before — згладити ДО "
+                         "запікання, auto — за кутом (гірше, див. коментар)")
+    ap.add_argument("--smooth-angle", type=float, default=35.0,
+                    help="--smooth auto: різкіші за цей кут ребра лишаються гострими")
     ap.add_argument("--shrink", type=float, default=0.92,
                     help="--shape sphere: наскільки підтиснути кулю всередину габаритів. "
                          "Промені запікання йдуть НАЗОВНІ, тож ціль мусить бути трохи меншою "
@@ -137,6 +147,23 @@ def make_shell_target(src, segments, rings, shrink):
 ## Скільки проходів спрощення дозволено й на скільки може зсістись габарит. Одним проходом
 ## нижче 1% Blender не йде (ratio там працює ненадійно), тож кільком проходам бути; але кожен
 ## наступний прохід ріже вже спрощену сітку, і з якогось моменту він не спрощує, а ламає.
+## СКІЛЬКИ ПРОХОДІВ — це питання ЯКОСТІ, а не лише ваги. Заміряно 20.09.2026 на
+## house_terra_4 (вихідник 1 003 379 граней), метрика — найгірша ділянка `prop_similarity.py`:
+##
+##     6 000 граней   2 проходи   93.9%
+##    10 000 граней   2 проходи   93.9%
+##    11 000 граней   1 прохід    95.3%
+##    12 000 граней   1 прохід    96.0%
+##    15 000 граней   1 прохід    97.0%
+##
+## Стрибок на межі 10→11 тисяч — це не граней побільшало, а прохід став ОДИН: запобіжник
+## `max(ratio, 0.01)` не дає спуститись нижче за 1% за раз, тож усе, що дрібніше за соту
+## частину вихідника, ріжеться двічі, і другий раз їсть уже те, що лишилось від рельєфу.
+##
+## Практично: для моделі на мільйон граней «один прохід» починається з ~10 000, а стеля
+## гри — 7 000 (tests/test_prop_budget.gd). Тобто будинки неминуче йдуть у два проходи, і
+## 6 000 — найкраще, що з цього виходить. Якщо колись знадобиться більше, дешевше підняти
+## стелю для КІЛЬКОХ найближчих до дороги будівель, ніж для всіх.
 MAX_PASSES = 4
 SHRINK_LIMIT = 0.05
 
@@ -307,6 +334,16 @@ def main():
     normal_img = new_image("baked_normal", a.size, True)
     mat, tex_c, tex_n = target_material(dst, color_img, normal_img)
 
+    # ЗГЛАДЖУВАННЯ ДО ЗАПІКАННЯ. Карта нормалей — тангенційна: вона зберігає РІЗНИЦЮ між
+    # поверхнею оригіналу й нормалями цілі. Якщо цілі змінити згладжування ПІСЛЯ запікання,
+    # нормалі стануть іншими, а карта лишиться від старих — і рельєф поїде. Саме тому тут
+    # є вибір, і саме тому "after" (як було) лишено окремим режимом, а не прибрано.
+    if a.smooth == "before":
+        select_only([dst], dst)
+        bpy.ops.object.shade_smooth()
+    elif a.smooth == "auto":
+        select_only([dst], dst)
+        bpy.ops.object.shade_auto_smooth(angle=math.radians(a.smooth_angle))
     bake_into(mat, tex_n, src, dst, "NORMAL", a.cage, a.samples)
     bake_into(mat, tex_c, src, dst, "DIFFUSE", a.cage, a.samples)
 
@@ -315,7 +352,8 @@ def main():
     fit_box([dst], a.box)
     origin_bottom([dst])
     select_only([dst], dst)
-    bpy.ops.object.shade_smooth()
+    if a.smooth == "after":
+        bpy.ops.object.shade_smooth()
 
     dst_path = os.path.abspath(os.path.expanduser(a.out))
     bpy.ops.export_scene.gltf(filepath=dst_path, export_format="GLB",
