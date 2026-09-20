@@ -158,6 +158,13 @@ const PROP_GROUP_GAP := [0.7, 1.5]
 ## Запас між сусідніми будівлями другого плану ПОНАД їхні реальні половини глибини (з мешів):
 ## щільно, як на референсі, але не крізь стіни одна одної.
 const FAR_GAP_MIN := 0.3
+## Дрібниця, що ЛЕЖИТЬ на землі: її тінь — кілька темних пікселів упритул до самого
+## предмета. Вимикається групою через SHADOW_SKIP (див. _shadow_skip).
+const LITTER_KINDS := ["flower", "flower_pink", "flower_yellow", "mushroom", "mushroom_red",
+	"rock", "rock_grey", "mossrock", "branch", "garden", "puddle", "hay_bale", "bush_flower",
+	"bush", "bush_cube", "wave_crest"]
+## Паркани, поручні та настили містків.
+const FENCE_KINDS := ["fence", "fence_low", "fence_rail", "bridge_plank"]
 ## Види, які НЕ дихають НІКОЛИ — хоч де їх поставили. Гойдалку вирішує місце постановки
 ## (див. _decor_layer), і це правильно для куща: біля дороги він хитається, у стіні лісу —
 ## ні. Але будівля не хитається ніде, а розділення за місцем коштувало ДВІЧІ:
@@ -333,6 +340,9 @@ var _far2_clear := [0.0, 0.0]
 ## Те саме для груп дрібниць на узбіччі (props_side): до якої відстані бік «зайнятий»
 ## поточною купкою — щоб між купками лишалась порожня трава (див. PROP_GROUP_GAP).
 var _prop_clear := [0.0, 0.0]
+## Які групи НЕ кидають тіні. Ручка для замірів: SHADOW_SKIP=litter,fences,banks.
+## Порожньо — усі кидають, як і було.
+var _shadow_skip: PackedStringArray = PackedStringArray()
 var _rng := RandomNumberGenerator.new()
 ## ОКРЕМИЙ генератор саме для зерна ряду (_row_seed_for()) — навмисно не той самий _rng, що й
 ## декор/забудова. Спільний _rng — послідовність, що просувається по одному виклику randf()/
@@ -411,6 +421,8 @@ func _ready() -> void:
 	_mm_edge = _make_canvas(edge_mesh, ROWS * 2, 6.0, true)
 	_mm_edge.material_override = _tinted_material()
 
+	if OS.has_environment("SHADOW_SKIP"):
+		_shadow_skip = OS.get_environment("SHADOW_SKIP").split(",")
 	RngSeed.start(_rng, "track")
 	_row_seed.resize(ROWS)
 	_row_distance_m.resize(ROWS)
@@ -614,6 +626,9 @@ func _decor_layer(kind: String, override: Dictionary, variant: int = 0, no_sway:
 	var prop_mesh := PropLibrary.mesh(kind, variant)
 	# декор вищий за дорогу (крона на 3,2 м) і ширший — свій AABB
 	var mi := _make_canvas(prop_mesh if prop_mesh != null else VoxelBuilder.mesh(kind, override), 0, 16.0)
+	if (_shadow_skip.has("litter") and LITTER_KINDS.has(kind)) \
+			or (_shadow_skip.has("fences") and FENCE_KINDS.has(kind)):
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_decor_mm.append(mi)
 	_decor_no_sway.append(no_sway)
 	_decor_layer_of[key] = _decor_mm.size() - 1
@@ -1719,6 +1734,9 @@ func _layout_canal() -> void:
 					# вона стоїть у воді й тінь її нікуди не лягає; насправді лягає в канал, а
 					# канал у кадрі. Без неї міняється 0.52% пікселів (найбільше відхилення 95),
 					# а виграш лише −12 draw calls. Не варте того.
+					# SHADOW_SKIP=banks дає це переміряти, не правлячи код.
+					if _shadow_skip.has("banks"):
+						b.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 					add_child(b)
 					_canal_banks.append(b)
 				var bank := _canal_banks[idx]

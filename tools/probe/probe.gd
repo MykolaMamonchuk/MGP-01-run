@@ -109,6 +109,46 @@ func _ready() -> void:
 	if touched:
 		await _frames_passed(3)
 
+	# SHADOW_LIST=1 — перепис УСІХ тінекидачів кадру: хто саме кидає тінь і скільки
+	# екземплярів у нього видно. Прохід тіней коштує по одному draw call на кожен такий
+	# вузол, тож цей список і є відповіддю на питання «кому тінь лишити».
+	if OS.get_environment("SHADOW_LIST") == "1":
+		var rows: Array = []
+		var stack: Array = [_run]
+		while not stack.is_empty():
+			var node: Node = stack.pop_back()
+			for ch in node.get_children():
+				stack.append(ch)
+			if node is GeometryInstance3D:
+				var gi := node as GeometryInstance3D
+				if gi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+					continue
+				if not gi.visible:
+					continue
+				var n := 1
+				var kind := node.name
+				if node is MultiMeshInstance3D:
+					var mm := (node as MultiMeshInstance3D).multimesh
+					n = mm.visible_instance_count if mm != null else 0
+					if n == 0:
+						continue
+				# Назва вузла службова, тож вид шукаємо в самій трасі: _decor_layer_of
+				# зіставляє ключ шару з його номером у _decor_mm.
+				var tr := _run.get_node_or_null("Track")
+				if tr != null and node is MultiMeshInstance3D:
+					var arr: Array = tr.get("_decor_mm")
+					var at := arr.find(node)
+					if at >= 0:
+						for key in (tr.get("_decor_layer_of") as Dictionary).keys():
+							if int((tr.get("_decor_layer_of") as Dictionary)[key]) == at:
+								kind = String(key)
+								break
+				rows.append({"вид": kind, "видно": n, "тип": node.get_class()})
+		var f := FileAccess.open("%s/shadows.json" % _out, FileAccess.WRITE)
+		f.store_string(JSON.stringify(rows, "\t"))
+		f.close()
+		print("тінекидачів: %d" % rows.size())
+
 	if OS.get_environment("SHADOWS") == "0":
 		var sun := _run.get_node_or_null("Sun") as DirectionalLight3D
 		if sun != null:
