@@ -50,8 +50,18 @@ func test_no_preset_ships_the_mcp_bridge() -> void:
 
 
 ## І навпаки: дебаг-накладку у збірці для дитини не показуємо самі — вона вмикається лише за
-## прапорцем `debug_hud`, який стоїть у випробувальній веб-збірці. Тут стережемо, що прапорець
-## не розповзся по решті пресетів: інакше дитина отримає екран цифр замість гри.
+## прапорцем `debug_hud`. Тут стережемо, що прапорець не розповзся: інакше дитина отримає
+## екран цифр замість гри.
+##
+## Хто має право його носити — ВИПРОБУВАЛЬНІ збірки, і лише вони:
+##   Web     — гра на телефоні по Wi-Fi, без магазинів і кабелю (docs/web.md);
+##   Android — збірка для замірів на СПРАВЖНЬОМУ пристрої. Заради неї вона й заведена:
+##             числа Compatibility у браузері не кажуть нічого про те, як гра йде на
+##             мобільному рушії, а складання цеглинки, тіні й час кадру треба міряти там.
+##
+## Коли Android стане збіркою ДЛЯ ДИТИНИ, прапорець із неї має зникнути, а випробувальна —
+## жити окремим пресетом. Саме тому список тут явний, а не «будь-який пресет, крім macOS».
+const DEBUG_HUD_PRESETS := ["Web", "Android"]
 func test_debug_hud_flag_only_where_intended() -> void:
 	var f := FileAccess.open(PRESETS, FileAccess.READ)
 	assert_not_null(f, "export_presets.cfg читається")
@@ -63,6 +73,6 @@ func test_debug_hud_flag_only_where_intended() -> void:
 			name = s.substr(6).split("\"")[0]
 		elif s.begins_with("custom_features=\"") and s.contains("debug_hud"):
 			flagged.append(name)
-	assert_eq(flagged, ["Web"],
-		"прапорець debug_hud має стояти лише у веб-збірці для випробувань, а стоїть у: %s"
+	assert_eq(flagged, DEBUG_HUD_PRESETS,
+		"прапорець debug_hud має стояти лише у випробувальних збірках, а стоїть у: %s"
 		% [flagged])
