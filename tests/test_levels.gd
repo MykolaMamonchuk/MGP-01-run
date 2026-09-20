@@ -464,3 +464,21 @@ func test_finish_gate_width_follows_lanes() -> void:
 	assert_gt(g.get_child_count(), 4, "стовпчики, прапорці, банер, іскри")
 	assert_false(g.passed)
 	g.free()
+
+
+## Світло у веб-збірці приглушене — інакше світлі стіни обрізаються в чистий білий.
+##
+## Compatibility (браузер) на тих самих числах світить помітно яскравіше за мобільний
+## рушій. Заміряно на рівні 2 з однаковим зерном: чисто білих пікселів 0,19% на мобільному
+## проти 3,66% у Compatibility. На клiпінгу зникає колір, і будь-яка дрібна нерівність
+## текстури читається як брудна смуга — замовник прислав це як «тіні дивно мигають».
+##
+## Множник 0,55 підібрано заміром: середня яскравість 140,1 проти 138,9 у мобільного,
+## чисто білих 0,23% проти 0,19%.
+func test_web_renderer_gets_dimmer_light() -> void:
+	assert_eq(RunScript.light_scale_for("mobile"), 1.0, "мобільний — як намальовано")
+	assert_eq(RunScript.light_scale_for("forward_plus"), 1.0, "Forward+ — так само")
+	assert_lt(RunScript.light_scale_for("gl_compatibility"), 1.0,
+		"у браузері світло приглушене")
+	assert_gt(RunScript.light_scale_for("gl_compatibility"), 0.3,
+		"але не до темряви: нижче за еталон кадр темнішати не має")

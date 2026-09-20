@@ -90,6 +90,25 @@ func _ready() -> void:
 			sun_d.directional_shadow_max_distance = float(OS.get_environment("SHADOW_DIST"))
 			await _frames_passed(5)
 
+	# ENV_GLOW=0 / ENV_ADJ=0 — вимкнути блум і кольорокорекцію, щоб з'ясувати, ЩО САМЕ
+	# пересвічує кадр. Питання постало на Compatibility: там чисто білих пікселів у
+	# дев'ятнадцять разів більше, ніж на мобільному рушії.
+	# ENV_GLOW=0 / ENV_ADJ=0 — вимкнути блум і кольорокорекцію, щоб з'ясувати, ЩО САМЕ
+	# пересвічує кадр. Кадри після зміни чекаємо ЛИШЕ тоді, коли щось справді змінили:
+	# безумовний `await` тут зсував знімок на три кадри в КОЖНОМУ прогоні, і два однакові
+	# заміри «до/після» розходились на третину пікселів ні через що.
+	var touched := false
+	var e := (_run.get_node_or_null("WorldEnvironment") as WorldEnvironment)
+	if e != null and e.environment != null:
+		if OS.get_environment("ENV_GLOW") == "0":
+			e.environment.glow_enabled = false
+			touched = true
+		if OS.get_environment("ENV_ADJ") == "0":
+			e.environment.adjustment_enabled = false
+			touched = true
+	if touched:
+		await _frames_passed(3)
+
 	if OS.get_environment("SHADOWS") == "0":
 		var sun := _run.get_node_or_null("Sun") as DirectionalLight3D
 		if sun != null:

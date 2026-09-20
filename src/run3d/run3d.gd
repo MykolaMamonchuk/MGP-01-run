@@ -41,6 +41,27 @@ const ADJ_SATURATION := 1.15
 const ADJ_CONTRAST := 1.05
 ## Сонце 1.1 (run3d.tscn) + амбієнт 0.55: разом середні тони не перевищують 1.0 і не пересвічуються.
 const AMBIENT_ENERGY := 0.35
+## Compatibility (тобто ВЕБ-ЗБІРКА) на тих самих числах світить помітно яскравіше за
+## мобільний рушій, і світлі поверхні обрізаються в чистий білий. Заміряно 20.09.2026 на
+## рівні 2: чисто білих пікселів 0,19% на мобільному проти 3,66% у Compatibility — у
+## дев'ятнадцять разів більше. На клiпінгу зникає колір і будь-яка дрібна нерівність
+## текстури читається як брудна смуга; замовник це й прислав («тіні дивно мигають»).
+##
+## Це та сама вада, яку вже лікували числами 1.1/0.55 → 0.9/0.35 (див. коментар у _set_sky),
+## тільки підбирали її на мобільному рушії. Множник підібрано тим самим способом — заміром,
+## а не на око: шукали найменшу різницю з мобільним кадром за однакового зерна.
+## Заміряно на рівні 2 з тим самим зерном (RESET=1 PROFILE=older GAME_SEED=7):
+##
+##     множник   середня яскравість   чисто білих
+##     1.00            171.7             3.66%
+##     0.85            163.1             1.61%
+##     0.70            152.9             0.53%
+##     0.55            140.1             0.23%     ← взято
+##     мобільний       138.9             0.19%
+##
+## 0,55 сходиться з мобільним і за яскравістю (різниця 0,9%), і за клiпінгом. Менше робити
+## нема сенсу: кадр почне темніти нижче за еталон.
+const COMPAT_LIGHT := 0.55
 ## Сорока (GDD v1.4 §3): скидає X-ящик кожні 12–20 с, починаючи з 3-го рівня.
 const MAGPIE_FROM_LEVEL := 3
 const MAGPIE_DROP_INTERVAL := [12.0, 20.0]
@@ -125,6 +146,9 @@ var session_total := 600.0
 var switching := false
 var quests := Quests.new()
 
+## Множник світла цього рушія (див. COMPAT_LIGHT). Рахуємо раз: рушій посеред гри не
+## міняється, а _set_sky кличеться щокадру.
+var _light_k := 1.0
 var _debug: DebugOverlay
 var _ambient: GPUParticles3D
 var _weather: GPUParticles3D
@@ -208,6 +232,10 @@ func _ready() -> void:
 	# і в запуску з редактора. У звичайній збірці для дитини вона мовчить, але лишається —
 	# F3 дістає її й там, і це навмисно: коли щось піде не так на чужому телефоні, числа
 	# мають бути за одну клавішу, а не за перезбірку.
+	_light_k = light_scale_for(RenderingServer.get_current_rendering_method())
+	if OS.has_environment("LIGHT_K"):
+		_light_k = float(OS.get_environment("LIGHT_K"))   # ручка для добору заміром
+
 	_debug = DebugOverlay.new()
 	add_child(_debug)
 	_debug.setup(self)
@@ -341,6 +369,12 @@ static func fog_begin_for(density: float) -> float:
 		return float(FOG_BEGIN_RANGE[1])
 	return clampf(FOG_NEAR_M * DEFAULT_FOG / density,
 		float(FOG_BEGIN_RANGE[0]), float(FOG_BEGIN_RANGE[1]))
+
+
+## Множник світла для цього рушія. Чиста функція окремо від RenderingServer — щоб рішення
+## можна було перевірити тестом: самого рушія в тестах не переключиш.
+static func light_scale_for(method: String) -> float:
+	return COMPAT_LIGHT if method == "gl_compatibility" else 1.0
 
 
 ## Камера під ширину дороги: 7 доріжок — вище й далі, ортографічна — ширша.
@@ -509,7 +543,8 @@ func _set_sky(t: float) -> void:
 		env.environment.background_color = c
 		env.environment.ambient_light_color = c.lightened(0.35).lerp(Palette.WHITE, 0.45)
 		env.environment.fog_light_color = c.lightened(0.2)
-	sun.light_energy = energy
+		env.environment.ambient_light_energy = AMBIENT_ENERGY * _light_k
+	sun.light_energy = energy * _light_k
 	sun.light_color = Palette.WHITE.lerp(Palette.SUN_EVENING, t)
 	var want_fireflies := t > 0.6 or bool(level.get("night", false))
 	if want_fireflies and _fireflies == null:
