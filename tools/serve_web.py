@@ -73,6 +73,64 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             super().log_message(fmt, *args)
 
 
+class TLSServer(socketserver.TCPServer):
+    """TLS на тому самому порту, але з розпізнаванням «зайшли по http://».
+
+    Браузер сам https не додає: у рядок вбивають `192.168.7.104:8070/...`, Chrome робить із
+    цього `http://`, а сервер під TLS на такий запит просто мовчить — і вкладка висить до
+    ERR_TIMED_OUT. Нічого в тому таймауті не підказує, що треба було написати `https`.
+
+    Тому підглядаємо ПЕРШИЙ байт з'єднання, не забираючи його з черги (MSG_PEEK). Рукостискання
+    TLS завжди починається з 0x16 (handshake); звичайний HTTP — з літери методу (`G`, `P`, `H`).
+    Літера — відповідаємо 301 на https і закриваємо; 0x16 — загортаємо в TLS, як і задумано.
+    """
+
+    ssl_ctx = None
+
+    def get_request(self):
+        sock, addr = self.socket.accept()
+        try:
+            head = sock.recv(2048, socket.MSG_PEEK)
+        except OSError:
+            head = b""
+        if head and head[0] != 0x16:
+            self._redirect(sock, head)
+            raise BlockingIOError("перенаправлено на https")
+        return self.ssl_ctx.wrap_socket(sock, server_side=True), addr
+
+    def _redirect(self, sock, head):
+        """301 на ту саму адресу, але по https — зі ЗБЕРЕЖЕНИМ шляхом.
+
+        Шлях беремо з першого рядка запиту, вузол — із заголовка Host (там рівно те, що
+        вбили в адресний рядок). Без цього перенаправлення вело б на `/`, тобто на список
+        файлів замість гри."""
+        try:
+            lines = head.split(b"\r\n")
+            parts = lines[0].split(b" ")
+            path = parts[1] if len(parts) > 2 else b"/"
+            host = b""
+            for ln in lines[1:]:
+                if ln.lower().startswith(b"host:"):
+                    host = ln.split(b":", 1)[1].strip().split(b":")[0]
+                    break
+            if not host:
+                host = sock.getsockname()[0].encode()
+            body = b"HTTP/1.1 301 Moved Permanently\r\nLocation: https://%s:%d%s\r\n" \
+                   b"Content-Length: 0\r\nConnection: close\r\n\r\n" \
+                   % (host, self.server_address[1], path)
+            sock.sendall(body)
+        except (OSError, IndexError):
+            pass
+        finally:
+            sock.close()
+
+    def handle_error(self, request, client_address):
+        if os.environ.get("SERVE_DEBUG"):
+            import traceback
+            traceback.print_exc()
+        # обірваний TLS (телефон ще не погодився на сертифікат) — не вада сервера, мовчимо
+
+
 def lan_ip():
     """Адреса цього комп'ютера в локальній мережі. Сокет нікуди не йде — це лише спосіб
     спитати систему, який інтерфейс вона обрала б для виходу назовні."""
@@ -143,9 +201,10 @@ def main():
             scheme = "https"
 
     socketserver.TCPServer.allow_reuse_address = True
-    with socketserver.TCPServer(("0.0.0.0", a.port), Handler) as httpd:
+    server_cls = TLSServer if ctx is not None else socketserver.TCPServer
+    with server_cls(("0.0.0.0", a.port), Handler) as httpd:
         if ctx is not None:
-            httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
+            httpd.ssl_ctx = ctx
         print("тут:        %s://localhost:%d/%s" % (scheme, a.port, page), flush=True)
         print("з телефона: %s://%s:%d/%s   (той самий Wi-Fi)"
               % (scheme, ip, a.port, page), flush=True)
