@@ -31,9 +31,12 @@ const CORNER := 72.0
 ## Як часто перемальовуємо. Кожен кадр не потрібно — очі однаково не читають швидше, а
 ## збирання тексту саме по собі коштує кадру.
 const REFRESH_SEC := 0.2
-## За скільки секунд тримаємо найгірший кадр. Миттєве число нічого не каже: смикання триває
-## один кадр і встигає зникнути, доки на нього подивишся.
-const WORST_WINDOW_SEC := 3.0
+## Вікно для середнього й для 1% low. Довше за «найгірший», бо це показники РІВНОСТІ ходу,
+## і на трьох секундах вони стрибають від кожної випадковості.
+const STATS_WINDOW_SEC := 8.0
+## Частка найгірших кадрів, яку показуємо окремо. Для раннера рівність ходу важливіша за
+## середнє: середні 16 мс при найгірших 40 — це помітні смики, а середнє про них мовчить.
+const LOW_PERCENTILE := 0.01
 ## Скільки к/с вважаємо добрим, посереднім і поганим — за цим фарбуємо рядок кадру.
 const FPS_GOOD := 55.0
 const FPS_FAIR := 40.0
@@ -45,6 +48,8 @@ var _panel: PanelContainer
 var _corner: Control
 var _text: Label
 var _acc := 0.0
+## Мить попереднього кадру за годинником (секунди).
+var _last_t := 0.0
 ## [час, мс] — вікно останніх кадрів, щоб дістати найгірший.
 var _frames: Array = []
 
@@ -52,6 +57,9 @@ var _frames: Array = []
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	layer = LAYER
+	# Godot міряє час кадру ОКРЕМО для процесора й для відеокарти, але лише коли попросиш.
+	# Це і є головне число для телефона: воно каже, ЩО саме впирається, а не просто «повільно».
+	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	var root := Control.new()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -111,9 +119,15 @@ func cycle() -> void:
 
 
 func _process(delta: float) -> void:
-	var now := float(Time.get_ticks_msec()) / 1000.0
-	_frames.append([now, delta * 1000.0])
-	while not _frames.is_empty() and now - float((_frames[0] as Array)[0]) > WORST_WINDOW_SEC:
+	# Час кадру беремо ГОДИННИКОМ, а не з delta. Під `--fixed-fps` (а так ганяє проба) delta
+	# синтетична й завжди рівна 16,7 мс — за нею всі кадри виглядають ідеальними, і 1% low
+	# нічого не показує. Годинник каже правду в обох випадках.
+	var t := float(Time.get_ticks_usec()) / 1000000.0
+	var ms := (t - _last_t) * 1000.0 if _last_t > 0.0 else delta * 1000.0
+	_last_t = t
+	var now := t
+	_frames.append([now, ms])
+	while not _frames.is_empty() and now - float((_frames[0] as Array)[0]) > STATS_WINDOW_SEC:
 		_frames.remove_at(0)
 	if mode == Mode.HIDDEN:
 		return
@@ -125,6 +139,9 @@ func _process(delta: float) -> void:
 	_text.add_theme_color_override("font_color", _fps_color())
 
 
+## Найгірший кадр ЗА ТИМ САМИМ вікном, що й середнє з 1% low. Спершу він рахувався за
+## трьома секундами, і виходила нісенітниця: «1% low 85.6, найгірший 40.2». Одне вікно —
+## і числа знову можна читати одне поруч з одним.
 func _worst_ms() -> float:
 	var worst := 0.0
 	for f in _frames:
@@ -132,8 +149,35 @@ func _worst_ms() -> float:
 	return worst
 
 
+## Середній кадр і 1% low за вікном. Повертає [середнє, 1% low, к/с за вікном].
+## К/с рахуємо САМІ, а не беремо Performance.TIME_FPS: те число миттєве й стрибає так, що за
+## ним не видно ні провалів, ні рівного ходу.
+func _stats() -> Array:
+	var ms: Array = []
+	var total := 0.0
+	for f in _frames:
+		var v := float((f as Array)[1])
+		ms.append(v)
+		total += v
+	if ms.is_empty():
+		return [0.0, 0.0, 0.0]
+	ms.sort()
+	var avg := total / float(ms.size())
+	# 1% low — час, гірший за 99% кадрів вікна (не середнє найгірших, а сам поріг)
+	var at := mini(ms.size() - 1, int(float(ms.size()) * (1.0 - LOW_PERCENTILE)))
+	return [avg, float(ms[at]), 1000.0 / maxf(avg, 0.001)]
+
+
+func _render_ms() -> Array:
+	var vp := get_viewport().get_viewport_rid()
+	return [RenderingServer.viewport_get_measured_render_time_cpu(vp),
+		RenderingServer.viewport_get_measured_render_time_gpu(vp)]
+
+
+## К/с за нашим вікном, а не миттєве Performance.TIME_FPS: те стрибає так, що фарбувати за
+## ним рядок означало б блимати кольором на рівному ході.
 func _fps() -> float:
-	return float(Performance.get_monitor(Performance.TIME_FPS))
+	return float(_stats()[2])
 
 
 func _fps_color() -> Color:
@@ -148,12 +192,17 @@ func _m(id: int) -> float:
 
 
 func _fps_line() -> String:
-	return "%.0f к/с · %.1f мс · найгірший %.1f" % [_fps(),
-		_m(Performance.TIME_PROCESS) * 1000.0, _worst_ms()]
+	var st := _stats()
+	return "%.0f к/с · кадр %.1f мс · 1%% low %.1f · найгірший %.1f (за %.0f с)" % [
+		float(st[2]), float(st[0]), float(st[1]), _worst_ms(), STATS_WINDOW_SEC]
 
 
 func _full_text() -> String:
 	var rows := [_fps_line()]
+	# ЩО САМЕ ВПИРАЄТЬСЯ. Якщо ЦП 7 мс, а відео 18 — чіпати треба тіні, MSAA й заповнення,
+	# а не пачки й скрипти. Якщо навпаки — навпаки. Без цих двох чисел оптимізують навмання.
+	var r := _render_ms()
+	rows.append("ЦП %.1f мс · відео %.1f мс" % [float(r[0]), float(r[1])])
 	rows.append("виклики %d · примітиви %s · об'єкти %d"
 		% [int(_m(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
 			_thousands(int(_m(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME))),

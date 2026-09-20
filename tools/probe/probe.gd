@@ -34,8 +34,14 @@ var _level: int = int(OS.get_environment("LEVEL")) if OS.has_environment("LEVEL"
 var _frames: int = int(OS.get_environment("FRAMES")) if OS.has_environment("FRAMES") else 120
 
 
+## [середнє, 1% low, найгірший, к/с] за останнім вікном — рахується в _frames_passed.
+var _wall := [0.0, 0.0, 0.0, 0.0]
+var _wall_ms: Array = []
+
+
 func _ready() -> void:
 	seed(SEED)
+	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	DirAccess.make_dir_recursive_absolute(_out)
 	# RESET=1 — міряти з чистого аркуша. Без цього проба бачить ВАШ прогрес, і той самий
 	# STAGE дає різні екрани на різних машинах, тобто порівнювати «до/після» нічим.
@@ -238,6 +244,16 @@ func _ready() -> void:
 			"primitives": Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
 			"video_mem_mb": Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
 			"texture_mem_mb": Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
+			# ЧАС КАДРУ ГОДИННИКОМ, а не з delta й не з TIME_PROCESS. TIME_PROCESS міряє
+			# лише скрипти (0,3 мс), delta під --fixed-fps синтетична (завжди 16,7), і обидва
+			# показували «60 к/с» там, де вікно насправді йшло по 30. Ці чотири числа беруться
+			# з того самого вікна, тож найгірший ≥ 1% low ≥ середнє завжди.
+			"wall_avg_ms": _wall[0], "wall_low1_ms": _wall[1],
+			"wall_worst_ms": _wall[2], "wall_fps": _wall[3],
+			"render_cpu_ms": RenderingServer.viewport_get_measured_render_time_cpu(
+				get_viewport().get_viewport_rid()),
+			"render_gpu_ms": RenderingServer.viewport_get_measured_render_time_gpu(
+				get_viewport().get_viewport_rid()),
 		},
 		"controls": _controls(_run),
 		"decor_cost": decor,
@@ -280,7 +296,27 @@ func _decor_cost() -> Array:
 
 func _frames_passed(n: int) -> void:
 	for i in range(n):
+		var t0 := Time.get_ticks_usec()
 		await get_tree().process_frame
+		_wall_ms.append(float(Time.get_ticks_usec() - t0) / 1000.0)
+		# тримаємо останні 8 секунд при 60 к/с — те саме вікно, що й у накладці
+		if _wall_ms.size() > 480:
+			_wall_ms.remove_at(0)
+	_wall = _wall_stats()
+
+
+## [середнє, 1% low, найгірший, к/с]. 1% low — поріг, гірший за 99% кадрів вікна.
+func _wall_stats() -> Array:
+	if _wall_ms.is_empty():
+		return [0.0, 0.0, 0.0, 0.0]
+	var v: Array = _wall_ms.duplicate()
+	v.sort()
+	var total := 0.0
+	for x in v:
+		total += float(x)
+	var avg := total / float(v.size())
+	var at := mini(v.size() - 1, int(float(v.size()) * 0.99))
+	return [avg, float(v[at]), float(v[-1]), 1000.0 / maxf(avg, 0.001)]
 
 
 ## Стан кореня HUD — саме до нього hud.gd підтискає краї під виріз камери. Відступи тут
