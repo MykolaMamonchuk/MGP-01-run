@@ -60,6 +60,19 @@ def parse_args(argv):
     # ПЕРЕВІРЕНО 20.09.2026 на house_terra_4, щоб не пробували вдруге: різниці між `after` і
     # `before` око не бачить, а `auto` ВІДЧУТНО ГІРШИЙ — черепиця перетворюється на ковбаски.
     # Тобто типове `after` і лишається; вибір тут для того, щоб це можна було переперевірити.
+    ap.add_argument("--unwrap", default="smart", choices=["smart", "seams"],
+                    help="як різати розгортку: smart — smart_project (як було, надійно), "
+                         "seams — шви за кутом і кутова розгортка (менше островів, але на "
+                         "частині моделей дає розтяг і втрату деталі, див. коментар)")
+    ap.add_argument("--seam-angle", type=float, default=60.0,
+                    help="різкіші за цей кут ребра стають швами. Більший кут — менше швів і "
+                         "більші острови; 60° для твердотільної будівлі")
+    ap.add_argument("--pack-margin", type=float, default=0.002,
+                    help="проміжок між островами при пакуванні — ЧАСТКА ВСЬОГО АТЛАСУ, "
+                         "не пікселі. Підібрано заміром на house_terra_4: 0.015 давало 1.6% "
+                         "заповнення, 0.003 — 15.5%, 0.002 — 58.1%, 0.001 — 34.4%. Замалий "
+                         "проміжок пускає сусідів один в одного на mip'ах, завеликий з'їдає "
+                         "атлас полями: островів сотні, і кожен бере поле з обох боків")
     ap.add_argument("--smooth", default="after",
                     choices=["after", "before", "auto"],
                     help="коли й як згладжувати ціль: after — типово, before — згладити ДО "
@@ -164,6 +177,8 @@ def make_shell_target(src, segments, rings, shrink):
 ## гри — 7 000 (tests/test_prop_budget.gd). Тобто будинки неминуче йдуть у два проходи, і
 ## 6 000 — найкраще, що з цього виходить. Якщо колись знадобиться більше, дешевше підняти
 ## стелю для КІЛЬКОХ найближчих до дороги будівель, ніж для всіх.
+## Поля запікання в пікселях. 16 — нижня робоча межа для 1024; для 2048 краще 24–32.
+BAKE_MARGIN = 24
 MAX_PASSES = 4
 SHRINK_LIMIT = 0.05
 
@@ -213,13 +228,40 @@ def make_target(src, tris):
     return dst
 
 
-## Нова розгортка. Стара після спрощення подерта: її острівці різались по черепичках, яких
-## уже нема. angle_limit великий — для твердотільної моделі це дає менше швів.
-def unwrap(dst):
+## НОВА РОЗГОРТКА — і це найважливіше місце всього інструмента.
+##
+## Було: `smart_project` на всю модель і більше нічого. Заміряно 21.09.2026 на house_terra_4:
+## 1 460 островів, із них 619 однограневих (42%), і — головне — **зайнято лише 17,5% площі
+## текстури**. Решта 82% — порожні поля між острівцями. Тобто карта 1024 працювала як ~450,
+## і вся запечена деталь розчинялась у mipmap'ах ще до того, як будинок відійде на п'ять
+## метрів. Саме тому модель зблизька в Blender виглядала пристойно, а в грі — мило.
+##
+## Стало: шви за кутом → кутова розгортка → ВИРІВНЯТИ МАСШТАБ островів → СПАКУВАТИ їх.
+## Двох останніх кроків не було зовсім, а саме вони й прибирають порожнечу.
+##
+## `seams_by_angle` великий (60°) навмисно: у твердотільної будівлі різкі ребра — це кути
+## стін, стики даху й межі оздоблення, тобто рівно ті лінії, по яких шов і має йти. Дрібніші
+## згини лишаються всередині острова, і острів виходить великим.
+def unwrap(dst, seam_angle, pack_margin, mode):
     select_only([dst], dst)
     bpy.ops.object.mode_set(mode="EDIT")
     bpy.ops.mesh.select_all(action="SELECT")
-    bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.005)
+    if mode == "seams":
+        # старі шви прибираємо: після спрощення вони вже не по тих ребрах
+        bpy.ops.mesh.mark_seam(clear=True)
+        bpy.ops.mesh.select_all(action="DESELECT")
+        bpy.ops.mesh.select_mode(type="EDGE")
+        bpy.ops.mesh.edges_select_sharp(sharpness=math.radians(seam_angle))
+        bpy.ops.mesh.mark_seam(clear=False)
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.unwrap(method="ANGLE_BASED", margin=0.001)
+    else:
+        bpy.ops.uv.smart_project(angle_limit=1.15, island_margin=0.0)
+    # Вирівняти масштаб: без цього дрібні острови пакуються такими ж дрібними, і texel
+    # density стіни й дверної ручки різниться в рази.
+    bpy.ops.uv.select_all(action="SELECT")
+    bpy.ops.uv.average_islands_scale()
+    bpy.ops.uv.pack_islands(margin=pack_margin, rotate=True)
     bpy.ops.object.mode_set(mode="OBJECT")
 
 
@@ -269,6 +311,10 @@ def bake_into(mat, node, src, dst, kind, cage, samples):
     bake.cage_extrusion = cage
     bake.max_ray_distance = cage * 2.0
     bake.use_clear = True
+    # Поля навколо островів. Без них на межі острова лишається колір фону, і на mip'ах він
+    # затікає всередину — саме те, що видно як брудну облямівку кожної деталі.
+    bake.margin = BAKE_MARGIN
+    bake.margin_type = "ADJACENT_FACES"
     if kind == "DIFFUSE":
         # Тільки ВЛАСНИЙ колір поверхні: без прямого й непрямого світла, інакше в текстуру
         # запечеться освітлення сцени, і в грі воно перемножиться на справжнє.
@@ -328,7 +374,7 @@ def main():
         dst = make_shell_target(src, a.segments, a.rings, a.shrink)
     else:
         dst = make_target(src, a.tris)
-    unwrap(dst)
+    unwrap(dst, a.seam_angle, a.pack_margin, a.unwrap)
 
     color_img = new_image("baked_color", a.size, False)
     normal_img = new_image("baked_normal", a.size, True)
@@ -356,8 +402,12 @@ def main():
         bpy.ops.object.shade_smooth()
 
     dst_path = os.path.abspath(os.path.expanduser(a.out))
+    # ТАНГЕНТИ. Карта нормалей тангенційна, тобто без тангентного базису вона нічого не
+    # означає. Godot уміє порахувати його сам при імпорті, але це буде ІНШИЙ базис, ніж той,
+    # у якому пекли, — і рельєф виходить слабшим або з дивними переходами. Експортуємо явно.
     bpy.ops.export_scene.gltf(filepath=dst_path, export_format="GLB",
-                              export_image_format="JPEG", export_jpeg_quality=90)
+                              export_image_format="JPEG", export_jpeg_quality=90,
+                              export_tangents=True, export_normals=True)
     print("  записано: %s (%.2f МБ)" % (dst_path, os.path.getsize(dst_path) / 1e6))
 
 
