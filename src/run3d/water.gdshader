@@ -99,6 +99,12 @@ uniform float amplitude = 0.12;        // висота гойдання верш
 uniform vec2 tile = vec2(6.0, 30.0);   // скільки разів повторюється поле піни по X (упоперек) і Z (уздовж)
 uniform float shore_dist : hint_range(0.05, 3.0) = 0.5;  // метрів: на такій різниці глибини з тим, що за водою, гасне прибережна піна
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest;
+// Чи є в цього рушія глибинна текстура взагалі. У Compatibility (WebGL 2, тобто вся
+// веб-збірка) її НЕМА: замість неї приходить нуль, `scene_depth` виходить біля ближньої
+// площини, різниця з глибиною води — відʼємна, і `shore` замість нуля стає одиницею. Тобто
+// піна заливає ВСЮ воду: у браузері канал був білий. Ставить цей прапорець track.gd за
+// RenderingServer.get_current_rendering_method().
+uniform bool depth_ok = true;
 uniform float foam_speed = 0.05;       // наскільки піна «пливе» вздовж каналу зі scroll
 
 varying float crest;    // -1..1: яка вершина зараз на гребені хвилі — для легкого зблиску
@@ -284,14 +290,16 @@ void fragment() {
 	// вище про _canal_water без subdivide_width). Шейдер тепер малюється в прозорому
 	// проході (render_mode blend_mix, depth_draw_never), тому DEPTH_TEXTURE тут бачить
 	// СПРАВЖНЄ дно/предмет позаду, а не сам себе.
-	float raw_depth = texture(depth_texture, SCREEN_UV).r;
-	vec3 ndc = vec3(SCREEN_UV * 2.0 - 1.0, raw_depth);
-	vec4 view = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
-	view.xyz /= view.w;
-	float scene_depth = -view.z;    // відстань від камери до того, що за водою
-	float water_depth = -VERTEX.z;  // відстань від камери до цього пікселя води (VERTEX тут — у просторі камери, без world_vertex_coords)
-	float shore = 1.0 - clamp((scene_depth - water_depth) / shore_dist, 0.0, 1.0);
-	c = mix(c, mix(color_light.rgb, vec3(1.0), 0.8), shore * 0.85);
+	if (depth_ok) {
+		float raw_depth = texture(depth_texture, SCREEN_UV).r;
+		vec3 ndc = vec3(SCREEN_UV * 2.0 - 1.0, raw_depth);
+		vec4 view = INV_PROJECTION_MATRIX * vec4(ndc, 1.0);
+		view.xyz /= view.w;
+		float scene_depth = -view.z;    // відстань від камери до того, що за водою
+		float water_depth = -VERTEX.z;  // відстань від камери до цього пікселя води (VERTEX тут — у просторі камери, без world_vertex_coords)
+		float shore = 1.0 - clamp((scene_depth - water_depth) / shore_dist, 0.0, 1.0);
+		c = mix(c, mix(color_light.rgb, vec3(1.0), 0.8), shore * 0.85);
+	}
 
 	ALBEDO = c;
 	ROUGHNESS = 0.55;

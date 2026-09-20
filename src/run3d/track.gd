@@ -499,6 +499,7 @@ func _ready() -> void:
 	_water.mesh = pm
 	_water_mat = ShaderMaterial.new()
 	_water_mat.shader = load("res://src/run3d/water.gdshader")
+	_water_mat.set_shader_parameter("depth_ok", depth_texture_available())
 	_water.material_override = _water_mat
 	_water.position = Vector3(0.0, 0.02, BEHIND - ROWS * 0.5)
 	_water.visible = false
@@ -693,6 +694,19 @@ static func canal_sides(canal: Dictionary) -> Array:
 
 
 ## Світ із відкритим узбіччям (трава одразу за дорогою) чи зі стінами впритул.
+## Чи є в поточного рушія глибинна текстура. Її немає в Compatibility (WebGL 2) — тобто у
+## всій веб-збірці, бо браузер Vulkan не має й Godot відкочується саме туди. Шейдер води
+## рахує через неї прибережну піну; без неї туди приходить нуль, різниця глибин виходить
+## відʼємною, і піна заливає ВСЮ воду — у браузері канал був білий, замовник це й побачив.
+## Чиста функція окремо від RenderingServer, щоб її можна було перевірити тестом.
+static func depth_texture_for(method: String) -> bool:
+	return method != "gl_compatibility"
+
+
+static func depth_texture_available() -> bool:
+	return depth_texture_for(RenderingServer.get_current_rendering_method())
+
+
 static func is_open(world: Dictionary) -> bool:
 	return String(world.get("roadside", "walls")) == "open"
 
@@ -1660,6 +1674,7 @@ func _layout_canal() -> void:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # те саме, що й бічна вода
 			var mat := ShaderMaterial.new()
 			mat.shader = load("res://src/run3d/water.gdshader")
+			mat.set_shader_parameter("depth_ok", depth_texture_available())
 			mat.set_shader_parameter("amplitude", 0.03)
 			# Обидва боки каналу — локально ОДНАКОВА геометрія (лише зсунута по X), тож без
 			# цього хвиля й піна текли б дзеркально однаково з обох боків дороги — так це й

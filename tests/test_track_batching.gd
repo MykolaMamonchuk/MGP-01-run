@@ -195,3 +195,33 @@ func test_never_sways_names_real_kinds() -> void:
 		if not _track._kind_exists(String(kind)):
 			missing.append(kind)
 	assert_eq(missing.size(), 0, "у списку нерухомих є неіснуючі види: %s" % [missing])
+
+
+## Вода не біла там, де немає глибинної текстури.
+##
+## Шейдер води рахує прибережну піну через `hint_depth_texture`. У Compatibility (WebGL 2,
+## тобто вся веб-збірка) глибинної текстури НЕМА: замість неї приходить нуль, `scene_depth`
+## виходить біля ближньої площини, різниця з глибиною води відʼємна — і `shore` замість нуля
+## стає одиницею. Піна заливає всю воду, канал у браузері був білий; замовник це й побачив.
+##
+## Тому шейдер має прапорець `depth_ok`, а Track ставить його за рушієм. Стережемо саме
+## рішення — чиста функція від назви рушія, бо самого рушія в тестах не переключиш.
+func test_depth_texture_is_absent_only_in_compatibility() -> void:
+	assert_false(Track.depth_texture_for("gl_compatibility"),
+		"у Compatibility глибинної текстури немає")
+	assert_true(Track.depth_texture_for("mobile"), "у мобільному — є")
+	assert_true(Track.depth_texture_for("forward_plus"), "у Forward+ — теж")
+
+
+## І прапорець справді доходить до матеріалів, а не лишається в коді.
+func test_water_materials_carry_the_flag() -> void:
+	var f := FileAccess.open("res://data/worlds/meadow.json", FileAccess.READ)
+	_track.rebuild(JSON.parse_string(f.get_as_text()), false)
+	await wait_process_frames(2)
+	var want := Track.depth_texture_available()
+	assert_eq(_track._water_mat.get_shader_parameter("depth_ok"), want,
+		"велика вода знає про глибинну текстуру")
+	assert_gt(_track._canal_mats.size(), 0, "канал у Лужка є")
+	for mat in _track._canal_mats:
+		assert_eq((mat as ShaderMaterial).get_shader_parameter("depth_ok"), want,
+			"і канал теж")
