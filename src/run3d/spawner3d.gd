@@ -154,6 +154,30 @@ func configure(p: Dictionary, w: Dictionary, h: Hero3D, m: ModeBase, r: Node) ->
 	magnet_wide = false
 	coin_mult = 1
 	reset_power()
+	_prewarm_props()
+
+
+## Прочитати меші ВСІХ перешкод світу наперед, поки триває завантаження рівня.
+##
+## Навіщо. PropLibrary.mesh() кешує, але перший виклик читає GLB з диска. Заміряно
+## 20.09.2026 на Лузі: 17 мешів, 27,4 мс разом — і без цього прогріву вони читались би
+## по одному, кожен у тому кадрі, де його вид уперше вийшов на дорогу. Кожен вид усе одно
+## прочитається за рівень, тож це не економія пам'яті, а перенесення читання туди, де на
+## нього ніхто не дивиться.
+##
+## Типи беремо ВСІ: pick() вибирає випадково на кожен екземпляр, тож «прогріти перший» —
+## значить лишити читання на другому.
+##
+## Чесно про межу: ЦЕ НЕ прибрало жодного зі сплесків у бігу. Ті виявились іншими (див.
+## docs/MEMORY.md: перше зіткнення й збирання чанка), а лог читань після прогріву показує
+## нуль звертань до диска за весь прогін — саме те, заради чого функція й потрібна.
+func _prewarm_props() -> void:
+	var defs: Dictionary = world.get("obstacles", {})
+	for kind in defs:
+		var d: Dictionary = defs[kind]
+		var prop := String(d.get("prop", d.get("voxel", kind)))
+		for v in range(PropLibrary.variants(prop)):
+			PropLibrary.mesh(prop, v)
 
 
 ## Скільки монеток дає злиток номіналу value: пікап «×2» (цілий) × множник суперсили (дробовий).
@@ -287,8 +311,7 @@ func set_authored_obstacles(records: Array) -> void:
 ## Дозавантажити ще перешкод до вже наявного списку (LevelChunkLoader — наступний чанк рівня):
 ## на відміну від set_ курсор НЕ скидається, уже застосовані записи лишаються пройденими.
 func add_authored_obstacles(records: Array) -> void:
-	_authored_obstacles.append_array(records)
-	_authored_obstacles.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
+	_authored_obstacles = LevelTimeline.merge_by_z(_authored_obstacles, records)
 	_authored_active = true
 
 
@@ -423,8 +446,7 @@ func set_authored_pickups(records: Array) -> void:
 
 
 func add_authored_pickups(records: Array) -> void:
-	_authored_pickups.append_array(records)
-	_authored_pickups.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
+	_authored_pickups = LevelTimeline.merge_by_z(_authored_pickups, records)
 
 
 func clear_authored_pickups() -> void:

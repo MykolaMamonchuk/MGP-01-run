@@ -762,16 +762,51 @@ func set_authored_timeline(decor: Array, buildings: Array) -> void:
 ## чанк рівня). Сортуємо за z_m — _decorate() лінійно фільтрує по вікну одного ряду (~1 м),
 ## запис одного чанку невеликий, тож зайвого коштує копійки.
 func add_authored_timeline(decor: Array, buildings: Array) -> void:
-	_authored_decor.append_array(decor)
-	_authored_decor.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
-	_authored_buildings.append_array(buildings)
-	_authored_buildings.sort_custom(func(a, b): return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0)))
+	_authored_decor = LevelTimeline.merge_by_z(_authored_decor, decor)
+	_authored_buildings = LevelTimeline.merge_by_z(_authored_buildings, buildings)
 	_authored_active = true
 	_index_authored_bridges()
+	_prewarm_authored(decor, false)
+	_prewarm_authored(buildings, true)
+
+
+## ПРОГРІВ ШАРІВ ІЗ САМИХ ЗАПИСІВ. Заміряно 21.09.2026: кожен новий шар декору, заведений
+## посеред бігу, дає пачку кадрів по 26–48 мс — створюється MultiMeshInstance3D, вантажиться
+## меш із PropLibrary і ВПЕРШЕ малюється цим матеріалом, тобто компілюється шейдер. На рівні
+## 1 таких пачок було чотири: на 2,9 / 21,6 / 37,1 / 46,4 метрах, щоразу на тих самих місцях.
+##
+## Прогрів зі списків світу вже був, але авторських записів він не бачив: заморожене
+## оздоблення кладе види, яких у списках немає (beehive, fence), а ще той самий вид може
+## піти іншим КЛЮЧЕМ — прогрітий як нерухомий, а в записі живий. Тому гріємо саме тим, чим
+## воно потім і малюватиметься: тим самим kind, override і прапорцем гойдалки.
+##
+## Записів у чанку сотні, а різних шарів — десятки, тож кожен запис через _decor_layer()
+## гнати НЕ МОЖНА: там ключ будується через JSON.stringify(override), і на 779 записах це
+## коштувало 14–19 мс просто на збірці рядків — рівно та витрата, яку прогрів мав прибрати.
+## Тому спершу дешевий відсів по вже баченому: [вид, гойдалка, override] як ключ словника
+## (Godot хешує масиви й словники за значенням), і лише нове йде далі.
+var _prewarmed: Dictionary = {}
+
+
+func _prewarm_authored(records: Array, no_sway: bool) -> void:
+	for rec in records:
+		var kind := String((rec as Dictionary).get("kind", ""))
+		if kind == "" or kind == "bridge_plank":
+			continue
+		var override: Dictionary = (rec as Dictionary).get("override", {}) \
+			if typeof((rec as Dictionary).get("override", {})) == TYPE_DICTIONARY else {}
+		var seen_key := [kind, no_sway, override]
+		if _prewarmed.has(seen_key):
+			continue
+		_prewarmed[seen_key] = true
+		if not _kind_exists(kind):
+			continue
+		_decor_layer(kind, override, PropLibrary.pick(kind), no_sway)
 
 
 ## Повернутися до повністю процедурного декору (рівні без authored .tscn — усі, поки що).
 func clear_authored_timeline() -> void:
+	_prewarmed.clear()
 	_authored_decor = []
 	_authored_buildings = []
 	_authored_active = false

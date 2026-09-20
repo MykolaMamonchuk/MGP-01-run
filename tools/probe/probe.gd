@@ -37,6 +37,12 @@ var _frames: int = int(OS.get_environment("FRAMES")) if OS.has_environment("FRAM
 ## [середнє, 1% low, найгірший, к/с] за останнім вікном — рахується в _frames_passed.
 var _wall := [0.0, 0.0, 0.0, 0.0]
 var _wall_ms: Array = []
+## Кадри, довші за SPIKE_MS, разом із тим, що діялось у грі саме тоді. Середній кадр і
+## навіть 1% low про смики не кажуть нічого: 38 мс серед 16,7 — це один кадр із тисячі, але
+## саме він відчувається пальцем. Питання не «скільки», а «ДЕ і чому».
+const SPIKE_MS := 25.0
+var _spikes: Array = []
+var _frame_no := 0
 
 
 func _ready() -> void:
@@ -255,6 +261,8 @@ func _ready() -> void:
 			"render_gpu_ms": RenderingServer.viewport_get_measured_render_time_gpu(
 				get_viewport().get_viewport_rid()),
 		},
+		# Усі кадри, довші за SPIKE_MS, із контекстом. Найдовші — першими.
+		"spikes": _spikes_sorted(),
 		"controls": _controls(_run),
 		"decor_cost": decor,
 	}
@@ -298,14 +306,70 @@ func _frames_passed(n: int) -> void:
 	for i in range(n):
 		var t0 := Time.get_ticks_usec()
 		await get_tree().process_frame
-		_wall_ms.append(float(Time.get_ticks_usec() - t0) / 1000.0)
+		var ms := float(Time.get_ticks_usec() - t0) / 1000.0
+		_frame_no += 1
+		_wall_ms.append(ms)
+		if ms > SPIKE_MS:
+			_spikes.append(_spike_context(ms))
 		# тримаємо останні 8 секунд при 60 к/с — те саме вікно, що й у накладці
 		if _wall_ms.size() > 480:
 			_wall_ms.remove_at(0)
 	_wall = _wall_stats()
 
 
+## Що діялось у грі в мить смику. Знімаємо ВСЕ, що може бути причиною, і вже потім
+## дивимось, чи сплески збігаються по місцю: якщо так — це підвантаження, спавн, перша
+## компіляція шейдера, розігрів часточок; якщо ні — шукати треба поза грою.
+func _spike_context(ms: float) -> Dictionary:
+	var vp := get_viewport().get_viewport_rid()
+	var out := {
+		"кадр": _frame_no,
+		"мс": snappedf(ms, 0.1),
+		# Де саме згаяно: у скриптах гри, у рушії на боці CPU, чи на боці GPU. Без цього
+		# поділу «38 мс» не каже нічого, і лікувати можна не те: прогрів мешів прибрав
+		# сплеск на 2,9 м, а сусідній на 37,1 не зрушив ні на міліметр.
+		"скрипти_мс": snappedf(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0, 0.1),
+		"рендер_cpu_мс": snappedf(RenderingServer.viewport_get_measured_render_time_cpu(vp), 0.1),
+		"рендер_gpu_мс": snappedf(RenderingServer.viewport_get_measured_render_time_gpu(vp), 0.1),
+		"виклики": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+		"примітиви": int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
+		"вузлів": int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
+		"тіл_фізики": int(Performance.get_monitor(Performance.PHYSICS_3D_ACTIVE_OBJECTS)),
+		"озп_мб": snappedf(Performance.get_monitor(Performance.MEMORY_STATIC) / 1048576.0, 0.1),
+		"відео_мб": snappedf(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0, 0.1),
+	}
+	if _run != null:
+		out["метрів"] = snappedf(float(_run.get("level_distance_m")), 0.1)
+		out["стан"] = int(_run.get("state"))
+		var hero = _run.get("hero")
+		if hero != null:
+			out["доріжка"] = int(hero.get("lane"))
+		var sp = _run.get("spawner")
+		if sp != null:
+			out["курсор_перешкод"] = int(sp.get("_authored_cursor"))
+		# Скільки ШАРІВ декору вже заведено. Кожен новий шар — це створення
+		# MultiMeshInstance3D, завантаження меша з PropLibrary і ПЕРШЕ малювання цим
+		# матеріалом, тобто компіляція шейдера. Якщо число стрибає рівно на смику — причина
+		# знайдена, і лікується вона прогрівом, а не оптимізацією.
+		var tr = _run.get("track")
+		if tr != null:
+			out["шарів"] = (tr.get("_decor_mm") as Array).size()
+		# Чанк рівня читається у ФОНІ, але збирається (instantiate + extract, заміряно ~23 мс)
+		# на головному потоці — тож межа чанка сама по собі підозрюваний. Число росте рівно
+		# тоді, коли черговий шматок забрали з потоку.
+		var cl = _run.get("_chunk_loader")
+		if cl != null:
+			out["чанків_взято"] = int(cl.get("_next"))
+	return out
+
+
 ## [середнє, 1% low, найгірший, к/с]. 1% low — поріг, гірший за 99% кадрів вікна.
+func _spikes_sorted() -> Array:
+	var v := _spikes.duplicate()
+	v.sort_custom(func(a, b): return float(a["мс"]) > float(b["мс"]))
+	return v
+
+
 func _wall_stats() -> Array:
 	if _wall_ms.is_empty():
 		return [0.0, 0.0, 0.0, 0.0]

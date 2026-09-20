@@ -27,6 +27,48 @@ const ROLE_KEYS := {
 ## layout_root — корінь інстанційованої авторської сцени (наприклад LevelLayout). Повертає
 ## {"decor":[...], "obstacles":[...], "pickups":[...], "buildings":[...], "landmarks":[...], "walls_near":[...]},
 ## кожен масив відсортований за зростанням z_m.
+## Долити записи в уже впорядкований за z_m список — спільне для Track і Spawner3D.
+##
+## Чому не просто sort_custom на все разом. Цеглинки приходять по порядку, тож майже завжди
+## новий шматок цілком лежить ПРАВОРУЧ від старого, а самі маркери в цеглинці здебільшого
+## теж по порядку. sort_custom із лямбдою — це виклик GDScript на КОЖНЕ порівняння: на межі
+## чанка (779 нових записів поверх кількох сотень старих) чотири такі сортування разом із
+## рештою збирання давали 24 мс в одному кадрі — видиме заїкання рівно на межі цеглинки,
+## і те саме на телефоні втричі довше. Тепер сортуємо лише коли справді треба.
+static func merge_by_z(old_recs: Array, add: Array) -> Array:
+	if add.is_empty():
+		return old_recs
+	if not sorted_by_z(add):
+		add = add.duplicate()
+		add.sort_custom(_by_z)
+	if old_recs.is_empty():
+		return add
+	# Обидві половини впорядковані, тож перевіряти треба лише СТИК: якщо новий шматок
+	# починається не раніше, ніж кінчається старий, дописування вже дає правильний порядок.
+	# Повторний прохід по всьому списку тут був чистою витратою, яка росла з довжиною рівня.
+	var joins: bool = float((old_recs[-1] as Dictionary).get("z_m", 0.0)) \
+		<= float((add[0] as Dictionary).get("z_m", 0.0))
+	old_recs.append_array(add)
+	if not joins:
+		old_recs.sort_custom(_by_z)
+	return old_recs
+
+
+## Чи лежать записи за неспадним z_m. Один прохід порівнянь float проти тисяч викликів лямбди.
+static func sorted_by_z(recs: Array) -> bool:
+	var prev := -INF
+	for r in recs:
+		var z := float((r as Dictionary).get("z_m", 0.0))
+		if z < prev:
+			return false
+		prev = z
+	return true
+
+
+static func _by_z(a, b) -> bool:
+	return float(a.get("z_m", 0.0)) < float(b.get("z_m", 0.0))
+
+
 static func extract(layout_root: Node, offset_m: float = 0.0) -> Dictionary:
 	var out: Dictionary = {}
 	for key in ROLE_KEYS.values():
