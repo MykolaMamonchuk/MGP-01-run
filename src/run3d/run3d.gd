@@ -218,6 +218,101 @@ var _holding := false
 var _idle_t := 0.0
 
 
+## ДІАГНОСТИКА НА ПРИСТРОЇ: вимикати частини сцени прямо командним рядком.
+##
+## Навіщо саме так. На телефоні кадр 133 мс, і з них лише 18 — ЦП рендера; решта десь у
+## конвеєрі, і з'ясувати це можна тільки дослідом «прибрали шматок — подивились». Кожен
+## такий дослід через перезбірку APK коштує п'ять хвилин, а їх треба шість. Через командний
+## рядок — секунди, і жодна збірка не відрізняється від іншої, тобто числа порівнянні.
+##
+##   adb shell am start -n <пакет>/com.godot.game.GodotAppLauncher \
+##     --esa command_line_params "--strip=decor,shadows"
+##
+## Прапорці: decor (уся дрібниця й забудова), buildings (лише забудова), props (лише
+## дрібниця), half (половина шарів забудови), shadows (прохід тіней), particles.
+## Порожньо — нічого не чіпаємо, тобто звичайна гра.
+## ДІАГНОСТИКА НА ПРИСТРОЇ: вимикати частини сцени й дивитись, що коштує кадр.
+##
+## Навіщо. На Redmi 8A кадр 133 мс, і з них лише 18 — ЦП рендера; решта десь у конвеєрі.
+## З'ясувати це можна тільки дослідом «прибрали шматок — подивились», а кожен дослід через
+## перезбірку APK коштує п'ять хвилин. Тому сцена розбирається НА ЛЬОТУ, а прогін по
+## варіантах веде src/ui/strip_probe.gd — він сам міняє прапорці й сам друкує числа.
+##
+## Прапорці: decor (уся дрібниця й забудова), buildings (лише забудова), props (лише
+## дрібниця), half (кожен другий шар забудови), shadows (прохід тіней), particles.
+## Порожній список ПОВЕРТАЄ все на місце — без цього другий дослід міряв би наслідки першого.
+var _strip_flags := PackedStringArray()
+## Початковий стан ефектів — щоб повертати саме його, а не «увімкнено».
+var _strip_orig := {}
+
+
+func debug_strip(flags: PackedStringArray) -> void:
+	_strip_flags = flags
+	_reapply_strip()
+
+
+## Шари декору заводяться ЛІНИВО, у міру того як дорога їде, тож застосовувати доводиться
+## повторно: інакше сховане повернеться саме собою через секунду.
+func _reapply_strip() -> void:
+	var sun := get_node_or_null("Sun") as DirectionalLight3D
+	if sun != null:
+		sun.shadow_enabled = not _strip_flags.has("shadows")
+	# Повноекранні ефекти й великі поверхні — головні підозрювані в тому, що лишається,
+	# коли декору вже нема: вони коштують за ПІКСЕЛЬ, а не за об'єкт.
+	#
+	# Початкові значення запам'ятовуємо ОДИН раз і повертаємо саме їх. Перша редакція цього
+	# коду вмикала все підряд (`= not прапорець`), тобто сама вмикала те, що в грі могло
+	# бути вимкненим, — і два прогони дали 94 та 130 мс на однаковій сцені з однаковими
+	# викликами. Діагностика, яка міняє те, що міряє, гірша за відсутню.
+	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if we != null and we.environment != null:
+		var e := we.environment
+		if not _strip_orig.has("glow"):
+			_strip_orig["glow"] = e.glow_enabled
+			_strip_orig["adjust"] = e.adjustment_enabled
+			_strip_orig["fog"] = e.fog_enabled
+			_strip_orig["bg"] = e.background_mode
+			print("СТРИП: початково glow=%s adjust=%s fog=%s bg=%d" % [
+				e.glow_enabled, e.adjustment_enabled, e.fog_enabled, e.background_mode])
+		e.glow_enabled = bool(_strip_orig["glow"]) and not _strip_flags.has("glow")
+		e.adjustment_enabled = bool(_strip_orig["adjust"]) and not _strip_flags.has("adjust")
+		e.fog_enabled = bool(_strip_orig["fog"]) and not _strip_flags.has("fog")
+		e.background_mode = Environment.BG_COLOR if _strip_flags.has("sky") \
+			else int(_strip_orig["bg"]) as Environment.BGMode
+	# Масштаб рендера — головна ручка проти заповнення, і її теж треба міряти В ТОМУ САМОМУ
+	# прогоні: окремою збіркою числа вже не порівняти через тротлінг.
+	var vp := get_viewport()
+	if vp != null:
+		var sc := 1.0
+		for f in _strip_flags:
+			if String(f).begins_with("scale"):
+				sc = float(String(f).substr(5)) / 10.0
+		vp.scaling_3d_scale = clampf(sc, 0.3, 1.0)
+	var water = track.get("_water")
+	if water != null:
+		if not _strip_orig.has("water"):
+			_strip_orig["water"] = (water as MeshInstance3D).visible
+		(water as MeshInstance3D).visible = bool(_strip_orig["water"]) \
+			and not _strip_flags.has("water")
+	var layers: Array = track.get("_decor_mm")
+	var by_key: Dictionary = track.get("_decor_layer_of")
+	var n := 0
+	for key in by_key:
+		var idx := int(by_key[key])
+		if idx < 0 or idx >= layers.size():
+			continue
+		# Забудова відрізняється від дрібниці ключем шару: стіни мають суфікс "#wall"
+		# (Track._decor_layer), бо не гойдаються. Інше — придорожній декор.
+		var is_wall := String(key).ends_with("#wall")
+		var kill := _strip_flags.has("decor") \
+			or (is_wall and _strip_flags.has("buildings")) \
+			or (not is_wall and _strip_flags.has("props")) \
+			or (is_wall and _strip_flags.has("half") and n % 2 == 0)
+		if is_wall:
+			n += 1
+		(layers[idx] as MultiMeshInstance3D).visible = not kill
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	# Відтворюваний запуск на вимогу (GAME_SEED): крім власних генераторів підсистем,
@@ -253,6 +348,20 @@ func _ready() -> void:
 	var l = SaveService.child().get("learned", {})
 	_learned = l if typeof(l) == TYPE_DICTIONARY else {}
 	_setup_sky()
+	# Шари декору заводяться ЛІНИВО, у міру того як дорога їде, тож одного виклику мало:
+	# повторюємо щосекунди перші двадцять секунд. Це діагностика, і вона мовчить, поки в
+	# командному рядку нема --strip=.
+	var strip_timer := Timer.new()
+	strip_timer.wait_time = 1.0
+	strip_timer.autostart = true
+	strip_timer.timeout.connect(_reapply_strip)
+	add_child(strip_timer)
+	# Прогін по варіантах — лише у збірці з прапорцем "strip_probe" (ставиться в пресеті
+	# ТИМЧАСОВО, на час замірів). У звичайній грі цього вузла не існує.
+	if OS.has_feature("strip_probe") and ResourceLoader.exists("res://src/ui/strip_probe.gd"):
+		var probe: Node = load("res://src/ui/strip_probe.gd").new()
+		probe.run = self
+		add_child(probe)
 
 	Events.profile_changed.connect(_apply_profile)
 	Events.session_warning.connect(_on_session_warning)
