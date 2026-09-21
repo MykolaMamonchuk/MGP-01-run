@@ -6,3 +6,7 @@
 **Джерело істини — Confluence:** https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/2424833/EDD
 
 Остання синхронізація: 2026-09-09.
+
+**Догляд за друзями** (новий сінк, 21.09.2026) — дочірня сторінка:
+https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/6488065
+Дані: `data/care.json`, сторож: `tests/test_care.gd`.
