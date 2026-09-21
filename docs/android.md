@@ -51,24 +51,41 @@ adb shell monkey -p com.selectoglobal.bizhybizhy -c android.intent.category.LAUN
 
 ## Заміряти — чим саме
 
-**Час кадру з самого Android, а не з накладки:**
+**`dumpsys gfxinfo` для Godot НЕ ПРАЦЮЄ.** Це перше, що я спробував, і воно бреше: Godot
+малює у власну поверхню повз Android'ів View, тож `gfxinfo` бачить лише вісім в'юшок
+обгортки й нарахував шість кадрів за хвилину гри. Порада з першої редакції цього файлу була
+неправильна.
+
+**Міряти треба накладкою самої гри** (`src/ui/debug_overlay.gd`, вона є в цій збірці за
+прапорцем `debug_hud`). Розгорнути її на телефоні:
 
 ```bash
-adb shell dumpsys gfxinfo com.selectoglobal.bizhybizhy framestats
+adb shell input tap 30 30      # тап по кутку зліва вгорі; цикл: повний / лише к/с / сховано
+adb exec-out screencap -p > /tmp/phone.png
 ```
 
-Дає покадрову таблицю з розподілом на draw / prepare / process / execute — тобто той самий
-поділ «CPU чи GPU», якого на Маку бракувало. Скинути лічильники перед заміром:
-`adb shell dumpsys gfxinfo com.selectoglobal.bizhybizhy reset`.
+Повна панель дає те, чого не дає ніщо інше на пристрої: к/с, кадр, 1% low, **ЦП рендера**,
+draw calls, примітиви, відеопам'ять, текстури, стан гри, рівень, профіль і якість.
 
-**Пам'ять:** `adb shell dumpsys meminfo com.selectoglobal.bizhybizhy`.
+**Консоль гри:** `adb logcat -s godot:V` — тут видно, який рушій підхопився, і всі
+попередження. **Пам'ять:** `adb shell dumpsys meminfo com.selectoglobal.bizhybizhy`.
 
-**Консоль гри:** `adb logcat -s godot:V` (усе інше відсіюється).
+## Установка на Xiaomi/MIUI
 
-**Кадр:** `adb exec-out screencap -p > /tmp/phone.png`.
+`adb install` може впасти з `INSTALL_FAILED_USER_RESTRICTED: Install canceled by user` —
+MIUI блокує мовчки, без діалогу на екрані. Обхідний шлях тим самим дозволеним каналом:
 
-**Без кабелю:** `adb tcpip 5555` один раз по USB, далі
-`adb connect <ip-телефона>:5555` — і кабель можна прибрати.
+```bash
+adb push export/Bizhy-Bizhy.apk /data/local/tmp/b.apk
+adb shell pm install -r -t /data/local/tmp/b.apk
+```
+
+## Релізна збірка без релізного ключа
+
+Для ЗАМІРІВ релізний шаблон можна підписати відлагоджувальним ключем — різниці в швидкості
+це не дає, а справжній ключ заводити не треба (його втрата означає, що застосунок не
+оновити в магазині ніколи). Ключі пресету `keystore/release*` ставити ТИМЧАСОВО й одразу
+відкочувати: пароль не має потрапити в git.
 
 ## Чого НЕ робити
 
