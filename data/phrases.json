@@ -1,183 +1,744 @@
 {
-  "_note": "БІБЛІОТЕКА ФРАЗ ДОРОГИ (LDD §5, Confluence 2392065). «Фраза» — готовий шматок дороги: перешкоди РАЗОМ із золотом. Доти дорога складалась так: перешкоди ставив автор цеглинки, а золото сипалось саме — лінією з 5 у вільній доріжці за КОЖНОЮ групою. Через це золото не могло нічого сказати: воно завжди лежало там, де й так безпечно, і його кількість ішла за щільністю перешкод, а не за задумом. Фраза вирішує обидва: вона знає, де небезпечно, тож може повести монетами, заплатити за ризик або відсвяткувати важкий шматок. КООРДИНАТИ. z — метри ВІД ПОЧАТКУ фрази (уздовж дороги, більше = далі). lane — доріжка від центру; фрази написані на 3 доріжки (-1, 0, 1), на 5 і 7 їх розтягує генератор. ДІЇ замість видів: jump / duck / side / any — конкретну модель добирає СВІТ (Spawner3D._kind_for_action), тож фраза переживає будь-який біом. ЗОЛОТО: kind — line (пряма в одній доріжці), climb (діагональ із lane у to_lane, «перейди сюди»), arc (дуга стрибка), cluster (купка на w доріжок). why — РОЛЬ в економіці, вона ж пояснює, навіщо фраза існує: guide веде правильним шляхом, reward платить за ризик, celebration святкує після важкого, jackpot — велика рідкісна нагорода. n — монет, value — номінал КОЖНОЇ (це та ручка, якою правлять дохід, не чіпаючи картинки). БЮДЖЕТИ. obstacle_points — ціна фрази у складності (1 просте рішення, 2 вибір, 3 три дії поспіль, 4+ комбінація); recovery_sec — скільки спокійного бігу МУСИТЬ іти після неї. Заміряно 21.09.2026: модель доходу EDD, перерахована на 150-метрову цеглинку, майже стала — 66–87 номіналу, тож ставка на цеглинку і є бюджетом. needs — механіки, яких у грі ще НЕМА; такі фрази лежать тут як задум і генератором не беруться.",
+  "_note": "БІБЛІОТЕКА ФРАЗ ДОРОГИ (LDD §5, Confluence 2392065). «Фраза» — готовий шматок дороги: перешкоди РАЗОМ із золотом. Доти дорога складалась так: перешкоди ставив автор цеглинки, а золото сипалось саме — лінією з 5 у вільній доріжці за КОЖНОЮ групою. Через це золото не могло нічого сказати: воно завжди лежало там, де й так безпечно, і його кількість ішла за щільністю перешкод, а не за задумом. Фраза вирішує обидва: вона знає, де небезпечно, тож може повести монетами, заплатити за ризик або відсвяткувати важкий шматок. КООРДИНАТИ. z — метри ВІД ПОЧАТКУ фрази (уздовж дороги, більше = далі). lane — доріжка від центру; фрази написані на 3 доріжки (-1, 0, 1), на 5 і 7 їх розтягує генератор. ДІЇ замість видів: jump / duck / side / any — конкретну модель добирає СВІТ (Spawner3D._kind_for_action), тож фраза переживає будь-який біом. ЗОЛОТО: kind — line (пряма в одній доріжці), climb (діагональ із lane у to_lane, «перейди сюди»), arc (дуга стрибка), cluster (купка на w доріжок). why — РОЛЬ в економіці, вона ж пояснює, навіщо фраза існує: guide веде правильним шляхом, reward платить за ризик, celebration святкує після важкого, jackpot — велика рідкісна нагорода. n — монет, value — номінал КОЖНОЇ (це та ручка, якою правлять дохід, не чіпаючи картинки). БЮДЖЕТИ. obstacle_points — ціна фрази у складності (1 просте рішення, 2 вибір, 3 три дії поспіль, 4+ комбінація); recovery_sec — скільки спокійного бігу МУСИТЬ іти після неї. Заміряно 21.09.2026: модель доходу EDD, перерахована на 150-метрову цеглинку, майже стала — 66–87 номіналу, тож ставка на цеглинку і є бюджетом. needs — механіки, яких у грі ще НЕМА; такі фрази лежать тут як задум і генератором не беруться. ОЧКИ СКЛАДНОСТІ — це МІНІМУМ ДІЙ, яких фраза не дає уникнути: перешкоди плюс переходи між доріжками (для малюка свайп — така сама дія, як стрибок), усереднено по тому, з якої доріжки дитина прибігла, і заокруглено. Не «скільки перешкод намальовано»: перешкоди в різних доріжках обходяться однією доріжкою, і фраза, що виглядає важкою, може не коштувати нічого. Стереже tests/test_phrases.gd, і стереже РІВНІСТЬ, а не «не менше»: занижене число обдурить бюджет цеглинки, завищене — зробить рівень легшим за задум. WIDE — що робити з фразою на 5 і 7 доріжках, бо з трьома вони збігаються лише на перших п'яти рівнях. fill: ряд перекриває ВСЮ ширину й на широкій дорозі теж (стіна лишається стіною, інакше пізні світи безкоштовно легшають). gate: лишається та сама кількість ВІЛЬНИХ доріжок, решта перекривається (ворота лишаються воротами). keep: доріжки як написано, зайві лишаються порожні — так поводяться фрази-нагороди, де ширша дорога справді дає більше місця.",
   "phrases": [
     {
       "id": "recovery",
-      "tier": 1, "min_level": 1, "lanes": 3,
-      "length_m": 12.0, "recovery_sec": 0.0, "obstacle_points": 0,
+      "tier": 1,
+      "min_level": 1,
+      "lanes": 3,
+      "length_m": 12.0,
+      "recovery_sec": 0.0,
+      "obstacle_points": 0,
       "teaches": "вдих: нічого не відбувається, і це навмисно",
       "obstacles": [],
-      "gold": []
+      "gold": [],
+      "wide": "keep"
     },
     {
       "id": "line_easy",
-      "tier": 1, "min_level": 1, "lanes": 3,
-      "length_m": 9.0, "recovery_sec": 2.0, "obstacle_points": 1,
+      "tier": 1,
+      "min_level": 1,
+      "lanes": 3,
+      "length_m": 9.0,
+      "recovery_sec": 2.0,
+      "obstacle_points": 0,
       "teaches": "перестрибни або обійди — працює і те, і те",
-      "obstacles": [{"z": 0.0, "lane": 0, "action": "jump"}],
-      "gold": [{"z": 1.5, "lane": -1, "kind": "line", "n": 5, "value": 1, "why": "guide"}]
+      "obstacles": [
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "jump"
+        }
+      ],
+      "gold": [
+        {
+          "z": 1.5,
+          "lane": -1,
+          "kind": "line",
+          "n": 5,
+          "value": 1,
+          "why": "guide"
+        }
+      ],
+      "wide": "keep"
     },
     {
       "id": "gate_one",
-      "tier": 1, "min_level": 1, "lanes": 3,
-      "length_m": 9.0, "recovery_sec": 2.0, "obstacle_points": 1,
+      "tier": 1,
+      "min_level": 1,
+      "lanes": 3,
+      "length_m": 9.0,
+      "recovery_sec": 2.0,
+      "obstacle_points": 1,
       "teaches": "єдина вільна доріжка — і монети показують саме її",
       "obstacles": [
-        {"z": 0.0, "lane": -1, "action": "jump"},
-        {"z": 0.0, "lane": 1, "action": "jump"}
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "jump"
+        },
+        {
+          "z": 0.0,
+          "lane": 1,
+          "action": "jump"
+        }
       ],
-      "gold": [{"z": 1.5, "lane": 0, "kind": "line", "n": 6, "value": 1, "why": "guide"}]
+      "gold": [
+        {
+          "z": 1.5,
+          "lane": 0,
+          "kind": "line",
+          "n": 6,
+          "value": 1,
+          "why": "guide"
+        }
+      ],
+      "wide": "gate"
     },
     {
       "id": "celebration",
-      "tier": 1, "min_level": 1, "lanes": 3,
-      "length_m": 8.0, "recovery_sec": 0.0, "obstacle_points": 0,
+      "tier": 1,
+      "min_level": 1,
+      "lanes": 3,
+      "length_m": 8.0,
+      "recovery_sec": 0.0,
+      "obstacle_points": 0,
       "teaches": "після важкого — просто нагорода, без жодного рішення",
       "obstacles": [],
-      "gold": [{"z": 0.0, "lane": 0, "kind": "cluster", "n": 12, "w": 3, "value": 1, "why": "celebration"}]
+      "gold": [
+        {
+          "z": 0.0,
+          "lane": 0,
+          "kind": "cluster",
+          "n": 12,
+          "w": 3,
+          "value": 1,
+          "why": "celebration"
+        }
+      ],
+      "wide": "keep"
     },
     {
       "id": "duck_frame",
-      "tier": 1, "min_level": 2, "lanes": 3,
-      "length_m": 9.0, "recovery_sec": 2.0, "obstacle_points": 1,
+      "tier": 1,
+      "min_level": 2,
+      "lanes": 3,
+      "length_m": 9.0,
+      "recovery_sec": 2.0,
+      "obstacle_points": 1,
       "teaches": "під усім рядом можна лише присісти — доріжка не врятує",
       "obstacles": [
-        {"z": 0.0, "lane": -1, "action": "duck"},
-        {"z": 0.0, "lane": 0, "action": "duck"},
-        {"z": 0.0, "lane": 1, "action": "duck"}
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "duck"
+        },
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "duck"
+        },
+        {
+          "z": 0.0,
+          "lane": 1,
+          "action": "duck"
+        }
       ],
-      "gold": [{"z": 1.5, "lane": 0, "kind": "line", "n": 5, "value": 1, "why": "guide"}]
+      "gold": [
+        {
+          "z": 1.5,
+          "lane": 0,
+          "kind": "line",
+          "n": 5,
+          "value": 1,
+          "why": "guide"
+        }
+      ],
+      "wide": "fill"
     },
     {
       "id": "duck_or_side",
-      "tier": 2, "min_level": 2, "lanes": 3,
-      "length_m": 11.0, "recovery_sec": 2.5, "obstacle_points": 2,
+      "tier": 2,
+      "min_level": 2,
+      "lanes": 3,
+      "length_m": 11.0,
+      "recovery_sec": 2.5,
+      "obstacle_points": 1,
       "teaches": "вибір: присісти або перейти — обидва правильні",
       "obstacles": [
-        {"z": 0.0, "lane": -1, "action": "duck"},
-        {"z": 0.0, "lane": 0, "action": "duck"}
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "duck"
+        },
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "duck"
+        }
       ],
-      "gold": [{"z": 1.5, "lane": 0, "kind": "climb", "to_lane": 1, "n": 5, "value": 1, "why": "guide"}]
+      "gold": [
+        {
+          "z": 1.5,
+          "lane": 0,
+          "kind": "climb",
+          "to_lane": 1,
+          "n": 5,
+          "value": 1,
+          "why": "guide"
+        }
+      ],
+      "wide": "gate"
     },
     {
       "id": "xbox_warn",
-      "tier": 2, "min_level": 3, "lanes": 3,
-      "length_m": 10.0, "recovery_sec": 2.0, "obstacle_points": 1,
+      "tier": 2,
+      "min_level": 3,
+      "lanes": 3,
+      "length_m": 10.0,
+      "recovery_sec": 2.0,
+      "obstacle_points": 0,
       "teaches": "хрестик — сюди не можна НІКОЛИ, ні стрибком, ні присідом",
-      "obstacles": [{"z": 0.0, "lane": 0, "action": "side"}],
+      "obstacles": [
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "side"
+        }
+      ],
       "gold": [
-        {"z": 1.5, "lane": -1, "kind": "line", "n": 4, "value": 1, "why": "guide"},
-        {"z": 1.5, "lane": 1, "kind": "line", "n": 4, "value": 1, "why": "guide"}
-      ]
+        {
+          "z": 1.5,
+          "lane": -1,
+          "kind": "line",
+          "n": 4,
+          "value": 1,
+          "why": "guide"
+        },
+        {
+          "z": 1.5,
+          "lane": 1,
+          "kind": "line",
+          "n": 4,
+          "value": 1,
+          "why": "guide"
+        }
+      ],
+      "wide": "keep"
     },
     {
       "id": "safe_vs_gold",
-      "tier": 2, "min_level": 3, "lanes": 3,
-      "length_m": 13.0, "recovery_sec": 2.5, "obstacle_points": 1,
-      "teaches": "ліворуч безпечно й порожньо, праворуч перешкода й золото — вибирай",
-      "obstacles": [{"z": 0.0, "lane": 1, "action": "jump"}],
-      "gold": [{"z": 2.0, "lane": 1, "kind": "line", "n": 8, "value": 1, "why": "reward"}]
+      "tier": 2,
+      "min_level": 3,
+      "lanes": 3,
+      "length_m": 13.0,
+      "recovery_sec": 2.5,
+      "obstacle_points": 0,
+      "teaches": "ліворуч безпечно й порожньо, праворуч перешкода й золото — обійти можна повністю, і в тому й сенс: це плата за сміливість, а не складність",
+      "obstacles": [
+        {
+          "z": 0.0,
+          "lane": 1,
+          "action": "jump"
+        }
+      ],
+      "gold": [
+        {
+          "z": 2.0,
+          "lane": 1,
+          "kind": "line",
+          "n": 8,
+          "value": 1,
+          "why": "reward"
+        }
+      ],
+      "wide": "keep"
     },
     {
       "id": "zigzag",
-      "tier": 2, "min_level": 3, "lanes": 3,
-      "length_m": 14.0, "recovery_sec": 3.0, "obstacle_points": 2,
+      "tier": 2,
+      "min_level": 3,
+      "lanes": 3,
+      "length_m": 14.0,
+      "recovery_sec": 3.0,
+      "obstacle_points": 1,
       "teaches": "монети ведуть по діагоналі через доріжку",
       "obstacles": [
-        {"z": 0.0, "lane": -1, "action": "jump"},
-        {"z": 0.0, "lane": 1, "action": "jump"},
-        {"z": 6.0, "lane": 0, "action": "side"}
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "jump"
+        },
+        {
+          "z": 0.0,
+          "lane": 1,
+          "action": "jump"
+        },
+        {
+          "z": 6.0,
+          "lane": 0,
+          "action": "side"
+        }
       ],
-      "gold": [{"z": 1.5, "lane": 0, "kind": "climb", "to_lane": -1, "n": 6, "value": 1, "why": "guide"}]
+      "gold": [
+        {
+          "z": 1.5,
+          "lane": 0,
+          "kind": "climb",
+          "to_lane": -1,
+          "n": 6,
+          "value": 1,
+          "why": "guide"
+        }
+      ],
+      "wide": "gate"
     },
     {
       "id": "stairs",
-      "tier": 2, "min_level": 4, "lanes": 3,
-      "length_m": 16.0, "recovery_sec": 4.0, "obstacle_points": 1,
-      "teaches": "сходинки: можна пройти однією доріжкою за один стрибок, а можна піти за монетами по діагоналі й стрибнути тричі",
+      "tier": 2,
+      "min_level": 4,
+      "lanes": 3,
+      "length_m": 16.0,
+      "recovery_sec": 4.0,
+      "obstacle_points": 1,
+      "teaches": "сходинки: обійти можна однією доріжкою, а можна піти за монетами по діагоналі й стрибнути тричі — плата за сміливість",
       "obstacles": [
-        {"z": 0.0, "lane": -1, "action": "jump"},
-        {"z": 3.0, "lane": 0, "action": "jump"},
-        {"z": 6.0, "lane": 1, "action": "jump"}
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "jump"
+        },
+        {
+          "z": 3.0,
+          "lane": 0,
+          "action": "jump"
+        },
+        {
+          "z": 6.0,
+          "lane": 1,
+          "action": "jump"
+        }
       ],
       "gold": [
-        {"z": 1.5, "lane": -1, "kind": "line", "n": 2, "value": 1, "why": "reward"},
-        {"z": 4.5, "lane": 0, "kind": "line", "n": 2, "value": 1, "why": "reward"},
-        {"z": 7.5, "lane": 1, "kind": "line", "n": 2, "value": 1, "why": "reward"},
-        {"z": 10.5, "lane": 0, "kind": "cluster", "n": 6, "w": 3, "value": 1, "why": "celebration"}
-      ]
+        {
+          "z": 1.5,
+          "lane": -1,
+          "kind": "line",
+          "n": 2,
+          "value": 1,
+          "why": "reward"
+        },
+        {
+          "z": 4.5,
+          "lane": 0,
+          "kind": "line",
+          "n": 2,
+          "value": 1,
+          "why": "reward"
+        },
+        {
+          "z": 7.5,
+          "lane": 1,
+          "kind": "line",
+          "n": 2,
+          "value": 1,
+          "why": "reward"
+        },
+        {
+          "z": 10.5,
+          "lane": 0,
+          "kind": "cluster",
+          "n": 6,
+          "w": 3,
+          "value": 1,
+          "why": "celebration"
+        }
+      ],
+      "wide": "keep"
     },
     {
       "id": "tunnel",
-      "tier": 3, "min_level": 6, "lanes": 3,
-      "length_m": 14.0, "recovery_sec": 3.0, "obstacle_points": 2,
+      "tier": 3,
+      "min_level": 6,
+      "lanes": 3,
+      "length_m": 14.0,
+      "recovery_sec": 3.0,
+      "obstacle_points": 2,
       "teaches": "довгий присід: два ряди поспіль, встати ніде",
       "obstacles": [
-        {"z": 0.0, "lane": -1, "action": "duck"},
-        {"z": 0.0, "lane": 0, "action": "duck"},
-        {"z": 0.0, "lane": 1, "action": "duck"},
-        {"z": 2.5, "lane": -1, "action": "duck"},
-        {"z": 2.5, "lane": 0, "action": "duck"},
-        {"z": 2.5, "lane": 1, "action": "duck"}
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "duck"
+        },
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "duck"
+        },
+        {
+          "z": 0.0,
+          "lane": 1,
+          "action": "duck"
+        },
+        {
+          "z": 2.5,
+          "lane": -1,
+          "action": "duck"
+        },
+        {
+          "z": 2.5,
+          "lane": 0,
+          "action": "duck"
+        },
+        {
+          "z": 2.5,
+          "lane": 1,
+          "action": "duck"
+        }
       ],
-      "gold": [{"z": 4.5, "lane": 0, "kind": "line", "n": 6, "value": 2, "why": "reward"}]
+      "gold": [
+        {
+          "z": 4.5,
+          "lane": 0,
+          "kind": "line",
+          "n": 6,
+          "value": 2,
+          "why": "reward"
+        }
+      ],
+      "wide": "fill"
     },
     {
       "id": "jackpot_pocket",
-      "tier": 3, "min_level": 5, "lanes": 3,
-      "length_m": 16.0, "recovery_sec": 4.0, "obstacle_points": 1,
+      "tier": 3,
+      "min_level": 5,
+      "lanes": 3,
+      "length_m": 16.0,
+      "recovery_sec": 4.0,
+      "obstacle_points": 1,
       "teaches": "джекпот у глухому куті: за хрестиком, тобто треба зайти в крайню доріжку й вибратись назад",
       "obstacles": [
-        {"z": 0.0, "lane": 0, "action": "side"},
-        {"z": 0.0, "lane": -1, "action": "jump"}
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "side"
+        },
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "jump"
+        }
       ],
-      "gold": [{"z": 2.0, "lane": 1, "kind": "cluster", "n": 12, "w": 1, "value": 2, "why": "jackpot"}]
+      "gold": [
+        {
+          "z": 2.0,
+          "lane": 1,
+          "kind": "cluster",
+          "n": 12,
+          "w": 1,
+          "value": 2,
+          "why": "jackpot"
+        }
+      ],
+      "wide": "gate"
     },
-
     {
       "id": "ramp_arc",
-      "tier": 3, "min_level": 4, "lanes": 3,
-      "length_m": 18.0, "recovery_sec": 3.0, "obstacle_points": 2,
+      "tier": 3,
+      "min_level": 4,
+      "lanes": 3,
+      "length_m": 18.0,
+      "recovery_sec": 3.0,
+      "obstacle_points": 2,
       "teaches": "рампа → дуга злитків у польоті. Саме рампа, а не стрибок: апекс звичайного стрибка 0,48 м і він покриває 1,5–2,9 м, тож дуга з десяти монет на ньому недосяжна ні вгору, ні вдовж",
-      "needs": ["ramp"],
+      "needs": [
+        "ramp"
+      ],
       "obstacles": [],
-      "gold": []
+      "gold": [],
+      "wide": "keep"
     },
     {
       "id": "tier2_invite",
-      "tier": 3, "min_level": 6, "lanes": 3,
-      "length_m": 24.0, "recovery_sec": 3.0, "obstacle_points": 2,
+      "tier": 3,
+      "min_level": 6,
+      "lanes": 3,
+      "length_m": 24.0,
+      "recovery_sec": 3.0,
+      "obstacle_points": 2,
       "teaches": "нагорі вигідніше: подвійні злитки на даху",
-      "needs": ["tier2_authoring"],
+      "needs": [
+        "tier2_authoring"
+      ],
       "obstacles": [],
-      "gold": []
+      "gold": [],
+      "wide": "keep"
     },
     {
       "id": "crossing",
-      "tier": 3, "min_level": 7, "lanes": 3,
-      "length_m": 16.0, "recovery_sec": 3.0, "obstacle_points": 3,
+      "tier": 3,
+      "min_level": 7,
+      "lanes": 3,
+      "length_m": 16.0,
+      "recovery_sec": 3.0,
+      "obstacle_points": 3,
       "teaches": "читати РУХ, а не позицію",
-      "needs": ["moving_npc"],
+      "needs": [
+        "moving_npc"
+      ],
       "obstacles": [],
-      "gold": []
+      "gold": [],
+      "wide": "fill"
     },
     {
       "id": "oncoming",
-      "tier": 4, "min_level": 14, "lanes": 3,
-      "length_m": 20.0, "recovery_sec": 4.0, "obstacle_points": 4,
+      "tier": 4,
+      "min_level": 14,
+      "lanes": 3,
+      "length_m": 20.0,
+      "recovery_sec": 4.0,
+      "obstacle_points": 4,
       "teaches": "зустрічний рух: рішення за півтори секунди",
-      "needs": ["move_mode_toward"],
+      "needs": [
+        "move_mode_toward"
+      ],
       "obstacles": [],
-      "gold": []
+      "gold": [],
+      "wide": "fill"
     },
     {
       "id": "finale_gauntlet",
-      "tier": 5, "min_level": 17, "lanes": 3,
-      "length_m": 22.0, "recovery_sec": 5.0, "obstacle_points": 5,
+      "tier": 5,
+      "min_level": 17,
+      "lanes": 3,
+      "length_m": 22.0,
+      "recovery_sec": 5.0,
+      "obstacle_points": 5,
       "teaches": "три дії за дві секунди — і велика нагорода",
-      "needs": ["moving_npc"],
+      "needs": [
+        "moving_npc"
+      ],
       "obstacles": [],
-      "gold": []
+      "gold": [],
+      "wide": "fill"
+    },
+    {
+      "id": "wall_jump",
+      "tier": 2,
+      "min_level": 3,
+      "lanes": 3,
+      "wide": "fill",
+      "length_m": 10.0,
+      "recovery_sec": 2.5,
+      "obstacle_points": 1,
+      "teaches": "стіна на всю дорогу: обійти НІЯК, тільки перестрибнути",
+      "obstacles": [
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "jump"
+        },
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "jump"
+        },
+        {
+          "z": 0.0,
+          "lane": 1,
+          "action": "jump"
+        }
+      ],
+      "gold": [
+        {
+          "z": 2.0,
+          "lane": 0,
+          "kind": "line",
+          "n": 5,
+          "value": 1,
+          "why": "celebration"
+        }
+      ]
+    },
+    {
+      "id": "jump_duck",
+      "tier": 3,
+      "min_level": 6,
+      "lanes": 3,
+      "wide": "fill",
+      "length_m": 14.0,
+      "recovery_sec": 3.0,
+      "obstacle_points": 2,
+      "teaches": "перестрибнути, одразу присісти — і жодної доріжки, куди втекти",
+      "obstacles": [
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "jump"
+        },
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "jump"
+        },
+        {
+          "z": 0.0,
+          "lane": 1,
+          "action": "jump"
+        },
+        {
+          "z": 4.0,
+          "lane": -1,
+          "action": "duck"
+        },
+        {
+          "z": 4.0,
+          "lane": 0,
+          "action": "duck"
+        },
+        {
+          "z": 4.0,
+          "lane": 1,
+          "action": "duck"
+        }
+      ],
+      "gold": [
+        {
+          "z": 6.0,
+          "lane": 0,
+          "kind": "line",
+          "n": 6,
+          "value": 1,
+          "why": "celebration"
+        }
+      ]
+    },
+    {
+      "id": "slalom",
+      "tier": 3,
+      "min_level": 7,
+      "lanes": 3,
+      "wide": "gate",
+      "length_m": 16.0,
+      "recovery_sec": 3.5,
+      "obstacle_points": 3,
+      "teaches": "вільна доріжка тікає щоразу в інший бік: три переходи поспіль і жодного стрибка — хрестик не перестрибнути",
+      "obstacles": [
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "side"
+        },
+        {
+          "z": 0.0,
+          "lane": 1,
+          "action": "side"
+        },
+        {
+          "z": 4.0,
+          "lane": -1,
+          "action": "side"
+        },
+        {
+          "z": 4.0,
+          "lane": 1,
+          "action": "side"
+        },
+        {
+          "z": 8.0,
+          "lane": -1,
+          "action": "side"
+        },
+        {
+          "z": 8.0,
+          "lane": 0,
+          "action": "side"
+        }
+      ],
+      "gold": [
+        {
+          "z": 1.5,
+          "lane": -1,
+          "kind": "line",
+          "n": 2,
+          "value": 1,
+          "why": "guide"
+        },
+        {
+          "z": 5.5,
+          "lane": 0,
+          "kind": "line",
+          "n": 2,
+          "value": 1,
+          "why": "guide"
+        },
+        {
+          "z": 9.5,
+          "lane": 1,
+          "kind": "line",
+          "n": 2,
+          "value": 1,
+          "why": "guide"
+        },
+        {
+          "z": 12.0,
+          "lane": 1,
+          "kind": "line",
+          "n": 5,
+          "value": 1,
+          "why": "celebration"
+        }
+      ]
+    },
+    {
+      "id": "triple",
+      "tier": 4,
+      "min_level": 9,
+      "lanes": 3,
+      "wide": "fill",
+      "length_m": 18.0,
+      "recovery_sec": 4.0,
+      "obstacle_points": 3,
+      "teaches": "три дії поспіль і ні секунди між ними — МЕЖА, більше не буває ніде",
+      "obstacles": [
+        {
+          "z": 0.0,
+          "lane": -1,
+          "action": "jump"
+        },
+        {
+          "z": 0.0,
+          "lane": 0,
+          "action": "jump"
+        },
+        {
+          "z": 0.0,
+          "lane": 1,
+          "action": "jump"
+        },
+        {
+          "z": 4.0,
+          "lane": -1,
+          "action": "duck"
+        },
+        {
+          "z": 4.0,
+          "lane": 0,
+          "action": "duck"
+        },
+        {
+          "z": 4.0,
+          "lane": 1,
+          "action": "duck"
+        },
+        {
+          "z": 8.0,
+          "lane": -1,
+          "action": "jump"
+        },
+        {
+          "z": 8.0,
+          "lane": 0,
+          "action": "jump"
+        },
+        {
+          "z": 8.0,
+          "lane": 1,
+          "action": "jump"
+        }
+      ],
+      "gold": [
+        {
+          "z": 10.5,
+          "lane": 0,
+          "kind": "cluster",
+          "n": 9,
+          "w": 3,
+          "value": 2,
+          "why": "jackpot"
+        }
+      ]
     }
   ]
 }

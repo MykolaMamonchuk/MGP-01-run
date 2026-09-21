@@ -117,17 +117,6 @@ func test_nichoho_ne_styrchyt_za_dovzhynu() -> void:
 	assert_eq(bad, [], "усе вміщається у length_m: %s" % [bad])
 
 
-## Правило замовника: не більше ТРЬОХ значущих дій поспіль, далі обов'язковий вдих. Для
-## 3–7 років це не забаганка — інакше гра стає тренажером реакції.
-func test_ne_bilshe_troh_diy_pospil() -> void:
-	var bad := []
-	for p in _ready_phrases():
-		var d: Dictionary = p
-		if int(d["obstacle_points"]) > 3:
-			bad.append("%s: %d очок" % [d["id"], int(d["obstacle_points"])])
-	assert_eq(bad, [], "жодна придатна фраза не вимагає більше трьох дій: %s" % [bad])
-
-
 ## Після важкої фрази мусить іти спокій. Нуль дозволено лише тим, у кого нема перешкод.
 func test_vazhka_fraza_maie_vdykh() -> void:
 	var bad := []
@@ -183,52 +172,100 @@ const JUMP_APEX_M := 0.48
 const JUMP_REACH_M := 1.5
 
 
-## Найменша кількість дій, якої фраза НЕ дає уникнути: найдешевший шлях по доріжках.
+## Найменша кількість дій, якої фраза НЕ дає уникнути.
 ##
 ## Навіщо. Легко написати фразу, яка виглядає важкою й нею не є. Мої власні «сходинки»
-## обіцяли «три стрибки поспіль», а перешкоди стояли в РІЗНИХ доріжках — дитина лишалась в
-## одній і стрибала рівно раз. Побачити це в JSON неможливо, на схемі важко, а числом —
-## просто: динамічне програмування по рядах, вартість переходу 0, вартість перешкоди 1.
-func _min_forced_actions(p: Dictionary) -> int:
+## обіцяли три стрибки поспіль, а перешкоди стояли в РІЗНИХ доріжках — дитина лишалась в
+## одній і стрибала рівно раз. У JSON цього не побачити, на схемі важко, а числом просто.
+##
+## Модель, і кожна її деталь оплачена помилкою:
+##   • ПЕРЕХІД між доріжками коштує 1 за доріжку. Для малюка свайп — така сама дія, як
+##     стрибок; коли я рахував рух безкоштовним, «слалом» виходив легшим за «тунель»;
+##   • side (хрестик) НЕПРОХІДНИЙ. Його не перестрибнути й не піднирнути, лише обійти —
+##     з цією поправкою слалом із 2 дій став 4, тобто ламав правило «не більше трьох»;
+##   • усереднюємо по СТАРТОВІЙ доріжці: дитина прибігає з попередньої фрази, і звідки
+##     саме — невідомо. Ворота коштують нуль тому, хто вже стоїть навпроти, і два тому,
+##     хто прибіг із протилежного краю.
+func _min_forced_actions(p: Dictionary) -> float:
+	const BIG := 999
 	var rows := {}
 	for o in p.get("obstacles", []):
 		var z := snappedf(float((o as Dictionary).get("z", 0.0)), 0.5)
 		if not rows.has(z):
 			rows[z] = {}
-		(rows[z] as Dictionary)[int((o as Dictionary).get("lane", 0))] = true
+		(rows[z] as Dictionary)[int((o as Dictionary).get("lane", 0))] = \
+			String((o as Dictionary).get("action", "any"))
 	var zs := rows.keys()
 	zs.sort()
-	var cost := {-1: 0, 0: 0, 1: 0}
-	for z in zs:
-		var blocked: Dictionary = rows[z]
-		var next := {}
+	if zs.is_empty():
+		return 0.0
+	var total := 0.0
+	for start in [-1, 0, 1]:
+		var cost := {-1: BIG, 0: BIG, 1: BIG}
+		cost[start] = 0
+		for z in zs:
+			var row: Dictionary = rows[z]
+			var next := {}
+			for lane in [-1, 0, 1]:
+				var move := BIG
+				for from_lane in [-1, 0, 1]:
+					move = mini(move, int(cost[from_lane]) + absi(from_lane - lane))
+				if String(row.get(lane, "")) == "side":
+					next[lane] = BIG
+				else:
+					next[lane] = move + (1 if row.has(lane) else 0)
+			cost = next
+		var best := BIG
 		for lane in [-1, 0, 1]:
-			# Перейти в сусідню доріжку між рядами можна безкоштовно — це рух, а не дія
-			# проти перешкоди. Дорожчає лише те, чого не обійти.
-			var best := 99
-			for from_lane in [-1, 0, 1]:
-				best = mini(best, int(cost[from_lane]))
-			next[lane] = best + (1 if blocked.has(lane) else 0)
-		cost = next
-	var out := 99
-	for lane in [-1, 0, 1]:
-		out = mini(out, int(cost[lane]))
-	return out
+			best = mini(best, int(cost[lane]))
+		total += float(best)
+	return total / 3.0
 
 
-## Фраза, що обіцяє дії, мусить хоч одну змусити зробити. І навпаки: заявлені очки не мають
-## бути меншими за неминуче — інакше генератор недорахує складність цеглинки.
-func test_ochky_ne_menshi_za_neminuche() -> void:
+## РІВНІСТЬ, а не «не менше». Занижене число обдурить бюджет цеглинки — рівень вийде важчим
+## за задум; завищене зробить його легшим. Обидва помітні лише на дитині.
+func test_ochky_skladnosti_chesni() -> void:
 	var bad := []
 	for p in _ready_phrases():
 		var d: Dictionary = p
 		var forced := _min_forced_actions(d)
-		var claimed := int(d["obstacle_points"])
-		if claimed < forced:
-			bad.append("%s: заявлено %d, а обійти неможливо %d" % [d["id"], claimed, forced])
-		if claimed > 0 and forced == 0 and d.get("obstacles", []).is_empty():
-			bad.append("%s: заявлено %d очок без жодної перешкоди" % [d["id"], claimed])
+		if roundi(forced) != int(d["obstacle_points"]):
+			bad.append("%s: заявлено %d, насправді %.2f" % [d["id"], int(d["obstacle_points"]), forced])
 	assert_eq(bad, [], "очки складності чесні: %s" % [bad])
+
+
+## Правило замовника: не більше ТРЬОХ дій поспіль, і це стеля для ВСІХ, а не лише для
+## малюків. Для 3–7 років четверта дія — це вже не складність, а тренажер реакції.
+func test_stelia_try_diyi() -> void:
+	var bad := []
+	for p in _ready_phrases():
+		var forced := _min_forced_actions(p as Dictionary)
+		if forced > 3.01:
+			bad.append("%s: %.2f дії" % [(p as Dictionary)["id"], forced])
+	assert_eq(bad, [], "жодна фраза не вимагає більше трьох дій: %s" % [bad])
+
+
+## Бібліотека мусить мати чим наповнити бюджет складності пізніх світів. Якщо все обходиться
+## за нуль-одну дію, «важкий» рівень стане просто швидшим — а замовник це назвав прямо:
+## «ми нікому не маємо піддаватись, не буде цікавості грати».
+func test_ie_spravdi_bezvykhidni_frazy() -> void:
+	var hard := 0
+	for p in _ready_phrases():
+		if _min_forced_actions(p as Dictionary) >= 2.0:
+			hard += 1
+	assert_gte(hard, 4, "у бібліотеці є щонайменше чотири фрази від двох неминучих дій (%d)" % hard)
+
+
+## Правило ширини мусить бути в кожної фрази: на 5 і 7 доріжках вона поводиться інакше, і
+## «як вийде» тут означає, що стіна на широкій дорозі перестане бути стіною, а пізні світи
+## безкоштовно полегшають.
+func test_kozhna_fraza_znaie_shcho_robyty_na_shyrokii_dorozi() -> void:
+	var bad := []
+	for p in _phrases:
+		var w := String((p as Dictionary).get("wide", ""))
+		if not ["fill", "gate", "keep"].has(w):
+			bad.append("%s: wide = «%s»" % [(p as Dictionary)["id"], w])
+	assert_eq(bad, [], "у кожної фрази відоме правило ширини: %s" % [bad])
 
 
 ## Дуга мусить бути в межах СТРИБКА, якщо фраза не просить рампи. Моя перша версія джекпоту
