@@ -250,6 +250,13 @@ func _ready() -> void:
 			"primitives": Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
 			"video_mem_mb": Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / 1048576.0,
 			"texture_mem_mb": Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / 1048576.0,
+			# Економіка: скільки злитків НАРАХОВАНО за пробіг і скільки метрів пройдено. Модель
+			# доходу в EDD рахувалась на процедурних групах; на авторських цеглинках груп інша
+			# кількість, тож перевіряти її треба заміром, а не арифметикою.
+			"level_coins": int(_run.get("level_coins")) if _run != null else 0,
+			"coins_spawned": int(_run.get("spawner").get("stars_spawned_segment")) if _run != null and _run.get("spawner") != null else 0,
+			"coins_taken": int(_run.get("spawner").get("stars_collected_segment")) if _run != null and _run.get("spawner") != null else 0,
+			"level_distance_m": snappedf(float(_run.get("level_distance_m")) if _run != null else 0.0, 0.1),
 			# ЧАС КАДРУ ГОДИННИКОМ, а не з delta й не з TIME_PROCESS. TIME_PROCESS міряє
 			# лише скрипти (0,3 мс), delta під --fixed-fps синтетична (завжди 16,7), і обидва
 			# показували «60 к/с» там, де вікно насправді йшло по 30. Ці чотири числа беруться
@@ -340,6 +347,7 @@ func _spike_context(ms: float) -> Dictionary:
 	}
 	if _run != null:
 		out["метрів"] = snappedf(float(_run.get("level_distance_m")), 0.1)
+		out["монет"] = int(_run.get("level_coins"))
 		out["стан"] = int(_run.get("state"))
 		var hero = _run.get("hero")
 		if hero != null:
