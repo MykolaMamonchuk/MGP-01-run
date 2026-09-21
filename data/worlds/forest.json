@@ -271,7 +271,8 @@
 			"anim": "roll",
 			"shape": "x_box",
 			"marker": "none",
-			"breaks": "soft"
+			"breaks": "soft",
+			"authored_only": true
 		}
 	}
 }

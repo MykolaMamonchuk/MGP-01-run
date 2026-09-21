@@ -609,7 +609,25 @@ func _spawn_authored_obstacle(rec: Dictionary, free_lane: int) -> bool:
 	_last_free_z = SPAWN_Z
 	var ob := _spawn_obstacle(kind, defs[kind], lane)
 	ob.free_lane = free_lane
+	ob.position.z = _spawn_z_for(defs[kind])
 	return true
+
+
+## Звідки випускати перешкоду, щоб вона доїхала до героя ТОДІ, КОЛИ задумав автор.
+##
+## Звичайна перешкода стоїть на місці й пливе разом зі світом: від SPAWN_Z до героя вона йде
+## SPAWN_Z/v секунд. А та, що КОТИТЬСЯ, додає до цього власні ROLL_SPEED, тож долає ту саму
+## відстань за SPAWN_Z/(v+ROLL) — тобто приходить раніше, і тим раніше, чим повільніший
+## рівень. Заміряно: на пляжі це 6,5 м випередження, і разом із мінімальним проміжком між
+## рядами вікно реакції падало до 0,2 с. Для гри для малят це невідворотний удар.
+##
+## Тому випускаємо її далі — рівно настільки, щоб час у дорозі лишився тим самим. Тоді
+## маркер означає те, що на ньому написано, на будь-якій швидкості й у будь-якому світі.
+func _spawn_z_for(def: Dictionary) -> float:
+	if String(def.get("anim", "")) != "roll":
+		return SPAWN_Z
+	var v := maxf(0.5, speed)
+	return SPAWN_Z * (v + Obstacle3D.ROLL_SPEED) / v
 
 
 ## Вид перешкоди під ЗАДАНУ ДІЮ в поточному світі. Чанк пише дію («jump»), бо спільних видів
@@ -631,8 +649,15 @@ func _spawn_authored_obstacle(rec: Dictionary, free_lane: int) -> bool:
 func _kind_for_action(action: String, motion: String = "") -> String:
 	if action == "":
 		return ""
+	if motion == "ride":
+		# Кузов ставить окремий _spawn_vehicle(), і авторської розстановки в нього ще нема
+		# (фрази з "ride" позначені needs). Без цього попередження маркер мовчки давав би
+		# випадкову статичну перешкоду: пеньок замість воза з сіном.
+		push_warning("Spawner3D: рух «ride» ще не реалізовано для авторських маркерів — запис пропущено")
+		return ""
 	var defs: Dictionary = world.get("obstacles", {})
-	var fits := _allowed_kinds().filter(func(k):
+	# Маркер — це і є вимога автора, тож види «на вимогу» йому доступні.
+	var fits := _allowed_kinds(true).filter(func(k):
 		var d: Dictionary = defs[k]
 		if String(d.get("shape", "")) == "vehicle":
 			return false
@@ -666,9 +691,24 @@ func _is_xbox(kind: String, def: Dictionary) -> bool:
 
 ## Рівень задає набір перешкод; порожній список — усі перешкоди біому (рівень важливіший за профіль).
 ## X-ящик у випадкові групи не потрапляє — його скидає лише сорока (GDD v1.4 §3).
-func _allowed_kinds() -> Array:
+## on_demand=true — додати й види з `authored_only`. Це ті, що з'являються ЛИШЕ там, де їх
+## попросив автор цеглинки, і ніколи у випадковій групі.
+##
+## Навіщо. Порожній `obstacle_types` рівня означає «усі види біому», і таких рівнів п'ять
+## (4, 8, 11, 14, 17). Щойно у світі з'явилась бочка, що котиться, ці рівні почали її
+## спавнити — хоч їх ніхто не чіпав і ніхто цього не проєктував. На рівні 8 це ~5–12 рухомих
+## перешкод там, де автор малював статику. Гірше: проміжок між рядами рахується в метрах
+## світу й про додаткові ROLL_SPEED не знає, тож на рівнях 11/14/17 вікно реакції падало до
+## ~0,2 с. Нова механіка має з'являтись ТАМ, ДЕ ЗАДУМАНО, — це і є вся суть переходу від
+## випадкової дороги до авторської.
+func _allowed_kinds(on_demand: bool = false) -> Array:
 	var defs: Dictionary = world.get("obstacles", {})
-	var world_kinds: Array = defs.keys().filter(func(k): return not _is_xbox(String(k), defs[k]))
+	var world_kinds: Array = defs.keys().filter(func(k):
+		if _is_xbox(String(k), defs[k]):
+			return false
+		if not on_demand and bool((defs[k] as Dictionary).get("authored_only", false)):
+			return false
+		return true)
 	if level_types.is_empty():
 		return world_kinds
 	return world_kinds.filter(func(k): return level_types.has(k))

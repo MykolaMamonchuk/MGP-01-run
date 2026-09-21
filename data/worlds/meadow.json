@@ -288,7 +288,9 @@
 			"shape": "critter",
 			"moves": true,
 			"marker": "none",
-			"breaks": "soft"
+			"breaks": "soft",
+			"move_speed": 0.9,
+			"authored_only": true
 		}
 	},
 	"road_color": "#CF9B57",

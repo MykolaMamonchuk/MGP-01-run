@@ -279,7 +279,6 @@
 		},
 		"cart_roll": {
 			"voxel": "cart",
-			"prop": "barrel",
 			"action": "side",
 			"tumble": true,
 			"y": 0.0,
@@ -291,7 +290,8 @@
 			"anim": "roll",
 			"shape": "x_box",
 			"marker": "none",
-			"breaks": "soft"
+			"breaks": "soft",
+			"authored_only": true
 		}
 	}
 }

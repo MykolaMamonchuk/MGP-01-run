@@ -373,3 +373,40 @@ func test_kozhen_svit_maie_chym_vidpovisty_na_rukh() -> void:
 			if not found:
 				bad.append("%s: нема нічого з рухом «%s»" % [world, m])
 	assert_eq(bad, [], "кожен світ має чим відповісти на рух: %s" % [bad])
+
+
+## Оголошений рух мусить бути СПРАВЖНІМ. moves: true без move_speed дає швидкість 0 —
+## перешкода стоїть, хоч у даних написано «перебігає». Саме так я і зробив обидва нові види,
+## і попередній сторож це пропустив: він перевіряв прапорець, а не швидкість. Тобто дав
+## зелене світло на непрацюючу річ — найгірший різновид тесту.
+func test_khto_perebihaie_toi_spravdi_rukhaietsia() -> void:
+	var bad := []
+	for world in ["meadow", "forest", "beach", "city", "clouds"]:
+		var f := FileAccess.open("res://data/worlds/%s.json" % world, FileAccess.READ)
+		var parsed = JSON.parse_string(f.get_as_text())
+		for k in ((parsed as Dictionary).get("obstacles", {}) as Dictionary):
+			var d: Dictionary = (parsed as Dictionary)["obstacles"][k]
+			if bool(d.get("moves", false)) and float(d.get("move_speed", 0.0)) <= 0.0:
+				bad.append("%s/%s: moves без move_speed" % [world, k])
+	assert_eq(bad, [], "усе, що оголошене рухомим, справді рухається: %s" % [bad])
+
+
+## Нова механіка не має з'являтись там, де її ніхто не ставив. Види, доступні ЛИШЕ на вимогу
+## автора, мусять нести `authored_only`: інакше вони потраплять у випадковий добір на п'яти
+## рівнях із порожнім obstacle_types (4, 8, 11, 14, 17) і мовчки зроблять їх важчими.
+func test_nova_dynamika_ne_techie_u_vypadkovyi_dobir() -> void:
+	var bad := []
+	for world in ["meadow", "forest", "beach", "city", "clouds"]:
+		var f := FileAccess.open("res://data/worlds/%s.json" % world, FileAccess.READ)
+		var parsed = JSON.parse_string(f.get_as_text())
+		for k in ((parsed as Dictionary).get("obstacles", {}) as Dictionary):
+			var d: Dictionary = (parsed as Dictionary)["obstacles"][k]
+			if String(d.get("anim", "")) != "roll":
+				continue
+			# beehive у Лужку котився ще до появи цієї осі — він частина старого балансу
+			# рівня 4, і виводити його звідти означало б змінити рівень, а не полагодити.
+			if String(k) == "beehive":
+				continue
+			if not bool(d.get("authored_only", false)):
+				bad.append("%s/%s: котиться й лізе у випадковий добір" % [world, k])
+	assert_eq(bad, [], "нова динаміка лише на вимогу автора: %s" % [bad])

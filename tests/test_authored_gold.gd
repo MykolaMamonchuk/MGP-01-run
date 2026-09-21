@@ -187,3 +187,32 @@ func test_perkemykach_diie_na_vidrizok_a_ne_na_riven() -> void:
 	var before := _ingots().size()
 	_spawner._spawn_authored_collectibles(0)
 	assert_gt(_ingots().size(), before, "на непереведеній ділянці монети є")
+
+
+## ── Динаміка: знайдено другою рецензією ───────────────────────────────────────
+
+## Бочка КОТИТЬСЯ поверх руху світу, тож ту саму відстань долає швидше й приходить раніше
+## за своє місце. Заміряно рецензією: до 6,5 м випередження, а разом із мінімальним
+## проміжком між рядами вікно реакції падало до 0,2 с. Тому випускати її треба ДАЛІ.
+func test_bochku_vypuskaiut_dali_shchob_doikhala_vchasno() -> void:
+	var defs := {"anim": "roll"}
+	var still := {}
+	_spawner.speed = 4.0
+	assert_eq(_spawner._spawn_z_for(still), Spawner3D.SPAWN_Z,
+		"нерухома виїжджає з лінії спавну, як і раніше")
+	var rolling := _spawner._spawn_z_for(defs)
+	assert_lt(rolling, Spawner3D.SPAWN_Z, "та, що котиться, — далі (SPAWN_Z від'ємний)")
+	# Час у дорозі мусить збігтись із часом нерухомої.
+	var t_still := absf(Spawner3D.SPAWN_Z) / 4.0
+	var t_roll := absf(rolling) / (4.0 + Obstacle3D.ROLL_SPEED)
+	assert_almost_eq(t_roll, t_still, 0.01, "час у дорозі той самий")
+
+
+## Швидший рівень — менша поправка: на 8 м/с бочка встигає менше вирватись уперед.
+func test_popravka_zalezhyt_vid_shvydkosti() -> void:
+	_spawner.speed = 4.0
+	var slow := absf(_spawner._spawn_z_for({"anim": "roll"}))
+	_spawner.speed = 8.0
+	var fast := absf(_spawner._spawn_z_for({"anim": "roll"}))
+	assert_gt(slow, fast, "на повільному рівні поправка більша")
+	assert_gt(fast, absf(Spawner3D.SPAWN_Z), "але вона є завжди")

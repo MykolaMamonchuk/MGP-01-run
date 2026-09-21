@@ -264,7 +264,8 @@
 			"anim": "roll",
 			"shape": "x_box",
 			"marker": "none",
-			"breaks": "soft"
+			"breaks": "soft",
+			"authored_only": true
 		},
 		"birds_cross": {
 			"voxel": "birds",
@@ -279,7 +280,9 @@
 			"anim": "flap",
 			"shape": "critter",
 			"moves": true,
-			"marker": "none"
+			"marker": "none",
+			"move_speed": 1.5,
+			"authored_only": true
 		}
 	}
 }
