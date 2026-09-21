@@ -286,17 +286,69 @@ func _reapply_strip() -> void:
 		var sc := 1.0
 		for f in _strip_flags:
 			if String(f).begins_with("scale"):
-				sc = float(String(f).substr(5)) / 10.0
+				# Цифри після "scale" — десяткові розряди: "5" це 0.5, "45" це 0.45.
+				# Одна цифра — десяті (історичне "scale5" = 0.5), дві й більше — соті:
+				# "45" це 0.45, "100" це 1.0. Інакше сходи масштабу не записати.
+				var rest := String(f).substr(5)
+				if rest.length() == 1:
+					sc = float(rest) / 10.0
+				elif rest.length() > 1:
+					sc = float(rest) / 100.0
 		vp.scaling_3d_scale = clampf(sc, 0.3, 1.0)
+	# Розбір «підлоги»: що лишається, коли декору вже нема. Вимикаємо цілими вузлами —
+	# траса (дорога, береги, вода), герой, увесь інтерфейс. Разом із мінімумом це дає
+	# абсолютну підлогу: скільки коштує просто очистити екран і показати його.
+	var tr := get_node_or_null("Track") as Node3D
+	if tr != null:
+		tr.visible = not _strip_flags.has("track")
+	var hr := get_node_or_null("Hero") as Node3D
+	if hr != null:
+		hr.visible = not _strip_flags.has("hero")
+	if _strip_flags.has("ui"):
+		for c in get_children():
+			if c is CanvasLayer:
+				(c as CanvasLayer).visible = false
+	# ВОДА — це не один меш. Крім головної площини (`_water`, море й пляж) є ще КАНАЛИ
+	# обабіч дороги (`_canal_water`), і на них той самий шейдер на 311 рядків із вершинною
+	# хвилею й підбивкою 40×6. Перша редакція ховала лише `_water`, тож «вода коштує нуль»
+	# було неправдою: канали лишались на місці. Тепер прапорець «water» знімає обидва.
 	var water = track.get("_water")
 	if water != null:
 		if not _strip_orig.has("water"):
 			_strip_orig["water"] = (water as MeshInstance3D).visible
 		(water as MeshInstance3D).visible = bool(_strip_orig["water"]) \
 			and not _strip_flags.has("water")
+	for mi in (track.get("_canal_water") as Array):
+		(mi as MeshInstance3D).visible = not _strip_flags.has("water")
+	# ПОЛОТНО ДОРОГИ — два шари, що вкривають ту саму площу екрана: основа (_mm_center,
+	# коробки на всю ширину ряду) і ПЛИТКА поверх неї (_mm_surface, піднята на TILE_LIFT).
+	# Якщо плитка ховає основу повністю, основа — це зайвий екран заповнення щокадру.
+	for mm in (track.get("_mm_center") as Array):
+		if mm != null:
+			(mm as MultiMeshInstance3D).visible = not _strip_flags.has("roadbase")
+	var surf = track.get("_mm_surface")
+	if surf != null:
+		(surf as MultiMeshInstance3D).visible = not _strip_flags.has("roadtiles")
+	# Решта «полотен» траси: узбіччя, обрив, шов, край, хмари. Кожне вкриває помітну частку
+	# екрана, а перевірені досі основа й плитка виявились безкоштовними — отже дивимось усі.
+	for name in ["side", "cliff"]:
+		for mm in (track.get("_mm_" + name) as Array):
+			if mm != null:
+				(mm as MultiMeshInstance3D).visible = not _strip_flags.has("mm_" + name)
+	for name in ["seam", "edge", "clouds"]:
+		var one = track.get("_mm_" + name)
+		if one != null:
+			(one as MultiMeshInstance3D).visible = not _strip_flags.has("mm_" + name)
+	# Береги каналу — окремо: три тонкі смужки на борт зі своїм шейдером.
+	for mi in (track.get("_canal_banks") as Array):
+		(mi as MeshInstance3D).visible = not _strip_flags.has("banks")
+	track.set("strip_nosway", _strip_flags.has("nosway"))
+	track.set("strip_freeze", _strip_flags.has("freeze"))
+	track.set("strip_thin", _strip_flags.has("thin"))
 	var layers: Array = track.get("_decor_mm")
 	var by_key: Dictionary = track.get("_decor_layer_of")
 	var n := 0
+	var p := 0
 	for key in by_key:
 		var idx := int(by_key[key])
 		if idx < 0 or idx >= layers.size():
@@ -304,13 +356,36 @@ func _reapply_strip() -> void:
 		# Забудова відрізняється від дрібниці ключем шару: стіни мають суфікс "#wall"
 		# (Track._decor_layer), бо не гойдаються. Інше — придорожній декор.
 		var is_wall := String(key).ends_with("#wall")
-		var kill := _strip_flags.has("decor") \
+		# Бісекція: "bandA_B" ховає шари з номерами [A, B). Ціна декору зосереджена в
+		# кількох шарах (кожен другий дав 0,3 мс, усі разом — 33), і знайти їх можна лише
+		# поділом навпіл.
+		var band := false
+		for f in _strip_flags:
+			var fs := String(f)
+			if not fs.begins_with("band"):
+				continue
+			var ab := fs.substr(4).split("_")
+			if ab.size() == 2 and idx >= int(ab[0]) and idx < int(ab[1]):
+				band = true
+		var kill := band or _strip_flags.has("decor") \
 			or (is_wall and _strip_flags.has("buildings")) \
 			or (not is_wall and _strip_flags.has("props")) \
-			or (is_wall and _strip_flags.has("half") and n % 2 == 0)
+			or (is_wall and _strip_flags.has("half") and n % 2 == 0) \
+			or (not is_wall and _strip_flags.has("halfprops") and p % 2 == 0)
 		if is_wall:
 			n += 1
-		(layers[idx] as MultiMeshInstance3D).visible = not kill
+		else:
+			p += 1
+		var mi := layers[idx] as MultiMeshInstance3D
+		mi.visible = not kill
+		# Тінь декору окремо від самого декору: карта тіней має ВЛАСНУ роздільність, тож
+		# її ціна не падає від масштабу рендера — а саме так поводиться ціна декору.
+		var ck := "cast%d" % idx
+		if not _strip_orig.has(ck):
+			_strip_orig[ck] = mi.cast_shadow
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
+			if _strip_flags.has("decorshadow") \
+			else int(_strip_orig[ck]) as GeometryInstance3D.ShadowCastingSetting
 
 
 func _ready() -> void:

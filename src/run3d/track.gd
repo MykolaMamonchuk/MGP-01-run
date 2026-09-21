@@ -267,6 +267,21 @@ var _decor_mm: Array[MultiMeshInstance3D] = []
 ## Вирішує МІСЦЕ ПОСТАНОВКИ, а не назва виду: кущ уздовж дороги ворушиться, той самий кущ
 ## у стіні світу — ні. Див. _decor_layer().
 var _decor_no_sway: Array[bool] = []
+
+## Дві ручки лише для заміру на пристрої (див. run3d.debug_strip). Розділяють ціну декору
+## на «порахувати й залити буфер» і «намалювати»: strip_nosway прибирає sin-и й зайві
+## множення матриць, strip_freeze узагалі не чіпає буфери після першого кадру, але лишає
+## на екрані ті самі екземпляри. Різниця між ними й показує, де сидять мілісекунди.
+var strip_nosway := false
+var strip_freeze := false
+## Проріджування: лишає ті самі шари (стільки ж викликів малювання), але вдвічі менше
+## екземплярів у них. Разом із вимиканням кожного другого шару розділяє ціну декору
+## на «за виклик» і «за вершину».
+var strip_thin := false
+## Останній замір кількості екземплярів у кожному шарі — лише щоб надрукувати перепис
+## (decor_report). Заповнюється в кінці _sync_decor.
+var _decor_used := PackedInt32Array()
+var _decor_frozen_done := false
 ## Предмети декору по рядах: у якому шарі кожен і його DECOR_STRIDE чисел.
 var _decor_ids: Array[PackedInt32Array] = []
 var _decor_data: Array[PackedFloat32Array] = []
@@ -667,6 +682,50 @@ func _decor_layer(kind: String, override: Dictionary, variant: int = 0, no_sway:
 	return _decor_mm.size() - 1
 
 
+## Перепис шарів декору для заміру на пристрої: скільки екземплярів видно й скільки
+## вершин коштує ОДИН із них. Добуток і є та геометрія, яку шар подає щокадру (а з тінню —
+## удвічі). Без цього переліку «декор коштує 33 мс» не каже, ЩО саме різати.
+func decor_report() -> Array:
+	var by_idx := {}
+	for key in _decor_layer_of:
+		by_idx[int(_decor_layer_of[key])] = String(key)
+	var out: Array = []
+	for b in range(_decor_mm.size()):
+		var mm := _decor_mm[b].multimesh as MultiMesh
+		var verts := 0
+		if mm != null and mm.mesh != null:
+			for si in range(mm.mesh.get_surface_count()):
+				var arr := mm.mesh.surface_get_arrays(si)
+				if arr.size() > Mesh.ARRAY_VERTEX and arr[Mesh.ARRAY_VERTEX] != null:
+					verts += (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+		var inst := int(_decor_used[b]) if b < _decor_used.size() else 0
+		# Матеріал важить більше за вершини: 100 екземплярів і 39 тисяч вершин не можуть
+		# коштувати 33 мс, а прозорість чи великий шейдер на весь екран — можуть.
+		var mats := ""
+		if mm != null and mm.mesh != null:
+			for si in range(mm.mesh.get_surface_count()):
+				var mt := mm.mesh.surface_get_material(si)
+				if mt == null:
+					continue
+				var bm := mt as BaseMaterial3D
+				if bm != null:
+					mats += "%s/прозор=%d/грані=%d/затін=%d " % [
+						bm.get_class(), bm.transparency, bm.cull_mode, bm.shading_mode]
+				else:
+					mats += "%s " % mt.get_class()
+		out.append({
+			"шар": String(by_idx.get(b, "?")),
+			"№": b,
+			"екз": inst,
+			"верш": verts,
+			"разом": inst * verts,
+			"тінь": _decor_mm[b].cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
+			"мат": mats,
+		})
+	out.sort_custom(func(a, c): return int(a["разом"]) > int(c["разом"]))
+	return out
+
+
 ## Матеріал для шарів із кольором на інстанс (покриття, край): колір бере з інстанса, не з матеріалу.
 func _tinted_material() -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
@@ -992,6 +1051,10 @@ func _sync_decor(delta: float) -> void:
 	var n := _decor_mm.size()
 	if n == 0:
 		return
+	if not strip_freeze:
+		_decor_frozen_done = false
+	elif _decor_frozen_done:
+		return
 	var counts := PackedInt32Array()
 	counts.resize(n)
 	counts.fill(0)
@@ -1012,6 +1075,8 @@ func _sync_decor(delta: float) -> void:
 		var ids := _decor_ids[i]
 		var d := _decor_data[i]
 		for j in range(ids.size()):
+			if strip_thin and (j & 1) == 1:
+				continue
 			var o := j * DECOR_STRIDE
 			var x := d[o]
 			var z := d[o + 2]
@@ -1020,7 +1085,7 @@ func _sync_decor(delta: float) -> void:
 			# Забудова (стіни світу, будинки другого плану) — БЕЗ дихання/нахилу: дах на тлі
 			# неба — пряма межа геометрії, і щокадрова гойдалка на 2° ворушить власний силует
 			# навіть на цілком нерухомій камері (це і є «миготіння» на дахах, а не на площинах).
-			var no_sway: bool = b < _decor_no_sway.size() and _decor_no_sway[b]
+			var no_sway: bool = strip_nosway or (b < _decor_no_sway.size() and _decor_no_sway[b])
 			var breathe := 1.0 if no_sway else 1.0 + sin(t * 1.6 + x) * 0.02
 			var tilt := 0.0 if no_sway else sin(t * 1.2 + z) * 0.02
 			var sc := d[o + 4]
@@ -1036,6 +1101,8 @@ func _sync_decor(delta: float) -> void:
 			used[b] += 1
 	for b in range(n):
 		(_decor_mm[b].multimesh as MultiMesh).visible_instance_count = used[b]
+	_decor_used = used
+	_decor_frozen_done = true
 
 
 ## Переносить стан рядів у буфери MultiMesh. Кілька сотень записів на кадр — дешевше,
