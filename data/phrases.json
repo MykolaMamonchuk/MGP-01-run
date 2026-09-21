@@ -93,14 +93,19 @@
     {
       "id": "stairs",
       "tier": 2, "min_level": 4, "lanes": 3,
-      "length_m": 16.0, "recovery_sec": 4.0, "obstacle_points": 3,
-      "teaches": "ритм раз-два-три: три стрибки поспіль і ніяких більше",
+      "length_m": 16.0, "recovery_sec": 4.0, "obstacle_points": 1,
+      "teaches": "сходинки: можна пройти однією доріжкою за один стрибок, а можна піти за монетами по діагоналі й стрибнути тричі",
       "obstacles": [
         {"z": 0.0, "lane": -1, "action": "jump"},
         {"z": 3.0, "lane": 0, "action": "jump"},
         {"z": 6.0, "lane": 1, "action": "jump"}
       ],
-      "gold": [{"z": 9.0, "lane": 0, "kind": "cluster", "n": 9, "w": 3, "value": 1, "why": "celebration"}]
+      "gold": [
+        {"z": 1.5, "lane": -1, "kind": "line", "n": 2, "value": 1, "why": "reward"},
+        {"z": 4.5, "lane": 0, "kind": "line", "n": 2, "value": 1, "why": "reward"},
+        {"z": 7.5, "lane": 1, "kind": "line", "n": 2, "value": 1, "why": "reward"},
+        {"z": 10.5, "lane": 0, "kind": "cluster", "n": 6, "w": 3, "value": 1, "why": "celebration"}
+      ]
     },
     {
       "id": "tunnel",
@@ -118,19 +123,22 @@
       "gold": [{"z": 4.5, "lane": 0, "kind": "line", "n": 6, "value": 2, "why": "reward"}]
     },
     {
-      "id": "jackpot_arc",
+      "id": "jackpot_pocket",
       "tier": 3, "min_level": 5, "lanes": 3,
-      "length_m": 16.0, "recovery_sec": 4.0, "obstacle_points": 2,
-      "teaches": "один точний стрибок — і дуга золота нагорі",
-      "obstacles": [{"z": 0.0, "lane": 0, "action": "jump"}],
-      "gold": [{"z": 0.5, "lane": 0, "kind": "arc", "n": 10, "h": 2.6, "value": 2, "why": "jackpot"}]
+      "length_m": 16.0, "recovery_sec": 4.0, "obstacle_points": 1,
+      "teaches": "джекпот у глухому куті: за хрестиком, тобто треба зайти в крайню доріжку й вибратись назад",
+      "obstacles": [
+        {"z": 0.0, "lane": 0, "action": "side"},
+        {"z": 0.0, "lane": -1, "action": "jump"}
+      ],
+      "gold": [{"z": 2.0, "lane": 1, "kind": "cluster", "n": 12, "w": 1, "value": 2, "why": "jackpot"}]
     },
 
     {
       "id": "ramp_arc",
       "tier": 3, "min_level": 4, "lanes": 3,
       "length_m": 18.0, "recovery_sec": 3.0, "obstacle_points": 2,
-      "teaches": "рампа → дуга злитків у польоті",
+      "teaches": "рампа → дуга злитків у польоті. Саме рампа, а не стрибок: апекс звичайного стрибка 0,48 м і він покриває 1,5–2,9 м, тож дуга з десяти монет на ньому недосяжна ні вгору, ні вдовж",
       "needs": ["ramp"],
       "obstacles": [],
       "gold": []

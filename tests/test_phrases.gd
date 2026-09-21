@@ -173,3 +173,104 @@ func test_tyr_i_riven_uzhodzheni() -> void:
 		if tier <= 1 and lvl > 4:
 			bad.append("%s: тир %d аж із рівня %d" % [d["id"], tier, lvl])
 	assert_eq(bad, [], "тир і рівень узгоджені: %s" % [bad])
+
+
+## ── Чи фраза робить те, що обіцяє ──────────────────────────────────────────────
+
+## Апекс звичайного стрибка: HOP_VELOCITY² / (2 · GRAVITY) = 4.6² / 44 ≈ 0,48 м.
+const JUMP_APEX_M := 0.48
+## Скільки метрів покриває стрибок на НАЙПОВІЛЬНІШОМУ рівні: 2·v/g × швидкість mid на рівні 1.
+const JUMP_REACH_M := 1.5
+
+
+## Найменша кількість дій, якої фраза НЕ дає уникнути: найдешевший шлях по доріжках.
+##
+## Навіщо. Легко написати фразу, яка виглядає важкою й нею не є. Мої власні «сходинки»
+## обіцяли «три стрибки поспіль», а перешкоди стояли в РІЗНИХ доріжках — дитина лишалась в
+## одній і стрибала рівно раз. Побачити це в JSON неможливо, на схемі важко, а числом —
+## просто: динамічне програмування по рядах, вартість переходу 0, вартість перешкоди 1.
+func _min_forced_actions(p: Dictionary) -> int:
+	var rows := {}
+	for o in p.get("obstacles", []):
+		var z := snappedf(float((o as Dictionary).get("z", 0.0)), 0.5)
+		if not rows.has(z):
+			rows[z] = {}
+		(rows[z] as Dictionary)[int((o as Dictionary).get("lane", 0))] = true
+	var zs := rows.keys()
+	zs.sort()
+	var cost := {-1: 0, 0: 0, 1: 0}
+	for z in zs:
+		var blocked: Dictionary = rows[z]
+		var next := {}
+		for lane in [-1, 0, 1]:
+			# Перейти в сусідню доріжку між рядами можна безкоштовно — це рух, а не дія
+			# проти перешкоди. Дорожчає лише те, чого не обійти.
+			var best := 99
+			for from_lane in [-1, 0, 1]:
+				best = mini(best, int(cost[from_lane]))
+			next[lane] = best + (1 if blocked.has(lane) else 0)
+		cost = next
+	var out := 99
+	for lane in [-1, 0, 1]:
+		out = mini(out, int(cost[lane]))
+	return out
+
+
+## Фраза, що обіцяє дії, мусить хоч одну змусити зробити. І навпаки: заявлені очки не мають
+## бути меншими за неминуче — інакше генератор недорахує складність цеглинки.
+func test_ochky_ne_menshi_za_neminuche() -> void:
+	var bad := []
+	for p in _ready_phrases():
+		var d: Dictionary = p
+		var forced := _min_forced_actions(d)
+		var claimed := int(d["obstacle_points"])
+		if claimed < forced:
+			bad.append("%s: заявлено %d, а обійти неможливо %d" % [d["id"], claimed, forced])
+		if claimed > 0 and forced == 0 and d.get("obstacles", []).is_empty():
+			bad.append("%s: заявлено %d очок без жодної перешкоди" % [d["id"], claimed])
+	assert_eq(bad, [], "очки складності чесні: %s" % [bad])
+
+
+## Дуга мусить бути в межах СТРИБКА, якщо фраза не просить рампи. Моя перша версія джекпоту
+## клала десять монет на висоті 1,1 м уздовж дванадцяти метрів — тобто вдвічі вище апексу й
+## увосьмеро довше за стрибок. Виглядало багато, зібрати неможливо.
+func test_duha_v_mezhakh_strybka() -> void:
+	var bad := []
+	for p in _ready_phrases():
+		var d: Dictionary = p
+		if (d.get("needs", []) as Array).has("ramp"):
+			continue
+		for g in d.get("gold", []):
+			var gd: Dictionary = g
+			if String(gd.get("kind", "")) != "arc":
+				continue
+			if float(gd.get("h", 2.6)) > JUMP_APEX_M:
+				bad.append("%s: дуга на висоті %s при апексі %.2f" % [d["id"], gd.get("h"), JUMP_APEX_M])
+			# Крок у дузі 1,2 м (Spawner3D.spawn_star_arc).
+			if float(int(gd.get("n", 1)) - 1) * 1.2 > JUMP_REACH_M:
+				bad.append("%s: дуга з %s монет довша за стрибок (%.1f м)" % [d["id"], gd.get("n"), JUMP_REACH_M])
+	assert_eq(bad, [], "дуги досяжні: %s" % [bad])
+
+
+## Джекпот має бути ПОМІТНО більшим за решту — інакше слово втрачає сенс і дитина не
+## відчуває події. Заміряно по бібліотеці: звичайна фраза дає 5–12 номіналу.
+func test_dzhekpot_spravdi_velykyi() -> void:
+	var jackpots := []
+	var ordinary := []
+	for p in _ready_phrases():
+		var nominal := 0
+		var is_jackpot := false
+		for g in (p as Dictionary).get("gold", []):
+			nominal += int((g as Dictionary).get("n", 0)) * int((g as Dictionary).get("value", 1))
+			if String((g as Dictionary).get("why", "")) == "jackpot":
+				is_jackpot = true
+		if is_jackpot:
+			jackpots.append(nominal)
+		elif nominal > 0:
+			ordinary.append(nominal)
+	assert_gt(jackpots.size(), 0, "джекпот у бібліотеці є")
+	ordinary.sort()
+	var median: float = float(ordinary[ordinary.size() / 2])
+	for j in jackpots:
+		assert_gt(float(j), median * 2.0,
+			"джекпот (%d) щонайменше вдвічі більший за звичайну фразу (медіана %.0f)" % [j, median])
