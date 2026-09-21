@@ -15,6 +15,14 @@ extends RefCounted
 
 const PATH := "res://data/phrases.json"
 
+const MARKER_SCRIPT := "res://src/run3d/level_marker_3d.gd"
+const LAYOUT_SCRIPT := "res://src/run3d/level_layout.gd"
+## Теки за роллю — ті самі, що робить tools/group_chunk_markers.py; сторож
+## tests/test_level_chunk_groups.gd вимагає теку за РОЛЛЮ, а не за походженням.
+const FOLDERS := {"obstacle": "Перешкоди", "gold": "Золото"}
+
+
+
 ## Скільки метрів дороги займає «вдих» тривалістю секунда. Рахується зі швидкості рівня, бо
 ## пауза для дитини вимірюється в СЕКУНДАХ («дай дві секунди спокійного бігу»), а дорога — в
 ## метрах, і на 17-му рівні та сама секунда — це вдвічі більше метрів, ніж на першому.
@@ -254,3 +262,67 @@ static func gold_placed(placed: Dictionary) -> int:
 		var over: Dictionary = (g as Dictionary).get("override", {})
 		total += int(over.get("n", 0)) * int(over.get("value", 1))
 	return total
+
+
+## СКЛАДЕНА ЦЕГЛИНКА → ТЕКСТ СЦЕНИ. Пишемо ТЕКСТОМ, а не через PackedScene: так само робить
+## tools/freeze_chunk.py, і так файл лишається читабельним у git diff — згенероване
+## оздоблення й розкладку переглядають саме в diff, а не в редакторі.
+##
+## Функція живе ТУТ, а не в інструменті, навмисно: вона — стик між збирачем і грою, а саме
+## на стиках усе й ламалось (див. docs/MEMORY.md «Тести на стик, а не на боки»). Тут її
+## перевіряє tests/test_phrase_book.gd, проганяючи текст назад через LevelTimeline.
+static func to_scene_text(placed: Dictionary) -> String:
+	var out := PackedStringArray()
+	out.append("[gd_scene load_steps=3 format=3]\n")
+	out.append("[ext_resource type=\"Script\" path=\"%s\" id=\"1\"]" % MARKER_SCRIPT)
+	out.append("[ext_resource type=\"Script\" path=\"%s\" id=\"2\"]\n" % LAYOUT_SCRIPT)
+	out.append("[node name=\"LevelLayout\" type=\"Node3D\"]")
+	out.append("script = ExtResource(\"2\")\n")
+	var n := 0
+	for role in ["obstacle", "gold"]:
+		var items: Array = placed["obstacles"] if role == "obstacle" else placed["gold"]
+		if items.is_empty():
+			continue
+		out.append("[node name=\"%s\" type=\"Node3D\" parent=\".\"]\n" % FOLDERS[role])
+		for rec in items:
+			n += 1
+			out.append_array(_marker(n, role, rec as Dictionary))
+	return "\n".join(out)
+
+
+static func _marker(n: int, role: String, rec: Dictionary) -> PackedStringArray:
+	var out := PackedStringArray()
+	var tail := String(rec.get("action", "")) if role == "obstacle" else String(rec.get("kind", ""))
+	out.append("[node name=\"M%d_%s_%s\" type=\"Node3D\" parent=\"%s\"]" % [n, role, tail, FOLDERS[role]])
+	out.append("script = ExtResource(\"1\")")
+	out.append("role = \"%s\"" % role)
+	if role == "obstacle":
+		out.append("action = \"%s\"" % String(rec.get("action", "any")))
+		if String(rec.get("motion", "")) != "":
+			out.append("motion = \"%s\"" % String(rec["motion"]))
+	else:
+		out.append("kind = \"%s\"" % String(rec.get("kind", "line")))
+		out.append("override = %s" % _dict_literal(rec.get("override", {})))
+	out.append("lane = %d" % int(rec.get("lane", 0)))
+	# z у сцені від'ємний: маркер лежить на -z, а LevelTimeline читає z_m = -position.z.
+	out.append("transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, %s)\n"
+		% _num(-float(rec.get("z_m", 0.0))))
+	return out
+
+
+## Словник у синтаксисі .tscn. JSON.stringify не годиться: там подвійні лапки навколо
+## ключів, а Godot чекає рядкові літерали — прочитається, але diff виглядатиме чужим.
+static func _dict_literal(d: Dictionary) -> String:
+	var parts := PackedStringArray()
+	var keys := d.keys()
+	keys.sort()
+	for k in keys:
+		var v: Variant = d[k]
+		var text := "\"%s\"" % String(v) if typeof(v) == TYPE_STRING else _num(float(v))
+		parts.append("\"%s\": %s" % [String(k), text])
+	return "{%s}" % ", ".join(parts)
+
+
+## Ціле пишемо цілим: «5.0» у lane чи n читається як float і засмічує diff.
+static func _num(v: float) -> String:
+	return str(roundi(v)) if is_equal_approx(v, float(roundi(v))) else str(snappedf(v, 0.01))

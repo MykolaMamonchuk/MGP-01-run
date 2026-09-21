@@ -258,3 +258,83 @@ func test_forma_zapysiv_ta_sama_shcho_v_hri() -> void:
 	for o in (placed["obstacles"] as Array):
 		for key in ["z_m", "lane", "action", "motion"]:
 			assert_true((o as Dictionary).has(key), "у запису перешкоди є «%s»" % key)
+
+
+## СТИК «ЗБИРАЧ → СЦЕНА → ГРА»: найдорожче місце в усій роботі.
+##
+## Складена цеглинка стає текстом .tscn, той читається грою через LevelTimeline — і на
+## кожному з двох переходів формат може розійтись мовчки. Саме так уже сталось один раз:
+## параметри фігури лежали плоско, а спавнер читав їх з `override`, і 730 тестів були
+## зелені при непрацюючому підборі бюджету. Тут дані проганяються НАСКРІЗЬ і звіряються
+## числом (див. docs/MEMORY.md «Тести на стик, а не на боки»).
+func test_stsena_chytaietsia_hroiu_bez_vtrat() -> void:
+	var placed := PhraseBook.place(_brick(6), 85)
+	var text := PhraseBook.to_scene_text(placed)
+	assert_gt(text.length(), 200, "текст сцени не порожній")
+
+	var path := "user://test_layout_%d.tscn" % Time.get_ticks_usec()
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	assert_not_null(f, "тимчасова сцена створилась")
+	f.store_string(text)
+	f.close()
+
+	var packed := load(path) as PackedScene
+	assert_not_null(packed, "згенерована сцена завантажується як PackedScene")
+	var root := packed.instantiate()
+	var out := LevelTimeline.extract(root, 0.0)
+	root.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+	assert_eq((out["obstacles"] as Array).size(), (placed["obstacles"] as Array).size(),
+		"перешкод у сцені стільки ж, скільки склав збирач")
+	assert_eq((out["gold"] as Array).size(), (placed["gold"] as Array).size(),
+		"фігур золота стільки ж")
+	# І найважливіше — золото по номіналу, бо саме тут ламався формат.
+	var got := 0
+	for g in (out["gold"] as Array):
+		var over: Dictionary = (g as Dictionary).get("override", {})
+		got += int(over.get("n", 0)) * int(over.get("value", 1))
+	assert_eq(got, PhraseBook.gold_placed(placed),
+		"номінал пережив запис у сцену й читання назад")
+
+
+## Метри теж мусять пережити дорогу: у сцені z ВІД'ЄМНИЙ (маркер лежить на -z), а
+## LevelTimeline читає z_m = -position.z. Помилка в знаку перевернула б цеглинку задом
+## наперед, і помітити це можна було б лише в грі.
+func test_metry_perezhyvaiut_zapys_u_stsenu() -> void:
+	var placed := PhraseBook.place(_brick(6), 85)
+	var text := PhraseBook.to_scene_text(placed)
+	var path := "user://test_layout_z_%d.tscn" % Time.get_ticks_usec()
+	var f := FileAccess.open(path, FileAccess.WRITE)
+	f.store_string(text)
+	f.close()
+	var root := (load(path) as PackedScene).instantiate()
+	var out := LevelTimeline.extract(root, 0.0)
+	root.free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+	var want := []
+	for o in (placed["obstacles"] as Array):
+		want.append(snappedf(float((o as Dictionary)["z_m"]), 0.1))
+	var got := []
+	for o in (out["obstacles"] as Array):
+		got.append(snappedf(float((o as Dictionary)["z_m"]), 0.1))
+	want.sort()
+	got.sort()
+	assert_eq(got, want, "метри перешкод ті самі й у тому самому порядку")
+
+
+## Теки за роллю: сторож tests/test_level_chunk_groups.gd вимагає, щоб КОЖЕН маркер лежав
+## у теці своєї ролі. Згенерована сцена мусить це правило дотримувати одразу, інакше
+## перший же запуск сторожа впаде на ній.
+func test_markery_lezhat_u_tekakh_svoiei_roli() -> void:
+	var text := PhraseBook.to_scene_text(PhraseBook.place(_brick(6), 85))
+	assert_true(text.contains("[node name=\"Перешкоди\" type=\"Node3D\" parent=\".\"]"),
+		"тека перешкод на місці")
+	assert_true(text.contains("[node name=\"Золото\" type=\"Node3D\" parent=\".\"]"),
+		"тека золота на місці")
+	for line in text.split("\n"):
+		if line.begins_with("[node name=\"M") and line.contains("_gold_"):
+			assert_true(line.contains("parent=\"Золото\""), "маркер золота — у своїй теці")
+		if line.begins_with("[node name=\"M") and line.contains("_obstacle_"):
+			assert_true(line.contains("parent=\"Перешкоди\""), "маркер перешкоди — у своїй теці")

@@ -26,8 +26,23 @@ const REQUIRED := ["id", "length_m", "entry_lanes", "exit_lanes", "worlds", "lay
 const KNOWN := ["id", "length_m", "entry_lanes", "exit_lanes", "worlds", "layouts"]
 ## Поля layout'а. `actions` і `obstacles` не обов'язкові поодинці, але хоча б одне з них
 ## мусить бути: layout, який не каже ні дії, ні виду, не описує нічого.
+##
+## `points` і `gold` — БЮДЖЕТИ цієї розкладки: скільки неминучих дій вона має вимагати й
+## скільки номіналу золота дати. Необов'язкові, бо 51 наявна розкладка розставлена рукою й
+## бюджетів не має; збирач фраз (PhraseBook) без них бере типові. Але щойно розкладка
+## згенерована — бюджети в ній мусять бути, інакше перескладання дасть іншу цеглинку й
+## ніхто не дізнається, якою вона була задумана.
 const LAYOUT_REQUIRED := ["file", "difficulty"]
-const LAYOUT_KNOWN := ["file", "difficulty", "actions", "obstacles"]
+const LAYOUT_KNOWN := ["file", "difficulty", "actions", "obstacles", "points", "gold"]
+## Стеля бюджету очок на цеглинку. Заміряно 21.09.2026 збирачем із нескінченним бюджетом:
+## 5–7 неминучих дій на 150 м на ВСІХ рівнях, і вона не росте зі швидкістю — швидший рівень
+## має довші вдихи в метрах, і це з'їдає виграш від важчих фраз. Число прибите тут, щоб
+## ніхто не прописав у цеглинку 12 очок, вважаючи, що їх хтось поставить.
+const POINTS_MAX := 8
+## Скільки номіналу золота розумно чекати з цеглинки. Модель EDD §2.2, перерахована на
+## 150 м: 58 (пляж, без другого ярусу) — 87 (ліс, із ним). Межі з запасом.
+const GOLD_MIN := 30
+const GOLD_MAX := 140
 
 ## Дії, які вміє гра (поле `action` у перешкодах data/worlds/*.json). Саме ДІЮ пінить layout:
 ## `jump`, `duck` і `side` має кожен світ без винятку, а спільних ВИДІВ між світами майже нема
@@ -162,6 +177,23 @@ static func _layout_errors(raw: Variant, index: int, desc: Dictionary, worlds: D
 			continue
 		if not LAYOUT_KNOWN.has(name):
 			out.append("%s: невідоме поле «%s» — відомі: %s" % [tag, name, ", ".join(LAYOUT_KNOWN)])
+	# Бюджети: не обов'язкові, але якщо є — мусять бути числами в розумних межах. Бюджет,
+	# якого ніхто не може виконати, гірший за його відсутність: збирач мовчки недобере, і
+	# цеглинка вийде легшою за задум, а причина лишиться в JSON нікому не видною.
+	if layout.has("points"):
+		var pts: Variant = layout["points"]
+		if typeof(pts) != TYPE_FLOAT and typeof(pts) != TYPE_INT:
+			out.append("%s: points має бути числом" % tag)
+		elif int(pts) < 0 or int(pts) > POINTS_MAX:
+			out.append("%s: points = %d, а межі 0..%d (стеля цеглинки заміряна збирачем)"
+				% [tag, int(pts), POINTS_MAX])
+	if layout.has("gold"):
+		var gold: Variant = layout["gold"]
+		if typeof(gold) != TYPE_FLOAT and typeof(gold) != TYPE_INT:
+			out.append("%s: gold має бути числом" % tag)
+		elif int(gold) < GOLD_MIN or int(gold) > GOLD_MAX:
+			out.append("%s: gold = %d, а модель EDD на 150 м дає %d..%d"
+				% [tag, int(gold), GOLD_MIN, GOLD_MAX])
 	for key in LAYOUT_REQUIRED:
 		if not layout.has(key):
 			out.append("%s: немає поля «%s»" % [tag, key])
