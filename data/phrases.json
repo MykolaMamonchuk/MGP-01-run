@@ -1,0 +1,175 @@
+{
+  "_note": "БІБЛІОТЕКА ФРАЗ ДОРОГИ (LDD §5, Confluence 2392065). «Фраза» — готовий шматок дороги: перешкоди РАЗОМ із золотом. Доти дорога складалась так: перешкоди ставив автор цеглинки, а золото сипалось саме — лінією з 5 у вільній доріжці за КОЖНОЮ групою. Через це золото не могло нічого сказати: воно завжди лежало там, де й так безпечно, і його кількість ішла за щільністю перешкод, а не за задумом. Фраза вирішує обидва: вона знає, де небезпечно, тож може повести монетами, заплатити за ризик або відсвяткувати важкий шматок. КООРДИНАТИ. z — метри ВІД ПОЧАТКУ фрази (уздовж дороги, більше = далі). lane — доріжка від центру; фрази написані на 3 доріжки (-1, 0, 1), на 5 і 7 їх розтягує генератор. ДІЇ замість видів: jump / duck / side / any — конкретну модель добирає СВІТ (Spawner3D._kind_for_action), тож фраза переживає будь-який біом. ЗОЛОТО: kind — line (пряма в одній доріжці), climb (діагональ із lane у to_lane, «перейди сюди»), arc (дуга стрибка), cluster (купка на w доріжок). why — РОЛЬ в економіці, вона ж пояснює, навіщо фраза існує: guide веде правильним шляхом, reward платить за ризик, celebration святкує після важкого, jackpot — велика рідкісна нагорода. n — монет, value — номінал КОЖНОЇ (це та ручка, якою правлять дохід, не чіпаючи картинки). БЮДЖЕТИ. obstacle_points — ціна фрази у складності (1 просте рішення, 2 вибір, 3 три дії поспіль, 4+ комбінація); recovery_sec — скільки спокійного бігу МУСИТЬ іти після неї. Заміряно 21.09.2026: модель доходу EDD, перерахована на 150-метрову цеглинку, майже стала — 66–87 номіналу, тож ставка на цеглинку і є бюджетом. needs — механіки, яких у грі ще НЕМА; такі фрази лежать тут як задум і генератором не беруться.",
+  "phrases": [
+    {
+      "id": "recovery",
+      "tier": 1, "min_level": 1, "lanes": 3,
+      "length_m": 12.0, "recovery_sec": 0.0, "obstacle_points": 0,
+      "teaches": "вдих: нічого не відбувається, і це навмисно",
+      "obstacles": [],
+      "gold": []
+    },
+    {
+      "id": "line_easy",
+      "tier": 1, "min_level": 1, "lanes": 3,
+      "length_m": 9.0, "recovery_sec": 2.0, "obstacle_points": 1,
+      "teaches": "перестрибни або обійди — працює і те, і те",
+      "obstacles": [{"z": 0.0, "lane": 0, "action": "jump"}],
+      "gold": [{"z": 1.5, "lane": -1, "kind": "line", "n": 5, "value": 1, "why": "guide"}]
+    },
+    {
+      "id": "gate_one",
+      "tier": 1, "min_level": 1, "lanes": 3,
+      "length_m": 9.0, "recovery_sec": 2.0, "obstacle_points": 1,
+      "teaches": "єдина вільна доріжка — і монети показують саме її",
+      "obstacles": [
+        {"z": 0.0, "lane": -1, "action": "jump"},
+        {"z": 0.0, "lane": 1, "action": "jump"}
+      ],
+      "gold": [{"z": 1.5, "lane": 0, "kind": "line", "n": 6, "value": 1, "why": "guide"}]
+    },
+    {
+      "id": "celebration",
+      "tier": 1, "min_level": 1, "lanes": 3,
+      "length_m": 8.0, "recovery_sec": 0.0, "obstacle_points": 0,
+      "teaches": "після важкого — просто нагорода, без жодного рішення",
+      "obstacles": [],
+      "gold": [{"z": 0.0, "lane": 0, "kind": "cluster", "n": 12, "w": 3, "value": 1, "why": "celebration"}]
+    },
+    {
+      "id": "duck_frame",
+      "tier": 1, "min_level": 2, "lanes": 3,
+      "length_m": 9.0, "recovery_sec": 2.0, "obstacle_points": 1,
+      "teaches": "під усім рядом можна лише присісти — доріжка не врятує",
+      "obstacles": [
+        {"z": 0.0, "lane": -1, "action": "duck"},
+        {"z": 0.0, "lane": 0, "action": "duck"},
+        {"z": 0.0, "lane": 1, "action": "duck"}
+      ],
+      "gold": [{"z": 1.5, "lane": 0, "kind": "line", "n": 5, "value": 1, "why": "guide"}]
+    },
+    {
+      "id": "duck_or_side",
+      "tier": 2, "min_level": 2, "lanes": 3,
+      "length_m": 11.0, "recovery_sec": 2.5, "obstacle_points": 2,
+      "teaches": "вибір: присісти або перейти — обидва правильні",
+      "obstacles": [
+        {"z": 0.0, "lane": -1, "action": "duck"},
+        {"z": 0.0, "lane": 0, "action": "duck"}
+      ],
+      "gold": [{"z": 1.5, "lane": 0, "kind": "climb", "to_lane": 1, "n": 5, "value": 1, "why": "guide"}]
+    },
+    {
+      "id": "xbox_warn",
+      "tier": 2, "min_level": 3, "lanes": 3,
+      "length_m": 10.0, "recovery_sec": 2.0, "obstacle_points": 1,
+      "teaches": "хрестик — сюди не можна НІКОЛИ, ні стрибком, ні присідом",
+      "obstacles": [{"z": 0.0, "lane": 0, "action": "side"}],
+      "gold": [
+        {"z": 1.5, "lane": -1, "kind": "line", "n": 4, "value": 1, "why": "guide"},
+        {"z": 1.5, "lane": 1, "kind": "line", "n": 4, "value": 1, "why": "guide"}
+      ]
+    },
+    {
+      "id": "safe_vs_gold",
+      "tier": 2, "min_level": 3, "lanes": 3,
+      "length_m": 13.0, "recovery_sec": 2.5, "obstacle_points": 1,
+      "teaches": "ліворуч безпечно й порожньо, праворуч перешкода й золото — вибирай",
+      "obstacles": [{"z": 0.0, "lane": 1, "action": "jump"}],
+      "gold": [{"z": 2.0, "lane": 1, "kind": "line", "n": 8, "value": 1, "why": "reward"}]
+    },
+    {
+      "id": "zigzag",
+      "tier": 2, "min_level": 3, "lanes": 3,
+      "length_m": 14.0, "recovery_sec": 3.0, "obstacle_points": 2,
+      "teaches": "монети ведуть по діагоналі через доріжку",
+      "obstacles": [
+        {"z": 0.0, "lane": -1, "action": "jump"},
+        {"z": 0.0, "lane": 1, "action": "jump"},
+        {"z": 6.0, "lane": 0, "action": "side"}
+      ],
+      "gold": [{"z": 1.5, "lane": 0, "kind": "climb", "to_lane": -1, "n": 6, "value": 1, "why": "guide"}]
+    },
+    {
+      "id": "stairs",
+      "tier": 2, "min_level": 4, "lanes": 3,
+      "length_m": 16.0, "recovery_sec": 4.0, "obstacle_points": 3,
+      "teaches": "ритм раз-два-три: три стрибки поспіль і ніяких більше",
+      "obstacles": [
+        {"z": 0.0, "lane": -1, "action": "jump"},
+        {"z": 3.0, "lane": 0, "action": "jump"},
+        {"z": 6.0, "lane": 1, "action": "jump"}
+      ],
+      "gold": [{"z": 9.0, "lane": 0, "kind": "cluster", "n": 9, "w": 3, "value": 1, "why": "celebration"}]
+    },
+    {
+      "id": "tunnel",
+      "tier": 3, "min_level": 6, "lanes": 3,
+      "length_m": 14.0, "recovery_sec": 3.0, "obstacle_points": 2,
+      "teaches": "довгий присід: два ряди поспіль, встати ніде",
+      "obstacles": [
+        {"z": 0.0, "lane": -1, "action": "duck"},
+        {"z": 0.0, "lane": 0, "action": "duck"},
+        {"z": 0.0, "lane": 1, "action": "duck"},
+        {"z": 2.5, "lane": -1, "action": "duck"},
+        {"z": 2.5, "lane": 0, "action": "duck"},
+        {"z": 2.5, "lane": 1, "action": "duck"}
+      ],
+      "gold": [{"z": 4.5, "lane": 0, "kind": "line", "n": 6, "value": 2, "why": "reward"}]
+    },
+    {
+      "id": "jackpot_arc",
+      "tier": 3, "min_level": 5, "lanes": 3,
+      "length_m": 16.0, "recovery_sec": 4.0, "obstacle_points": 2,
+      "teaches": "один точний стрибок — і дуга золота нагорі",
+      "obstacles": [{"z": 0.0, "lane": 0, "action": "jump"}],
+      "gold": [{"z": 0.5, "lane": 0, "kind": "arc", "n": 10, "h": 2.6, "value": 2, "why": "jackpot"}]
+    },
+
+    {
+      "id": "ramp_arc",
+      "tier": 3, "min_level": 4, "lanes": 3,
+      "length_m": 18.0, "recovery_sec": 3.0, "obstacle_points": 2,
+      "teaches": "рампа → дуга злитків у польоті",
+      "needs": ["ramp"],
+      "obstacles": [],
+      "gold": []
+    },
+    {
+      "id": "tier2_invite",
+      "tier": 3, "min_level": 6, "lanes": 3,
+      "length_m": 24.0, "recovery_sec": 3.0, "obstacle_points": 2,
+      "teaches": "нагорі вигідніше: подвійні злитки на даху",
+      "needs": ["tier2_authoring"],
+      "obstacles": [],
+      "gold": []
+    },
+    {
+      "id": "crossing",
+      "tier": 3, "min_level": 7, "lanes": 3,
+      "length_m": 16.0, "recovery_sec": 3.0, "obstacle_points": 3,
+      "teaches": "читати РУХ, а не позицію",
+      "needs": ["moving_npc"],
+      "obstacles": [],
+      "gold": []
+    },
+    {
+      "id": "oncoming",
+      "tier": 4, "min_level": 14, "lanes": 3,
+      "length_m": 20.0, "recovery_sec": 4.0, "obstacle_points": 4,
+      "teaches": "зустрічний рух: рішення за півтори секунди",
+      "needs": ["move_mode_toward"],
+      "obstacles": [],
+      "gold": []
+    },
+    {
+      "id": "finale_gauntlet",
+      "tier": 5, "min_level": 17, "lanes": 3,
+      "length_m": 22.0, "recovery_sec": 5.0, "obstacle_points": 5,
+      "teaches": "три дії за дві секунди — і велика нагорода",
+      "needs": ["moving_npc"],
+      "obstacles": [],
+      "gold": []
+    }
+  ]
+}

@@ -81,6 +81,15 @@ var distance_m := 0.0
 ## Авторський список перешкод рівня (res://levels/level_XX.tscn → LevelTimeline.extract()):
 ## якщо заданий — advance() спавнить по ньому курсором замість _next_gap()/_spawn_group().
 var _authored_obstacles: Array = []
+## Авторське золото: ФІГУРИ злитків, розставлені автором цеглинки (роль маркера `gold`).
+var _authored_gold: Array = []
+var _authored_gold_cursor := 0
+## Відрізки траси (у метрах), де золото ставить ЦЕГЛИНКА, а не спавнер. Саме відрізки, а не
+## один прапорець на рівень: рівень збирається зі спільної бібліотеки, тож змішаний склад —
+## частина цеглинок переведена, частина ще ні — це нормальний стан міграції. З прапорцем на
+## рівень вийшло б так: перша ж цеглинка із золотом вимикає випадкову лінію НАЗАВЖДИ, і всі
+## наступні непереведені цеглинки лишаються геть без монет.
+var _gold_regions: Array[Vector2] = []
 var _authored_cursor := 0
 ## Авторські пікапи — маркери role = "pickup" з цеглинки. Свій курсор, бо йдуть вони своїм
 ## розкладом, а не за перешкодами.
@@ -288,6 +297,7 @@ func advance(dist: float, total_distance_m: Variant = null) -> void:
 	# рядок останньої групи їде разом із дорогою
 	_last_free_z += dist
 	_advance_authored_pickups()
+	_advance_authored_gold()
 	if _authored_active:
 		_advance_authored()
 		return
@@ -415,7 +425,16 @@ func _free_lane_among(used: Dictionary) -> int:
 ## була проста й тому непомітна: злитки й пікапи ставить _spawn_group(), а авторська гілка
 ## advance() виходить із функції до нього. Квест «збери 15 зірочок» на рівні 1 був недосяжний.
 func _spawn_authored_collectibles(free_lane: int) -> void:
-	_spawn_ingot_pattern(free_lane, SPAWN_Z - STARS_BEHIND_MIN)
+	# Золото за групою — лише коли цеглинка НЕ розставила його сама. Те саме правило, що й
+	# для пікапів нижче, і з тієї ж причини: інакше автор просив би одне, а рівень давав би
+	# це плюс випадкову лінію зверху, і жоден бюджет не сходився б.
+	if has_authored_gold_at(distance_m + absf(SPAWN_Z)):
+		# Золото тут ставить цеглинка — випадкова лінія мовчить. Але великий злиток лишається
+		# за спавнером: він іде ЗА ЧАСОМ (раз на 20–30 с), а не за місцем, тож у бюджет
+		# цеглинки не вміщається й вимикати його разом із лінією не можна.
+		_spawn_big_if_due(free_lane, SPAWN_Z - STARS_BEHIND_MIN)
+	else:
+		_spawn_ingot_pattern(free_lane, SPAWN_Z - STARS_BEHIND_MIN)
 	# Пікап, що чекає своєї черги, — лише коли цеглинки не розставили пікапи САМІ: інакше
 	# автор просив би одне, а рівень давав би це плюс ще випадкове зверху.
 	if _pickup_pending != "" and _authored_pickups.is_empty():
@@ -438,6 +457,120 @@ func _advance_authored_pickups() -> void:
 			push_warning("пікап «%s» не описаний у data/pickups.json — маркер пропущено" % kind)
 			continue
 		_spawn_pickup(kind, clampi(int(rec.get("lane", 0)), -max_lane(), max_lane()), SPAWN_Z)
+
+
+func set_authored_gold(records: Array) -> void:
+	clear_authored_gold()
+	add_authored_gold(records)
+
+
+## from_m/to_m — відрізок траси, який ця цеглинка покриває. Передає завантажувач: лише він
+## знає, де цеглинка починається й де кінчається. Нуль (типове) означає «покриття невідоме»,
+## і тоді відрізок не реєструється — так кличуть тести й інструменти, яким байдуже.
+func add_authored_gold(records: Array, from_m: float = 0.0, to_m: float = 0.0) -> void:
+	_authored_gold = LevelTimeline.merge_by_z(_authored_gold, records)
+	if not records.is_empty() and to_m > from_m:
+		_gold_regions.append(Vector2(from_m, to_m))
+
+
+func clear_authored_gold() -> void:
+	_authored_gold = []
+	_authored_gold_cursor = 0
+	_gold_regions = []
+
+
+## Чи розставила цеглинка золото САМА — де завгодно на рівні. Для тестів і звітів.
+func has_authored_gold() -> bool:
+	return not _authored_gold.is_empty()
+
+
+## Чи ставить цеглинка золото САМЕ ТУТ, на цьому метрі траси. Поки ні — працює старий шлях:
+## лінія з 5 у вільній доріжці за групою перешкод.
+##
+## Відрізок невідомий (цеглинка додала золото без меж — так роблять тести) — вважаємо, що
+## покрито все: інакше поруч із авторськими фігурами сипалась би ще й випадкова лінія, і
+## бюджет би подвоївся. Це обережніший бік помилки.
+func has_authored_gold_at(z_m: float) -> bool:
+	if _authored_gold.is_empty():
+		return false
+	if _gold_regions.is_empty():
+		return true
+	for r in _gold_regions:
+		if z_m >= r.x and z_m < r.y:
+			return true
+	return false
+
+
+## Курсор по авторському золоту. Окремий від перешкод і від пікапів навмисно: фігура золота
+## не прив'язана до групи перешкод — у тому й сенс, щоб її можна було покласти ТУДИ, де
+## перешкод нема (святкування після важкого шматка), або у НЕбезпечну доріжку (плата за ризик).
+func _advance_authored_gold() -> void:
+	if not spawning or finish_pending:
+		return
+	while _authored_gold_cursor < _authored_gold.size():
+		var rec: Dictionary = _authored_gold[_authored_gold_cursor]
+		if distance_m < float(rec.get("z_m", 0.0)) - absf(SPAWN_Z):
+			break
+		_authored_gold_cursor += 1
+		_spawn_gold_figure(rec)
+
+
+## Одна фігура золота. `kind` — яка саме, `override` — її параметри:
+##
+##   line     пряма лінія вздовж дороги в одній доріжці     {"n": 5}
+##   climb    діагональ із lane у to_lane — «перейди сюди»  {"n": 5, "to_lane": 1}
+##   arc      дуга в повітрі — «тут стрибок»                {"n": 5, "h": 2.6}
+##   cluster  купка на кількох доріжках — святкування/джекпот {"n": 12, "w": 3}
+##
+## `value` (типово 1) — номінал КОЖНОЇ монети фігури. Це та ручка, якою економіку правлять,
+## не чіпаючи вигляду: дитина бачить ту саму купку, а коштує вона вдвічі більше. Прив'язувати
+## дохід намертво до кількості фізичних монет не можна — тоді будь-яке балансування псує
+## картинку.
+func _spawn_gold_figure(rec: Dictionary) -> void:
+	var kind := String(rec.get("kind", "line"))
+	var ov: Dictionary = rec.get("override", {}) if typeof(rec.get("override", {})) == TYPE_DICTIONARY else {}
+	var n := clampi(int(ov.get("n", INGOT_LINE)), 1, 40)
+	var value := maxi(1, int(ov.get("value", 1)))
+	var lane := clampi(int(rec.get("lane", 0)), -max_lane(), max_lane())
+	var y := float(rec.get("y_m", 0.0))
+	if y <= 0.0:
+		y = 0.6
+	match kind:
+		"arc":
+			# Дуга — єдина фігура, що вже вміла малюватись сама: нею летить герой із рампи.
+			# Висоту НЕ ставимо «як у польоті»: апекс звичайного стрибка ≈ 0,5 м, і дуга на
+			# 2,6 м, підписана «тут стрибок», недосяжна вп'ятеро. Типове — трохи вище голови.
+			spawn_star_arc(float(ov.get("h", 1.1)), n, lane, SPAWN_Z, value)
+		"climb":
+			var to_lane := clampi(int(ov.get("to_lane", lane + 1)), -max_lane(), max_lane())
+			for i in range(n):
+				var k := float(i) / float(maxi(1, n - 1))
+				var x := lerpf(float(lane), float(to_lane), k) * Hero3D.LANE_W
+				spawn_star_at(Vector3(x, y, SPAWN_Z - float(i) * STAR_STEP), value)
+		"cluster":
+			var w := clampi(int(ov.get("w", 3)), 1, max_lane() * 2 + 1)
+			var rows := ceili(float(n) / float(w))
+			# Зсуваємо ВСЮ купку, а не затискаємо кожну колонку окремо. Інакше купка біля
+			# краю дороги складалась: на трьох доріжках w=3 і lane=1 давали колонки 0,1,1 —
+			# дві монети в одній точці. Дитина бачить одну, а лічильник рахує дві, тобто
+			# рівно та розбіжність між картинкою й економікою, проти якої все це й робиться.
+			var left := clampi(lane - (w - 1) / 2, -max_lane(), max_lane() - w + 1)
+			var put := 0
+			for r in range(rows):
+				for c in range(w):
+					if put >= n:
+						break
+					spawn_star_at(Vector3(float(left + c) * Hero3D.LANE_W, y,
+						SPAWN_Z - float(r) * STAR_STEP), value)
+					put += 1
+		_:
+			# Помилка в назві фігури не має ставати мовчазною лінією: сусідній
+			# _advance_authored_pickups() на невідомий вид попереджає явно, і тут так само.
+			if kind != "line":
+				push_warning("фігура золота «%s» невідома (line/climb/arc/cluster) — поставлено лінію" % kind)
+			for i in range(n):
+				spawn_star_at(Vector3(float(lane) * Hero3D.LANE_W, y,
+					SPAWN_Z - float(i) * STAR_STEP), value)
 
 
 func set_authored_pickups(records: Array) -> void:
@@ -678,11 +811,22 @@ func _spawn_stars_line(lane: int, z0: float, n: int, y: float = 0.6, value: int 
 
 ## Патерн злитків за групою (GDD v1.4 §3): «лінія з 5», «діагональ» через сусідню доріжку
 ## або великий злиток «+100», коли настав його час. Повертає довжину хвоста в клітинках.
+## Великий злиток, коли підійшов його час. Окремо від лінії навмисно: доти він жив ВСЕРЕДИНІ
+## _spawn_ingot_pattern(), тобто з'являвся тільки там, де сипалась випадкова лінія. Щойно
+## цеглинка починала ставити золото сама, лінія вимикалась — і `_big_due` лишався true
+## назавжди, бо _tick_big() виходить одразу, поки він піднятий. Великий злиток зникав із
+## рівня цілком, а це 64–104 номіналу за рівень у моделі EDD, тобто до чверті доходу.
+func _spawn_big_if_due(lane: int, z0: float) -> bool:
+	if not _big_due:
+		return false
+	_big_due = false
+	_big_t = randf_range(float(BIG_INTERVAL[0]), float(BIG_INTERVAL[1]))
+	spawn_star_at(Vector3(float(lane) * Hero3D.LANE_W, 0.7, z0), BIG_VALUE)
+	return true
+
+
 func _spawn_ingot_pattern(lane: int, z0: float) -> float:
-	if _big_due:
-		_big_due = false
-		_big_t = randf_range(float(BIG_INTERVAL[0]), float(BIG_INTERVAL[1]))
-		spawn_star_at(Vector3(float(lane) * Hero3D.LANE_W, 0.7, z0), BIG_VALUE)
+	if _spawn_big_if_due(lane, z0):
 		return STARS_BEHIND_MIN + 1.0
 	var neighbours := lane_list().filter(func(l): return absi(int(l) - lane) == 1)
 	if not neighbours.is_empty() and randf() < 0.35:
@@ -707,7 +851,12 @@ func spawn_star_at(pos: Vector3, value: int = 1) -> void:
 
 
 ## Дуга зірочок у повітрі — для польоту (веселка, ракета) і великої хвилі. lane 99 — випадкова.
-func spawn_star_arc(height: float = 2.6, count: int = 8, lane: int = 99) -> void:
+## z0 — де починається дуга. Типове -3.0 — це «просто перед героєм ПРЯМО ЗАРАЗ»: так її
+## кличуть події польоту (веселка, ракета, рампа), і для них це правильно. Авторський маркер
+## натомість стоїть на SPAWN_Z, за 34 м попереду, — без цього параметра його дуга спалахувала
+## б просто в кадрі, за 26 м не там, де автор її поклав.
+func spawn_star_arc(height: float = 2.6, count: int = 8, lane: int = 99, z0: float = -3.0,
+		value: int = 1) -> void:
 	var fixed := lane != 99
 	if not fixed:
 		lane = random_lane()
@@ -715,7 +864,8 @@ func spawn_star_arc(height: float = 2.6, count: int = 8, lane: int = 99) -> void
 		if not fixed and randf() < 0.3:
 			lane = clampi(lane + (1 if randf() < 0.5 else -1), -max_lane(), max_lane())
 		var t := float(i) / float(maxi(1, count - 1))
-		spawn_star_at(Vector3(float(lane) * Hero3D.LANE_W, height + sin(t * PI) * 0.6, -3.0 - float(i) * 1.2))
+		spawn_star_at(Vector3(float(lane) * Hero3D.LANE_W, height + sin(t * PI) * 0.6,
+			z0 - float(i) * 1.2), value)
 
 
 # ---------- пікапи ----------

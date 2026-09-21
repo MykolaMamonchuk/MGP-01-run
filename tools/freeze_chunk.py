@@ -123,7 +123,10 @@ def hand_markers(path):
         if "script = ExtResource" not in b:
             continue
         role = (re.search(r'role = "(\w+)"', b) or [None, "decor"])[1]
-        if role in ("obstacle", "pickup"):
+        # Рукотворне лишається рукотворним: заморожуємо лише ОЗДОБЛЕННЯ. Золото тут разом
+        # із перешкодами й пікапами — воно теж авторське, і підміняти його процедурним
+        # декором не можна (kind у нього не пропс, а фігура: line/climb/arc/cluster).
+        if role in ("obstacle", "pickup", "gold"):
             continue
         kind = (re.search(r'kind = "([\w_]+)"', b) or [None, ""])[1]
         tr = re.search(r"Transform3D\(([^)]*)\)", b)

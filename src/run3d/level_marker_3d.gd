@@ -9,8 +9,21 @@
 class_name LevelMarker3D
 extends Node3D
 
-## Куди піде запис при екстракції — LevelTimeline розкладає маркери по цих шести масивах.
-@export_enum("decor", "obstacle", "pickup", "building", "landmark", "wall_near") var role: String = "decor":
+## Куди піде запис при екстракції — LevelTimeline розкладає маркери по цих семи масивах.
+##
+## `pickup` — це ХЕЛПЕР із data/pickups.json (сердечко, магніт, щит), один предмет.
+## `gold` — це ЗЛИТКИ, і не по одному, а ФІГУРОЮ: `kind` каже яка (line / climb / arc /
+## cluster), `override` — скільки й куди. Інакше цеглинку довелося б засівати трьома
+## десятками маркерів поштучно, і жодна людина цього б не редагувала.
+##
+## Навіщо золото взагалі авторське. Доти воно було єдиним, що лишалось випадковим: перешкоди
+## розставляє автор, а монети сипались лінією з 5 у вільній доріжці за КОЖНОЮ групою
+## (_spawn_authored_collectibles). Через це золото не могло ні вести дитину («монетки
+## показують, куди стрибати»), ні платити за ризик, ні святкувати складний шматок — воно
+## завжди лежало там, де й так безпечно, і рівно стільки, скільки груп перешкод. Заміряно
+## 21.09.2026: 31 монета на 150 м у першому світі й 55 у восьмому, причому зростання ніхто
+## не задумував — воно просто йшло за щільністю перешкод.
+@export_enum("decor", "obstacle", "pickup", "gold", "building", "landmark", "wall_near") var role: String = "decor":
 	set(v):
 		role = v
 		_rebuild_preview()
@@ -82,6 +95,7 @@ const ROLE_COLORS := {
 	"decor": Color(0.35, 0.75, 0.35),
 	"obstacle": Color(0.95, 0.35, 0.30),
 	"pickup": Color(1.00, 0.85, 0.25),
+	"gold": Color(1.00, 0.70, 0.10),
 	"building": Color(0.60, 0.55, 0.85),
 	"landmark": Color(0.30, 0.70, 0.95),
 	"wall_near": Color(0.55, 0.45, 0.35),
@@ -108,7 +122,7 @@ func _rebuild_preview() -> void:
 	mi.scale = Vector3.ONE * scale_mul
 	# Перешкоди й пікапи стоять на ДОРІЖЦІ, а не за власним x: саме так їх ставить Spawner3D.
 	# Без цього зсуву в редакторі вони всі купчились би по осі дороги.
-	if role == "obstacle" or role == "pickup":
+	if role == "obstacle" or role == "pickup" or role == "gold":
 		mi.position.x = float(lane) * LANE_W
 	add_child(mi)
 	mi.owner = null   # прев'ю ніколи не йде в .tscn і не існує в запущеній грі

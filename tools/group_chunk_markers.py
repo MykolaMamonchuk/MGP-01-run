@@ -41,6 +41,7 @@ ROLE_FOLDERS = [
     ("decor", "Декор"),
     ("obstacle", "Перешкоди"),
     ("pickup", "Пікапи"),
+    ("gold", "Золото"),
     ("building", "Будівлі"),
     ("landmark", "Орієнтири"),
     ("wall_near", "Стіни"),

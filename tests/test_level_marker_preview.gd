@@ -46,6 +46,12 @@ func _kinds_in_levels() -> Dictionary:
 				continue
 			var role_at := block.find("role = \"")
 			var role := block.substr(role_at + 8).split("\"")[0] if role_at >= 0 else "decor"
+			# Золото — не пропс: його `kind` це ФІГУРА (line / climb / arc / cluster), а не
+			# ім'я моделі. Шукати для неї меш чи воксель безглуздо, і обидва сторожі нижче
+			# впали б на першій же цеглинці із золотом. Що фігура відома — стереже
+			# tests/test_phrases.gd, а як вона малюється — tests/test_authored_gold.gd.
+			if role == "gold":
+				continue
 			# Ключ — «роль|вид»: перешкода бере модель інакше, ніж декор із тим самим ім'ям.
 			var key := "%s|%s" % [role, kind]
 			if not out.has(key):

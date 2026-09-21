@@ -18,6 +18,7 @@ const ROLE_KEYS := {
 	"decor": "decor",
 	"obstacle": "obstacles",
 	"pickup": "pickups",
+	"gold": "gold",
 	"building": "buildings",
 	"landmark": "landmarks",
 	"wall_near": "walls_near",

@@ -60,6 +60,7 @@ var _job_markers: Array = []
 var _job_cursor := 0
 var _job_out: Dictionary = {}
 var _job_offset := 0.0
+var _job_length := 0.0
 var _job_decor: Array = []
 
 
@@ -70,6 +71,7 @@ func _clear_obstacles() -> void:
 	if _spawner != null:
 		_spawner.clear_authored_obstacles()
 		_spawner.clear_authored_pickups()
+		_spawner.clear_authored_gold()
 
 
 ## Почати стрімінг рівня num: визначає, з чого рівень зібрано, вантажить перший шматок (або весь
@@ -135,7 +137,13 @@ static func _flatten(plan: Array) -> Array:
 	var out: Array = []
 	for piece in plan:
 		for path in (piece as Dictionary).get("paths", []):
-			out.append({"path": String(path), "offset_m": float(piece["offset_m"])})
+			out.append({
+				"path": String(path),
+				"offset_m": float(piece["offset_m"]),
+				# Довжина потрібна не самому читанню, а спавнеру: за нею він знає, НА ЯКОМУ
+				# відрізку траси золото ставить цеглинка, а на якому — ще він сам.
+				"length_m": float((piece as Dictionary).get("length_m", CHUNK_LENGTH_M)),
+			})
 	return out
 
 
@@ -216,7 +224,8 @@ func _poll_pending() -> void:
 		if packed != null:
 			# У БІГУ не збираємо одразу: заводимо покрокову роботу, яку update() дотягне за
 			# кілька кадрів по STREAM_BUDGET_MS. Саме тут і був смик на кожній межі цеглинки.
-			_begin_apply(packed, float(_queue[_pending_index]["offset_m"]))
+			_begin_apply(packed, float(_queue[_pending_index]["offset_m"]),
+				float((_queue[_pending_index] as Dictionary).get("length_m", CHUNK_LENGTH_M)))
 	else:
 		push_warning("чанк не прочитався: %s" % _pending_path)
 	_pending_index = -1
@@ -283,7 +292,7 @@ func _load_first_chunk() -> void:
 		var packed := _load_chunk_resource(String(piece["path"]))
 		if packed == null:
 			continue
-		_apply(packed, at)
+		_apply(packed, at, float(piece.get("length_m", CHUNK_LENGTH_M)))
 		loaded = true
 		offset = at
 	if not loaded:
@@ -309,8 +318,8 @@ func _load_flat_level() -> void:
 ## робив старий _load_authored_level(): нічого з авторської сцени не потрапляє в живе дерево.
 ## Зібрати цеглинку ОДРАЗУ, за один виклик. Лишається для тих, кому нема куди подіти кадри:
 ## старт рівня (екран завантаження й так стоїть), плаский рівень, тести та інструменти.
-func _apply(packed: PackedScene, offset_m: float) -> void:
-	_begin_apply(packed, offset_m)
+func _apply(packed: PackedScene, offset_m: float, length_m: float = CHUNK_LENGTH_M) -> void:
+	_begin_apply(packed, offset_m, length_m)
 	while _step_apply():
 		pass
 
@@ -326,9 +335,10 @@ func _apply(packed: PackedScene, offset_m: float) -> void:
 ##
 ## Кроки (стадії) свідомо різного розміру: найдорожче — розбір маркерів, і саме він ріжеться
 ## на скибки по MARKERS_PER_STEP. Решта — окремі стадії, кожна сама по собі дешевша за бюджет.
-func _begin_apply(packed: PackedScene, offset_m: float) -> void:
+func _begin_apply(packed: PackedScene, offset_m: float, length_m: float = CHUNK_LENGTH_M) -> void:
 	_job_packed = packed
 	_job_offset = offset_m
+	_job_length = length_m
 	_job_stage = 1
 	_job_cursor = 0
 	_job_markers = []
@@ -394,6 +404,11 @@ func _step_apply() -> bool:
 				# маркер-зірочка зникав без жодного слова. Саме про них і йшлося в «своя
 				# кількість золота на чанк».
 				_spawner.add_authored_pickups(_job_out.get("pickups", []))
+				# Золото цеглинки — окремим списком від пікапів: пікап це хелпер (сердечко,
+				# магніт), а золото — фігура злитків. Поки цеглинка його не ставить, працює
+				# старий шлях: лінія з 5 за кожною групою перешкод.
+				_spawner.add_authored_gold(_job_out.get("gold", []), _job_offset,
+					_job_offset + _job_length)
 			_job_out = {}
 			_job_stage = 0
 		_:
