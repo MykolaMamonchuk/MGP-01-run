@@ -193,33 +193,51 @@ func _min_forced_actions(p: Dictionary) -> float:
 		var z := snappedf(float((o as Dictionary).get("z", 0.0)), 0.5)
 		if not rows.has(z):
 			rows[z] = {}
-		(rows[z] as Dictionary)[int((o as Dictionary).get("lane", 0))] = \
-			String((o as Dictionary).get("action", "any"))
+		(rows[z] as Dictionary)[int((o as Dictionary).get("lane", 0))] = [
+			String((o as Dictionary).get("action", "any")),
+			String((o as Dictionary).get("motion", "")),
+		]
 	var zs := rows.keys()
 	zs.sort()
 	if zs.is_empty():
 		return 0.0
+	# Ціна РЕАКЦІЇ: ряд, де щось котиться чи перебігає, вимагає рішення ЗАЗДАЛЕГІДЬ.
+	# Нерухома перешкода пробачає пізній свайп, рухома — ні, і це справжня складність,
+	# якої позиційна модель не бачить узагалі.
+	var react := 0
+	for z in zs:
+		for lane in (rows[z] as Dictionary):
+			var m := String(((rows[z] as Dictionary)[lane] as Array)[1])
+			if m == "roll" or m == "cross":
+				react += 1
+				break
 	var total := 0.0
 	for start in [-1, 0, 1]:
 		var cost := {-1: BIG, 0: BIG, 1: BIG}
 		cost[start] = 0
 		for z in zs:
 			var row: Dictionary = rows[z]
+			# «cross» перебігає ВСІ доріжки — безпечного місця нема, лише вчасний ухил.
+			var sweeps := false
+			for lane in row:
+				if String((row[lane] as Array)[1]) == "cross":
+					sweeps = true
 			var next := {}
 			for lane in [-1, 0, 1]:
 				var move := BIG
 				for from_lane in [-1, 0, 1]:
 					move = mini(move, int(cost[from_lane]) + absi(from_lane - lane))
-				if String(row.get(lane, "")) == "side":
+				var act := String((row[lane] as Array)[0]) if row.has(lane) else ""
+				if act == "side" and not sweeps:
 					next[lane] = BIG
 				else:
-					next[lane] = move + (1 if row.has(lane) else 0)
+					next[lane] = move + (1 if (row.has(lane) or sweeps) else 0)
 			cost = next
 		var best := BIG
 		for lane in [-1, 0, 1]:
 			best = mini(best, int(cost[lane]))
 		total += float(best)
-	return total / 3.0
+	return total / 3.0 + float(react)
 
 
 ## РІВНІСТЬ, а не «не менше». Занижене число обдурить бюджет цеглинки — рівень вийде важчим
@@ -311,3 +329,47 @@ func test_dzhekpot_spravdi_velykyi() -> void:
 	for j in jackpots:
 		assert_gt(float(j), median * 2.0,
 			"джекпот (%d) щонайменше вдвічі більший за звичайну фразу (медіана %.0f)" % [j, median])
+
+
+## Вісь руху мусить мати лише відомі значення: помилка в ній тиха — Spawner3D не знайде
+## перешкоди з таким рухом і просто пропустить запис, лишивши в дорозі дірку.
+const MOTIONS := ["", "roll", "cross", "ride"]
+
+
+func test_vis_rukhu_tilky_vidoma() -> void:
+	var bad := []
+	for p in _phrases:
+		for o in (p as Dictionary).get("obstacles", []):
+			var m := String((o as Dictionary).get("motion", ""))
+			if not MOTIONS.has(m):
+				bad.append("%s: рух «%s»" % [(p as Dictionary)["id"], m])
+	assert_eq(bad, [], "усі значення руху відомі: %s" % [bad])
+
+
+## Кожен світ мусить уміти дати те, що просить фраза. Динамічні фрази написані рухом, а не
+## видом, саме щоб пережити біом, — але якщо в якомусь світі нема нічого, що котиться, така
+## фраза там мовчки перетвориться на порожнє місце.
+func test_kozhen_svit_maie_chym_vidpovisty_na_rukh() -> void:
+	var need := {}
+	for p in _ready_phrases():
+		for o in (p as Dictionary).get("obstacles", []):
+			var m := String((o as Dictionary).get("motion", ""))
+			if m != "" and m != "ride":
+				need[m] = true
+	assert_gt(need.size(), 0, "динамічні фрази в бібліотеці є")
+	var bad := []
+	for world in ["meadow", "forest", "beach", "city", "clouds"]:
+		var f := FileAccess.open("res://data/worlds/%s.json" % world, FileAccess.READ)
+		var parsed = JSON.parse_string(f.get_as_text())
+		var obstacles: Dictionary = (parsed as Dictionary).get("obstacles", {})
+		for m in need:
+			var found := false
+			for k in obstacles:
+				var d: Dictionary = obstacles[k]
+				if m == "roll" and String(d.get("anim", "")) == "roll":
+					found = true
+				if m == "cross" and bool(d.get("moves", false)):
+					found = true
+			if not found:
+				bad.append("%s: нема нічого з рухом «%s»" % [world, m])
+	assert_eq(bad, [], "кожен світ має чим відповісти на рух: %s" % [bad])

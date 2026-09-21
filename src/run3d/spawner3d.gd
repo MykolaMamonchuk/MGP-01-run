@@ -599,7 +599,7 @@ func _spawn_authored_obstacle(rec: Dictionary, free_lane: int) -> bool:
 	var kind := String(rec.get("kind", ""))
 	var defs: Dictionary = world.get("obstacles", {})
 	if kind == "":
-		kind = _kind_for_action(String(rec.get("action", "")))
+		kind = _kind_for_action(String(rec.get("action", "")), String(rec.get("motion", "")))
 		if kind == "":
 			return false   # дії в цьому світі нема (або нема й самої дії) — запис пропущено
 	if not defs.has(kind):
@@ -626,7 +626,9 @@ func _spawn_authored_obstacle(rec: Dictionary, free_lane: int) -> bool:
 ## Вибір іде через _rng (засіяний RngSeed), а не через глобальний randi(): два прогони з тим
 ## самим зерном мусять дати той самий рівень. Ключі сортуємо — порядок у словнику залежить від
 ## порядку запису в JSON, і перестановка рядків у файлі не має міняти вже знятий рівень.
-func _kind_for_action(action: String) -> String:
+## motion — яка саме: "roll" котиться назустріч, "cross" перебігає впоперек, "" байдуже.
+## Транспорт ("ride") сюди не потрапляє й тут: кузов ставить окремий _spawn_vehicle().
+func _kind_for_action(action: String, motion: String = "") -> String:
 	if action == "":
 		return ""
 	var defs: Dictionary = world.get("obstacles", {})
@@ -634,10 +636,15 @@ func _kind_for_action(action: String) -> String:
 		var d: Dictionary = defs[k]
 		if String(d.get("shape", "")) == "vehicle":
 			return false
+		if motion == "roll" and String(d.get("anim", "")) != "roll":
+			return false
+		if motion == "cross" and not bool(d.get("moves", false)):
+			return false
 		return String(d.get("action", "any")) == action)
 	if fits.is_empty():
-		push_warning("Spawner3D: у світі «%s» нема перешкоди з дією «%s» (дозволено рівнем: %s) — авторський запис пропущено"
-			% [String(world.get("id", "?")), action, "усі біому" if level_types.is_empty() else str(level_types)])
+		push_warning("Spawner3D: у світі «%s» нема перешкоди з дією «%s»%s (дозволено рівнем: %s) — авторський запис пропущено"
+			% [String(world.get("id", "?")), action, "" if motion == "" else " і рухом «%s»" % motion,
+			   "усі біому" if level_types.is_empty() else str(level_types)])
 		return ""
 	fits.sort()
 	return String(fits[_rng.randi() % fits.size()])

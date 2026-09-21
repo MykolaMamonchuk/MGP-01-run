@@ -256,6 +256,22 @@
 			"anim": "sway",
 			"shape": "high_frame",
 			"breaks": "soft"
+		},
+		"ball_roll": {
+			"voxel": "ball",
+			"prop": "barrel",
+			"action": "side",
+			"tumble": true,
+			"y": 0.0,
+			"box": [
+				0.7,
+				0.7,
+				0.7
+			],
+			"anim": "roll",
+			"shape": "x_box",
+			"marker": "none",
+			"breaks": "soft"
 		}
 	},
 	"dressing": {

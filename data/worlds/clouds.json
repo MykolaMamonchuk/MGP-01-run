@@ -250,6 +250,36 @@
 			"shape": "low_bar",
 			"marker": "none",
 			"breaks": "soft"
+		},
+		"comet_roll": {
+			"voxel": "comet",
+			"action": "side",
+			"tumble": true,
+			"y": 0.0,
+			"box": [
+				0.7,
+				0.7,
+				0.7
+			],
+			"anim": "roll",
+			"shape": "x_box",
+			"marker": "none",
+			"breaks": "soft"
+		},
+		"birds_cross": {
+			"voxel": "birds",
+			"action": "side",
+			"tumble": true,
+			"y": 0.9,
+			"box": [
+				0.9,
+				0.4,
+				0.4
+			],
+			"anim": "flap",
+			"shape": "critter",
+			"moves": true,
+			"marker": "none"
 		}
 	}
 }

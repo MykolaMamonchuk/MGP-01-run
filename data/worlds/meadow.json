@@ -272,6 +272,23 @@
 			"shape": "high_frame",
 			"prop": "clothesline",
 			"marker": "none"
+		},
+		"goose_walk": {
+			"voxel": "cow",
+			"prop": "goose",
+			"action": "side",
+			"tumble": true,
+			"y": 0.0,
+			"box": [
+				0.6,
+				0.55,
+				0.45
+			],
+			"anim": "breathe",
+			"shape": "critter",
+			"moves": true,
+			"marker": "none",
+			"breaks": "soft"
 		}
 	},
 	"road_color": "#CF9B57",

@@ -276,6 +276,22 @@
 			"move_speed": 2.4,
 			"shape": "critter",
 			"breaks": "soft"
+		},
+		"cart_roll": {
+			"voxel": "cart",
+			"prop": "barrel",
+			"action": "side",
+			"tumble": true,
+			"y": 0.0,
+			"box": [
+				0.75,
+				0.75,
+				0.75
+			],
+			"anim": "roll",
+			"shape": "x_box",
+			"marker": "none",
+			"breaks": "soft"
 		}
 	}
 }
