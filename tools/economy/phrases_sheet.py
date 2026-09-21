@@ -53,9 +53,11 @@ def coins(fig):
 
 
 def draw(p):
-    nominal = sum(int(g["n"]) * int(g.get("value", 1)) for g in p["gold"])
-    head = "%s  ·  тир %d  ·  з рівня %d  ·  %.0f м  ·  %d очок  ·  %d номіналу" % (
-        p["id"], p["tier"], p["min_level"], p["length_m"], p["obstacle_points"], nominal)
+    # ВАГА, а не номінал: остаточний номінал ставить збирач цеглинки (PhraseBook.place),
+    # підбираючи множник під бюджет золота саме цієї цеглинки.
+    weight = sum(int(g["n"]) * int(g.get("value", 1)) for g in p["gold"])
+    head = "%s  ·  тир %d  ·  з рівня %d  ·  %.0f м  ·  %d очок  ·  вага золота %d" % (
+        p["id"], p["tier"], p["min_level"], p["length_m"], p["obstacle_points"], weight)
     print(head)
     print("  " + p["teaches"])
     if "needs" in p:

@@ -216,3 +216,48 @@ func test_popravka_zalezhyt_vid_shvydkosti() -> void:
 	var fast := absf(_spawner._spawn_z_for({"anim": "roll"}))
 	assert_gt(slow, fast, "на повільному рівні поправка більша")
 	assert_gt(fast, absf(Spawner3D.SPAWN_Z), "але вона є завжди")
+
+
+## ── НАСКРІЗЬ: складена цеглинка → спавнер → монети на дорозі ──────────────────
+
+## Найдорожча вада цієї роботи була саме тут і тестами не ловилась: PhraseBook.place()
+## віддавав параметри фігури ПЛОСКИМИ полями, а Spawner3D читає їх з `override`. Усе
+## лишалось зеленим, бо два боки ніхто не з'єднував — а в грі кожна фігура мовчки стала б
+## типовою лінією з п'яти монет номіналом один, і весь підбір бюджету загинув би непомітно.
+func test_skladena_tsehlynka_doizhdzhaie_v_hru() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260921
+	var phrases := PhraseBook.load_all()
+	var seq := PhraseBook.compose(phrases, 6, 150.0, 5.6, 6, rng)
+	assert_gt(seq.size(), 2, "цеглинка склалась")
+	var placed := PhraseBook.place(seq, 85)
+	var want := PhraseBook.gold_placed(placed)
+	assert_gt(want, 0, "золото розставлено")
+
+	_spawner.set_authored_gold(placed["gold"])
+	# Проходимо всю цеглинку й рахуємо, що справді з'явилось на дорозі.
+	var got := 0
+	for m in range(0, 160):
+		_spawner.distance_m = float(m)
+		_spawner._advance_authored_gold()
+	for i in _ingots():
+		got += int((i as Ingot3D).value)
+	assert_eq(got, want,
+		"на дорозі рівно стільки золота, скільки розставив збирач (%d проти %d)" % [got, want])
+
+
+## І кількість МОНЕТ має збігтися: інакше бюджет зійшовся б номіналом, а картинка була б
+## іншою — саме те, чого замовник просив не робити.
+func test_kilkist_monet_zbihaietsia_z_zadumom() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var placed := PhraseBook.place(
+		PhraseBook.compose(PhraseBook.load_all(), 6, 150.0, 5.6, 6, rng), 85)
+	var want := 0
+	for g in (placed["gold"] as Array):
+		want += int(((g as Dictionary)["override"] as Dictionary).get("n", 0))
+	_spawner.set_authored_gold(placed["gold"])
+	for m in range(0, 160):
+		_spawner.distance_m = float(m)
+		_spawner._advance_authored_gold()
+	assert_eq(_ingots().size(), want, "монет на дорозі стільки, скільки в задумі")

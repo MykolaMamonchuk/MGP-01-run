@@ -87,8 +87,11 @@ func test_kraii_tsehlynky_spokiini() -> void:
 			var d: Dictionary = item
 			var p: Dictionary = d["phrase"]
 			var at := float(d["at_m"])
-			var tail := at + float(p.get("length_m", 0.0))
-			if at < PhraseBook.CALM_EDGE_M or tail > 150.0 - PhraseBook.CALM_EDGE_M:
+			# Край міряємо span_of, як і код: length_m давав слабшу перевірку, і тест
+			# лишався б зеленим, якби хтось замінив у коді span_of на length_m.
+			var tail := at + PhraseBook.span_of(p, 5.6)
+			var edge: float = minf(PhraseBook.CALM_EDGE_M, 150.0 / 6.0)
+			if at < edge or tail > 150.0 - edge:
 				assert_lte(int(p.get("obstacle_points", 0)), PhraseBook.CALM_EDGE_POINTS,
 					"рівень %d: «%s» на %.0f м — це край цеглинки" % [lvl, p["id"], at])
 
@@ -157,19 +160,40 @@ func test_nulovyi_biudzhet_daie_spokiinu_tsehlynku() -> void:
 ## фразі лежить ВАГА, а множник підбирається на цеглинку. Дробовий із перенесенням залишку,
 ## бо один цілий множник дає драбину ×1/×2 і промах до третини.
 func test_biudzhet_zolota_vytrymuietsia_nominalom() -> void:
-	for budget in [50, 73, 85, 120]:
-		var placed := PhraseBook.place(_brick(6), budget)
-		var got := PhraseBook.gold_placed(placed)
-		assert_almost_eq(float(got), float(budget), float(budget) * 0.15,
-			"бюджет %d витримано (вийшло %d)" % [budget, got])
+	# КІЛЬКА зерен: на одному тест зелений випадково. Заміряно рецензією — на різних
+	# зернах сира вага цеглинки гуляє від 28 до 100 при медіані 49, тож і промах різний.
+	var worst := 0.0
+	for seed_i in [1, 7, 42, 20260921, 555]:
+		_rng.seed = seed_i
+		var seq := _brick(6)
+		for budget in [50, 73, 85, 120]:
+			var got := PhraseBook.gold_placed(PhraseBook.place(seq, budget))
+			var err: float = absf(float(got) - float(budget)) / float(budget)
+			worst = maxf(worst, err)
+			assert_lt(err, 0.15,
+				"зерно %d, бюджет %d: вийшло %d (промах %.0f%%)" % [seed_i, budget, got, err * 100.0])
+	gut.p("найгірший промах по бюджету: %.1f%%" % (worst * 100.0))
+
+
+## Цеглинка, чиї фрази важать БІЛЬШЕ за бюджет, — не вигадка: заміряно, що сира вага гуляє
+## 28–100. Множник мусить уміти зменшувати, а не лише збільшувати; інакше така цеглинка
+## мовчки перевищує бюджет на третину.
+func test_bahata_tsehlynka_vmiie_zmenshuvatys() -> void:
+	var seq := _brick(6)
+	var small := PhraseBook.place(seq, 20)
+	assert_lt(PhraseBook.gold_placed(small), PhraseBook.gold_placed(PhraseBook.place(seq, 120)),
+		"менший бюджет дає менше золота")
+	assert_lte(float(PhraseBook.place(seq, 20)["множник"]), 1.0,
+		"на малому бюджеті множник опускається нижче одиниці")
 
 
 ## Жодна монета не може коштувати нуль — це була б монета, яку видно й за яку нічого не дають.
 func test_zhodna_moneta_ne_koshtuie_nul() -> void:
 	for budget in [10, 73, 300]:
 		for g in (PhraseBook.place(_brick(6), budget).get("gold", []) as Array):
-			assert_gte(int((g as Dictionary).get("value", 0)), 1,
-				"монета коштує щонайменше одиницю")
+			var over: Dictionary = (g as Dictionary)["override"]
+			assert_gte(int(over.get("value", 0)), 1,
+				"монета коштує щонайменше одиницю (бюджет %d)" % budget)
 
 
 ## Розстановка віддає ті самі метри, що й складання: фраза на 40-му метрі кладе перешкоди
@@ -197,3 +221,40 @@ func test_stelia_tsehlynky_shist_ochok() -> void:
 		var s := PhraseBook.summary(PhraseBook.compose(_phrases, lvl, 150.0, 5.6, 99, _rng))
 		assert_lte(int(s["очок"]), 8, "рівень %d: стеля цеглинки не зрушила вгору" % lvl)
 		assert_gte(int(s["очок"]), 4, "рівень %d: і не впала" % lvl)
+
+
+## Від'ємний бюджет очок — це помилка виклику, а не привід віддати 150 метрів пустки.
+## Доти умова `pts > points_left` відсікала навіть фрази на нуль очок, і дорога виходила
+## порожня БЕЗ ЖОДНОГО попередження, а бюджет 0 при цьому працював — асиметрія, яку тест
+## на нулі не ловив.
+func test_vidiemnyi_biudzhet_ne_daie_pustky() -> void:
+	var seq := PhraseBook.compose(_phrases, 6, 150.0, 5.6, -5, _rng)
+	assert_gt(seq.size(), 0, "дорога не порожня")
+	assert_eq(int(PhraseBook.summary(seq)["очок"]), 0, "але й жодної неминучої дії")
+
+
+## Коротка цеглинка не має ставати суцільним відпочинком. Заміряно: із прибитим краєм у
+## 20 м будь-яка цеглинка до 40 м складалась лише з фраз на одне очко, бо КОЖНА позиція
+## в ній — край.
+func test_korotka_tsehlynka_ne_vtrachaie_skladnosti() -> void:
+	var seq := PhraseBook.compose(_phrases, 8, 60.0, 5.6, 99, _rng)
+	assert_gte(int(PhraseBook.summary(seq)["очок"]), 2,
+		"на 60 метрах уміщається більше за одне очко")
+
+
+## Записи, які віддає place(), мусять мати ТУ САМУ форму, що й розбір авторської сцени:
+## параметри фігури в `override`, бо саме звідти їх читає Spawner3D._spawn_gold_figure().
+## Плоскими полями вони мовчки ігнорувались би — фігура ставала б типовою лінією з п'яти
+## монет номіналом один, і весь підбір множника гинув би непоміченим.
+func test_forma_zapysiv_ta_sama_shcho_v_hri() -> void:
+	var placed := PhraseBook.place(_brick(6), 73)
+	for g in (placed["gold"] as Array):
+		var d: Dictionary = g
+		for key in ["z_m", "lane", "kind", "override"]:
+			assert_true(d.has(key), "у запису золота є «%s»" % key)
+		var over: Dictionary = d["override"]
+		assert_true(over.has("n"), "кількість монет лежить в override")
+		assert_true(over.has("value"), "номінал лежить в override")
+	for o in (placed["obstacles"] as Array):
+		for key in ["z_m", "lane", "action", "motion"]:
+			assert_true((o as Dictionary).has(key), "у запису перешкоди є «%s»" % key)

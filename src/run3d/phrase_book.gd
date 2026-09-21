@@ -79,6 +79,7 @@ static func compose(phrases: Array, level: int, length_m: float, speed_mps: floa
 	var pool := available(phrases, level)
 	if pool.is_empty():
 		return []
+	var budget := maxi(0, points_budget)
 	var out: Array = []
 	var used := {}
 	var at := 0.0
@@ -90,7 +91,7 @@ static func compose(phrases: Array, level: int, length_m: float, speed_mps: floa
 	while at < length_m and guard < 200:
 		guard += 1
 		var pick := _best_next(pool, level, at, length_m, speed_mps, used, last_id,
-			last_points, points_budget - points, jackpots, rng)
+			last_points, budget - points, jackpots, rng)
 		if pick.is_empty():
 			break
 		out.append({"phrase": pick, "at_m": snappedf(at, 0.1)})
@@ -124,7 +125,10 @@ static func _best_next(pool: Array, level: int, at: float, length_m: float, spee
 		if last_points >= 2 and pts > 0:
 			continue
 		# Спокійні краї цеглинки.
-		var near_edge := at < CALM_EDGE_M or at + span_of(d, speed_mps) > length_m - CALM_EDGE_M
+		# Край не більший за шосту частину цеглинки: інакше на короткій (≤ 40 м) КОЖНА
+		# позиція виявляється краєм, і нічого важчого за одне очко не поставиться ніколи.
+		var edge := minf(CALM_EDGE_M, length_m / 6.0)
+		var near_edge := at < edge or at + span_of(d, speed_mps) > length_m - edge
 		if near_edge and pts > CALM_EDGE_POINTS:
 			continue
 		if _has_jackpot(d) and jackpots >= 1:
@@ -203,32 +207,50 @@ static func place(sequence: Array, gold_budget: int) -> Dictionary:
 			})
 		for g in p.get("gold", []):
 			var gd: Dictionary = g
-			var fig := gd.duplicate()
-			fig["z_m"] = at + float(gd.get("z", 0.0))
-			fig.erase("z")
-			figures.append(fig)
+			# Параметри фігури йдуть в `override` — саме звідти їх читає
+			# Spawner3D._spawn_gold_figure(). Плоскими полями вони мовчки ігнорувались би,
+			# і фігура ставала б типовою лінією з п'яти монет номіналом один: n, value,
+			# to_lane, w, h — усе повз. Форма-еталон — LevelTimeline._append().
+			var over := {}
+			for key in ["n", "value", "to_lane", "w", "h"]:
+				if gd.has(key):
+					over[key] = gd[key]
+			figures.append({
+				"z_m": at + float(gd.get("z", 0.0)),
+				"lane": int(gd.get("lane", 0)),
+				"kind": String(gd.get("kind", "line")),
+				"y_m": 0.0,
+				"why": String(gd.get("why", "")),
+				"override": over,
+			})
 			weight_total += int(gd.get("n", 0)) * int(gd.get("value", 1))
-	# Множник на цеглинку. Номінал монети — ціле число, тож один спільний множник дає грубу
-	# драбину: ×1 або ×2, тобто промах по бюджету до третини. Тому множимо ДРОБОВИМ, а решту
-	# розкладаємо по фігурах, несучи похибку далі (та сама арифметика, що в розкладці здачі).
-	# Дитина різниці не бачить — одна купка коштує трохи більше за сусідню, — а цеглинка
-	# лягає в бюджет із точністю до монети.
+	# Множник на цеглинку. Дробовий, бо один цілий дає драбину ×1/×2 і промах до третини.
+	# І БЕЗ нижньої межі в одиницю: цеглинка, чиї фрази важать більше за бюджет, трапляється
+	# насправді (заміряно: сира вага гуляє 28–100 при медіані 49), і тоді золото треба
+	# ЗМЕНШИТИ, а не лишити як є. Нижче за монету номіналом 1 не опустимось усе одно.
 	var mult := 1.0
 	if weight_total > 0 and gold_budget > 0:
-		mult = maxf(1.0, float(gold_budget) / float(weight_total))
+		mult = float(gold_budget) / float(weight_total)
+	# Залишок несемо в НОМІНАЛІ, а не в одиницях value. Різниця не косметична: номінал
+	# фігури це n × value, тож похибка в половину одиниці value множиться на n і на джекпоті
+	# з дванадцяти монет дає промах у шість. Найбільше страждала саме та фігура, чий сенс —
+	# бути помітно великою.
 	var carry := 0.0
 	for fig in figures:
 		var d: Dictionary = fig
-		var want := float(int(d.get("value", 1))) * mult + carry
-		var give := maxi(1, floori(want))
-		carry = want - float(give)
-		d["value"] = give
+		var over: Dictionary = d["override"]
+		var n := maxi(1, int(over.get("n", 1)))
+		var want := float(n) * float(int(over.get("value", 1))) * mult + carry
+		var value := maxi(1, roundi(want / float(n)))
+		carry = want - float(n * value)
+		over["value"] = value
 	return {"obstacles": obstacles, "gold": figures, "множник": snappedf(mult, 0.01)}
 
 
 ## Скільки номіналу дала розстановка насправді.
 static func gold_placed(placed: Dictionary) -> int:
-	var n := 0
+	var total := 0
 	for g in placed.get("gold", []):
-		n += int((g as Dictionary).get("n", 0)) * int((g as Dictionary).get("value", 1))
-	return n
+		var over: Dictionary = (g as Dictionary).get("override", {})
+		total += int(over.get("n", 0)) * int(over.get("value", 1))
+	return total
