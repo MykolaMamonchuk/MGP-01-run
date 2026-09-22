@@ -13,7 +13,9 @@
 ## квантований по 16,67 мс і одне число на фіксованому масштабі бреше (див. docs/MEMORY.md).
 extends Node3D
 
-const SRC := "res://assets/props/fence_rail_1.glb"
+## Джерело для стенда площі — СПРАВЖНІЙ будинок, а не тонка рейка: саме великі фасади
+## вкривають екран у грі, і питання стоїть про них.
+const SRC := "res://assets/props/house_terra_6.glb"
 ## ДВІ ТИСЯЧІ, а не сто. Перший прогін зі ста дав рівно 16,7 мс на КОЖНІЙ сходинці й у
 ## КОЖНОМУ варіанті, зокрема на порожній сцені: сто секцій для Adreno 505 — ніщо, і кадр
 ## уперся в стелю синхронізації, де різниць не видно взагалі. Це та сама пастка кванта, що
@@ -24,8 +26,11 @@ const SRC := "res://assets/props/fence_rail_1.glb"
 ## кадрі й на ОДНАКОВІЙ глибині — змінюється лише масштаб моделі, тобто частка вкритого
 ## екрана. Глибину не чіпаємо навмисно: інакше домішались би відсікання, розподіл по
 ## глибині й перспективна щільність.
-const AREA_N := 100
-const AREA_COLS := 10
+## Для будинку беремо 25, а не 100: house_terra_6 несе 8281 вершину, тож 25 штук дають
+## ~207 тисяч — приблизно стільки ж, скільки справжній кадр гри. Сто будинків міряли б уже
+## іншу за порядком сцену.
+const AREA_N := 25
+const AREA_COLS := 5
 const AREA_DEPTH := 12.0   ## глибина сітки, метри — стала в усіх варіантах
 ## Частка ширини комірки, яку займає об'єкт. Вкрита площа ~ квадрат цієї частки.
 const AREA_FILL := [0.32, 0.50, 0.71, 0.90]
@@ -40,15 +45,21 @@ const MEASURE := 2.2
 const REPORT := "user://bench_report.txt"
 
 ## Варіанти: скільки злитих шматків (0 = окремі вузли, -1 = MultiMesh).
-## Режим "площа": ключ "fill" замість "режим".
+## ЩО САМЕ В МАТЕРІАЛІ ДОРОГЕ. Попередня матриця показала: продуктовий матеріал на 81%
+## покриття коштує 145 одиниць, а простий (без освітлення й без текстури) — РІВНО НУЛЬ, при
+## тій самій геометрії й кількості. Лишилось розділити дві складові простого: освітлення на
+## піксель і вибірку з текстури.
+##
+## Усі варіанти на ОДНІЙ площі (81%), щоб порівнювалась лише ціна пікселя.
 const STEPS := [
-	{"назва": "прогрів (не рахується)", "fill": 0.50, "warm": true},
-	{"назва": "площа ~10%", "fill": 0.32},
-	{"назва": "площа ~25%", "fill": 0.50},
-	{"назва": "площа ~50%", "fill": 0.71},
-	{"назва": "площа ~81%", "fill": 0.90},
+	{"назва": "прогрів (не рахується)", "fill": 0.90, "warm": true},
+	{"назва": "як є (продуктовий)", "fill": 0.90},
+	{"назва": "світло + текстура", "fill": 0.90, "світло": true, "текстура": true},
+	{"назва": "світло, без текстури", "fill": 0.90, "світло": true},
+	{"назва": "текстура, без світла", "fill": 0.90, "текстура": true},
+	{"назва": "ні того, ні того", "fill": 0.90, "світло": false},
 	{"назва": "порожньо (межа)", "режим": -2},
-	{"назва": "контроль: площа ~25%", "fill": 0.50},
+	{"назва": "контроль: як є", "fill": 0.90},
 ]
 
 const STEPS_STARE := [
@@ -73,6 +84,9 @@ var _t := 0.0
 var _measuring := false
 var _ticks := PackedFloat32Array()
 var _area_cover := 0.0
+var _lit := false
+var _textured := false
+var _mats := {}
 
 
 func _say(line: String) -> void:
@@ -107,7 +121,7 @@ func _ready() -> void:
 	add_child(sun)
 	_holder = Node3D.new()
 	add_child(_holder)
-	_say("СТЕНД ПЛОЩІ: %d об'єктів, %d варіантів" % [AREA_N, STEPS.size()])
+	_say("СТЕНД БУДИНКУ: %d штук, %d варіантів" % [AREA_N, STEPS.size()])
 	_next()
 
 
@@ -186,7 +200,7 @@ func _build(chunks: int) -> void:
 ## Сітка 10x10 на всю видиму площу на СТАЛІЙ глибині; кожен об'єкт масштабується так, щоб
 ## його оболонка займала `fill` ширини своєї комірки. Вкрита площа виходить ~fill^2, і саме
 ## це число друкується поруч із часом — рахується, а не припускається.
-func _build_area(fill: float) -> void:
+func _build_area(fill: float, simple: bool) -> void:
 	for c in _holder.get_children():
 		c.queue_free()
 	var cam := _cam()
@@ -209,7 +223,30 @@ func _build_area(fill: float) -> void:
 			(float(row) + 0.5 - float(rows) * 0.5) * cell_h,
 			-AREA_DEPTH)
 		mi.transform = Transform3D(Basis.from_scale(Vector3(sc, sc, sc)), p)
+		if simple:
+			mi.material_override = _mat(_lit, _textured)
 		_holder.add_child(mi)
+
+
+## Чотири матеріали, щоб РОЗДІЛИТИ освітлення й вибірку з текстури. Продуктовий варіант має
+## і те, й те; простий — ні того, ні того (він коштував НУЛЬ). Проміжні два кажуть, що саме
+## з двох винне.
+func _mat(lit: bool, textured: bool) -> StandardMaterial3D:
+	var key := (1 if lit else 0) * 2 + (1 if textured else 0)
+	if _mats.has(key):
+		return _mats[key]
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL if lit \
+		else BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.roughness = 1.0
+	m.albedo_color = Color(0.82, 0.74, 0.62)
+	if textured:
+		var src := _src_mesh.surface_get_material(0) as BaseMaterial3D
+		if src != null and src.albedo_texture != null:
+			m.albedo_texture = src.albedo_texture
+			m.albedo_color = Color.WHITE
+	_mats[key] = m
+	return m
 
 
 func _cam() -> Camera3D:
@@ -253,7 +290,9 @@ func _next() -> void:
 		return
 	var cur: Dictionary = STEPS[_step]
 	if cur.has("fill"):
-		_build_area(float(cur["fill"]))
+		_lit = bool(cur.get("світло", false))
+		_textured = bool(cur.get("текстура", false))
+		_build_area(float(cur["fill"]), cur.has("світло") or cur.has("текстура"))
 	else:
 		_build(int(cur["режим"]))
 	_apply()
