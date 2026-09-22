@@ -67,11 +67,11 @@ const MIN := ["water", "fog", "shadows", "decor", "glow", "adjust", "sky"]
 ## - масштаб і полегшення сцени працюють лише РАЗОМ (тінь декору дає 2 мс на 1.0 і 9 на 0.45).
 const STEPS := [
 	{"назва": "прогрів (не рахується)", "flags": [], "level": true, "warm": true},
-	{"назва": "house_terra_6: 8360 верш", "flags": [], "scale": "130"},
-	{"назва": "house_terra_6: ~2100 верш", "flags": ["lod1"], "scale": "130"},
-	{"назва": "house_terra_6: ~500 верш", "flags": ["lod2"], "scale": "130"},
-	{"назва": "забудови нема зовсім", "flags": ["buildings"], "scale": "130"},
-	{"назва": "контроль: 8360 верш", "flags": [], "scale": "130"},
+	{"назва": "house_terra_6: 8360 верш", "flags": []},
+	{"назва": "house_terra_6: ~2100 верш", "flags": ["lod1"]},
+	{"назва": "house_terra_6: ~500 верш", "flags": ["lod2"]},
+	{"назва": "забудови нема зовсім", "flags": ["buildings"]},
+	{"назва": "контроль: 8360 верш", "flags": []},
 ]
 
 var run: Node

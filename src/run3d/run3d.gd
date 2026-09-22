@@ -257,6 +257,16 @@ func _reapply_strip() -> void:
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun != null:
 		sun.shadow_enabled = not _strip_flags.has("shadows")
+	# РОЗДІЛЬНІСТЬ КАРТИ ТІНЕЙ. Каскад тут уже один (directional_shadow_mode=0), а дальність
+	# 22 м — тобто «різати каскади» й «обмежити дальність» у цій грі вже зроблено. Лишається
+	# сама карта: 2048x2048 на пристрої, де прохід тіней коштує близько 18 мс і НЕ залежить
+	# від роздільності екрана — рівно ознака проходу власного розміру.
+	for f in _strip_flags:
+		var fs := String(f)
+		if fs.begins_with("shadowmap"):
+			ProjectSettings.set_setting(
+				"rendering/lights_and_shadows/directional_shadow/size", int(fs.substr(9)))
+			RenderingServer.directional_shadow_atlas_set_size(int(fs.substr(9)), true)
 	# Повноекранні ефекти й великі поверхні — головні підозрювані в тому, що лишається,
 	# коли декору вже нема: вони коштують за ПІКСЕЛЬ, а не за об'єкт.
 	#
