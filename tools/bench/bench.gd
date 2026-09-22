@@ -18,6 +18,18 @@ const SRC := "res://assets/props/fence_rail_1.glb"
 ## КОЖНОМУ варіанті, зокрема на порожній сцені: сто секцій для Adreno 505 — ніщо, і кадр
 ## уперся в стелю синхронізації, де різниць не видно взагалі. Це та сама пастка кванта, що
 ## й на потужному пристрої, тільки створена штучно дешевою сценою.
+## РЕЖИМ «ПЛОЩА». Попередній прогін довів лише, що СПОСІБ подання не пояснює наш розрив.
+## Він НЕ довів, що ціна йде за площею екрана. Тут доводимо це прямо: сто об'єктів,
+## однакова геометрія, однаковий матеріал, однаковий спосіб подання, усі гарантовано в
+## кадрі й на ОДНАКОВІЙ глибині — змінюється лише масштаб моделі, тобто частка вкритого
+## екрана. Глибину не чіпаємо навмисно: інакше домішались би відсікання, розподіл по
+## глибині й перспективна щільність.
+const AREA_N := 100
+const AREA_COLS := 10
+const AREA_DEPTH := 12.0   ## глибина сітки, метри — стала в усіх варіантах
+## Частка ширини комірки, яку займає об'єкт. Вкрита площа ~ квадрат цієї частки.
+const AREA_FILL := [0.32, 0.50, 0.71, 0.90]
+
 const N := 2000           ## секцій у КОЖНОМУ варіанті — сумарна геометрія стала
 const COLS := 50          ## сітка на весь екран, щоб усе було ВИДНО, а не відсічено
 const STEP := 0.8
@@ -28,7 +40,18 @@ const MEASURE := 2.2
 const REPORT := "user://bench_report.txt"
 
 ## Варіанти: скільки злитих шматків (0 = окремі вузли, -1 = MultiMesh).
+## Режим "площа": ключ "fill" замість "режим".
 const STEPS := [
+	{"назва": "прогрів (не рахується)", "fill": 0.50, "warm": true},
+	{"назва": "площа ~10%", "fill": 0.32},
+	{"назва": "площа ~25%", "fill": 0.50},
+	{"назва": "площа ~50%", "fill": 0.71},
+	{"назва": "площа ~81%", "fill": 0.90},
+	{"назва": "порожньо (межа)", "режим": -2},
+	{"назва": "контроль: площа ~25%", "fill": 0.50},
+]
+
+const STEPS_STARE := [
 	{"назва": "прогрів (не рахується)", "режим": -1, "warm": true},
 	{"назва": "2000 окремих вузлів", "режим": 0},
 	{"назва": "1 MultiMesh x 2000", "режим": -1},
@@ -49,6 +72,7 @@ var _log: PackedStringArray = []
 var _t := 0.0
 var _measuring := false
 var _ticks := PackedFloat32Array()
+var _area_cover := 0.0
 
 
 func _say(line: String) -> void:
@@ -74,8 +98,8 @@ func _ready() -> void:
 			bm.normal_texture = null
 
 	var cam := Camera3D.new()
-	cam.position = Vector3(0.0, 6.0, 6.0)
-	cam.rotation_degrees = Vector3(-22.0, 0.0, 0.0)
+	cam.position = Vector3(0.0, 0.0, 0.0)
+	cam.rotation_degrees = Vector3.ZERO
 	cam.fov = 62.0
 	add_child(cam)
 	var sun := DirectionalLight3D.new()
@@ -83,7 +107,7 @@ func _ready() -> void:
 	add_child(sun)
 	_holder = Node3D.new()
 	add_child(_holder)
-	_say("СТЕНД: %d секцій, %d варіантів" % [N, STEPS.size()])
+	_say("СТЕНД ПЛОЩІ: %d об'єктів, %d варіантів" % [AREA_N, STEPS.size()])
 	_next()
 
 
@@ -159,6 +183,43 @@ func _build(chunks: int) -> void:
 		_holder.add_child(mi2)
 
 
+## Сітка 10x10 на всю видиму площу на СТАЛІЙ глибині; кожен об'єкт масштабується так, щоб
+## його оболонка займала `fill` ширини своєї комірки. Вкрита площа виходить ~fill^2, і саме
+## це число друкується поруч із часом — рахується, а не припускається.
+func _build_area(fill: float) -> void:
+	for c in _holder.get_children():
+		c.queue_free()
+	var cam := _cam()
+	var vis_h := 2.0 * AREA_DEPTH * tan(deg_to_rad(cam.fov) * 0.5)
+	var vis_w := vis_h * (float(get_viewport().size.x) / float(maxi(1, get_viewport().size.y)))
+	var cell_w := vis_w / float(AREA_COLS)
+	var rows := AREA_N / AREA_COLS
+	var cell_h := vis_h / float(rows)
+	var ab := _src_mesh.get_aabb()
+	var span := maxf(0.001, maxf(ab.size.x, ab.size.y))
+	var sc := fill * minf(cell_w, cell_h) / span
+	_area_cover = fill * fill * 100.0
+	for i in range(AREA_N):
+		var col := i % AREA_COLS
+		var row := i / AREA_COLS
+		var mi := MeshInstance3D.new()
+		mi.mesh = _src_mesh
+		var p := Vector3(
+			(float(col) + 0.5 - float(AREA_COLS) * 0.5) * cell_w,
+			(float(row) + 0.5 - float(rows) * 0.5) * cell_h,
+			-AREA_DEPTH)
+		mi.transform = Transform3D(Basis.from_scale(Vector3(sc, sc, sc)), p)
+		_holder.add_child(mi)
+
+
+func _cam() -> Camera3D:
+	for c in get_children():
+		var cam := c as Camera3D
+		if cam != null:
+			return cam
+	return null
+
+
 func _append(st: SurfaceTool, xf: Transform3D) -> void:
 	for si in range(_src_mesh.get_surface_count()):
 		var arr := _src_mesh.surface_get_arrays(si)
@@ -190,7 +251,11 @@ func _next() -> void:
 	if _step >= STEPS.size():
 		_report()
 		return
-	_build(int(STEPS[_step]["режим"]))
+	var cur: Dictionary = STEPS[_step]
+	if cur.has("fill"):
+		_build_area(float(cur["fill"]))
+	else:
+		_build(int(cur["режим"]))
 	_apply()
 
 
@@ -230,10 +295,10 @@ func _record() -> void:
 	_rows.append({"назва": STEPS[_step]["назва"], "сума": snappedf(total, 0.1),
 		"сходи": _rungs.duplicate(),
 		"викл": int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
-		"верш": _geom()[0], "трик": _geom()[1]})
+		"верш": _geom()[0], "трик": _geom()[1], "площа": snappedf(_area_cover, 0.1)})
 	var d: Dictionary = _rows[-1]
-	_say("СТЕНД %-24s показник %7.1f  сходи %s  викл %4d  ВЕРШИН %7d ТРИКУТ %7d" % [
-		d["назва"], d["сума"], str(d["сходи"]), d["викл"], d["верш"], d["трик"]])
+	_say("СТЕНД %-24s показник %7.1f  сходи %s  ПЛОЩА %5.1f%%  ВЕРШИН %7d" % [
+		d["назва"], d["сума"], str(d["сходи"]), float(d["площа"]), d["верш"]])
 
 
 ## ВЛАСНИЙ ПЕРЕПИС ГЕОМЕТРІЇ. Лічильник примітивів рушія між різними способами подання
@@ -270,7 +335,7 @@ func _report() -> void:
 	var base := float((_rows[0] as Dictionary)["сума"]) if not _rows.is_empty() else 0.0
 	for r in _rows:
 		var d: Dictionary = r
-		_say("СТЕНД %-24s показник %7.1f (%+7.1f)  викл %4d  ВЕРШИН %7d ТРИКУТ %7d" % [
-			d["назва"], float(d["сума"]), float(d["сума"]) - base, int(d["викл"]),
+		_say("СТЕНД %-24s показник %7.1f (%+7.1f)  ПЛОЩА %5.1f%%  ВЕРШИН %7d ТРИКУТ %7d" % [
+			d["назва"], float(d["сума"]), float(d["сума"]) - base, float(d["площа"]),
 			int(d["верш"]), int(d["трик"])])
 	_say("СТЕНД-ПІДСУМОК ==========================================")
