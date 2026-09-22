@@ -425,21 +425,6 @@ func _reapply_strip() -> void:
 		mi.visible = not kill
 		# Тінь декору окремо від самого декору: карта тіней має ВЛАСНУ роздільність, тож
 		# її ціна не падає від масштабу рендера — а саме так поводиться ціна декору.
-		# ТЕСТ ІЗ СИЛУЕТОМ. Вимикання цілого шару забудови прибирає разом із вершинами ще й
-		# матеріал, виклики малювання та заповнення — тож воно не доводить, ЩО саме коштує.
-		# Тут міняється ЛИШЕ кількість вершин: та сама модель, те саме місце, той самий
-		# матеріал, та сама тінь і той самий силует. Моделі — tools/lod/decimate.py.
-		if String(key).begins_with("house_terra_6"):
-			var mk := "mesh%d" % idx
-			if not _strip_orig.has(mk):
-				_strip_orig[mk] = mi.multimesh.mesh
-			var want := _strip_orig[mk] as Mesh
-			if _strip_flags.has("lod1"):
-				want = PropLibrary.mesh_at("res://assets/lod/house_terra_6_lod1.glb")
-			elif _strip_flags.has("lod2"):
-				want = PropLibrary.mesh_at("res://assets/lod/house_terra_6_lod2.glb")
-			if want != null and mi.multimesh.mesh != want:
-				mi.multimesh.mesh = want
 		# ОДИН МАТЕРІАЛ НА ВЕСЬ ДЕКОР. Геометрія, положення, кількість об'єктів і кількість
 		# ПОВЕРХОНЬ лишаються ті самі — міняється лише матеріальний стан: замість
 		# п'яти-шести різних матеріалів на будинок усі поверхні малюються одним спільним.
