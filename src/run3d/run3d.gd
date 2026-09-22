@@ -466,6 +466,7 @@ func _reapply_strip() -> void:
 		# саме карти: лишаємо матеріал, текстуру кольору й усе інше, прибираємо лише нормаль.
 		if _strip_flags.has("nonormal") or _strip_flags.has("nometal") \
 				or _strip_flags.has("norough") or _strip_flags.has("noao") \
+				or _strip_flags.has("unshaded") or _strip_flags.has("pervertex") \
 				or _strip_orig.has("nrm%d" % idx):
 			var mm := mi.multimesh
 			if mm != null and mm.mesh != null:
@@ -477,6 +478,24 @@ func _reapply_strip() -> void:
 					if not _strip_orig.has(nk):
 						_strip_orig[nk] = bm.normal_texture
 						_strip_orig["nrm%d" % idx] = true
+					# БЕЗ ОСВІТЛЕННЯ. Стенд показав: освітлення на піксель — 61% ціни сцени,
+					# а вибірка кольору з текстури коштує НУЛЬ. Наші пропси мають запечений
+					# колір (baked_color із Meshy), тобто світло в них уже намальоване, і
+					# рушій рахує його вдруге. Міняємо ЛИШЕ режим затінення: текстура,
+					# колір, прозорість і все інше лишаються як були.
+					var sk := "shade%d_%d" % [idx, si]
+					if not _strip_orig.has(sk):
+						_strip_orig[sk] = bm.shading_mode
+					# Три режими: як є (на піксель), НА ВЕРШИНУ і без освітлення зовсім.
+					# Середній тут головний кандидат: форма зберігається, бо світло все ще
+					# рахується, але платимо за вершини — а їх у low-poly мало, на відміну
+					# від пікселів.
+					if _strip_flags.has("unshaded"):
+						bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+					elif _strip_flags.has("pervertex"):
+						bm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
+					else:
+						bm.shading_mode = int(_strip_orig[sk]) as BaseMaterial3D.ShadingMode
 					var ok := "orm%d_%d" % [idx, si]
 					if not _strip_orig.has(ok):
 						_strip_orig[ok] = [bm.roughness_texture, bm.metallic_texture,
