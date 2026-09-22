@@ -244,6 +244,7 @@ var _idle_t := 0.0
 var _strip_flags := PackedStringArray()
 ## Початковий стан ефектів — щоб повертати саме його, а не «увімкнено».
 var _strip_orig := {}
+var _shared_mats := {}
 
 
 func debug_strip(flags: PackedStringArray) -> void:
@@ -253,6 +254,27 @@ func debug_strip(flags: PackedStringArray) -> void:
 
 ## Шари декору заводяться ЛІНИВО, у міру того як дорога їде, тож застосовувати доводиться
 ## повторно: інакше сховане повернеться саме собою через секунду.
+## Спільний матеріал для досліду «шість матеріалів на об'єкт проти одного». Створюється раз.
+## Два спільні матеріали, щоб РОЗДІЛИТИ матеріальний стан і вибірку з текстури. Перший
+## без текстури взагалі, другий — з однією спільною (беремо наявну текстуру паркану, вона
+## є в кожній збірці). Якщо обидва дають те саме, винен стан; якщо текстурний помітно
+## дорожчий — частина виграшу була просто від зниклої вибірки.
+func _one_material(textured: bool) -> StandardMaterial3D:
+	var key := 1 if textured else 0
+	if _shared_mats.has(key):
+		return _shared_mats[key]
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(0.78, 0.72, 0.62)
+	m.roughness = 1.0
+	if textured:
+		var t := load("res://assets/props/cart_market_cart_market_3.png") as Texture2D
+		if t != null:
+			m.albedo_texture = t
+			m.albedo_color = Color.WHITE
+	_shared_mats[key] = m
+	return m
+
+
 func _reapply_strip() -> void:
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun != null:
@@ -418,6 +440,22 @@ func _reapply_strip() -> void:
 				want = PropLibrary.mesh_at("res://assets/lod/house_terra_6_lod2.glb")
 			if want != null and mi.multimesh.mesh != want:
 				mi.multimesh.mesh = want
+		# ОДИН МАТЕРІАЛ НА ВЕСЬ ДЕКОР. Геометрія, положення, кількість об'єктів і кількість
+		# ПОВЕРХОНЬ лишаються ті самі — міняється лише матеріальний стан: замість
+		# п'яти-шести різних матеріалів на будинок усі поверхні малюються одним спільним.
+		# Це ізолює рівно те, чого не розділили попередні досліди: прапорець keepN прибирав
+		# екземпляри РАЗОМ із їхніми поверхнями, тож «ціна за об'єкт» і «ціна за матеріал»
+		# досі злиті.
+		#
+		# Застереження до читання числа: спільний матеріал прибирає й вибірку з різних
+		# текстур. Тож великий виграш означатиме «матеріальний стан АБО вибірка текстур», і
+		# це доведеться розділяти окремо. Малий виграш — однозначний: ні те, ні те не винне.
+		var om: StandardMaterial3D = null
+		if _strip_flags.has("onemat"):
+			om = _one_material(false)      # спільний матеріал без текстури
+		elif _strip_flags.has("onetex"):
+			om = _one_material(true)       # спільний матеріал З текстурою
+		mi.material_override = om
 		var ck := "cast%d" % idx
 		if not _strip_orig.has(ck):
 			_strip_orig[ck] = mi.cast_shadow
