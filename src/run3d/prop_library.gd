@@ -219,6 +219,22 @@ static func mesh(kind: String, variant: int = 0) -> Mesh:
 	return found
 
 
+## Меш із КОНКРЕТНОГО файлу, повз каталог видів. Потрібно лише заміру (tools/lod/decimate.py):
+## підмінити модель шару на спрощену, не чіпаючи ні props.json, ні розкладок рівнів — інакше
+## «той самий будинок, менше вершин» не поставити в те саме місце.
+static func mesh_at(path: String) -> Mesh:
+	if _mesh_cache.has(path):
+		return _mesh_cache[path]
+	var scene := load(path) as PackedScene
+	if scene == null:
+		return null
+	var root := scene.instantiate()
+	var found := _first_mesh(root)
+	root.queue_free()
+	_mesh_cache[path] = found
+	return found
+
+
 static func _first_mesh(node: Node) -> Mesh:
 	var mi := node as MeshInstance3D
 	if mi != null and mi.mesh != null:
