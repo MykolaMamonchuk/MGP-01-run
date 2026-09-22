@@ -467,6 +467,7 @@ func _reapply_strip() -> void:
 		if _strip_flags.has("nonormal") or _strip_flags.has("nometal") \
 				or _strip_flags.has("norough") or _strip_flags.has("noao") \
 				or _strip_flags.has("unshaded") or _strip_flags.has("pervertex") \
+				or _strip_flags.has("unwalls") or _strip_flags.has("cullback") \
 				or _strip_orig.has("nrm%d" % idx):
 			var mm := mi.multimesh
 			if mm != null and mm.mesh != null:
@@ -490,12 +491,42 @@ func _reapply_strip() -> void:
 					# Середній тут головний кандидат: форма зберігається, бо світло все ще
 					# рахується, але платимо за вершини — а їх у low-poly мало, на відміну
 					# від пікселів.
+					# ВИБІРКОВЕ вимкнення. Критерій не «будинок», а чи несе ТЕКСТУРА об'єм:
+					# шар іде в непідсвічений клас, якщо це стіна світу (#wall) І в
+					# матеріалі є текстура кольору. Бо будинки в нас двох видів:
+					# house_terra має запечену текстуру 1024x1024, а house_red і barn — це
+					# 5-6 ОДНОТОННИХ матеріалів без текстури, і без світла вони стануть
+					# пласкими так само, як тюк сіна.
+					# ВІДСІКАННЯ ЗАДНІХ ГРАНЕЙ. Усі 160 поверхонь наших пропсів приїхали
+					# ДВОСТОРОННІМИ (cull_mode = CULL_DISABLED), тобто кожен закритий об'єкт
+					# малює і лицьову, і зворотну сторону. Половина цієї роботи ніколи не
+					# видна, а платимо ми за неї на кожен піксель — тобто саме тією статтею,
+					# яка тут найдорожча.
+					var kk := "cull%d_%d" % [idx, si]
+					if not _strip_orig.has(kk):
+						_strip_orig[kk] = bm.cull_mode
+					bm.cull_mode = BaseMaterial3D.CULL_BACK if _strip_flags.has("cullback") \
+						else int(_strip_orig[kk]) as BaseMaterial3D.CullMode
+					var paintable := is_wall and bm.albedo_texture != null
+					var ak := "alb%d_%d" % [idx, si]
+					if not _strip_orig.has(ak):
+						_strip_orig[ak] = bm.albedo_color
+					var mul := 1.0
+					for f2 in _strip_flags:
+						var fs2 := String(f2)
+						if fs2.begins_with("dim"):
+							mul = float(fs2.substr(3)) / 100.0
 					if _strip_flags.has("unshaded"):
 						bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+					elif _strip_flags.has("unwalls") and paintable:
+						bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+						var c0 := _strip_orig[ak] as Color
+						bm.albedo_color = Color(c0.r * mul, c0.g * mul, c0.b * mul, c0.a)
 					elif _strip_flags.has("pervertex"):
 						bm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
 					else:
 						bm.shading_mode = int(_strip_orig[sk]) as BaseMaterial3D.ShadingMode
+						bm.albedo_color = _strip_orig[ak] as Color
 					var ok := "orm%d_%d" % [idx, si]
 					if not _strip_orig.has(ok):
 						_strip_orig[ok] = [bm.roughness_texture, bm.metallic_texture,

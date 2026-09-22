@@ -1,4 +1,4 @@
-## Сторож: пропси оточення НЕ мають карт нормалей.
+## Сторож: пропси оточення НЕ мають карт нормалей і НЕ двосторонні.
 ##
 ## Заміряно 22.09.2026 на Redmi 8A сходами масштабу рендера: карти нормалей коштують
 ## 36 одиниць показника зі 194, тобто 19% усієї ціни декору, — і це найбільша окрема стаття
@@ -41,10 +41,14 @@ func _props_with_normals() -> Array:
 			if bm.albedo_texture != null:
 				_textured += 1
 			if bm.normal_enabled or bm.normal_texture != null:
-				bad.append("%s#%d" % [kind, si])
+				bad.append("нормаль:%s#%d" % [kind, si])
+			if bm.cull_mode == BaseMaterial3D.CULL_DISABLED:
+				bad.append("двосторонній:%s#%d" % [kind, si])
 	return bad
 
 
+## Обидві правки живуть в одному місці (PropLibrary) і стережуться разом: кожна дає ~19%
+## ціни декору, і кожну легко втратити, додавши новий шлях завантаження меша повз бібліотеку.
 func test_propsy_otochennia_bez_kart_normalei() -> void:
 	var bad := _props_with_normals()
 	assert_gt(_seen, 30, "сторож справді оглянув пропси, а не порожнечу")

@@ -270,9 +270,23 @@ static func _drop_normal_maps(m: Mesh) -> Mesh:
 		return m
 	for si in range(m.get_surface_count()):
 		var bm := m.surface_get_material(si) as BaseMaterial3D
-		if bm != null and bm.normal_enabled:
+		if bm == null:
+			continue
+		if bm.normal_enabled:
 			bm.normal_enabled = false
 			bm.normal_texture = null
+		# ВІДСІКАННЯ ЗАДНІХ ГРАНЕЙ. Усі 160 поверхонь бібліотеки приїхали ДВОСТОРОННІМИ
+		# (cull_mode = CULL_DISABLED): кожен закритий об'єкт малював і лицьову, і зворотну
+		# сторону, а зворотну ніколи не видно — її затуляє сам об'єкт. Платили ми за це на
+		# кожен піксель, тобто найдорожчою статтею.
+		#
+		# Заміряно на Redmi 8A сходами масштабу: 29,1 одиниці зі 157 ціни декору (19%),
+		# і 5,6 мс на рідній роздільності. Знімок до/після — світ цілий, пласкі пропси
+		# (квіти, гриби) не постраждали: shots/2026-09-23-cull-*.png.
+		#
+		# Ефект НЕЗАЛЕЖНИЙ від вимкнення освітлення: 29,1 + 33,5 поодинці, 63,6 разом.
+		if bm.cull_mode == BaseMaterial3D.CULL_DISABLED:
+			bm.cull_mode = BaseMaterial3D.CULL_BACK
 	return m
 
 
