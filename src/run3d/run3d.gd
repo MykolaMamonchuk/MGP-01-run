@@ -441,6 +441,47 @@ func _reapply_strip() -> void:
 		elif _strip_flags.has("onetex"):
 			om = _one_material(true)       # спільний матеріал З текстурою
 		mi.material_override = om
+		# СПЛОЩЕНІ ПРОПСИ: та сама модель і той самий вигляд, але одна поверхня й один
+		# спільний матеріал замість двох-семи однотонних (колір переїхав у вершини).
+		# На відміну від material_override це не підміна матеріалу поверх старих поверхонь,
+		# а справжнє злиття — саме те, що дав би конвеєр.
+		if _strip_flags.has("flat"):
+			var fk := "flat%d" % idx
+			if not _strip_orig.has(fk):
+				_strip_orig[fk] = mi.multimesh.mesh
+			var base := String(key).split("#")[0].split("|")[0]
+			var vari := 0
+			var tail := String(key).split("#")
+			if tail.size() > 1 and tail[1].is_valid_int():
+				vari = int(tail[1])
+			var fm := PropLibrary.flat_mesh(base, vari)
+			if fm != null and mi.multimesh.mesh != fm:
+				mi.multimesh.mesh = fm
+		elif _strip_orig.has("flat%d" % idx):
+			mi.multimesh.mesh = _strip_orig["flat%d" % idx]
+		# КАРТИ НОРМАЛЕЙ. Сплощення пропсів зрізало виклики малювання з 262 до 145 і дало
+		# лише 13,7 одиниць, а спільний матеріал поверх УСІХ шарів — 56,3 при тих самих
+		# 252 викликах. Різниця між ними в тому, що другий накривав ще й 32 ТЕКСТУРНІ
+		# пропси, замінюючи їхні матеріали з картами нормалей на простий. Отже перевіряємо
+		# саме карти: лишаємо матеріал, текстуру кольору й усе інше, прибираємо лише нормаль.
+		if _strip_flags.has("nonormal") or _strip_orig.has("nrm%d" % idx):
+			var mm := mi.multimesh
+			if mm != null and mm.mesh != null:
+				for si in range(mm.mesh.get_surface_count()):
+					var bm := mm.mesh.surface_get_material(si) as BaseMaterial3D
+					if bm == null:
+						continue
+					var nk := "nrm%d_%d" % [idx, si]
+					if not _strip_orig.has(nk):
+						_strip_orig[nk] = bm.normal_texture
+						_strip_orig["nrm%d" % idx] = true
+					if _strip_flags.has("nonormal"):
+						bm.normal_enabled = false
+						bm.normal_texture = null
+					else:
+						var nt := _strip_orig[nk] as Texture2D
+						bm.normal_texture = nt
+						bm.normal_enabled = nt != null
 		var ck := "cast%d" % idx
 		if not _strip_orig.has(ck):
 			_strip_orig[ck] = mi.cast_shadow

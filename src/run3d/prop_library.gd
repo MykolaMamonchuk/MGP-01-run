@@ -235,6 +235,22 @@ static func mesh_at(path: String) -> Mesh:
 	return found
 
 
+## Меш СПЛОЩЕНОГО пропса (assets/flat/) — той самий вигляд, але одна поверхня й один
+## спільний матеріал замість двох-семи однотонних. Робить tools/atlas/flatten.py; текстурні
+## пропси там відсутні, для них повертається null і викликач лишає звичайний меш.
+static func flat_mesh(kind: String, variant: int = 0) -> Mesh:
+	if not has(kind, variant):
+		return null
+	var e := _entry(kind, variant)
+	var orig := String(e.get("path", ""))
+	if orig == "":
+		return null
+	var path := "res://assets/flat/" + orig.get_file()
+	if not ResourceLoader.exists(path):
+		return null
+	return mesh_at(path)
+
+
 static func _first_mesh(node: Node) -> Mesh:
 	var mi := node as MeshInstance3D
 	if mi != null and mi.mesh != null:
