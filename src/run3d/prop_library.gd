@@ -213,7 +213,7 @@ static func mesh(kind: String, variant: int = 0) -> Mesh:
 	if scene == null:
 		return null
 	var root := scene.instantiate()
-	var found := _first_mesh(root)
+	var found := _drop_normal_maps(_first_mesh(root))
 	root.queue_free()
 	_mesh_cache[key] = found
 	return found
@@ -229,7 +229,7 @@ static func mesh_at(path: String) -> Mesh:
 	if scene == null:
 		return null
 	var root := scene.instantiate()
-	var found := _first_mesh(root)
+	var found := _drop_normal_maps(_first_mesh(root))
 	root.queue_free()
 	_mesh_cache[path] = found
 	return found
@@ -249,6 +249,31 @@ static func flat_mesh(kind: String, variant: int = 0) -> Mesh:
 	if not ResourceLoader.exists(path):
 		return null
 	return mesh_at(path)
+
+
+## КАРТИ НОРМАЛЕЙ У ПРОПСАХ ОТОЧЕННЯ ВИМКНЕНО. Заміряно на Redmi 8A двічі, сходами масштабу
+## рендера: 36 одиниць показника зі 194, тобто 19% усієї ціни декору. Для порівняння: карти
+## шорсткості, металу й затінення коштують НУЛЬ, а зрізання 94% вершин із моделі — теж нуль.
+##
+## Чому це не псує вигляд. Стиль гри — стилізований low-poly з пласкими кольорами; 38 із 70
+## пропсів узагалі не мають текстур, а решта дивиться на гравця з десяти-тридцяти метрів на
+## екрані телефона. Знімки до/після: docs/optimisation/shots/2026-09-22-normals-on|off.png.
+##
+## Чому ЗАВЖДИ, а не за рівнем якості. Видимого внеску немає в жодному стані, тож розгалуження
+## дало б різний вигляд на різних телефонах без жодної користі. Герой і персонажі сюди не
+## потрапляють — вони йдуть повз цю бібліотеку.
+##
+## Побічний виграш: 37 карт нормалей важать 17 МБ із 51 МБ усіх текстур збірки. Прибрати їх
+## із самих моделей (а не лише з матеріалів) — окрема робота, і вона зніме цю третину.
+static func _drop_normal_maps(m: Mesh) -> Mesh:
+	if m == null:
+		return m
+	for si in range(m.get_surface_count()):
+		var bm := m.surface_get_material(si) as BaseMaterial3D
+		if bm != null and bm.normal_enabled:
+			bm.normal_enabled = false
+			bm.normal_texture = null
+	return m
 
 
 static func _first_mesh(node: Node) -> Mesh:
