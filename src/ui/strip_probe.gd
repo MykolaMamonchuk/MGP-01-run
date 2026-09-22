@@ -67,11 +67,11 @@ const MIN := ["water", "fog", "shadows", "decor", "glow", "adjust", "sky"]
 ## - масштаб і полегшення сцени працюють лише РАЗОМ (тінь декору дає 2 мс на 1.0 і 9 на 0.45).
 const STEPS := [
 	{"назва": "прогрів (не рахується)", "flags": [], "level": true, "warm": true},
-	{"назва": "Г0: 0.5, забудова вся", "flags": ["shadows"], "scale": "50"},
-	{"назва": "шарів удвічі менше", "flags": ["shadows", "half"], "scale": "50"},
-	{"назва": "екземплярів удвічі менше", "flags": ["shadows", "thin"], "scale": "50"},
-	{"назва": "забудови нема", "flags": ["shadows", "buildings"], "scale": "50"},
-	{"назва": "контроль Г0", "flags": ["shadows"], "scale": "50"},
+	{"назва": "усе як є", "flags": [], "scale": "100"},
+	{"назва": "без декору", "flags": ["decor"], "scale": "100"},
+	{"назва": "без забудови", "flags": ["buildings"], "scale": "100"},
+	{"назва": "без тіней", "flags": ["shadows"], "scale": "100"},
+	{"назва": "контроль", "flags": [], "scale": "100"},
 ]
 
 var run: Node
@@ -87,12 +87,15 @@ var _sum := 0.0
 var _ticks := PackedFloat32Array()
 ## Те саме, але часом самої відеокарти — число, якого синхронізація не торкається.
 var _gpu := PackedFloat32Array()
+var _cpu := PackedFloat32Array()
 var _vp_rid: RID
 var _rows: Array = []
 var _rung := 0
 var _rungs: Array = []
 var _share := 0.0
 var _p95 := 0.0
+var _gpu_med := 0.0
+var _cpu_med := 0.0
 
 
 func _ready() -> void:
@@ -158,6 +161,7 @@ func _apply() -> void:
 	_sum = 0.0
 	_ticks = PackedFloat32Array()
 	_gpu = PackedFloat32Array()
+	_cpu = PackedFloat32Array()
 
 
 func _process(delta: float) -> void:
@@ -170,6 +174,12 @@ func _process(delta: float) -> void:
 	_frames += 1
 	_sum += delta
 	_ticks.append(delta)
+	# На Android у Compatibility обидва числа — нулі (бекенд не реалізує часомір). На iOS
+	# рушій іде через Metal, і там вони мають бути справжні: це прямий час кадру на
+	# відеокарті, якого вертикальна синхронізація не торкається взагалі. Якщо він ненульовий,
+	# сходи масштабу більше не потрібні — міряти можна просто.
+	_gpu.append(RenderingServer.viewport_get_measured_render_time_gpu(_vp_rid))
+	_cpu.append(RenderingServer.viewport_get_measured_render_time_cpu(_vp_rid))
 	if _t < _measure_sec():
 		return
 	# Сходинка добігла: ховаємо її медіану й беремо наступну. Коли сходи скінчились —
@@ -184,6 +194,12 @@ func _process(delta: float) -> void:
 			ok += 1
 	_share = 100.0 * float(ok) / float(maxi(1, t.size()))
 	_p95 = _percentile(t, 0.95)
+	var g := _gpu.duplicate()
+	g.sort()
+	var c := _cpu.duplicate()
+	c.sort()
+	_gpu_med = _percentile(g, 0.5) / 1000.0
+	_cpu_med = _percentile(c, 0.5) / 1000.0
 	_rungs.append(snappedf(_percentile(t, 0.5), 0.1))
 	_rung += 1
 	if _rung >= _ramp().size():
@@ -221,12 +237,16 @@ func _record() -> void:
 	if not String((STEPS[_step] as Dictionary).get("scale", "")).is_empty():
 		d["ціль"] = snappedf(_share, 1.0)
 		d["p95"] = snappedf(_p95, 0.1)
-		print("СТРИП %-26s мед %6.1f мс  p95 %6.1f  у цілі %3d%%  викл %4d  прим %7d" % [
+		d["гпу"] = snappedf(_gpu_med, 0.1)
+		d["цпу"] = snappedf(_cpu_med, 0.1)
+		print("СТРИП %-26s мед %6.1f  p95 %6.1f  у цілі %3d%%  ГПУ %5.1f  ЦПУ %5.1f  викл %4d" % [
 			d["назва"], float(d["сходи"][0]), float(d["p95"]), int(d["ціль"]),
-			d["виклики"], d["примітиви"]])
+			float(d["гпу"]), float(d["цпу"]), d["виклики"]])
 		return
-	print("СТРИП %-26s показник %7.1f  сходи %s  викл %4d  прим %7d" % [
-		d["назва"], d["сума"], str(d["сходи"]), d["виклики"], d["примітиви"]])
+	d["гпу"] = snappedf(_gpu_med, 0.1)
+	print("СТРИП %-26s показник %7.1f  сходи %s  ГПУ %5.1f  викл %4d  прим %7d" % [
+		d["назва"], d["сума"], str(d["сходи"]), float(d["гпу"]),
+		d["виклики"], d["примітиви"]])
 
 
 func _report() -> void:
@@ -242,9 +262,9 @@ func _report() -> void:
 	for r in _rows:
 		var d: Dictionary = r
 		if d.has("ціль"):
-			print("СТРИП %-26s мед %6.1f мс  p95 %6.1f  у цілі %3d%%  викл %4d  прим %7d" % [
+			print("СТРИП %-26s мед %6.1f  p95 %6.1f  у цілі %3d%%  ГПУ %5.1f  ЦПУ %5.1f  викл %4d" % [
 				d["назва"], float(d["сходи"][0]), float(d["p95"]), int(d["ціль"]),
-				int(d["виклики"]), int(d["примітиви"])])
+				float(d["гпу"]), float(d["цпу"]), int(d["виклики"])])
 			continue
 		var gain := base - float(d["сума"])
 		print("СТРИП %-26s показник %7.1f (%+7.1f)  сходи %s  викл %4d  прим %7d" % [

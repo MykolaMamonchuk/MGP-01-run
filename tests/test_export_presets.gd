@@ -61,7 +61,10 @@ func test_no_preset_ships_the_mcp_bridge() -> void:
 ##
 ## Коли Android стане збіркою ДЛЯ ДИТИНИ, прапорець із неї має зникнути, а випробувальна —
 ## жити окремим пресетом. Саме тому список тут явний, а не «будь-який пресет, крім macOS».
-const DEBUG_HUD_PRESETS := ["Web", "Android"]
+## iOS доданий 22.09.2026: iPhone 11 потрібен не як цільовий пристрій (він утричі
+## потужніший за найслабший Android), а як ДРУГИЙ драйвер. Ціна фонової забудови на
+## Adreno 505 виявилась геометричною; чи це правда й на Metal — перевіряється лише так.
+const DEBUG_HUD_PRESETS := ["Web", "Android", "iOS"]
 func test_debug_hud_flag_only_where_intended() -> void:
 	var f := FileAccess.open(PRESETS, FileAccess.READ)
 	assert_not_null(f, "export_presets.cfg читається")

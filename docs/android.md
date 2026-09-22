@@ -114,3 +114,33 @@ adb shell pm install -r -t /data/local/tmp/b.apk
 однієї правки, тим самим рівнем і тим самим профілем. Правило контрольного прогону з
 `docs/MEMORY.md` тут діє так само, і навіть сильніше: телефон ще й гріється, тож третій
 прогін поспіль повільніший за перший просто так.
+
+## iOS: другий драйвер для перехресної перевірки
+
+iPhone 11 тут не цільовий пристрій — він утричі потужніший за найслабший Android. Він
+потрібен як ДРУГИЙ ДРАЙВЕР: ціна фонової забудови на Adreno 505 виявилась геометричною, і
+чи це правда взагалі, а не особливість слабкого GLES-драйвера, видно лише на іншому
+залізі. Плюс на iOS рушій іде через Metal (MoltenVK у збірці), де часомір GPU
+`viewport_get_measured_render_time_gpu()` має працювати — на Android у Compatibility він
+повертає нулі, і саме через це довелось міряти сходами масштабу.
+
+```bash
+xcrun devicectl list devices                      # телефон має бути "available (connected)"
+G=/Applications/Godot.app/Contents/MacOS/Godot
+$G --headless --path . --export-release "iOS" export/ios/Bizhy.ipa
+DEV=<Identifier зі списку>
+xcrun devicectl device install app --device $DEV export/ios/Bizhy.ipa
+xcrun devicectl device process launch --device $DEV --console com.selectoglobal.bizhybizhy
+```
+
+Godot сам викликає `xcodebuild` і видає вже підписаний `.ipa` — окремого кроку в Xcode не
+треба. Підпис бере наявний універсальний профіль тиму (`iOS Team Provisioning Profile: *`,
+XP85F64TCF), тож реєструвати новий App ID не довелось. Паролів у пресеті iOS немає — на
+відміну від Android, його можна тримати в git як є.
+
+**Телефон має бути під'єднаний КАБЕЛЕМ.** Запис «available (paired)» у списку лишається й
+від старого мережевого спарування, але установка через нього падає з таймаутом
+(`Network.NWError 60`).
+
+Шаблони експорту 4.7.2 містили тільки Android і веб; `ios.zip` довелось доставити з
+офіційного `.tpz` (1,28 ГБ, з нього потрібен один файл).
