@@ -358,7 +358,11 @@ func _reapply_strip() -> void:
 		(mi as MeshInstance3D).visible = not _strip_flags.has("banks")
 	track.set("strip_nosway", _strip_flags.has("nosway"))
 	track.set("strip_freeze", _strip_flags.has("freeze"))
-	track.set("strip_thin", _strip_flags.has("thin"))
+	var keep := 0
+	for f in _strip_flags:
+		if String(f).begins_with("keep"):
+			keep = int(String(f).substr(4))
+	track.set("strip_keep", keep)
 	var layers: Array = track.get("_decor_mm")
 	var by_key: Dictionary = track.get("_decor_layer_of")
 	var n := 0
