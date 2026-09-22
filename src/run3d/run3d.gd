@@ -363,6 +363,11 @@ func _reapply_strip() -> void:
 		if String(f).begins_with("keep"):
 			keep = int(String(f).substr(4))
 	track.set("strip_keep", keep)
+	var near := 0.0
+	for f in _strip_flags:
+		if String(f).begins_with("near"):
+			near = float(String(f).substr(4))
+	track.set("strip_near", near)
 	var layers: Array = track.get("_decor_mm")
 	var by_key: Dictionary = track.get("_decor_layer_of")
 	var n := 0
