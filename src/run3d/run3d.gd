@@ -464,7 +464,9 @@ func _reapply_strip() -> void:
 		# 252 викликах. Різниця між ними в тому, що другий накривав ще й 32 ТЕКСТУРНІ
 		# пропси, замінюючи їхні матеріали з картами нормалей на простий. Отже перевіряємо
 		# саме карти: лишаємо матеріал, текстуру кольору й усе інше, прибираємо лише нормаль.
-		if _strip_flags.has("nonormal") or _strip_orig.has("nrm%d" % idx):
+		if _strip_flags.has("nonormal") or _strip_flags.has("nometal") \
+				or _strip_flags.has("norough") or _strip_flags.has("noao") \
+				or _strip_orig.has("nrm%d" % idx):
 			var mm := mi.multimesh
 			if mm != null and mm.mesh != null:
 				for si in range(mm.mesh.get_surface_count()):
@@ -475,6 +477,10 @@ func _reapply_strip() -> void:
 					if not _strip_orig.has(nk):
 						_strip_orig[nk] = bm.normal_texture
 						_strip_orig["nrm%d" % idx] = true
+					var ok := "orm%d_%d" % [idx, si]
+					if not _strip_orig.has(ok):
+						_strip_orig[ok] = [bm.roughness_texture, bm.metallic_texture,
+							bm.roughness, bm.metallic, bm.ao_texture, bm.ao_enabled]
 					if _strip_flags.has("nonormal"):
 						bm.normal_enabled = false
 						bm.normal_texture = null
@@ -482,6 +488,28 @@ func _reapply_strip() -> void:
 						var nt := _strip_orig[nk] as Texture2D
 						bm.normal_texture = nt
 						bm.normal_enabled = nt != null
+					# Метал і шорсткість у glTF лежать в ОДНІЙ картинці (metallic_roughness),
+					# але в Godot це два окремі входи з різних каналів. Розділяємо їх, щоб
+					# побачити, чи винна сама вибірка, чи конкретний канал.
+					var was := _strip_orig[ok] as Array
+					if _strip_flags.has("nometal"):
+						bm.metallic_texture = null
+						bm.metallic = 0.0
+					else:
+						bm.metallic_texture = was[1]
+						bm.metallic = was[3]
+					if _strip_flags.has("norough"):
+						bm.roughness_texture = null
+						bm.roughness = 1.0
+					else:
+						bm.roughness_texture = was[0]
+						bm.roughness = was[2]
+					if _strip_flags.has("noao"):
+						bm.ao_texture = null
+						bm.ao_enabled = false
+					else:
+						bm.ao_texture = was[4]
+						bm.ao_enabled = was[5]
 		var ck := "cast%d" % idx
 		if not _strip_orig.has(ck):
 			_strip_orig[ck] = mi.cast_shadow
