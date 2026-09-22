@@ -133,6 +133,19 @@ xcrun devicectl device install app --device $DEV export/ios/Bizhy.ipa
 xcrun devicectl device process launch --device $DEV --console com.selectoglobal.bizhybizhy
 ```
 
+**Вивід Godot у консоль `devicectl` НЕ потрапляє.** На iOS він іде в системний журнал, а
+`log stream` у свіжих macOS уже не вміє читати з пристрою (`--device-name` прибрано). Тому
+проба пише звіт ще й у файл, і його забирають із контейнера застосунку:
+
+```bash
+xcrun devicectl device copy from --device $DEV \
+  --domain-type appDataContainer --domain-identifier com.selectoglobal.bizhybizhy \
+  --source Documents/strip_report.txt --destination /tmp/ios_strip.txt
+```
+
+На Android той самий файл дістається через `adb`:
+`adb shell run-as com.selectoglobal.bizhybizhy cat files/strip_report.txt`.
+
 Godot сам викликає `xcodebuild` і видає вже підписаний `.ipa` — окремого кроку в Xcode не
 треба. Підпис бере наявний універсальний профіль тиму (`iOS Team Provisioning Profile: *`,
 XP85F64TCF), тож реєструвати новий App ID не довелось. Паролів у пресеті iOS немає — на

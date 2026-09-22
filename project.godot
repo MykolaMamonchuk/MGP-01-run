@@ -56,21 +56,9 @@ pointing/emulate_touch_from_mouse=true
 
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
-; Стиснення текстур у ВІДЕОПАМ'ЯТІ під цільову платформу. Мішень у гри мобільна
-; (веб на телефоні, далі Android), а мобільні GPU не вміють S3TC/BPTC — вони вміють
-; ETC2 і ASTC. Поки тут стояв лише desktop-набір, `compress/mode=2` у `.import`
-; економив пам'ять на Маку й НІЧОГО не давав на телефоні: рушій не знаходив свого
-; формату й розпаковував картинку назад у RGBA8.
-textures/vram_compression/import_etc2_astc=true
 textures/vram_compression/import_s3tc_bptc=true
+textures/vram_compression/import_etc2_astc=true
 lights_and_shadows/directional_shadow/size=2048
 textures/default_filters/anisotropic_filtering_level=3
-; Згладжування 3D тут — лише ПОЧАТКОВЕ значення. Живе значення ставить автолоад Quality
-; зі збереження (екран батьків → «Якість зображення»), і ставить його ще до першого кадру.
-; Нуль тут навмисно: MSAA 4× коштує ~153 МБ відеопам'яті (docs/optimisation/2026-09-19-texture-vram.md,
-; OPT-11), і якщо автолоад чомусь не спрацює, дешевший стан — безпечніший відкат для телефона.
-anti_aliasing/quality/msaa_3d=0
-; FXAA лишається в усіх станах якості: зайвого буфера він не тримає, тож згладжування в грі
-; є навіть у найдешевшому стані.
 anti_aliasing/quality/screen_space_aa=1
 mesh_lod/lod_change/threshold_pixels=4.0

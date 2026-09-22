@@ -90,6 +90,12 @@ var _gpu := PackedFloat32Array()
 var _cpu := PackedFloat32Array()
 var _vp_rid: RID
 var _rows: Array = []
+## Звіт пишемо ще й у файл. На Android досить logcat, а на iOS вивід Godot у консоль
+## devicectl не потрапляє взагалі (він іде в системний журнал, який `log stream` у свіжих
+## macOS з пристрою вже не читає). Файл із контейнера застосунку забирається однаково на
+## обох: `adb pull` і `devicectl device copy from --domain-type appDataContainer`.
+const REPORT := "user://strip_report.txt"
+var _log: PackedStringArray = []
 var _rung := 0
 var _rungs: Array = []
 var _share := 0.0
@@ -112,7 +118,7 @@ func _ready() -> void:
 	Engine.max_fps = 0
 	_vp_rid = get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(_vp_rid, true)
-	print("СТРИП-ПРОГІН: %d варіантів по %.0f с, синхронізація=%d" % [
+	_say("СТРИП-ПРОГІН: %d варіантів по %.0f с, синхронізація=%d" % [
 		STEPS.size(), SETTLE_SEC + MEASURE_SEC,
 		DisplayServer.window_get_vsync_mode()])
 	_next_step()
@@ -208,6 +214,16 @@ func _process(delta: float) -> void:
 		_apply()
 
 
+## Друкує І зберігає. Переписуємо файл щоразу, щоб звіт лишився навіть якщо прогін урвався.
+func _say(line: String) -> void:
+	print(line)
+	_log.append(line)
+	var f := FileAccess.open(REPORT, FileAccess.WRITE)
+	if f != null:
+		f.store_string("\n".join(_log) + "\n")
+		f.close()
+
+
 func _percentile(sorted_ms: PackedFloat32Array, q: float) -> float:
 	if sorted_ms.is_empty():
 		return 0.0
@@ -239,35 +255,35 @@ func _record() -> void:
 		d["p95"] = snappedf(_p95, 0.1)
 		d["гпу"] = snappedf(_gpu_med, 0.1)
 		d["цпу"] = snappedf(_cpu_med, 0.1)
-		print("СТРИП %-26s мед %6.1f  p95 %6.1f  у цілі %3d%%  ГПУ %5.1f  ЦПУ %5.1f  викл %4d" % [
+		_say("СТРИП %-26s мед %6.1f  p95 %6.1f  у цілі %3d%%  ГПУ %5.1f  ЦПУ %5.1f  викл %4d" % [
 			d["назва"], float(d["сходи"][0]), float(d["p95"]), int(d["ціль"]),
 			float(d["гпу"]), float(d["цпу"]), d["виклики"]])
 		return
 	d["гпу"] = snappedf(_gpu_med, 0.1)
-	print("СТРИП %-26s показник %7.1f  сходи %s  ГПУ %5.1f  викл %4d  прим %7d" % [
+	_say("СТРИП %-26s показник %7.1f  сходи %s  ГПУ %5.1f  викл %4d  прим %7d" % [
 		d["назва"], d["сума"], str(d["сходи"]), float(d["гпу"]),
 		d["виклики"], d["примітиви"]])
 
 
 func _report() -> void:
-	print("СТРИП-ПІДСУМОК ==========================================")
+	_say("СТРИП-ПІДСУМОК ==========================================")
 	for r in (run.get("track").call("decor_report") as Array):
 		var d: Dictionary = r
 		if int(d["разом"]) == 0:
 			continue
-		print("СТРИПШАР №%2d %-24s екз %4d  верш %6d  тінь %d  %s" % [
+		_say("СТРИПШАР №%2d %-24s екз %4d  верш %6d  тінь %d  %s" % [
 			int(d["№"]), d["шар"], int(d["екз"]), int(d["верш"]),
 			1 if d["тінь"] else 0, d["мат"]])
 	var base := float((_rows[0] as Dictionary)["сума"]) if not _rows.is_empty() else 0.0
 	for r in _rows:
 		var d: Dictionary = r
 		if d.has("ціль"):
-			print("СТРИП %-26s мед %6.1f  p95 %6.1f  у цілі %3d%%  ГПУ %5.1f  ЦПУ %5.1f  викл %4d" % [
+			_say("СТРИП %-26s мед %6.1f  p95 %6.1f  у цілі %3d%%  ГПУ %5.1f  ЦПУ %5.1f  викл %4d" % [
 				d["назва"], float(d["сходи"][0]), float(d["p95"]), int(d["ціль"]),
 				float(d["гпу"]), float(d["цпу"]), int(d["виклики"])])
 			continue
 		var gain := base - float(d["сума"])
-		print("СТРИП %-26s показник %7.1f (%+7.1f)  сходи %s  викл %4d  прим %7d" % [
+		_say("СТРИП %-26s показник %7.1f (%+7.1f)  сходи %s  викл %4d  прим %7d" % [
 			d["назва"], float(d["сума"]), -gain, str(d["сходи"]),
 			int(d["виклики"]), int(d["примітиви"])])
-	print("СТРИП-ПІДСУМОК ==========================================")
+	_say("СТРИП-ПІДСУМОК ==========================================")
