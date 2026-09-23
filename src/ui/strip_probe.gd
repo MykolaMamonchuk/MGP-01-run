@@ -107,15 +107,20 @@ static func _on(names: Array) -> Array:
 ##
 ## Телепорту навмисно немає: чекати 12-13 секунд на точку дешевше, ніж мати справу з
 ## наслідками стрибка (недовантажена цеглинка, порожній спавнер, розсинхрон рядів).
-const POINTS: Array[float] = [34.0, 71.0, 108.0]
+## Точки вибрані ЗА РОЗВІДКОЮ, а не як круглі числа: журнал показав, що рівень рівномірний
+## (виклики 223-264, примітиви 227-292 тис.), канали видно скрізь, а перші 40 метрів помітно
+## важчі за решту. Тому беремо дві точки в рівномірній частині.
+const POINTS: Array[float] = [60.0, 180.0]
 
 ## Варіанти, які проганяються НА КОЖНІЙ точці. Перший і останній однакові — це контроль.
 const VARIANTS := [
-	{"назва": "вода+береги", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
-	{"назва": "без води", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "water"]},
-	{"назва": "без берегів", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "banks"]},
-	{"назва": "без води й берегів", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "water", "banks"]},
-	{"назва": "контроль вода+береги", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
+	{"назва": "усе як є", "flags": []},
+	{"назва": "без тіней", "flags": ["shadows"]},
+	{"назва": "без туману", "flags": ["fog"]},
+	{"назва": "без декору", "flags": ["decor"]},
+	{"назва": "без води й берегів", "flags": ["water", "banks"]},
+	{"назва": "без полотен дороги", "flags": ["roadbase", "roadtiles", "mm_side", "mm_cliff", "mm_seam", "mm_edge", "mm_clouds"]},
+	{"назва": "контроль: усе як є", "flags": []},
 ]
 
 ## Будується в _ready із POINTS x VARIANTS.
@@ -156,6 +161,10 @@ var _log: PackedStringArray = []
 var _tsv: PackedStringArray = []
 var _settle_then_freeze := false
 var _wait_m := -1.0
+var _orig_pm := 0
+var _scout_last := -99.0
+var _scouting := false
+var _strip_orig_pm_saved := false
 var _rung := 0
 var _rungs: Array = []
 var _share := 0.0
@@ -176,6 +185,15 @@ var _cpu_med := 0.0
 ## знати варто.
 func _freeze(on: bool) -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# run3d виставляє собі PROCESS_MODE_ALWAYS (щоб гра не завмирала на системних діалогах),
+	# тобто ПАУЗУ ІГНОРУЄ. Через це перша редакція заморозки не працювала зовсім: траса
+	# їхала всі сто секунд заміру, і «точка 71 м» насправді була 144-м. Перемикаємо його на
+	# час заміру й повертаємо назад.
+	if run != null:
+		if not _strip_orig_pm_saved:
+			_orig_pm = run.process_mode
+			_strip_orig_pm_saved = true
+		run.process_mode = Node.PROCESS_MODE_PAUSABLE if on else _orig_pm
 	get_tree().paused = on
 
 
@@ -192,6 +210,32 @@ func _plan() -> void:
 			STEPS.append(st)
 
 
+## РОЗВІДКА. Проходить рівень на звичайній швидкості й що чотири метри пише, що саме там на
+## екрані. Потрібна, бо точки для замірів досі вибирались як ЧИСЛА (34/71/108), а не як
+## МІСЦЯ: на всіх трьох каналів у кадрі не було, і «вода коштує нуль» означало лише «її тут
+## не видно».
+##
+## Із цього журналу складається манифест: де багато забудови, де є вода, де густий туман.
+## Тільки після нього можна ставити контрольні точки свідомо.
+func _scout(d: float) -> void:
+	if d - _scout_last < 4.0:
+		return
+	_scout_last = d
+	var tr = run.get("track")
+	var canals := 0
+	for mi in (tr.get("_canal_water") as Array):
+		if (mi as MeshInstance3D).visible:
+			canals += 1
+	var inst := 0
+	for n in (tr.get("_decor_used") as PackedInt32Array):
+		inst += n
+	_say("РОЗВІДКА %4d м  викл %4d  прим %7d  екз_декору %4d  каналів %d" % [
+		int(d),
+		Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+		Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+		inst, canals])
+
+
 func _ready() -> void:
 	# ВЕРТИКАЛЬНА СИНХРОНІЗАЦІЯ ОБОВ'ЯЗКОВО ГЕТЬ. Без цього кадр квантується по 16,67 мс, і
 	# вимір бреше найгіршим способом — мовчки. Сім прогонів поспіль давали 133,1…133,6 мс на
@@ -206,6 +250,7 @@ func _ready() -> void:
 	Engine.max_fps = 0
 	_vp_rid = get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(_vp_rid, true)
+	_scouting = OS.has_feature("scout")
 	_plan()
 	_say("СТРИП-ПРОГІН: %d варіантів по %.0f с, синхронізація=%d" % [
 		STEPS.size(), SETTLE_SEC + MEASURE_SEC,
@@ -270,6 +315,9 @@ func _apply() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _scouting:
+		_scout(float(run.get("level_distance_m")))
+		return
 	# Чекаємо потрібного метра на ЗВИЧАЙНІЙ швидкості, потім зупиняємо світ.
 	if _wait_m > 0.0:
 		var d := float(run.get("level_distance_m"))
