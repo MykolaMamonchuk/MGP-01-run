@@ -275,6 +275,16 @@ func _one_material(textured: bool) -> StandardMaterial3D:
 	return m
 
 
+## Усі випромінювачі в піддереві — обох видів, бо в грі є і ті, й ті.
+func _all_particles(n: Node) -> Array:
+	var out: Array = []
+	if n is GPUParticles3D or n is CPUParticles3D:
+		out.append(n)
+	for c in n.get_children():
+		out.append_array(_all_particles(c))
+	return out
+
+
 func _reapply_strip() -> void:
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun != null:
@@ -337,6 +347,16 @@ func _reapply_strip() -> void:
 	var tr := get_node_or_null("Track") as Node3D
 	if tr != null:
 		tr.visible = not _strip_flags.has("track")
+	# ЧАСТИНКИ. Прапорець згадувався в коментарі як доступний, але реалізації НЕ МАВ — тобто
+	# в усіх наборах «мінімум» і «стеля» частинки лишались увімкненими, а рядок «світіння +
+	# кольорокорекція + небо + частинки = 8 одиниць» насправді був без частинок. Тепер
+	# вимикається все, що випромінює: і навколишні (світлячки, погода, пелюстки з FX), і
+	# розліт від героя та перешкод.
+	if _strip_flags.has("particles") or _strip_orig.has("part"):
+		_strip_orig["part"] = true
+		for p in _all_particles(self):
+			p.emitting = false
+			p.visible = not _strip_flags.has("particles")
 	var hr := get_node_or_null("Hero") as Node3D
 	if hr != null:
 		hr.visible = not _strip_flags.has("hero")
