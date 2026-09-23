@@ -43,6 +43,7 @@ const FPS_FAIR := 40.0
 
 var mode: Mode = Mode.FULL
 
+var _road_btn: Button = null
 var _run: Node = null
 var _panel: PanelContainer
 var _corner: Control
@@ -92,11 +93,65 @@ func _ready() -> void:
 	_corner.gui_input.connect(_on_panel_input)
 	root.add_child(_corner)
 
+	# ПОРІВНЯННЯ ПОЛОТНА ДОРОГИ НАЖИВО. Три стилі (Track.set_road_style) відрізняються на
+	# 0,3-0,6% пікселів, тобто на знімку їх майже не розрізнити — а оком у русі різниця в
+	# тому, чи є поперечні лінії, видна одразу. Тому перемикач у самій грі: тиснеш і бачиш.
+	_road_btn = Button.new()
+	# Явні прив'язка й відступи, а не PRESET: пресет перетирає position, і кнопка їде за
+	# межі екрана. Місце — під кнопкою паузи справа, щоб не перекривати її пальцем.
+	_road_btn.anchor_left = 1.0
+	_road_btn.anchor_right = 1.0
+	_road_btn.offset_left = -340.0
+	_road_btn.offset_right = -24.0
+	_road_btn.offset_top = 150.0
+	_road_btn.offset_bottom = 222.0
+	_road_btn.add_theme_font_size_override("font_size", 22)
+	_road_btn.pressed.connect(_cycle_road_style)
+	root.add_child(_road_btn)
+	_refresh_road_btn()
+
 
 ## Кого розпитувати. Виклик необов'язковий: без нього накладка покаже кадр і пам'ять, тобто
 ## те, що вона знає й сама. Так вона не падає, якщо її почепили не на Run3D.
 func setup(run: Node) -> void:
 	_run = run
+	# Кнопка знає про трасу лише звідси: у _ready() гри ще нема, і без цього виклику вона
+	# лишалась би схованою назавжди.
+	_refresh_road_btn()
+
+
+## Назви кнопкою — словами, якими ми про це говоримо, а не назвами полів.
+const ROAD_STYLES := ["base", "flat", "grid"]
+const ROAD_LABELS := {
+	"base": "дорога: ЗАРАЗ",
+	"flat": "дорога: А (гладка)",
+	"grid": "дорога: Б (з лініями)",
+}
+
+
+func _cycle_road_style() -> void:
+	var tr := _track()
+	if tr == null:
+		return
+	var i: int = ROAD_STYLES.find(String(tr.call("road_style")))
+	tr.call("set_road_style", ROAD_STYLES[(i + 1) % ROAD_STYLES.size()])
+	_refresh_road_btn()
+
+
+func _refresh_road_btn() -> void:
+	var tr := _track()
+	if _road_btn == null:
+		return
+	_road_btn.visible = tr != null and mode != Mode.HIDDEN
+	if tr != null:
+		_road_btn.text = String(ROAD_LABELS.get(String(tr.call("road_style")), "дорога: ?"))
+
+
+func _track() -> Node:
+	if _run == null:
+		return null
+	var tr: Node = _run.get("track") as Node
+	return tr if tr != null and tr.has_method("set_road_style") else null
 
 
 func _on_panel_input(event: InputEvent) -> void:
@@ -115,6 +170,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func cycle() -> void:
 	mode = ((mode + 1) % Mode.size()) as Mode
 	_panel.visible = mode != Mode.HIDDEN
+	_refresh_road_btn()
 	_acc = REFRESH_SEC       # перемалювати негайно, а не за п'яту секунди
 
 
@@ -136,6 +192,7 @@ func _process(delta: float) -> void:
 		return
 	_acc = 0.0
 	_text.text = _fps_line() if mode == Mode.FPS_ONLY else _full_text()
+	_refresh_road_btn()
 	_text.add_theme_color_override("font_color", _fps_color())
 
 

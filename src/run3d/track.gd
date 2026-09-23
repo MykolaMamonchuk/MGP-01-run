@@ -305,6 +305,16 @@ var _decor_t := 0.0
 var _mm_surface: MultiMeshInstance3D
 ## Нерівний край: по смужці трави на кожен бік ряду.
 var _mm_edge: MultiMeshInstance3D
+## Поперечні шви — тонкі смужки на межах рядів. Існують лише в стилі "grid" (див. road_style).
+var _mm_xseam: MultiMeshInstance3D
+## СТИЛЬ ПОЛОТНА. Три варіанти, які порівнюємо наживо:
+##   "base" — як зараз: суцільна основа + плитка із зазором 2 см, крізь який основу й видно;
+##   "flat" — плитка без зазору поперек, основи нема. Дорога гладка вздовж;
+##   "grid" — те саме, але поперечні лінії повертає власний тонкий шар.
+## Заміряно: основа коштує 6,7 мс на 60 м і 5,2 на 180 (проба, контролі 0,3% і 0,2%).
+## Вигляд: "flat" і "grid" відрізняються від "base" на 0,32-0,59% пікселів, тоді як просто
+## прибрати основу, лишивши зазор, — на 3,5-20%.
+var _road_style := "base"
 ## Вид покриття (road_surface) і зерно ряду — від нього залежить малюнок плиток і напуск трави.
 var _surface := "slabs"
 var _row_seed := PackedInt32Array()
@@ -481,6 +491,11 @@ func _ready() -> void:
 	edge_mesh.size = Vector3(EDGE_W, TILE_H, 1.0)
 	_mm_edge = _make_canvas(edge_mesh, ROWS * 2, 6.0, true)
 	_mm_edge.material_override = _tinted_material()
+	# поперечний шов: на всю ширину ряду, завтовшки рівно як зазор між плитками
+	var xseam_mesh := BoxMesh.new()
+	xseam_mesh.size = Vector3(LANES_W, 0.44, TILE_GAP)
+	_mm_xseam = _make_canvas(xseam_mesh, ROWS)
+	_mm_xseam.visible = false
 
 	if OS.has_environment("SHADOW_SKIP"):
 		_shadow_skip = OS.get_environment("SHADOW_SKIP").split(",")
@@ -1162,6 +1177,10 @@ func _sync_road() -> void:
 			if k < seams.size():
 				t = Transform3D(Basis.from_scale(Vector3(1.0, sy, 1.0)), Vector3(seams[k], y, z))
 			seam_mm.set_instance_transform(i * MAX_SEAMS + k, t)
+		# поперечний шов — на межі ряду, тієї самої ширини, що й полотно
+		(_mm_xseam.multimesh as MultiMesh).set_instance_transform(i,
+			Transform3D(Basis.from_scale(Vector3(_row_sx[i], sy, 1.0)),
+				Vector3(0.0, y, z + 0.5)))
 		# покриття: плитка на кожну доріжку; зайві (дорога вужча за 7) ховаємо нульовим масштабом
 		var tile_y := (TILE_LIFT - TILE_H * 0.5) * sy
 		for k in range(MAX_LANES):
@@ -1302,6 +1321,30 @@ func rebuild(w: Dictionary, animate: bool = true, s: Dictionary = {}, n_lanes: i
 	AudioMgr.sfx("rebuild")
 
 
+## Перемкнути стиль полотна. Кличе налагоджувальна накладка для порівняння наживо.
+func set_road_style(style: String) -> void:
+	_road_style = style if ["base", "flat", "grid"].has(style) else "base"
+	_apply_road_style()
+
+
+func road_style() -> String:
+	return _road_style
+
+
+## Один стиль — три узгоджені речі: зазор у плитці, основа під нею, поперечний шов.
+func _apply_road_style() -> void:
+	var bm := (_mm_surface.multimesh as MultiMesh).mesh as BoxMesh
+	if bm != null:
+		# Зазор УЗДОВЖ (по x) лишається завжди: його накриває шов між доріжками, 0,025 проти
+		# 0,02. Прибирати треба лише ПОПЕРЕЧНИЙ — саме крізь нього видно основу.
+		var gap_z := TILE_GAP if _road_style == "base" else 0.0
+		bm.size = Vector3(Hero3D.LANE_W - TILE_GAP, TILE_H, 1.0 - gap_z)
+	var is_water := _sea or String(world.get("mode", "run")) == "slide"
+	for mi in _mm_center:
+		mi.visible = not is_water and _road_style == "base"
+	_mm_xseam.visible = not is_water and not _sea and _road_style == "grid"
+
+
 ## Кольори полотна: центр смугастий (парні/непарні ряди), узбіччя одноколірне.
 ## Видимість тепер на рівні шару: на воді нема центру, на морі нема й узбіч.
 func _paint_road(is_water: bool) -> void:
@@ -1310,8 +1353,6 @@ func _paint_road(is_water: bool) -> void:
 	var side := Mats.solid(Palette.of(world.get("side"), Palette.WORLD_SIDE))
 	_mm_side[0].material_override = side
 	_mm_side[1].material_override = side
-	for mi in _mm_center:
-		mi.visible = not is_water
 	for mi in _mm_side:
 		mi.visible = not _sea
 	# обрив плато: три теракотові шари, кожен нижчий — темніший (штучне AO з арт-біблії)
@@ -1325,6 +1366,8 @@ func _paint_road(is_water: bool) -> void:
 	var seam_c := Palette.of(world.get("seam"), Palette.of(world.get("ground_dark"), Palette.WORLD_GROUND_DARK).darkened(0.35))
 	_mm_seam.material_override = Mats.solid(seam_c)
 	_mm_seam.visible = not is_water and not _sea
+	_mm_xseam.material_override = Mats.solid(seam_c)
+	_apply_road_style()
 	# покриття дороги й нерівний край: видимі там само, де полотно
 	_mm_surface.visible = not is_water and not _sea
 	_mm_edge.visible = not is_water and not _sea
