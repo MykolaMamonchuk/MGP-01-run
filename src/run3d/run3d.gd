@@ -548,6 +548,24 @@ func _reapply_strip() -> void:
 	var surf = track.get("_mm_surface")
 	if surf != null:
 		_strip_hide(surf, "roadtiles")
+		# ЗАЗОР МІЖ ПЛИТКАМИ. Плитка менша за клітинку на TILE_GAP з обох боків, і саме
+		# крізь ці шви видно основу — тому основу не можна просто прибрати. Два прапорці
+		# міряють, чи зазор узагалі потрібен:
+		#   tilez  — прибрати зазор ПОПЕРЕК траси (по z). Уздовж лишається, але його й так
+		#            накриває шов між доріжками (_mm_seam, 0,025 проти зазору 0,02);
+		#   tilexz — прибрати зазор зовсім.
+		var bm := ((surf as MultiMeshInstance3D).multimesh as MultiMesh).mesh as BoxMesh
+		if bm != null:
+			if not _strip_orig.has("tilesize"):
+				_strip_orig["tilesize"] = bm.size
+			var base_size: Vector3 = _strip_orig["tilesize"]
+			if _strip_flags.has("tilexz"):
+				bm.size = Vector3(base_size.x + Track.TILE_GAP, base_size.y,
+					base_size.z + Track.TILE_GAP)
+			elif _strip_flags.has("tilez"):
+				bm.size = Vector3(base_size.x, base_size.y, base_size.z + Track.TILE_GAP)
+			else:
+				bm.size = base_size
 	# Решта «полотен» траси: узбіччя, обрив, шов, край, хмари. Кожне вкриває помітну частку
 	# екрана, а перевірені досі основа й плитка виявились безкоштовними — отже дивимось усі.
 	for name in ["side", "cliff"]:
