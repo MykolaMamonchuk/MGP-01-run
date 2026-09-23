@@ -103,6 +103,8 @@ const RAINBOW_TRAIL_STEP := 2
 @onready var spawner: Spawner3D = $Spawner
 @onready var actors: Node3D = $Actors
 @onready var camera_rig: CameraRig = $CameraRig
+## Туман завісами — дешева заміна Environment.fog (див. src/run3d/haze.gd).
+var haze: Haze = null
 @onready var hud: CanvasLayer = $HUD
 @onready var env: WorldEnvironment = $WorldEnvironment
 @onready var sun: DirectionalLight3D = $Sun
@@ -334,6 +336,27 @@ func _strip_param(sm: ShaderMaterial, name: String, off_value: Variant, flag: St
 		_strip_orig.erase(k)
 
 
+## Завіси живуть під камерою й повторюють межі та колір туману, який заміняють.
+func _setup_haze() -> void:
+	haze = Haze.new()
+	haze.name = "Haze"
+	add_child(haze)
+	haze.setup(camera_rig.get_node_or_null("Camera3D") as Camera3D)
+	_sync_haze()
+
+
+## Межі й колір завіс — з того самого тумана, який вони заміняють. І тут же вибір, що саме
+## малювати: у стані «Плавно» туман коштує чверть кадру, тож там ідуть завіси.
+func _sync_haze() -> void:
+	if haze == null or env == null or env.environment == null:
+		return
+	var e := env.environment
+	haze.configure(e.fog_depth_begin, e.fog_depth_end, e.fog_light_color)
+	var real := Quality.real_fog_of(Quality.effective())
+	e.fog_enabled = real
+	haze.set_enabled(not real)
+
+
 func _reapply_strip() -> void:
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun != null:
@@ -378,7 +401,8 @@ func _reapply_strip() -> void:
 				e.glow_enabled, e.adjustment_enabled, e.fog_enabled, e.background_mode])
 		e.glow_enabled = bool(_strip_orig["glow"]) and not _strip_flags.has("glow")
 		e.adjustment_enabled = bool(_strip_orig["adjust"]) and not _strip_flags.has("adjust")
-		e.fog_enabled = bool(_strip_orig["fog"]) and not _strip_flags.has("fog")
+		e.fog_enabled = Quality.real_fog_of(Quality.effective()) \
+			and not _strip_flags.has("fog")
 		e.background_mode = Environment.BG_COLOR if _strip_flags.has("sky") \
 			else int(_strip_orig["bg"]) as Environment.BGMode
 		# РОЗКЛАД САМОГО ТУМАНУ. Режим у нас FOG_MODE_DEPTH, і в ньому піксельний шейдер
@@ -387,6 +411,17 @@ func _reapply_strip() -> void:
 		#            піксель бере ще одну вибірку з панорами. Найдорожчий підозрюваний;
 		#   fcurve — крива глибини: pow() на піксель. 1.0 — це лінійно, без pow;
 		#   skyaff — вплив туману на саме небо (у нас уже 0, тримаємо як контроль осмислення).
+		# ЗАВІСИ. Ними керує стан якості (_sync_haze), а прапорець лише ДОДАЄ їх для заміру
+		# «скільки вони коштують понад те, що вже є». Попередній стан запам'ятовуємо й
+		# повертаємо — див. правило в docs/MEMORY.md.
+		if haze != null:
+			if _strip_flags.has("haze"):
+				if not _strip_orig.has("haze"):
+					_strip_orig["haze"] = haze.is_enabled()
+				haze.set_enabled(true)
+			elif _strip_orig.has("haze"):
+				haze.set_enabled(bool(_strip_orig["haze"]))
+				_strip_orig.erase("haze")
 		e.fog_aerial_perspective = 0.0 if _strip_flags.has("nofogaerial") \
 			else float(_strip_orig["aerial"])
 		e.fog_depth_curve = 1.0 if _strip_flags.has("nofogcurve") \
@@ -773,6 +808,7 @@ func _ready() -> void:
 	var l = SaveService.child().get("learned", {})
 	_learned = l if typeof(l) == TYPE_DICTIONARY else {}
 	_setup_sky()
+	_setup_haze()
 	# ЯКІСТЬ ЗАСТОСОВУЄМО ТУТ, а не покладаємось на автозавантаження. Quality._ready() кличе
 	# apply() ще ДО того, як існує ця сцена: автозавантаження готові раніше за головну сцену.
 	# Для згладжування це працювало (властивість в'юпорта, він уже є), а для тіней — ні:
@@ -830,6 +866,8 @@ func _ready() -> void:
 		var probe: Node = load("res://src/ui/strip_probe.gd").new()
 		probe.run = self
 		add_child(probe)
+
+	Quality.applied.connect(func(_st): _sync_haze())
 
 	Events.profile_changed.connect(_apply_profile)
 	Events.session_warning.connect(_on_session_warning)
@@ -1039,6 +1077,7 @@ func _enter_world(id: String, instant: bool, rebuild_track: bool = true) -> void
 	if env.environment:
 		env.environment.fog_depth_begin = fog_begin_for(
 			float(world.get("fog_density", DEFAULT_FOG)))
+		_sync_haze()
 	_set_sky(clampf(session_t / session_total, 0.0, 1.0))
 	_set_ambient()
 	spawner.configure(profile, world, hero, mode, self)

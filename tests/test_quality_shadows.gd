@@ -144,3 +144,30 @@ func test_doslid_ne_styraie_chuzhi_materialy() -> void:
 	run.call("debug_strip", PackedStringArray([]))
 	assert_eq((water as MeshInstance3D).material_override, before,
 		"і порожній список теж")
+
+
+## Туман: у «Плавно» його малюють ЗАВІСИ, у «Гарно» — справжній Environment.fog.
+func test_tuman_zalezhyt_vid_yakosti() -> void:
+	assert_false(Quality.real_fog_of(Quality.SMOOTH), "«Плавно» — завіси, не справжній туман")
+	assert_true(Quality.real_fog_of(Quality.PRETTY), "«Гарно» — справжній туман")
+	assert_true(Quality.real_fog_of(Quality.MIDDLE), "«Середнє» — теж справжній")
+	assert_eq(Quality.real_fog_of("казна-що"), Quality.real_fog_of(Quality.DEFAULT),
+		"невідомий стан — це типовий, а не збій")
+
+
+## І це доходить до сцени, причому НА ЛЬОТУ: дорослий міняє якість на екрані батьків, не
+## перезапускаючи гру. Сторож проти повернення вади «налаштування не доходить до сцени».
+func test_scena_perekliuchaie_tuman_na_lotu() -> void:
+	SaveService.set_setting(Quality.KEY, Quality.SMOOTH)
+	var run: Node = load("res://src/run3d/run3d.tscn").instantiate()
+	add_child_autofree(run)
+	await wait_frames(3)
+	var e: Environment = (run.get_node("WorldEnvironment") as WorldEnvironment).environment
+	var hz: Node = run.get_node("Haze")
+	assert_false(e.fog_enabled, "у «Плавно» справжнього туману нема")
+	assert_true(hz.call("is_enabled"), "натомість є завіси")
+	Quality.set_current(Quality.PRETTY)
+	await wait_frames(2)
+	assert_true(e.fog_enabled, "у «Гарно» туман вмикається без перезапуску")
+	assert_false(hz.call("is_enabled"), "а завіси гаснуть")
+	SaveService.set_setting(Quality.KEY, Quality.SMOOTH)
