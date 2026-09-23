@@ -381,6 +381,51 @@ func _reapply_strip() -> void:
 			and not _strip_flags.has("water")
 	for mi in (track.get("_canal_water") as Array):
 		(mi as MeshInstance3D).visible = not _strip_flags.has("water")
+	# РОЗКЛАД САМОЇ ВОДИ. Вона виявилась найдорожчою системою (+32,5 мс), маючи 73 виклики
+	# й 36 тисяч примітивів — отже вся ціна в піксельному шейдері. Три підозри, і кожна
+	# міряється окремо:
+	#   waterdepth — вибірка DEPTH_TEXTURE для піни на межі. На плиткових GPU вона змушує
+	#                зливати буфер, і це зазвичай найдорожче з усього.
+	#   waterflat  — вершинна хвиля. Має бути дешевою (рахується на вершину), перевіряємо.
+	#   watersimple — прозорий прохід цілком: замість шейдера простий НЕПРОЗОРИЙ матеріал.
+	#                Вода зараз blend_mix + depth_draw_never, тобто не пише глибину, і все
+	#                за нею теж малюється.
+	var wmats: Array = []
+	if track.get("_water_mat") != null:
+		wmats.append(track.get("_water_mat"))
+	wmats.append_array(track.get("_canal_mats") as Array)
+	for m in wmats:
+		var sm := m as ShaderMaterial
+		if sm == null:
+			continue
+		sm.set_shader_parameter("depth_ok", not _strip_flags.has("waterdepth"))
+		if _strip_flags.has("waterflat"):
+			sm.set_shader_parameter("amplitude", 0.0)
+	var simple_water: StandardMaterial3D = null
+	if _strip_flags.has("watersimple") or _strip_flags.has("waterunlit"):
+		if not _strip_orig.has("wsimple"):
+			var sw := StandardMaterial3D.new()
+			sw.albedo_color = Color(0.31, 0.76, 0.97)
+			sw.roughness = 1.0
+			# ПЕРША РЕДАКЦІЯ ЦЬОГО ТЕСТУ БУЛА ХИБНА: матеріал лишався освітленим на піксель,
+			# як і шейдер води (diffuse_burley), тож замір порівнював освітлену воду з
+			# освітленою водою й давав нуль. Ціна води — не в її шейдері, а в тому, що вона
+			# освітлюється на кожен піксель, як і будинки.
+			_strip_orig["wsimple"] = sw
+		if _strip_flags.has("waterunlit"):
+			if not _strip_orig.has("wunlit"):
+				var su := StandardMaterial3D.new()
+				su.albedo_color = Color(0.31, 0.76, 0.97)
+				su.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+				_strip_orig["wunlit"] = su
+		simple_water = _strip_orig["wunlit"] if _strip_flags.has("waterunlit") \
+			else _strip_orig["wsimple"]
+	var wnodes: Array = [track.get("_water")]
+	wnodes.append_array(track.get("_canal_water") as Array)
+	for n in wnodes:
+		var mi2 := n as MeshInstance3D
+		if mi2 != null:
+			mi2.material_override = simple_water
 	# ПОЛОТНО ДОРОГИ — два шари, що вкривають ту саму площу екрана: основа (_mm_center,
 	# коробки на всю ширину ряду) і ПЛИТКА поверх неї (_mm_surface, піднята на TILE_LIFT).
 	# Якщо плитка ховає основу повністю, основа — це зайвий екран заповнення щокадру.

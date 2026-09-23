@@ -98,27 +98,11 @@ static func _on(names: Array) -> Array:
 ## тож без проміжних контролів не відрізнити «додали систему» від «телефон нагрівся».
 const STEPS := [
 	{"назва": "прогрів (не рахується)", "flags": [], "level": true, "warm": true},
-
-	{"назва": "A1 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
-	{"назва": "A2 + траса без перешкод", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles"]},
-	{"назва": "A3 + перешкоди", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor"]},
-
-	{"назва": "К1 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
-	{"назва": "B2 + будинки АВТОРСЬКІ", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "water", "banks", "nowalls", "noobstacles"]},
-	{"назва": "C2 + будинки ПРОЦЕДУРНІ", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "water", "banks", "noauthored", "noobstacles"]},
-
-	{"назва": "К2 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
-	{"назва": "D2 + вода з боків", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
-
-	{"назва": "К3 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
-	{"назва": "E1 + тінь 22 м", "flags": ["fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles", "shadowdist22"]},
-	{"назва": "E2 тінь 10 м", "flags": ["fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles", "shadowdist10"]},
-	{"назва": "E3 тінь 6 м", "flags": ["fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles", "shadowdist6"]},
-	{"назва": "E4 тінь 1 м", "flags": ["fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles", "shadowdist1"]},
-
-	{"назва": "F2 + туман", "flags": ["shadows", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles"]},
-
-	{"назва": "К4 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
+	{"назва": "К тільки герой", "flags": OFF_ALL + ["noobstacles"]},
+	{"назва": "W1 вода як є", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
+	{"назва": "W5 вода БЕЗ ОСВІТЛЕННЯ", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "waterunlit"]},
+	{"назва": "W6 вода без світла й хвилі", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "waterunlit", "waterflat"]},
+	{"назва": "контроль: вода як є", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
 ]
 
 
