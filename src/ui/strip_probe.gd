@@ -73,7 +73,10 @@ const MIN := ["water", "fog", "shadows", "decor", "glow", "adjust", "sky"]
 const STEPS := [
 	{"назва": "прогрів (не рахується)", "flags": [], "level": true, "warm": true},
 	{"назва": "як є (продуктова)", "flags": []},
-	{"назва": "декору нема (межа)", "flags": ["decor"]},
+	{"назва": "без тіней", "flags": ["shadows"]},
+	{"назва": "без тіней і туману", "flags": ["shadows", "fog"]},
+	{"назва": "мінімум ефектів", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles"]},
+	{"назва": "мінімум + без декору", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor"]},
 	{"назва": "контроль: як є", "flags": []},
 ]
 
