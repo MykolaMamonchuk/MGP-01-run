@@ -319,6 +319,21 @@ func _strip_hide(n: Node, flag: String) -> void:
 		_strip_orig.erase(key)
 
 
+## Підмінити параметр шейдера на час досліду — і повернути САМЕ той, що був.
+## `amplitude` раніше ставився в нуль і не вертався ніколи: після одного варіанта «вода без
+## хвилі» решта серії міряла плоску воду. `depth_ok` навпаки ЗАВЖДИ ставився в true, тобто
+## дослід нав'язував стан, якого міг і не бути.
+func _strip_param(sm: ShaderMaterial, name: String, off_value: Variant, flag: String) -> void:
+	var k := "sp:%d:%s" % [sm.get_instance_id(), name]
+	if _strip_flags.has(flag):
+		if not _strip_orig.has(k):
+			_strip_orig[k] = sm.get_shader_parameter(name)
+		sm.set_shader_parameter(name, off_value)
+	elif _strip_orig.has(k):
+		sm.set_shader_parameter(name, _strip_orig[k])
+		_strip_orig.erase(k)
+
+
 func _reapply_strip() -> void:
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun != null:
@@ -356,6 +371,9 @@ func _reapply_strip() -> void:
 			_strip_orig["adjust"] = e.adjustment_enabled
 			_strip_orig["fog"] = e.fog_enabled
 			_strip_orig["bg"] = e.background_mode
+			_strip_orig["aerial"] = e.fog_aerial_perspective
+			_strip_orig["fcurve"] = e.fog_depth_curve
+			_strip_orig["skyaff"] = e.fog_sky_affect
 			print("СТРИП: початково glow=%s adjust=%s fog=%s bg=%d" % [
 				e.glow_enabled, e.adjustment_enabled, e.fog_enabled, e.background_mode])
 		e.glow_enabled = bool(_strip_orig["glow"]) and not _strip_flags.has("glow")
@@ -363,6 +381,18 @@ func _reapply_strip() -> void:
 		e.fog_enabled = bool(_strip_orig["fog"]) and not _strip_flags.has("fog")
 		e.background_mode = Environment.BG_COLOR if _strip_flags.has("sky") \
 			else int(_strip_orig["bg"]) as Environment.BGMode
+		# РОЗКЛАД САМОГО ТУМАНУ. Режим у нас FOG_MODE_DEPTH, і в ньому піксельний шейдер
+		# робить три різні речі. Міряємо їх нарізно, бо дві з трьох знімаються одним рядком:
+		#   aerial — «повітряна перспектива»: домішує до туману колір НЕБА, тобто на кожен
+		#            піксель бере ще одну вибірку з панорами. Найдорожчий підозрюваний;
+		#   fcurve — крива глибини: pow() на піксель. 1.0 — це лінійно, без pow;
+		#   skyaff — вплив туману на саме небо (у нас уже 0, тримаємо як контроль осмислення).
+		e.fog_aerial_perspective = 0.0 if _strip_flags.has("nofogaerial") \
+			else float(_strip_orig["aerial"])
+		e.fog_depth_curve = 1.0 if _strip_flags.has("nofogcurve") \
+			else float(_strip_orig["fcurve"])
+		e.fog_sky_affect = 0.0 if _strip_flags.has("nofogsky") \
+			else float(_strip_orig["skyaff"])
 	# Масштаб рендера — головна ручка проти заповнення, і її теж треба міряти В ТОМУ САМОМУ
 	# прогоні: окремою збіркою числа вже не порівняти через тротлінг.
 	var vp := get_viewport()
@@ -435,9 +465,8 @@ func _reapply_strip() -> void:
 		var sm := m as ShaderMaterial
 		if sm == null:
 			continue
-		sm.set_shader_parameter("depth_ok", not _strip_flags.has("waterdepth"))
-		if _strip_flags.has("waterflat"):
-			sm.set_shader_parameter("amplitude", 0.0)
+		_strip_param(sm, "depth_ok", false, "waterdepth")
+		_strip_param(sm, "amplitude", 0.0, "waterflat")
 	var simple_water: StandardMaterial3D = null
 	if _strip_flags.has("watersimple") or _strip_flags.has("waterunlit"):
 		if not _strip_orig.has("wsimple"):
@@ -461,8 +490,20 @@ func _reapply_strip() -> void:
 	wnodes.append_array(track.get("_canal_water") as Array)
 	for n in wnodes:
 		var mi2 := n as MeshInstance3D
-		if mi2 != null:
+		if mi2 == null:
+			continue
+		# РАНІШЕ ТУТ БУЛО `mi2.material_override = simple_water` БЕЗ УМОВИ. Коли жодного
+		# водяного прапорця нема, simple_water лишається null — і рядок СТИРАВ шейдер води
+		# у будь-якому досліді. Через це канали сіріли від прапорця `fog` так само, як від
+		# `roadbase`, і я двічі мало не зробив із цього висновок про чужу систему.
+		var k := "wov:%d" % mi2.get_instance_id()
+		if simple_water != null:
+			if not _strip_orig.has(k):
+				_strip_orig[k] = mi2.material_override
 			mi2.material_override = simple_water
+		elif _strip_orig.has(k):
+			mi2.material_override = _strip_orig[k]
+			_strip_orig.erase(k)
 	# ПОЛОТНО ДОРОГИ — два шари, що вкривають ту саму площу екрана: основа (_mm_center,
 	# коробки на всю ширину ряду) і ПЛИТКА поверх неї (_mm_surface, піднята на TILE_LIFT).
 	# Якщо плитка ховає основу повністю, основа — це зайвий екран заповнення щокадру.

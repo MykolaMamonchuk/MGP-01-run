@@ -124,3 +124,23 @@ func test_doslid_ne_pokazuie_shovane() -> void:
 	assert_false(tr.visible, "своїм прапорцем ховає")
 	run.call("debug_strip", PackedStringArray([]))
 	assert_true(tr.visible, "і повертає видиме, яким воно було")
+
+
+## Сторож: дослід не стирає матеріали й параметри, яких не просили чіпати.
+## `mi.material_override = simple_water` стояло БЕЗ УМОВИ, а simple_water при відсутності
+## водяних прапорців — null. Тобто будь-який дослід стирав шейдер води, і канали сіріли
+## від прапорця `fog` так само, як від `roadbase`.
+func test_doslid_ne_styraie_chuzhi_materialy() -> void:
+	var run: Node = load("res://src/run3d/run3d.tscn").instantiate()
+	add_child_autofree(run)
+	await wait_frames(3)
+	var track: Node = run.get_node("Track")
+	var water = track.get("_water")
+	assert_not_null(water, "вода в трасі є")
+	var before = (water as MeshInstance3D).material_override
+	run.call("debug_strip", PackedStringArray(["fog"]))
+	assert_eq((water as MeshInstance3D).material_override, before,
+		"чужий прапорець не має чіпати матеріал води")
+	run.call("debug_strip", PackedStringArray([]))
+	assert_eq((water as MeshInstance3D).material_override, before,
+		"і порожній список теж")
