@@ -174,6 +174,47 @@ func cycle() -> void:
 	_acc = REFRESH_SEC       # перемалювати негайно, а не за п'яту секунди
 
 
+## ЛОВЕЦЬ РИВКІВ. Замовник каже «лаги», а накладка показує медіану — це різні речі: при
+## медіані 55 мс окремий кадр стрибав до 203 і 385 мс, і саме його видно як смикання.
+## Середнє число причини не називає, тому тут друкуємо САМ ривок разом із тим, що змінилось
+## у сцені за цей кадр: скільки додалось ресурсів (значить, щось вантажилось із диска),
+## об'єктів і вузлів (значить, щось будувалось). Один із трьох рядків і показує, куди йти.
+##
+## Поріг узятий від медіани, а не сталий: на слабкому телефоні 100 мс — це майже норма, а
+## на сильному — катастрофа.
+const HITCH_K := 2.5
+const HITCH_MIN_MS := 60.0
+
+var _prev_res := 0
+var _prev_obj := 0
+var _prev_nodes := 0
+
+
+## Типовий кадр у вікні — медіана, а не середнє: одна колотнеча на 400 мс зсуває середнє
+## так, що поріг ривка підскочив би й наступних ривків не спіймав.
+func _typical_ms() -> float:
+	if _frames.size() < 8:
+		return 0.0
+	var v: Array = []
+	for f in _frames:
+		v.append(float((f as Array)[1]))
+	v.sort()
+	return float(v[v.size() / 2])
+
+
+func _catch_hitch(ms: float, median_ms: float) -> void:
+	var res := int(Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT))
+	var obj := int(Performance.get_monitor(Performance.OBJECT_COUNT))
+	var nodes := int(Performance.get_monitor(Performance.OBJECT_NODE_COUNT))
+	var limit := maxf(HITCH_MIN_MS, median_ms * HITCH_K)
+	if median_ms > 0.0 and ms > limit and _prev_res > 0:
+		print("РИВОК %.0f мс (медіана %.0f) · ресурсів %+d · об'єктів %+d · вузлів %+d"
+			% [ms, median_ms, res - _prev_res, obj - _prev_obj, nodes - _prev_nodes])
+	_prev_res = res
+	_prev_obj = obj
+	_prev_nodes = nodes
+
+
 func _process(delta: float) -> void:
 	# Час кадру беремо ГОДИННИКОМ, а не з delta. Під `--fixed-fps` (а так ганяє проба) delta
 	# синтетична й завжди рівна 16,7 мс — за нею всі кадри виглядають ідеальними, і 1% low
@@ -185,6 +226,7 @@ func _process(delta: float) -> void:
 	_frames.append([now, ms])
 	while not _frames.is_empty() and now - float((_frames[0] as Array)[0]) > STATS_WINDOW_SEC:
 		_frames.remove_at(0)
+	_catch_hitch(ms, _typical_ms())
 	if mode == Mode.HIDDEN:
 		return
 	_acc += delta

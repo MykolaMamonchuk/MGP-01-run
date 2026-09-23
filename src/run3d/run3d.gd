@@ -880,6 +880,11 @@ func _ready() -> void:
 		var raw := OS.get_environment("STRIP").strip_edges()
 		if raw != "":
 			debug_strip(PackedStringArray(raw.split(",", false)))
+	# ПРОГІН УСІХ РІВНІВ — окрема проба, вмикається прапорцем збірки `sweep`.
+	if OS.has_feature("sweep") and ResourceLoader.exists("res://src/ui/sweep_probe.gd"):
+		var sw: Node = load("res://src/ui/sweep_probe.gd").new()
+		sw.run = self
+		add_child(sw)
 	if OS.has_feature("strip_probe") and ResourceLoader.exists("res://src/ui/strip_probe.gd"):
 		var probe: Node = load("res://src/ui/strip_probe.gd").new()
 		probe.run = self
@@ -951,6 +956,18 @@ func _demo_jump() -> void:
 	if who != "" and heroes.has(who):
 		_apply_hero(who)
 	var lvl := OS.get_environment("LEVEL")
+	if lvl == "":
+		# НА ANDROID ЗМІННІ ОТОЧЕННЯ НЕ ДОХОДЯТЬ: процес запускає система, а не оболонка.
+		# Тому там те саме передають аргументом наміру:
+		#   adb shell am start -n <пакет>/com.godot.game.GodotApp \
+		#     --es command_line_params "--level=12"
+		# Без цього кожен замір чужого світу вимагав би або окремої збірки, або зміни
+		# збереження на телефоні замовника.
+		for a in OS.get_cmdline_args() + OS.get_cmdline_user_args():
+			var arg := String(a)
+			if arg.begins_with("--level="):
+				lvl = arg.substr(8)
+				break
 	if lvl == "":
 		return
 	var num := clampi(int(lvl), 1, maxi(lm.count(), 1))

@@ -8,6 +8,7 @@ export_presets.cfg, потім заміна `custom_features` обмежилас
 
     python3 tools/probe_build.py on Android    # перед експортом
     python3 tools/probe_build.py keys Android  # звичайна гра, лише ключ
+    python3 tools/probe_build.py sweep Android # прогін усіх рівнів підряд
     python3 tools/probe_build.py off           # одразу після
 
 `off` повертає файл із резервної копії, тож пароль не може лишитись у git навіть якщо
@@ -31,10 +32,13 @@ def section(text: str, preset: str) -> tuple[int, int]:
 
 
 GODOT = "/Applications/Godot.app/Contents/MacOS/Godot"
-PROBE = "src/ui/strip_probe.gd"
+PROBES = {
+	"strip_probe": "src/ui/strip_probe.gd",
+	"sweep": "src/ui/sweep_probe.gd",
+}
 
 
-def probe_parses() -> bool:
+def probe_parses(path: str) -> bool:
 	"""Чи компілюється сценарій проби.
 
 	Навіщо. Поламаний `strip_probe.gd` НЕ валить експорт: APK збирається, ставиться,
@@ -48,7 +52,7 @@ def probe_parses() -> bool:
 	if not os.path.exists(GODOT):
 		print("УВАГА: Godot не знайдено за %s, синтаксис проби не перевірено" % GODOT)
 		return True
-	out = subprocess.run([GODOT, "--headless", "--check-only", "--script", PROBE],
+	out = subprocess.run([GODOT, "--headless", "--check-only", "--script", path],
 		capture_output=True, text=True)
 	text = out.stdout + out.stderr
 	if "SCRIPT ERROR" in text or "Parse Error" in text:
@@ -71,8 +75,10 @@ def main() -> int:
 	# `keys` — те саме, але БЕЗ проби: звичайна збірка гри, лише з ключем для підпису.
 	# Потрібна, щоб міряти те, що справді побачить дитина, а не сценарій заміру.
 	only_keys = sys.argv[1] == "keys"
+	# `sweep` — прогін усіх рівнів підряд (src/ui/sweep_probe.gd), інший прапорець збірки.
+	feature = "sweep" if sys.argv[1] == "sweep" else "strip_probe"
 	preset = sys.argv[2]
-	if not only_keys and not probe_parses():
+	if not only_keys and not probe_parses(PROBES[feature]):
 		return 1
 	shutil.copyfile(CFG, BAK)
 	s = io.open(CFG, encoding="utf-8").read()
@@ -82,7 +88,8 @@ def main() -> int:
 		print("НЕ ЗНАЙДЕНО debug_hud у пресеті %s" % preset)
 		return 1
 	if not only_keys:
-		block = block.replace('custom_features="debug_hud"', 'custom_features="debug_hud,strip_probe"')
+		block = block.replace('custom_features="debug_hud"',
+			'custom_features="debug_hud,%s"' % feature)
 	if preset == "Android":
 		ks = os.path.expanduser("~/Library/Application Support/Godot/keystores/debug.keystore")
 		anchor = 'package/unique_name='
