@@ -57,6 +57,17 @@ func _ready() -> void:
 	apply()
 
 
+## ПРИБИТИЙ СТАН для замірів. Поки не порожній, він б'є стан зі збереження скрізь, де ми
+## застосовуємо якість.
+##
+## Навіщо. Інструменти замірів (`tools/probe`, `tools/vram`) ставлять стан ДО створення сцени
+## гри, бо буфери рушія виділяються один раз. Відколи `run3d._ready()` застосовує якість сам,
+## він мовчки перетирав би це станом зі збереження: `QUALITY=pretty` міряло б `smooth`, і
+## порівняння станів брехало б, нічим себе не виказуючи. Той самий клас вади, що й таймер
+## досліду, який перебивав вибір дорослого.
+var _pinned := ""
+
+
 ## Чинний стан. Невідоме або зіпсоване значення в збереженні — це DEFAULT, а не збій.
 func current() -> String:
 	var v := String(SaveService.setting(KEY, DEFAULT))
@@ -69,20 +80,40 @@ func set_current(name: String) -> void:
 		push_warning("Quality: невідомий стан «%s», лишаю %s" % [name, current()])
 		return
 	SaveService.set_setting(KEY, name)
+	# Вибір дорослого сильніший за прибитий стан заміру: інакше проба, яка щось прибила,
+	# зробила б перемикач у налаштуваннях мертвим.
+	_pinned = ""
 	apply()
+
+
+## Який стан діє насправді: прибитий заміром, інакше зі збереження.
+func effective() -> String:
+	return _pinned if _pinned != "" else current()
 
 
 ## Застосувати чинний стан до в'юпорта. Викликається на старті й після кожного вибору.
 func apply() -> void:
-	apply_state(current())
+	_apply(effective())
 
 
 ## Застосувати ЗАДАНИЙ стан, не чіпаючи збереження — для замірів (tools/probe, QUALITY=).
+## Стан ПРИБИВАЄТЬСЯ: наступні apply() братимуть саме його, поки дорослий не вибере інший
+## або поки не покличуть unpin(). Невідому назву мовчки ігноруємо — лишається чинний стан.
 func apply_state(name: String) -> void:
+	if ORDER.has(name):
+		_pinned = name
+	_apply(effective())
+
+
+## Зняти прибитий стан — для тестів і для повернення до вибору дорослого.
+func unpin() -> void:
+	_pinned = ""
+
+
+func _apply(st: String) -> void:
 	var vp := get_viewport()
 	if vp == null:
 		return
-	var st := name if ORDER.has(name) else current()
 	vp.msaa_3d = msaa_of(st) as Viewport.MSAA
 	# Тіні — властивість СВІТЛА, а не в'юпорта, тож шукаємо сонце в дереві. Якщо сцена без
 	# нього (меню, тести), просто нічого не робимо.
@@ -90,6 +121,8 @@ func apply_state(name: String) -> void:
 		l.shadow_enabled = shadows_of(st)
 
 
+## Обхід НАВМИСНО від кореня, а не від поточної сцени: автозавантаження кличуть це ще до
+## того, як сцена гри стала поточною, та й у прогоні тестів сцени висять на вузлі тесту.
 static func _lights(n: Node) -> Array:
 	var out: Array = []
 	if n is DirectionalLight3D:

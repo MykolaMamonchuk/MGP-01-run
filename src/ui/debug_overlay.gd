@@ -240,7 +240,8 @@ func _game_rows() -> Array:
 	# вона лишалась намальованою — і з самої назви стану цього було не видно. Тепер тут
 	# СПРАВЖНЄ значення з сонця, тож розбіжність «що обрано» й «що малюється» видно одразу.
 	var sun_node = _run.get("sun")
-	var shadow_txt := "?" if sun_node == null else ("так" if bool(sun_node.get("shadow_enabled")) else "ні")
+	var shadow_txt := "?" if not is_instance_valid(sun_node) \
+		else ("так" if bool(sun_node.get("shadow_enabled")) else "ні")
 	rows.append("швидкість %.2f м/с · метрів %.0f · профіль %s · якість %s · тінь %s"
 		% [float(_run.get("speed")), float(_run.get("level_distance_m")),
 			AgeAdapt.current, Quality.current(), shadow_txt])

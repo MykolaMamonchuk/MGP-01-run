@@ -19,12 +19,7 @@ func _ready() -> void:
 	# Ручки, якими перевіряють, ЩО САМЕ важить. Ставити їх треба до першого кадру: буфери
 	# рушія виділяються один раз, коли в'юпорт уперше малює 3D.
 	var vp := get_viewport()
-	if OS.has_environment("MSAA"):
-		vp.msaa_3d = int(OS.get_environment("MSAA")) as Viewport.MSAA
-	if OS.has_environment("SHADOW_ATLAS"):
-		vp.positional_shadow_atlas_size = int(OS.get_environment("SHADOW_ATLAS"))
-	if OS.has_environment("SCALE"):
-		vp.scaling_3d_scale = float(OS.get_environment("SCALE"))
+	_knobs(vp)
 	print("в'юпорт %s, msaa=%d, атлас тіней=%d, масштаб 3D=%.2f" % [
 		str(vp.get_visible_rect().size), vp.msaa_3d, vp.positional_shadow_atlas_size,
 		vp.scaling_3d_scale])
@@ -36,6 +31,10 @@ func _ready() -> void:
 	var run: Node = packed.instantiate()
 	_note("сцену створено (ще не в дереві)")
 	add_child(run)
+	# ЩЕ РАЗ, ПІСЛЯ СЦЕНИ. `run3d._ready()` застосовує стан якості сам, а той теж пише
+	# `msaa_3d` — і мовчки перетирав би MSAA= зі стану, що лежить у збереженні. Тут ще не
+	# було жодного кадру, тож буфери виділяться вже з нашим значенням.
+	_knobs(vp)
 	await _frames(1)
 	_note("перший намальований кадр")
 	await _frames(30)
@@ -69,3 +68,13 @@ func _note(label: String) -> void:
 func _frames(n: int) -> void:
 	for i in range(n):
 		await get_tree().process_frame
+
+
+## Ручки з середовища. Кличемо двічі: до сцени й одразу після неї — див. коментар вище.
+func _knobs(vp: Viewport) -> void:
+	if OS.has_environment("MSAA"):
+		vp.msaa_3d = int(OS.get_environment("MSAA")) as Viewport.MSAA
+	if OS.has_environment("SHADOW_ATLAS"):
+		vp.positional_shadow_atlas_size = int(OS.get_environment("SHADOW_ATLAS"))
+	if OS.has_environment("SCALE"):
+		vp.scaling_3d_scale = float(OS.get_environment("SCALE"))
