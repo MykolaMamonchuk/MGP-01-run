@@ -286,6 +286,12 @@ var strip_keep := 0
 ## іде за КІЛЬКІСТЮ об'єктів і нічого не каже про те, які саме прибирати: далеких у кадрі
 ## набагато більше, ніж ближніх, і на враження вони важать менше.
 var strip_near := 0.0
+## Розділяє ДВА ДЖЕРЕЛА забудови, які інакше злиті в тих самих шарах:
+##   strip_skip_authored — маркери з цеглинки рівня (їх ставила людина в редакторі);
+##   strip_skip_walls    — walls_near / walls_far із даних світу (їх ставить код).
+## Обидва пишуть у ті самі MultiMesh-шари, тож розділити їх можна лише тут, на побудові ряду.
+var strip_skip_authored := false
+var strip_skip_walls := false
 ## Останній замір кількості екземплярів у кожному шарі — лише щоб надрукувати перепис
 ## (decor_report). Заповнюється в кінці _sync_decor.
 var _decor_used := PackedInt32Array()
@@ -989,6 +995,8 @@ func _add_authored_bridge(ids: PackedInt32Array, data: PackedFloat32Array, x_m: 
 ## Декор одного ряду з авторського таймлайну: усі записи, чиє z_m потрапляє у вікно цього ряду
 ## (ряди — по 1 м уздовж траси, тому вікно ±0,5 м навколо _row_distance_m[i]).
 func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array) -> void:
+	if strip_skip_authored:
+		return
 	var lo := _row_distance_m[i] - 0.5
 	var hi := _row_distance_m[i] + 0.5
 	for rec in _authored_decor:
@@ -1432,8 +1440,8 @@ func _decorate(row: Node3D) -> void:
 	var big: Array = world.get("decor_big", [])
 	var critters: Array = world.get("critters", [])
 	var colors: Array = world.get("decor_colors", [])
-	var walls_near: Array = _near_pool
-	var walls_far: Array = world.get("walls_far", [])
+	var walls_near: Array = [] if strip_skip_walls else _near_pool
+	var walls_far: Array = [] if strip_skip_walls else world.get("walls_far", [])
 	var far_scale: Array = world.get("walls_far_scale", [1.4, 2.0])
 	var edge := road_width() * 0.5
 	var open := is_open(world)

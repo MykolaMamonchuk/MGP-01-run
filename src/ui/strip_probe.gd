@@ -91,17 +91,36 @@ static func _on(names: Array) -> Array:
 	return out
 
 
+## СЕРІЯ НА ОДНІЙ ТРАСІ. Зерно прибите, рівень той самий, порядок кроків незмінний —
+## лише так числа сусідніх кроків можна віднімати одне від одного.
+##
+## «Тільки герой» повторюється ЧОТИРИ рази як контроль: серія довга, а телефон дроселює,
+## тож без проміжних контролів не відрізнити «додали систему» від «телефон нагрівся».
 const STEPS := [
 	{"назва": "прогрів (не рахується)", "flags": [], "level": true, "warm": true},
-	{"назва": "1. тільки герой", "flags": OFF_ALL},
-	{"назва": "2. + дорога з полотнами", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor"]},
-	{"назва": "3. + вода й канали", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor"]},
-	{"назва": "4. + декор", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles"]},
-	{"назва": "5. + частинки", "flags": ["shadows", "fog", "glow", "adjust", "sky"]},
-	{"назва": "6. + туман і небо", "flags": ["shadows", "glow", "adjust"]},
-	{"назва": "7. + тіні (усе)", "flags": ["glow", "adjust"]},
-	{"назва": "контроль: тільки герой", "flags": OFF_ALL},
+
+	{"назва": "A1 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
+	{"назва": "A2 + траса без перешкод", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles"]},
+	{"назва": "A3 + перешкоди", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor"]},
+
+	{"назва": "К1 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
+	{"назва": "B2 + будинки АВТОРСЬКІ", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "water", "banks", "nowalls", "noobstacles"]},
+	{"назва": "C2 + будинки ПРОЦЕДУРНІ", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "water", "banks", "noauthored", "noobstacles"]},
+
+	{"назва": "К2 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
+	{"назва": "D2 + вода з боків", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
+
+	{"назва": "К3 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
+	{"назва": "E1 + тінь 22 м", "flags": ["fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles", "shadowdist22"]},
+	{"назва": "E2 тінь 10 м", "flags": ["fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles", "shadowdist10"]},
+	{"назва": "E3 тінь 6 м", "flags": ["fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles", "shadowdist6"]},
+	{"назва": "E4 тінь 1 м", "flags": ["fog", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles", "shadowdist1"]},
+
+	{"назва": "F2 + туман", "flags": ["shadows", "glow", "adjust", "sky", "particles", "water", "banks", "decor", "noobstacles"]},
+
+	{"назва": "К4 тільки герой", "flags": OFF_ALL + ["noobstacles"]},
 ]
+
 
 
 var run: Node
@@ -125,7 +144,15 @@ var _rows: Array = []
 ## macOS з пристрою вже не читає). Файл із контейнера застосунку забирається однаково на
 ## обох: `adb pull` і `devicectl device copy from --domain-type appDataContainer`.
 const REPORT := "user://strip_report.txt"
+## ПОВНИЙ ЖУРНАЛ, по рядку на КОЖНУ сходинку масштабу кожного варіанта. Текстовий звіт добрий
+## для читання очима, але для аналітики потрібні всі показники поруч і в машинному вигляді.
+const TSV := "user://strip_log.tsv"
+const TSV_HEAD := ["варіант", "масштаб", "мед_мс", "p95_мс", "мін_мс", "кс",
+	"виклики", "примітиви", "обєкти", "відео_мб", "текстури_мб", "буфери_мб",
+	"цп_рендера_мс", "пам_статична_мб", "обєктів_усього", "вузлів", "ресурсів",
+	"безхазяйних", "фіз_процес_мс", "процес_мс"]
 var _log: PackedStringArray = []
+var _tsv: PackedStringArray = []
 var _rung := 0
 var _rungs: Array = []
 var _share := 0.0
@@ -241,6 +268,8 @@ func _process(delta: float) -> void:
 	c.sort()
 	_gpu_med = _percentile(g, 0.5) / 1000.0
 	_cpu_med = _percentile(c, 0.5) / 1000.0
+	_log_row(String(STEPS[_step]["назва"]), String(_ramp()[_rung]),
+		_percentile(t, 0.5), _percentile(t, 0.95), _percentile(t, 0.0))
 	_rungs.append(snappedf(_percentile(t, 0.5), 0.1))
 	_rung += 1
 	if _rung >= _ramp().size():
@@ -256,6 +285,48 @@ func _say(line: String) -> void:
 	var f := FileAccess.open(REPORT, FileAccess.WRITE)
 	if f != null:
 		f.store_string("\n".join(_log) + "\n")
+		f.close()
+
+
+## Один рядок журналу — усе, що рушій уміє віддати, на цій сходинці.
+func _log_row(name: String, scale: String, med: float, p95: float, lo: float) -> void:
+	var mb := 1048576.0
+	var row := [name, scale, "%.1f" % med, "%.1f" % p95, "%.1f" % lo,
+		"%.1f" % (1000.0 / maxf(0.001, med)),
+		Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+		Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME),
+		Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME),
+		"%.1f" % (Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED) / mb),
+		"%.1f" % (Performance.get_monitor(Performance.RENDER_TEXTURE_MEM_USED) / mb),
+		"%.1f" % (Performance.get_monitor(Performance.RENDER_BUFFER_MEM_USED) / mb),
+		"%.2f" % (RenderingServer.viewport_get_measured_render_time_cpu(_vp_rid)),
+		"%.1f" % (Performance.get_monitor(Performance.MEMORY_STATIC) / mb),
+		Performance.get_monitor(Performance.OBJECT_COUNT),
+		Performance.get_monitor(Performance.OBJECT_NODE_COUNT),
+		Performance.get_monitor(Performance.OBJECT_RESOURCE_COUNT),
+		Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT),
+		"%.2f" % (1000.0 * Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)),
+		"%.2f" % (1000.0 * Performance.get_monitor(Performance.TIME_PROCESS)),
+	]
+	var line := ""
+	for v in row:
+		line += str(v) + "\t"
+	# Друкуємо ЩЕ Й У ЛОГ: user:// на Android лежить у внутрішній пам'яті застосунку, а
+	# `run-as` на релізній збірці не працює, тож файл звідти не забрати. Лог — єдиний
+	# надійний канал назовні.
+	_tsv.append(line.strip_edges())
+	print("ТСВ\t" + line.strip_edges())
+	if _tsv.size() == 1:
+		var head := ""
+		for h in TSV_HEAD:
+			head += h + "\t"
+		print("ТСВ\t" + head.strip_edges())
+	var f := FileAccess.open(TSV, FileAccess.WRITE)
+	if f != null:
+		var head2 := ""
+		for h in TSV_HEAD:
+			head2 += h + "\t"
+		f.store_string(head2.strip_edges() + "\n" + "\n".join(_tsv) + "\n")
 		f.close()
 
 

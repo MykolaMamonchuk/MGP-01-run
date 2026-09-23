@@ -293,6 +293,11 @@ func _reapply_strip() -> void:
 	# 22 м — тобто «різати каскади» й «обмежити дальність» у цій грі вже зроблено. Лишається
 	# сама карта: 2048x2048 на пристрої, де прохід тіней коштує близько 18 мс і НЕ залежить
 	# від роздільності екрана — рівно ознака проходу власного розміру.
+	# Дальність тіні: головна ручка тіней, бо прохід малює лише те, що в неї потрапило.
+	for f in _strip_flags:
+		var fs := String(f)
+		if fs.begins_with("shadowdist") and sun != null:
+			sun.directional_shadow_max_distance = float(fs.substr(10))
 	for f in _strip_flags:
 		var fs := String(f)
 		if fs.begins_with("shadowmap"):
@@ -410,6 +415,12 @@ func _reapply_strip() -> void:
 		if String(f).begins_with("near"):
 			near = float(String(f).substr(4))
 	track.set("strip_near", near)
+	track.set("strip_skip_authored", _strip_flags.has("noauthored"))
+	track.set("strip_skip_walls", _strip_flags.has("nowalls"))
+	# Перешкоди — діти вузла Spawner, тож ховаються цілим піддеревом.
+	var sp := get_node_or_null("Spawner") as Node3D
+	if sp != null:
+		sp.visible = not _strip_flags.has("noobstacles")
 	var layers: Array = track.get("_decor_mm")
 	var by_key: Dictionary = track.get("_decor_layer_of")
 	var n := 0
