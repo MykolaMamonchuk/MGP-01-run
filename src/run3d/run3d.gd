@@ -613,6 +613,18 @@ func _ready() -> void:
 	add_child(strip_timer)
 	# Прогін по варіантах — лише у збірці з прапорцем "strip_probe" (ставиться в пресеті
 	# ТИМЧАСОВО, на час замірів). У звичайній грі цього вузла не існує.
+	# ЗБІРКА-СТЕЛЯ. Прапорець "minfps" вимикає все, що коштує кадру, і НЕ вертає назад: у неї
+	# заходять, щоб побачити й відчути межу пристрою, а не щоб грати. Дорога, герой і
+	# інтерфейс лишаються — інакше це вже не гра, а порожній екран.
+	#
+	# Заміряно: із цим набором кадр на масштабі 1.0 — близько 19-22 мс, тобто 45-52 к/с,
+	# причому РІВНО на всіх масштабах рендера (роздільність перестає важити зовсім).
+	if OS.has_feature("minfps"):
+		debug_strip(PackedStringArray([
+			"shadows", "fog", "glow", "adjust", "sky", "particles",
+			"water", "banks", "decor",
+			"mm_side", "mm_cliff", "mm_seam", "mm_clouds",
+		]))
 	if OS.has_feature("strip_probe") and ResourceLoader.exists("res://src/ui/strip_probe.gd"):
 		var probe: Node = load("res://src/ui/strip_probe.gd").new()
 		probe.run = self
