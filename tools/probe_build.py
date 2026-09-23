@@ -16,6 +16,7 @@ export_presets.cfg, потім заміна `custom_features` обмежилас
 import io
 import os
 import shutil
+import subprocess
 import sys
 
 CFG = "export_presets.cfg"
@@ -27,6 +28,36 @@ def section(text: str, preset: str) -> tuple[int, int]:
 	start = text.index('name="%s"' % preset)
 	nxt = text.find('\nname="', start + 1)
 	return start, len(text) if nxt < 0 else nxt
+
+
+GODOT = "/Applications/Godot.app/Contents/MacOS/Godot"
+PROBE = "src/ui/strip_probe.gd"
+
+
+def probe_parses() -> bool:
+	"""Чи компілюється сценарій проби.
+
+	Навіщо. Поламаний `strip_probe.gd` НЕ валить експорт: APK збирається, ставиться,
+	запускається — і мовчки не міряє нічого. Рушій пише «Parse error» лише в журнал
+	телефона, а журнал на цьому пристрої прокручується за хвилини. Один раз через це
+	згорів цілий прогін: варіанти правили руками, кома лишилась зайва, і телефон п'ять
+	хвилин показував меню замість заміру.
+
+	Код виходу в `--check-only` завжди 0, тож дивимось саме на текст.
+	"""
+	if not os.path.exists(GODOT):
+		print("УВАГА: Godot не знайдено за %s, синтаксис проби не перевірено" % GODOT)
+		return True
+	out = subprocess.run([GODOT, "--headless", "--check-only", "--script", PROBE],
+		capture_output=True, text=True)
+	text = out.stdout + out.stderr
+	if "SCRIPT ERROR" in text or "Parse Error" in text:
+		print("ПРОБА НЕ КОМПІЛЮЄТЬСЯ — збірка не має сенсу:")
+		for line in text.splitlines():
+			if "ERROR" in line or "Error" in line:
+				print("   " + line.strip())
+		return False
+	return True
 
 
 def main() -> int:
@@ -41,6 +72,8 @@ def main() -> int:
 	# Потрібна, щоб міряти те, що справді побачить дитина, а не сценарій заміру.
 	only_keys = sys.argv[1] == "keys"
 	preset = sys.argv[2]
+	if not only_keys and not probe_parses():
+		return 1
 	shutil.copyfile(CFG, BAK)
 	s = io.open(CFG, encoding="utf-8").read()
 	a, b = section(s, preset)

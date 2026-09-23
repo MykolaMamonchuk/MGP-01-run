@@ -751,6 +751,14 @@ func _ready() -> void:
 			"shadows", "fog", "glow", "adjust", "sky", "particles",
 			"water", "banks", "decor", "track",
 		]))
+	# STRIP=roadbase,mm_seam — застосувати прапорці досліду з середовища. Потрібно, щоб
+	# ДИВИТИСЬ на наслідок у справжньому вікні на Маку (tools/probe), не збираючи APK: ціну
+	# міряє телефон, а що при цьому зникло з екрана — видно й тут. Порожнє значення нічого
+	# не вмикає, і, як усюди в досліді, прапорець може лише ЗАБРАТИ, а не додати.
+	if OS.has_environment("STRIP"):
+		var raw := OS.get_environment("STRIP").strip_edges()
+		if raw != "":
+			debug_strip(PackedStringArray(raw.split(",", false)))
 	if OS.has_feature("strip_probe") and ResourceLoader.exists("res://src/ui/strip_probe.gd"):
 		var probe: Node = load("res://src/ui/strip_probe.gd").new()
 		probe.run = self
