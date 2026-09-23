@@ -625,6 +625,14 @@ func _ready() -> void:
 			"water", "banks", "decor",
 			"mm_side", "mm_cliff", "mm_seam", "mm_clouds",
 		]))
+	# АБСОЛЮТНИЙ НУЛЬ: лишається тільки герой і накладка з числами. Прапорець "heroonly"
+	# ховає ще й УСЮ трасу — дорогу, узбіччя, обриви, все. Це не гра, а вимір: скільки
+	# коштує сам рушій із героєм, нижче вже нікуди.
+	if OS.has_feature("heroonly"):
+		debug_strip(PackedStringArray([
+			"shadows", "fog", "glow", "adjust", "sky", "particles",
+			"water", "banks", "decor", "track",
+		]))
 	if OS.has_feature("strip_probe") and ResourceLoader.exists("res://src/ui/strip_probe.gd"):
 		var probe: Node = load("res://src/ui/strip_probe.gd").new()
 		probe.run = self
