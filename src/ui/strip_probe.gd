@@ -99,10 +99,10 @@ static func _on(names: Array) -> Array:
 const STEPS := [
 	{"назва": "прогрів (не рахується)", "flags": [], "level": true, "warm": true},
 	{"назва": "К тільки герой", "flags": OFF_ALL + ["noobstacles"]},
-	{"назва": "W1 вода як є", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
-	{"назва": "W5 вода БЕЗ ОСВІТЛЕННЯ", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "waterunlit"]},
-	{"назва": "W6 вода без світла й хвилі", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "waterunlit", "waterflat"]},
-	{"назва": "контроль: вода як є", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
+	{"назва": "V1 вода + береги (як міряв)", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
+	{"назва": "V2 лише вода, без берегів", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "banks"]},
+	{"назва": "V3 лише береги, без води", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "water"]},
+	{"назва": "контроль: вода + береги", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
 ]
 
 
@@ -137,12 +137,28 @@ const TSV_HEAD := ["варіант", "масштаб", "мед_мс", "p95_мс"
 	"безхазяйних", "фіз_процес_мс", "процес_мс"]
 var _log: PackedStringArray = []
 var _tsv: PackedStringArray = []
+var _settle_then_freeze := false
 var _rung := 0
 var _rungs: Array = []
 var _share := 0.0
 var _p95 := 0.0
 var _gpu_med := 0.0
 var _cpu_med := 0.0
+
+
+## ЗУПИНКА СВІТУ НА ЧАС ЗАМІРУ. Проба міряла В РУСІ: траса їде, і кожен варіант потрапляв на
+## іншу ділянку рівня з іншою кількістю каналів і забудови. Через це та сама конфігурація
+## дала +32,5 мс в одному прогоні й +15,1 в іншому при однакових контролях.
+##
+## `paused` зупиняє _process усіх вузлів, крім самої проби (їй виставлено PROCESS_MODE_ALWAYS):
+## траса не їде, герой не анімується, спавнер не випускає нового. Кадр щоразу той самий.
+##
+## Чого це НЕ зупиняє: `TIME` у шейдерах іде далі, тож хвиля на воді й гойдання трави між
+## замірами трохи різні. На ціну це не впливає (заміряно: вершинна хвиля коштує нуль), але
+## знати варто.
+func _freeze(on: bool) -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	get_tree().paused = on
 
 
 func _ready() -> void:
@@ -184,6 +200,7 @@ func _next_step() -> void:
 		seed(20260923)
 		run.get("menu").call("hide_menu")
 		run.call("_start_level", 1)
+		_settle_then_freeze = true
 	_apply()
 
 
@@ -218,6 +235,11 @@ func _apply() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	if _settle_then_freeze and _t >= 1.2:
+		# Заморожуємо ПІСЛЯ того, як рівень трохи проїхав: на нульовому метрі цеглинка ще не
+		# розгорнута, і сцена була б порожнішою за справжню.
+		_settle_then_freeze = false
+		_freeze(true)
 	if not _measuring:
 		if _t >= SETTLE_SEC:
 			_measuring = true
