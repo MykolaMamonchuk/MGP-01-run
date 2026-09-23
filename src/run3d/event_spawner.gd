@@ -41,7 +41,24 @@ func configure(r: Node, h: Hero3D, sp: Spawner3D, a: Node3D, p: Dictionary, m: S
 	profile = p
 	mode_id = m
 	events_seen_segment = 0
+	_prepare_friend()
 	_schedule()
+
+
+## Тіло друга будуємо ТУТ — на старті рівня, поза бігом. Заміряно: 368 і 325 мс, тобто
+## шість-сім кадрів роботи. Посеред бігу це той самий ривок, який бачив замовник; на
+## старті рівня він припадає на відлік, коли дитина ще не керує.
+func _prepare_friend() -> void:
+	if actors == null or hero == null:
+		return
+	if not is_instance_valid(_friend):
+		_friend = Friend3D.new()
+		actors.add_child(_friend)
+	var t0 := Time.get_ticks_usec()
+	_friend.prepare(hero, Palette.FRIEND_DEFAULT)
+	if OS.has_feature("debug_hud"):
+		print("ДРУГ: підготовка %.1f мс (на старті рівня, не в бігу)"
+			% ((Time.get_ticks_usec() - t0) / 1000.0))
 
 
 func _schedule() -> void:
@@ -75,7 +92,10 @@ static func pick(events: Array, profile_name: String, mode: String, rng: RandomN
 
 ## Чи можна кликати друга: попередній уже пішов І кулдаун вичерпано.
 func friend_allowed() -> bool:
-	return _friend_t <= 0.0 and not is_instance_valid(_friend)
+	# «Друга можна» — коли минув кулдаун і ТЕПЕРІШНІЙ друг не бігає. Раніше тут стояло
+	# `not is_instance_valid(_friend)`, бо друг звільнявся; тепер він живе весь рівень і
+	# просто ховається, тож питаємо в нього самого.
+	return _friend_t <= 0.0 and (not is_instance_valid(_friend) or not _friend.is_active())
 
 
 func tick(delta: float) -> void:
@@ -127,12 +147,17 @@ func _start(e: Dictionary) -> void:
 			spawner.add_child(arc)
 			AudioMgr.sfx("rainbow")
 		"friend":
-			var fr := Friend3D.new()
-			actors.add_child(fr)
-			fr.setup(hero, Palette.FRIEND_DEFAULT, dur)
-			# запам'ятовуємо ЦЬОГО друга: поки він живий (або поки не мине кулдаун),
-			# другого не буде — ні з випадкової події, ні з дебаг-клавіші
-			_friend = fr
+			# Тут тепер лише ПОКАЗ уже готового тіла. Раніше стояло Friend3D.new() +
+			# setup(), тобто побудова вокселів і матеріалів просто в кадрі: 368 і 325 мс за
+			# годинником на Redmi 8A. Годинник лишається — ним і перевіряють, що ривка нема.
+			var t0 := Time.get_ticks_usec()
+			_prepare_friend()          # якщо рівень щойно почався й тіла ще нема
+			if is_instance_valid(_friend):
+				_friend.activate(dur)
+			if OS.has_feature("debug_hud"):
+				print("ДРУГ: поява %.1f мс" % ((Time.get_ticks_usec() - t0) / 1000.0))
+			# поки цей друг бігає (або поки не мине кулдаун), другого не буде —
+			# ні з випадкової події, ні з дебаг-клавіші
 			_friend_t = maxf(FRIEND_COOLDOWN, dur + 5.0)
 		"dragonfly":
 			var d := Dragonfly3D.new()
@@ -156,8 +181,15 @@ func _finish(id: String) -> void:
 ## На станції все активне прибираємо.
 func reset() -> void:
 	_active = ""
+	# ДРУГА НЕ ЗВІЛЬНЯЄМО. Його тіло коштує близько 300 мс, і якщо прибирати його разом з
+	# рештою акторів, кожен новий рівень платив би це знову на відліку. Він і так один на
+	# трасі, тож просто ховаємо.
 	for c in actors.get_children():
+		if c == _friend:
+			continue
 		c.queue_free()
-	_friend = null
+	if is_instance_valid(_friend):
+		_friend.call("_hide")
 	_friend_t = 0.0
+	_prepare_friend()
 	_schedule()
