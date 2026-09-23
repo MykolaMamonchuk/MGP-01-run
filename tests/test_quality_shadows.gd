@@ -101,3 +101,26 @@ func test_doslid_ne_povertaie_tin_vsuperech_yakosti() -> void:
 	run.call("debug_strip", PackedStringArray(["shadows"]))
 	assert_false(sun.shadow_enabled, "прапорець досліду гасить тінь і в «Гарно»")
 	SaveService.set_setting(Quality.KEY, Quality.SMOOTH)
+
+
+## Сторож на ТРЕТЮ вроду того самого: дослід не має права ПОКАЗАТИ те, що світ сховав.
+## `_reapply_strip()` писав `visible = not прапорець` для десятка шарів, і при порожньому
+## списку вмикав їх назад. Через це на морському світі проба «вмикала» плитку дороги, кадр
+## із БУДЬ-ЯКИМ прапорцем показував пісок замість моря, і з цього народився хибний висновок
+## про вартість основи дороги.
+func test_doslid_ne_pokazuie_shovane() -> void:
+	var run: Node = load("res://src/run3d/run3d.tscn").instantiate()
+	add_child_autofree(run)
+	await wait_frames(3)
+	var tr: Node3D = run.get_node("Track")
+	tr.visible = false                      # так світ ховає шар (напр. вода замість дороги)
+	run.call("debug_strip", PackedStringArray(["hero"]))   # ІНШИЙ прапорець
+	assert_false(tr.visible, "чужий прапорець не має вмикати сховане")
+	run.call("debug_strip", PackedStringArray([]))
+	assert_false(tr.visible, "і порожній список теж не має")
+	# А своїм прапорцем — ховає й повертає рівно те, що було.
+	tr.visible = true
+	run.call("debug_strip", PackedStringArray(["track"]))
+	assert_false(tr.visible, "своїм прапорцем ховає")
+	run.call("debug_strip", PackedStringArray([]))
+	assert_true(tr.visible, "і повертає видиме, яким воно було")

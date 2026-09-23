@@ -293,6 +293,32 @@ func _all_particles(n: Node) -> Array:
 	return out
 
 
+## СХОВАТИ вузол на час досліду — і тільки сховати.
+##
+## Дослід не має права ПОКАЗАТИ те, що світ навмисно сховав. Раніше тут скрізь стояло
+## `visible = not прапорець`, і при порожньому списку це вмикало шар назад. Через це на
+## морському світі проба «вмикала» плитку дороги й полотно, і кадр із БУДЬ-ЯКИМ прапорцем
+## показував пісок замість моря — я встиг зробити з цього хибний висновок, що зникнення
+## основи ламає пляж. Те саме колись дало неправдиве «вода коштує 37 мс».
+##
+## Тому запам'ятовуємо видимість, яку вузол мав ДО першого дотику, і повертаємо саме її.
+## Запам'ятоване живе рівно доти, доки прапорець увімкнений. Інакше кеш застаріває: світ
+## міняється посеред рівня (_enter_world -> _paint_road), і збережене «було видно» знову
+## показало б те, що новий світ сховав.
+func _strip_hide(n: Node, flag: String) -> void:
+	var sp3 := n as Node3D
+	if sp3 == null:
+		return
+	var key := "vis:%d" % sp3.get_instance_id()
+	if _strip_flags.has(flag):
+		if not _strip_orig.has(key):
+			_strip_orig[key] = sp3.visible
+		sp3.visible = false
+	elif _strip_orig.has(key):
+		sp3.visible = bool(_strip_orig[key])
+		_strip_orig.erase(key)
+
+
 func _reapply_strip() -> void:
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun != null:
@@ -362,7 +388,7 @@ func _reapply_strip() -> void:
 	# абсолютну підлогу: скільки коштує просто очистити екран і показати його.
 	var tr := get_node_or_null("Track") as Node3D
 	if tr != null:
-		tr.visible = not _strip_flags.has("track")
+		_strip_hide(tr, "track")
 	# ЧАСТИНКИ. Прапорець згадувався в коментарі як доступний, але реалізації НЕ МАВ — тобто
 	# в усіх наборах «мінімум» і «стеля» частинки лишались увімкненими, а рядок «світіння +
 	# кольорокорекція + небо + частинки = 8 одиниць» насправді був без частинок. Тепер
@@ -372,10 +398,10 @@ func _reapply_strip() -> void:
 		_strip_orig["part"] = true
 		for p in _all_particles(self):
 			p.emitting = false
-			p.visible = not _strip_flags.has("particles")
+			_strip_hide(p, "particles")
 	var hr := get_node_or_null("Hero") as Node3D
 	if hr != null:
-		hr.visible = not _strip_flags.has("hero")
+		_strip_hide(hr, "hero")
 	if _strip_flags.has("ui"):
 		for c in get_children():
 			if c is CanvasLayer:
@@ -391,7 +417,7 @@ func _reapply_strip() -> void:
 		(water as MeshInstance3D).visible = bool(_strip_orig["water"]) \
 			and not _strip_flags.has("water")
 	for mi in (track.get("_canal_water") as Array):
-		(mi as MeshInstance3D).visible = not _strip_flags.has("water")
+		_strip_hide(mi, "water")
 	# РОЗКЛАД САМОЇ ВОДИ. Вона виявилась найдорожчою системою (+32,5 мс), маючи 73 виклики
 	# й 36 тисяч примітивів — отже вся ціна в піксельному шейдері. Три підозри, і кожна
 	# міряється окремо:
@@ -442,23 +468,23 @@ func _reapply_strip() -> void:
 	# Якщо плитка ховає основу повністю, основа — це зайвий екран заповнення щокадру.
 	for mm in (track.get("_mm_center") as Array):
 		if mm != null:
-			(mm as MultiMeshInstance3D).visible = not _strip_flags.has("roadbase")
+			_strip_hide(mm, "roadbase")
 	var surf = track.get("_mm_surface")
 	if surf != null:
-		(surf as MultiMeshInstance3D).visible = not _strip_flags.has("roadtiles")
+		_strip_hide(surf, "roadtiles")
 	# Решта «полотен» траси: узбіччя, обрив, шов, край, хмари. Кожне вкриває помітну частку
 	# екрана, а перевірені досі основа й плитка виявились безкоштовними — отже дивимось усі.
 	for name in ["side", "cliff"]:
 		for mm in (track.get("_mm_" + name) as Array):
 			if mm != null:
-				(mm as MultiMeshInstance3D).visible = not _strip_flags.has("mm_" + name)
+				_strip_hide(mm, "mm_" + name)
 	for name in ["seam", "edge", "clouds"]:
 		var one = track.get("_mm_" + name)
 		if one != null:
-			(one as MultiMeshInstance3D).visible = not _strip_flags.has("mm_" + name)
+			_strip_hide(one, "mm_" + name)
 	# Береги каналу — окремо: три тонкі смужки на борт зі своїм шейдером.
 	for mi in (track.get("_canal_banks") as Array):
-		(mi as MeshInstance3D).visible = not _strip_flags.has("banks")
+		_strip_hide(mi, "banks")
 	track.set("strip_nosway", _strip_flags.has("nosway"))
 	track.set("strip_freeze", _strip_flags.has("freeze"))
 	var keep := 0
@@ -476,7 +502,7 @@ func _reapply_strip() -> void:
 	# Перешкоди — діти вузла Spawner, тож ховаються цілим піддеревом.
 	var sp := get_node_or_null("Spawner") as Node3D
 	if sp != null:
-		sp.visible = not _strip_flags.has("noobstacles")
+		_strip_hide(sp, "noobstacles")
 	var layers: Array = track.get("_decor_mm")
 	var by_key: Dictionary = track.get("_decor_layer_of")
 	var n := 0
