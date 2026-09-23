@@ -236,9 +236,14 @@ func _game_rows() -> Array:
 			int(_run.get("level_num")), String(_run.get("world_id")), int(_run.get("lanes"))])
 	# Швидкість тут СПРАВЖНЯ, у метрах за секунду. HUD показує дитині інше, більше число —
 	# воно для настрою, а не для заміру, і плутати їх не можна.
-	rows.append("швидкість %.2f м/с · метрів %.0f · профіль %s · якість %s"
+	# ТІНЬ ПОКАЗУЄМО ОКРЕМО ВІД НАЗВИ ЯКОСТІ. Стан «Плавно» мав гасити тінь, а на телефоні
+	# вона лишалась намальованою — і з самої назви стану цього було не видно. Тепер тут
+	# СПРАВЖНЄ значення з сонця, тож розбіжність «що обрано» й «що малюється» видно одразу.
+	var sun_node = _run.get("sun")
+	var shadow_txt := "?" if sun_node == null else ("так" if bool(sun_node.get("shadow_enabled")) else "ні")
+	rows.append("швидкість %.2f м/с · метрів %.0f · профіль %s · якість %s · тінь %s"
 		% [float(_run.get("speed")), float(_run.get("level_distance_m")),
-			AgeAdapt.current, Quality.current()])
+			AgeAdapt.current, Quality.current(), shadow_txt])
 
 	var hero = _run.get("hero")
 	if hero != null:

@@ -82,7 +82,46 @@ func apply_state(name: String) -> void:
 	var vp := get_viewport()
 	if vp == null:
 		return
-	vp.msaa_3d = msaa_of(name if ORDER.has(name) else current()) as Viewport.MSAA
+	var st := name if ORDER.has(name) else current()
+	vp.msaa_3d = msaa_of(st) as Viewport.MSAA
+	# Тіні — властивість СВІТЛА, а не в'юпорта, тож шукаємо сонце в дереві. Якщо сцена без
+	# нього (меню, тести), просто нічого не робимо.
+	for l in _lights(vp):
+		l.shadow_enabled = shadows_of(st)
+
+
+static func _lights(n: Node) -> Array:
+	var out: Array = []
+	if n is DirectionalLight3D:
+		out.append(n)
+	for c in n.get_children():
+		out.append_array(_lights(c))
+	return out
+
+
+## Чи малювати ТІНІ В ЦЬОМУ СТАНІ. Чиста функція, як і msaa_of — щоб перевірялась тестом.
+##
+## Заміряно на Redmi 8A (Adreno 505, Compatibility), двома контрольними точками з
+## контролями в 0,06-0,08%: прохід тіней коштує 21-24 мс, тобто ЧВЕРТЬ кадру. Для порівняння
+## ціла гра Luanti з лісом, водою й туманом іде на тому самому телефоні за 16,7 мс — і має
+## `enable_dynamic_shadows = false` за замовчуванням.
+##
+## Чому це не забирає з гри найважливішого. У героя є ВЛАСНИЙ намальований овал тіні
+## (`Hero3D._shadow`), а не справжня тінь від сонця. Підказка «де я стою» лишається в усіх
+## станах; зникають лише тіні будинків і пропсів на землі.
+##
+## Перевірено, що інші ручки тіней не дають нічого: дальність 22 м проти 1 м — однаково,
+## роздільність карти 2048 / 1024 / 512 — у межах шуму. Тобто коштує САМ ПРОХІД, і половинчасті
+## заходи тут не працюють.
+const SHADOWS := {
+	SMOOTH: false,     # слабкий телефон: -22 мс, лишається овал під героєм
+	MIDDLE: true,
+	PRETTY: true,
+}
+
+
+static func shadows_of(name: String) -> bool:
+	return bool(SHADOWS.get(name, SHADOWS[DEFAULT]))
 
 
 ## Скільки коштує стан у значеннях рушія. Чиста функція — саме її перевіряють тести.

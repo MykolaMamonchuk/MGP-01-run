@@ -244,11 +244,19 @@ var _idle_t := 0.0
 var _strip_flags := PackedStringArray()
 ## Початковий стан ефектів — щоб повертати саме його, а не «увімкнено».
 var _strip_orig := {}
+## Таймер повтору досліду. Стоїть, поки досліду нема — див. debug_strip().
+var _strip_timer: Timer = null
 var _shared_mats := {}
 
 
 func debug_strip(flags: PackedStringArray) -> void:
 	_strip_flags = flags
+	# Повтор потрібен, лише поки є що чіпати: під час досліду або поки вертаємо все на місце.
+	if _strip_timer != null:
+		if flags.is_empty() and _strip_orig.is_empty():
+			_strip_timer.stop()
+		else:
+			_strip_timer.start()
 	_reapply_strip()
 
 
@@ -288,7 +296,10 @@ func _all_particles(n: Node) -> Array:
 func _reapply_strip() -> void:
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun != null:
-		sun.shadow_enabled = not _strip_flags.has("shadows")
+		# Дослід може лише ЗАБРАТИ тінь, а не повернути її всупереч вибору дорослого:
+		# базове значення беремо з якості, прапорець "shadows" гасить її додатково.
+		sun.shadow_enabled = Quality.shadows_of(Quality.current()) \
+			and not _strip_flags.has("shadows")
 	# РОЗДІЛЬНІСТЬ КАРТИ ТІНЕЙ. Каскад тут уже один (directional_shadow_mode=0), а дальність
 	# 22 м — тобто «різати каскади» й «обмежити дальність» у цій грі вже зроблено. Лишається
 	# сама карта: 2048x2048 на пристрої, де прохід тіней коштує близько 18 мс і НЕ залежить
@@ -544,6 +555,7 @@ func _reapply_strip() -> void:
 				or _strip_flags.has("norough") or _strip_flags.has("noao") \
 				or _strip_flags.has("unshaded") or _strip_flags.has("pervertex") \
 				or _strip_flags.has("unwalls") or _strip_flags.has("cullback") \
+				or _strip_flags.has("nofilter") or _strip_flags.has("nomip") \
 				or _strip_orig.has("nrm%d" % idx):
 			var mm := mi.multimesh
 			if mm != null and mm.mesh != null:
@@ -578,6 +590,21 @@ func _reapply_strip() -> void:
 					# малює і лицьову, і зворотну сторону. Половина цієї роботи ніколи не
 					# видна, а платимо ми за неї на кожен піксель — тобто саме тією статтею,
 					# яка тут найдорожча.
+					# ФІЛЬТРАЦІЯ ТЕКСТУР. Перевірено кодом: усі 160 поверхонь мають
+					# LINEAR_WITH_MIPMAPS, анізотропного фільтра НЕМАЄ ЖОДНОГО, тож
+					# налаштування anisotropic_filtering_level=3 у project.godot мертве.
+					# Тут міряємо іншу річ: чи коштує сама лінійна фільтрація з рівнями
+					# деталізації. Luanti на цьому ж телефоні тримає 60 к/с із вимкненою
+					# фільтрацією взагалі, тож варто знати ціну.
+					var tk := "tf%d_%d" % [idx, si]
+					if not _strip_orig.has(tk):
+						_strip_orig[tk] = bm.texture_filter
+					if _strip_flags.has("nofilter"):
+						bm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+					elif _strip_flags.has("nomip"):
+						bm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
+					else:
+						bm.texture_filter = int(_strip_orig[tk]) as BaseMaterial3D.TextureFilter
 					var kk := "cull%d_%d" % [idx, si]
 					if not _strip_orig.has(kk):
 						_strip_orig[kk] = bm.cull_mode
@@ -680,13 +707,18 @@ func _ready() -> void:
 	_learned = l if typeof(l) == TYPE_DICTIONARY else {}
 	_setup_sky()
 	# Шари декору заводяться ЛІНИВО, у міру того як дорога їде, тож одного виклику мало:
-	# повторюємо щосекунди перші двадцять секунд. Це діагностика, і вона мовчить, поки в
-	# командному рядку нема --strip=.
-	var strip_timer := Timer.new()
-	strip_timer.wait_time = 1.0
-	strip_timer.autostart = true
-	strip_timer.timeout.connect(_reapply_strip)
-	add_child(strip_timer)
+	# повторюємо щосекунди, поки триває дослід.
+	#
+	# ТАЙМЕР СТОЇТЬ, ПОКИ ДОСЛІДУ НЕМА. Раніше він мав autostart і в ЗВИЧАЙНІЙ грі щосекунди
+	# кликав _reapply_strip, а той писав сонцю `shadow_enabled = not flags.has("shadows")` —
+	# тобто при порожньому списку ВМИКАВ тінь назад. Через це стан якості «Плавно» чесно
+	# гасив тінь на старті, а за секунду риштування для замірів її повертало, і на телефоні
+	# було видно «якість smooth · тінь так». Заміри теж брехали: кожна збірка мала тінь
+	# незалежно від налаштувань. Вмикає й гасить таймер тепер сам debug_strip().
+	_strip_timer = Timer.new()
+	_strip_timer.wait_time = 1.0
+	_strip_timer.timeout.connect(_reapply_strip)
+	add_child(_strip_timer)
 	# Прогін по варіантах — лише у збірці з прапорцем "strip_probe" (ставиться в пресеті
 	# ТИМЧАСОВО, на час замірів). У звичайній грі цього вузла не існує.
 	# ЗБІРКА-СТЕЛЯ. Прапорець "minfps" вимикає все, що коштує кадру, і НЕ вертає назад: у неї
@@ -713,6 +745,13 @@ func _ready() -> void:
 		var probe: Node = load("res://src/ui/strip_probe.gd").new()
 		probe.run = self
 		add_child(probe)
+
+	# ЯКІСТЬ ЗАСТОСОВУЄМО ТУТ, а не покладаємось на автозавантаження. Quality._ready() кличе
+	# apply() ще ДО того, як існує ця сцена: автозавантаження готові раніше за головну сцену.
+	# Для згладжування це працювало (властивість в'юпорта, він уже є), а для тіней — ні:
+	# вони властивість СВІТЛА, і сонця в той момент ще немає. Через це стан «Плавно» не
+	# вимикав тіні, хоч у налаштуваннях так і було задано.
+	Quality.apply()
 
 	Events.profile_changed.connect(_apply_profile)
 	Events.session_warning.connect(_on_session_warning)

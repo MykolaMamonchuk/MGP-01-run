@@ -7,6 +7,7 @@ export_presets.cfg, потім заміна `custom_features` обмежилас
 п'ять хвилин міряв порожнечу. Пресет тепер називають ЯВНО.
 
     python3 tools/probe_build.py on Android    # перед експортом
+    python3 tools/probe_build.py keys Android  # звичайна гра, лише ключ
     python3 tools/probe_build.py off           # одразу після
 
 `off` повертає файл із резервної копії, тож пароль не може лишитись у git навіть якщо
@@ -36,6 +37,9 @@ def main() -> int:
 			print("пресети повернуто")
 		return 0
 
+	# `keys` — те саме, але БЕЗ проби: звичайна збірка гри, лише з ключем для підпису.
+	# Потрібна, щоб міряти те, що справді побачить дитина, а не сценарій заміру.
+	only_keys = sys.argv[1] == "keys"
 	preset = sys.argv[2]
 	shutil.copyfile(CFG, BAK)
 	s = io.open(CFG, encoding="utf-8").read()
@@ -44,13 +48,14 @@ def main() -> int:
 	if 'custom_features="debug_hud"' not in block:
 		print("НЕ ЗНАЙДЕНО debug_hud у пресеті %s" % preset)
 		return 1
-	block = block.replace('custom_features="debug_hud"', 'custom_features="debug_hud,strip_probe"')
+	if not only_keys:
+		block = block.replace('custom_features="debug_hud"', 'custom_features="debug_hud,strip_probe"')
 	if preset == "Android":
 		ks = os.path.expanduser("~/Library/Application Support/Godot/keystores/debug.keystore")
 		anchor = 'package/unique_name='
 		block = block.replace(anchor, 'keystore/release="%s"\nkeystore/release_user="androiddebugkey"\nkeystore/release_password="android"\n%s' % (ks, anchor), 1)
 	io.open(CFG, "w", encoding="utf-8").write(s[:a] + block + s[b:])
-	print("проба увімкнена в пресеті %s" % preset)
+	print("ключ підставлено в %s" % preset if only_keys else "проба увімкнена в пресеті %s" % preset)
 	return 0
 
 
