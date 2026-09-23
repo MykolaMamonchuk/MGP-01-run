@@ -96,14 +96,31 @@ static func _on(names: Array) -> Array:
 ##
 ## «Тільки герой» повторюється ЧОТИРИ рази як контроль: серія довга, а телефон дроселює,
 ## тож без проміжних контролів не відрізнити «додали систему» від «телефон нагрівся».
-const STEPS := [
-	{"назва": "прогрів (не рахується)", "flags": [], "level": true, "warm": true},
-	{"назва": "К тільки герой", "flags": OFF_ALL + ["noobstacles"]},
-	{"назва": "V1 вода + береги (як міряв)", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
-	{"назва": "V2 лише вода, без берегів", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "banks"]},
-	{"назва": "V3 лише береги, без води", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "water"]},
-	{"назва": "контроль: вода + береги", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
+## КОНТРОЛЬНІ ТОЧКИ НА ТРАСІ. Два попередні підходи мали взаємно виключні вади: прогін у
+## русі ставив кожен варіант на іншу ділянку, а заморожений кадр давав ідеальний збіг
+## контролю — але один випадковий кадр не представляє рівень (у тому, що ми міряли воду,
+## води в полі зору не було взагалі).
+##
+## Тут обидві вади знято: рівень їде на звичайній швидкості до ЗАДАНОГО метра, там світ
+## зупиняється, і всі варіанти міряються на тому самому кадрі. Потім те саме на наступній
+## точці. Різницю беремо як медіану по трьох точках, а не по одній.
+##
+## Телепорту навмисно немає: чекати 12-13 секунд на точку дешевше, ніж мати справу з
+## наслідками стрибка (недовантажена цеглинка, порожній спавнер, розсинхрон рядів).
+const POINTS: Array[float] = [34.0, 71.0, 108.0]
+
+## Варіанти, які проганяються НА КОЖНІЙ точці. Перший і останній однакові — це контроль.
+const VARIANTS := [
+	{"назва": "вода+береги", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
+	{"назва": "без води", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "water"]},
+	{"назва": "без берегів", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "banks"]},
+	{"назва": "без води й берегів", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles", "water", "banks"]},
+	{"назва": "контроль вода+береги", "flags": ["shadows", "fog", "glow", "adjust", "sky", "particles", "decor", "noobstacles"]},
 ]
+
+## Будується в _ready із POINTS x VARIANTS.
+var STEPS: Array = []
+
 
 
 
@@ -138,6 +155,7 @@ const TSV_HEAD := ["варіант", "масштаб", "мед_мс", "p95_мс"
 var _log: PackedStringArray = []
 var _tsv: PackedStringArray = []
 var _settle_then_freeze := false
+var _wait_m := -1.0
 var _rung := 0
 var _rungs: Array = []
 var _share := 0.0
@@ -161,6 +179,19 @@ func _freeze(on: bool) -> void:
 	get_tree().paused = on
 
 
+## Складає план: на кожній точці — усі варіанти, і перед першим із них чекання метра.
+func _plan() -> void:
+	STEPS = [{"назва": "прогрів (не рахується)", "flags": [], "level": true, "warm": true}]
+	for m in POINTS:
+		var first := true
+		for v in VARIANTS:
+			var st := {"назва": "%dм %s" % [int(m), v["назва"]], "flags": v["flags"]}
+			if first:
+				st["метр"] = m
+				first = false
+			STEPS.append(st)
+
+
 func _ready() -> void:
 	# ВЕРТИКАЛЬНА СИНХРОНІЗАЦІЯ ОБОВ'ЯЗКОВО ГЕТЬ. Без цього кадр квантується по 16,67 мс, і
 	# вимір бреше найгіршим способом — мовчки. Сім прогонів поспіль давали 133,1…133,6 мс на
@@ -175,6 +206,7 @@ func _ready() -> void:
 	Engine.max_fps = 0
 	_vp_rid = get_viewport().get_viewport_rid()
 	RenderingServer.viewport_set_measure_render_time(_vp_rid, true)
+	_plan()
 	_say("СТРИП-ПРОГІН: %d варіантів по %.0f с, синхронізація=%d" % [
 		STEPS.size(), SETTLE_SEC + MEASURE_SEC,
 		DisplayServer.window_get_vsync_mode()])
@@ -201,6 +233,9 @@ func _next_step() -> void:
 		run.get("menu").call("hide_menu")
 		run.call("_start_level", 1)
 		_settle_then_freeze = true
+	_wait_m = float((STEPS[_step] as Dictionary).get("метр", -1.0))
+	if _wait_m > 0.0:
+		_freeze(false)          # відпускаємо світ, щоб доїхати до точки
 	_apply()
 
 
@@ -235,6 +270,20 @@ func _apply() -> void:
 
 func _process(delta: float) -> void:
 	_t += delta
+	# Чекаємо потрібного метра на ЗВИЧАЙНІЙ швидкості, потім зупиняємо світ.
+	if _wait_m > 0.0:
+		var d := float(run.get("level_distance_m"))
+		if d < _wait_m:
+			_t = 0.0
+			return
+		_wait_m = -1.0
+		_freeze(true)
+		_say("СТРИП ТОЧКА %d м: викл %d, прим %d" % [
+			int(d),
+			Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME),
+			Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)])
+		_t = 0.0
+		return
 	if _settle_then_freeze and _t >= 1.2:
 		# Заморожуємо ПІСЛЯ того, як рівень трохи проїхав: на нульовому метрі цеглинка ще не
 		# розгорнута, і сцена була б порожнішою за справжню.
