@@ -587,6 +587,7 @@ func _ready() -> void:
 	_water.mesh = pm
 	_water_mat = ShaderMaterial.new()
 	_water_mat.shader = load("res://src/run3d/water.gdshader")
+	_apply_water_shader(_water_mat)
 	_water_mat.set_shader_parameter("depth_ok", depth_texture_available())
 	_water.material_override = _water_mat
 	_water.position = Vector3(0.0, 0.02, BEHIND - ROWS * 0.5)
@@ -1345,6 +1346,48 @@ func _apply_road_style() -> void:
 	_mm_xseam.visible = not is_water and not _sea and _road_style == "grid"
 
 
+## Запечений візерунок води — файл, а не обчислення. Див. tools/bake_water/ і
+## src/run3d/water_bake.gdshader: там сказано, чому 75 кружечків на піксель стали текстурою.
+const WATER_LAYER := "res://assets/art/water_layer.png"
+static var _layer_tex: Texture2D = null
+
+
+static func water_layer_tex() -> Texture2D:
+	if _layer_tex == null:
+		_layer_tex = load(WATER_LAYER) as Texture2D
+	return _layer_tex
+
+
+## Який шейдер води брати. У стані «Плавно» — дешевий із запеченим візерунком, в інших —
+## повний. Це та сама схема, що вже працює для тіней і туману: вибір дорослого, а не
+## прибите число.
+## Примусовий вибір для порівняння наживо: -1 — за якістю, 0 — дешевий, 1 — повний.
+var _water_force := -1
+
+
+func force_water_shader(mode: int) -> void:
+	_water_force = mode
+	reapply_water_shader()
+
+
+func _apply_water_shader(mat: ShaderMaterial) -> void:
+	if mat == null:
+		return
+	var cheap := not Quality.real_water_of(Quality.effective())
+	if _water_force >= 0:
+		cheap = _water_force == 0
+	mat.shader = load("res://src/run3d/water_cheap.gdshader" if cheap
+		else "res://src/run3d/water.gdshader")
+	if cheap:
+		mat.set_shader_parameter("layer_tex", water_layer_tex())
+
+
+## Перемкнути всі водяні матеріали — коли дорослий змінив якість, не перезапускаючи гру.
+func reapply_water_shader() -> void:
+	_apply_water_shader(_water_mat)
+	for m in _canal_mats:
+		_apply_water_shader(m as ShaderMaterial)
+
 ## Кольори полотна: центр смугастий (парні/непарні ряди), узбіччя одноколірне.
 ## Видимість тепер на рівні шару: на воді нема центру, на морі нема й узбіч.
 func _paint_road(is_water: bool) -> void:
@@ -1893,6 +1936,7 @@ func _layout_canal() -> void:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # те саме, що й бічна вода
 			var mat := ShaderMaterial.new()
 			mat.shader = load("res://src/run3d/water.gdshader")
+			_apply_water_shader(mat)
 			mat.set_shader_parameter("depth_ok", depth_texture_available())
 			mat.set_shader_parameter("amplitude", 0.03)
 			# Обидва боки каналу — локально ОДНАКОВА геометрія (лише зсунута по X), тож без

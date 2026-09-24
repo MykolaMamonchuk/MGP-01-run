@@ -137,14 +137,12 @@ func setup(run: Node) -> void:
 
 ## Варіанти досліду, які перемикає друга кнопка. Список навмисно короткий і саме про те,
 ## що зараз досліджують: на пляжі — вода. Міняється разом із задачею.
+## Варіанти для порівняння НАЖИВО. «вода» перемикає не прапорець досліду, а справжній
+## вибір шейдера — тобто показує рівно те, що побачить дитина.
 const STRIP_SETS := [
-	{"назва": "як є", "flags": []},
-	{"назва": "без води", "flags": ["water"]},
-	{"назва": "без глибини", "flags": ["waterdepth"]},
-	{"назва": "без хвилі", "flags": ["waterflat"]},
-	{"назва": "без глиб.+хвилі", "flags": ["waterdepth", "waterflat"]},
-	{"назва": "вода проста", "flags": ["watersimple"]},
-	{"назва": "вода непідсв.", "flags": ["waterunlit"]},
+	{"назва": "як є (дешева вода)", "flags": [], "water": 0},
+	{"назва": "СТАРА вода (повний шейдер)", "flags": [], "water": 1},
+	{"назва": "води нема", "flags": ["water"], "water": -1},
 ]
 
 var _strip_i := 0
@@ -156,6 +154,9 @@ func _cycle_strip() -> void:
 	_strip_i = (_strip_i + 1) % STRIP_SETS.size()
 	var set_i: Dictionary = STRIP_SETS[_strip_i]
 	_run.call("debug_strip", PackedStringArray(set_i["flags"]))
+	var tr := _track()
+	if tr != null and tr.has_method("force_water_shader"):
+		tr.call("force_water_shader", int(set_i.get("water", -1)))
 	_refresh_strip_btn()
 
 

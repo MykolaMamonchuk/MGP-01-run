@@ -892,7 +892,10 @@ func _ready() -> void:
 		probe.run = self
 		add_child(probe)
 
-	Quality.applied.connect(func(_st): _sync_haze())
+	Quality.applied.connect(func(_st):
+		_sync_haze()
+		if track != null and track.has_method("reapply_water_shader"):
+			track.reapply_water_shader())
 
 	Events.profile_changed.connect(_apply_profile)
 	Events.session_warning.connect(_on_session_warning)

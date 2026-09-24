@@ -62,6 +62,20 @@ const REAL_FOG := {
 	PRETTY: true,
 }
 
+## ЧИ БРАТИ ПОВНИЙ ШЕЙДЕР ВОДИ. false — дешевий, із запеченим візерунком
+## (`src/run3d/water_cheap.gdshader`).
+##
+## Заміряно наживо на пляжі (Redmi 8A, рівень 9, у русі): кадр 159 мс із повним шейдером і
+## 47 мс, якщо воду лишити звичайним матеріалом. Уся різниця — `_waterlayer()`, тобто 75
+## викликів `_circ` на КОЖЕН піксель. Жодна окрема властивість не важила: вибірка глибини —
+## нуль, вершинна хвиля — нуль. Дешевий шейдер бере той самий візерунок із текстури, тож
+## вигляд лишається, а 75 обчислень стають однією вибіркою.
+const REAL_WATER := {
+	SMOOTH: false,
+	MIDDLE: true,
+	PRETTY: true,
+}
+
 ## Стан → підпис для батьків. Без слова «MSAA»: воно нічого не каже тому, хто обирає.
 const LABEL := {
 	SMOOTH: "Плавно",
@@ -147,6 +161,11 @@ func _apply(st: String) -> void:
 ## Чи малювати СПРАВЖНІЙ туман. Чиста функція, як і msaa_of — щоб перевірялась тестом.
 static func real_fog_of(name: String) -> bool:
 	return bool(REAL_FOG.get(name, REAL_FOG[DEFAULT]))
+
+
+## Чи малювати ПОВНИЙ шейдер води. Чиста функція — щоб перевірялась тестом.
+static func real_water_of(name: String) -> bool:
+	return bool(REAL_WATER.get(name, REAL_WATER[DEFAULT]))
 
 
 static func _lights(n: Node) -> Array:

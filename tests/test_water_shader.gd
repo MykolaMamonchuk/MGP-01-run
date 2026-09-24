@@ -120,7 +120,23 @@ func test_canal_water_uses_world_color_not_shader_default() -> void:
 		assert_false(c.is_equal_approx(default_color), "колір каналу з water.json, не запасний")
 
 
+## Море й канали беруть ОДИН І ТОЙ САМИЙ шейдер — який саме, залежить від стану якості
+## (у «Плавно» дешевий із запеченим візерунком), але він мусить бути спільний. Раніше тут
+## стояв прибитий шлях, і тест падав від самої появи дешевого варіанта, хоч намір —
+## «однаковий у моря й каналів» — не порушено.
 func test_sea_and_canal_water_share_same_shader() -> void:
-	assert_eq(_track._water_mat.shader.resource_path, SHADER_PATH)
+	var want := SHADER_PATH if Quality.real_water_of(Quality.effective()) \
+		else "res://src/run3d/water_cheap.gdshader"
+	assert_eq(_track._water_mat.shader.resource_path, want)
 	for m in _track._canal_mats:
-		assert_eq(m.shader.resource_path, SHADER_PATH)
+		assert_eq(m.shader.resource_path, want,
+			"канал має той самий шейдер, що й море")
+
+
+## І дешевий шейдер мусить отримати запечену текстуру — інакше вода буде порожньою.
+func test_deshevyi_shejder_maie_zapechenyi_vizerunok() -> void:
+	if Quality.real_water_of(Quality.effective()):
+		return
+	await wait_frames(3)
+	var tex = _track._water_mat.get_shader_parameter("layer_tex")
+	assert_not_null(tex, "дешевій воді потрібен запечений візерунок")
