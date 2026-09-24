@@ -724,6 +724,7 @@ func _decor_layer(kind: String, override: Dictionary, variant: int = 0, no_sway:
 			or (_shadow_skip.has("fences") and FENCE_KINDS.has(kind)):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_decor_mm.append(mi)
+	_remember_decor_height(mi)
 	# Шари заводяться ЛІНИВО, тож режим затінення ставимо одразу при створенні.
 	apply_decor_shading()
 	_decor_no_sway.append(no_sway)
@@ -791,6 +792,7 @@ func _decor_layer_custom(key: String, mesh: Mesh, mat: Material) -> int:
 	var mi := _make_canvas(mesh, 0, 16.0)
 	mi.material_override = mat
 	_decor_mm.append(mi)
+	_remember_decor_height(mi)
 	# Шари заводяться ЛІНИВО, тож режим затінення ставимо одразу при створенні.
 	apply_decor_shading()
 	_decor_no_sway.append(false)   # містки/поручні — не будівлі, дихання лишаємо
@@ -1152,6 +1154,11 @@ func _sync_decor(delta: float) -> void:
 			var basis := (Basis(Vector3.UP, d[o + 3]) * Basis.from_scale(Vector3(sc, sc, sc * stretch))) \
 				* Basis(Vector3(0, 0, 1), tilt).scaled(Vector3(1.0, breathe, 1.0))
 			basis = Basis.from_scale(Vector3(1.0, sy_row, 1.0)) * basis
+			# ВІДСІКАННЯ ЗА ЕКРАННИМ РОЗМІРОМ. Пропущений екземпляр просто не займає місця
+			# в буфері: visible_instance_count нижче й так береться з used[b].
+			var hz: float = _decor_h[b] if b < _decor_h.size() else 1.0
+			if not decor_visible(hz, sc, absf(z_row + z), _decor_cull):
+				continue
 			(_decor_mm[b].multimesh as MultiMesh).set_instance_transform(used[b], Transform3D(basis, Vector3(x, sy_row * d[o + 1], z_row + z)))
 			used[b] += 1
 	for b in range(n):
@@ -1435,6 +1442,9 @@ static func tile_jitter(row_seed: int, lane: int) -> Array:
 ## приїжджають з освітленням на піксель (перевірено: усі 45 шарів мали режим 1), і тест
 ## стереже, що після повернення в «Гарно» вони саме такими й стають.
 func apply_decor_shading() -> void:
+	# Поріг відсікання приходить звідси ж: обидва — вибір дорослого, а не прибиті числа.
+	if _decor_cull_forced < 0.0:
+		_decor_cull = Quality.decor_cull_of(Quality.effective())
 	var mode := BaseMaterial3D.SHADING_MODE_PER_VERTEX \
 		if Quality.vertex_lit_of(Quality.effective()) \
 		else BaseMaterial3D.SHADING_MODE_PER_PIXEL
@@ -1446,6 +1456,55 @@ func apply_decor_shading() -> void:
 			var bm := mesh.surface_get_material(si) as BaseMaterial3D
 			if bm != null:
 				bm.shading_mode = mode
+
+## ВІДСІКАННЯ ДРІБНИЦІ ЗА ЕКРАННИМ РОЗМІРОМ, а не за метрами.
+##
+## Чому не метри. Ми вже міряли дальність декору в метрах — вона не дала переваги над
+## рівномірним проріджуванням. Причина проста: великий будинок за сорок метрів і дрібний
+## камінь за двадцять читаються зовсім по-різному, а поріг у метрах їх не розрізняє.
+## Hill Drive робить саме екранний розмір: об'єкт, нижчий за 2% висоти екрана, зникає (їхній
+## поріг 0,02 — найчастіший із 8407 у грі, перевірено).
+##
+## Оцінка тут груба й навмисно дешева: частка висоти екрана ≈ (висота_моделі × масштаб) /
+## (відстань × 2·tg(кут/2)). Одне множення й порівняння на екземпляр.
+##
+## ЩО НЕ ЧІПАЄМО. Перешкоди й підбирачки — це не декор, вони живуть у Spawner3D і сюди не
+## потрапляють. Великі силуетні об'єкти захищені самим критерієм: у них велика висота, тож
+## поріг їх не дістає. Близьке до камери теж — відстань у знаменнику.
+var _decor_h := PackedFloat32Array()
+## Поріг у частках висоти екрана; 0 — не відсікати. Ставиться зі стану якості, дослід може
+## перекрити прапорцем dcullNN.
+var _decor_cull := 0.0
+## Перекриття для досліду: -1 означає «брати зі стану якості».
+var _decor_cull_forced := -1.0
+
+
+## Примусовий поріг для заміру. -1 повертає вибір якості.
+func force_decor_cull(v: float) -> void:
+	_decor_cull_forced = v
+	if v >= 0.0:
+		_decor_cull = v
+	apply_decor_shading()
+
+
+## Висота моделі шару — рахується РАЗ при створенні шару, а не на кожен екземпляр.
+func _remember_decor_height(mi: MultiMeshInstance3D) -> void:
+	var h := 1.0
+	var mesh := mi.multimesh.mesh
+	if mesh != null:
+		var sz := mesh.get_aabb().size
+		h = maxf(0.05, maxf(sz.y, maxf(sz.x, sz.z) * 0.5))
+	_decor_h.append(h)
+
+
+## Чи лишати цей екземпляр. Чиста функція — щоб перевірялась тестом без сцени.
+static func decor_visible(height_m: float, scale_v: float, dist_m: float, cull: float) -> bool:
+	if cull <= 0.0:
+		return true
+	# 2·tg(35°) ≈ 1,40 — приблизний вертикальний розмах поля зору нашої камери на одиниці
+	# відстані. Точність тут не потрібна: поріг однаково добирається оком і заміром.
+	return (height_m * scale_v) / (maxf(dist_m, 0.5) * 1.40) >= cull
+
 
 ## Перемкнути стиль полотна. Кличе налагоджувальна накладка для порівняння наживо.
 func set_road_style(style: String) -> void:

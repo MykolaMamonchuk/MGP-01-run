@@ -422,6 +422,14 @@ func _reapply_strip() -> void:
 			elif _strip_orig.has("haze"):
 				haze.set_enabled(bool(_strip_orig["haze"]))
 				_strip_orig.erase("haze")
+		# ВІДСІКАННЯ ДРІБНИЦІ для заміру: dcull20 = 2,0% висоти екрана, dcull0 = вимкнено.
+		if track != null and track.has_method("force_decor_cull"):
+			var dc := -1.0
+			for f in _strip_flags:
+				var fd := String(f)
+				if fd.begins_with("dcull"):
+					dc = float(fd.substr(5)) / 1000.0
+			track.call("force_decor_cull", dc)
 		e.fog_aerial_perspective = 0.0 if _strip_flags.has("nofogaerial") \
 			else float(_strip_orig["aerial"])
 		e.fog_depth_curve = 1.0 if _strip_flags.has("nofogcurve") \

@@ -14,6 +14,11 @@ func _world(name: String) -> Dictionary:
 
 func before_each() -> void:
 	_track = Track.new()
+	# ВІДСІКАННЯ ДРІБНИЦІ ВИМИКАЄМО: ці сторожі перевіряють ОБЛІК — що видимих екземплярів
+	# рівно стільки, скільки предметів у рядах, і що при перевкладанні нема подвійного
+	# рахунку. Поріг за екранним розміром навмисно робить видимих менше, і з ним тест міряв
+	# би поріг, а не облік. Саме відсікання стережуть tests/test_decor_cull.gd.
+	_track.force_decor_cull(0.0)
 	add_child_autofree(_track)
 	await wait_process_frames(2)
 
