@@ -34,9 +34,9 @@ func test_poroh_nul_nichogo_ne_rizhe() -> void:
 ## заміряно, що навіть повне прибирання дрібниці не дає нічого: її пікселі домальовує те, що
 ## за нею, а її колишні 4,3 мс були освітленням на піксель, уже знятим переходом на вершину.
 func test_porih_zi_stanu_yakosti() -> void:
-	assert_eq(Quality.decor_cull_of(Quality.SMOOTH), 0.0,
-		"типово вимкнено: заміряно нуль виграшу, а видима втрата була б")
-	assert_eq(Quality.decor_cull_of(Quality.PRETTY), 0.0, "у «Гарно» тим паче")
+	assert_gt(Quality.decor_cull_of(Quality.SMOOTH), 0.0,
+		"у «Плавно» відсікання є: живий A/B на 16 рівнях дав -0,81 мс середньою")
+	assert_eq(Quality.decor_cull_of(Quality.PRETTY), 0.0, "у «Гарно» його нема")
 	assert_eq(Quality.decor_cull_of("казна-що"), Quality.decor_cull_of(Quality.DEFAULT),
 		"невідомий стан — це типовий, а не збій")
 
