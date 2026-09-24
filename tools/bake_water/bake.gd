@@ -12,7 +12,17 @@ extends Node2D
 ## детермінований, важить ~40 КБ і перезапікається цією ж командою, якщо змінити візерунок
 ## у water_bake.gdshader.
 const SIZE := 512
-const OUT := "res://assets/art/water_layer.png"
+const OUT := "res://assets/art/water_layer_%d.png"
+
+## ЧОТИРИ ВАРІАНТИ ВІЗЕРУНКА. Море й кожен канал беруть свій, інакше вся вода в грі має
+## однаковий малюнок. Перетворення зберігають плитковість: зсув, дзеркалення й ЦІЛЕ
+## масштабування — так, поворот — ні (на стиках плиток був би шов).
+const VARIANTS := [
+	{"offset": Vector2(0.00, 0.00), "flip": Vector2( 1.0,  1.0), "scale": 1.0},
+	{"offset": Vector2(0.37, 0.12), "flip": Vector2(-1.0,  1.0), "scale": 1.0},
+	{"offset": Vector2(0.61, 0.73), "flip": Vector2( 1.0,  1.0), "scale": 2.0},
+	{"offset": Vector2(0.19, 0.44), "flip": Vector2( 1.0, -1.0), "scale": 1.0},
+]
 
 
 func _ready() -> void:
@@ -28,19 +38,25 @@ func _ready() -> void:
 	rect.material = m
 	vp.add_child(rect)
 	add_child(vp)
-	# Двох кадрів досить: перший створює ціль рендера, другий її малює.
-	await RenderingServer.frame_post_draw
-	await RenderingServer.frame_post_draw
-	var img := vp.get_texture().get_image()
-	var path := ProjectSettings.globalize_path(OUT)
-	var err := img.save_png(path)
-	if err != OK:
-		push_error("не збереглось: %d" % err)
-	else:
-		var non_zero := 0
+	for i in range(VARIANTS.size()):
+		var v: Dictionary = VARIANTS[i]
+		m.set_shader_parameter("uv_offset", v["offset"])
+		m.set_shader_parameter("uv_flip", v["flip"])
+		m.set_shader_parameter("uv_scale", v["scale"])
+		# Двох кадрів досить: перший створює ціль рендера, другий її малює.
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		var img := vp.get_texture().get_image()
+		var out := OUT % i
+		var err := img.save_png(ProjectSettings.globalize_path(out))
+		if err != OK:
+			push_error("не збереглось %s: %d" % [out, err])
+			continue
+		# Проба на порожнечу: якщо шейдер не скомпілювався, ColorRect віддасть рівний колір,
+		# і файл буде правдоподібним, але марним. Рахуємо, скільки проб НЕ схожі на сусідні.
+		var uniq := {}
 		for y in range(0, SIZE, 16):
 			for x in range(0, SIZE, 16):
-				if img.get_pixel(x, y).r > 0.01:
-					non_zero += 1
-		print("запечено %s, ненульових проб %d із %d" % [OUT, non_zero, (SIZE / 16) * (SIZE / 16)])
+				uniq[snappedf(img.get_pixel(x, y).r, 0.02)] = true
+		print("запечено %s, різних значень %d" % [out, uniq.size()])
 	get_tree().quit()

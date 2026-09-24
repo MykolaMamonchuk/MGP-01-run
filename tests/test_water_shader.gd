@@ -126,7 +126,7 @@ func test_canal_water_uses_world_color_not_shader_default() -> void:
 ## «однаковий у моря й каналів» — не порушено.
 func test_sea_and_canal_water_share_same_shader() -> void:
 	var want := SHADER_PATH if Quality.real_water_of(Quality.effective()) \
-		else "res://src/run3d/water_cheap.gdshader"
+		else "res://src/run3d/water_unlit.gdshader"
 	assert_eq(_track._water_mat.shader.resource_path, want)
 	for m in _track._canal_mats:
 		assert_eq(m.shader.resource_path, want,
@@ -140,3 +140,18 @@ func test_deshevyi_shejder_maie_zapechenyi_vizerunok() -> void:
 	await wait_frames(3)
 	var tex = _track._water_mat.get_shader_parameter("layer_tex")
 	assert_not_null(tex, "дешевій воді потрібен запечений візерунок")
+
+
+
+## Море й канали мусять узяти РІЗНІ запечені візерунки: інакше вся вода в грі має однаковий
+## малюнок, і це видно там, де море й канал в одному кадрі.
+func test_more_i_kanaly_berut_rizni_vizerunky() -> void:
+	if Quality.real_water_of(Quality.effective()):
+		return
+	await wait_frames(3)
+	var sea = _track._water_mat.get_shader_parameter("layer_tex")
+	assert_not_null(sea, "морю потрібен запечений візерунок")
+	for m in _track._canal_mats:
+		var t = (m as ShaderMaterial).get_shader_parameter("layer_tex")
+		assert_not_null(t, "каналові теж")
+		assert_ne(t, sea, "канал не має брати той самий візерунок, що й море")

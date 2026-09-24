@@ -587,7 +587,7 @@ func _ready() -> void:
 	_water.mesh = pm
 	_water_mat = ShaderMaterial.new()
 	_water_mat.shader = load("res://src/run3d/water.gdshader")
-	_apply_water_shader(_water_mat)
+	_apply_water_shader(_water_mat, 0)
 	_water_mat.set_shader_parameter("depth_ok", depth_texture_available())
 	_water.material_override = _water_mat
 	_water.position = Vector3(0.0, 0.02, BEHIND - ROWS * 0.5)
@@ -1348,14 +1348,20 @@ func _apply_road_style() -> void:
 
 ## Запечений візерунок води — файл, а не обчислення. Див. tools/bake_water/ і
 ## src/run3d/water_bake.gdshader: там сказано, чому 75 кружечків на піксель стали текстурою.
-const WATER_LAYER := "res://assets/art/water_layer.png"
-static var _layer_tex: Texture2D = null
+## ЧОТИРИ ЗАПЕЧЕНІ ВІЗЕРУНКИ. Море й кожен канал беруть свій, інакше вся вода в грі має
+## однаковий малюнок. Печуться `tools/bake_water/`, перетворення зберігають плитковість.
+const WATER_LAYERS := 4
+const WATER_LAYER := "res://assets/art/water_layer_%d.png"
+static var _layer_tex: Array[Texture2D] = []
 
 
-static func water_layer_tex() -> Texture2D:
-	if _layer_tex == null:
-		_layer_tex = load(WATER_LAYER) as Texture2D
-	return _layer_tex
+static func water_layer_tex(variant: int) -> Texture2D:
+	if _layer_tex.is_empty():
+		_layer_tex.resize(WATER_LAYERS)
+	var i := posmod(variant, WATER_LAYERS)
+	if _layer_tex[i] == null:
+		_layer_tex[i] = load(WATER_LAYER % i) as Texture2D
+	return _layer_tex[i]
 
 
 ## Який шейдер води брати. У стані «Плавно» — дешевий із запеченим візерунком, в інших —
@@ -1370,13 +1376,20 @@ func force_water_shader(mode: int) -> void:
 	reapply_water_shader()
 
 
-func _apply_water_shader(mat: ShaderMaterial) -> void:
+## `variant` — котрий із запечених візерунків брати. Море й канали мусять отримати різні,
+## а `_world_salt` додає зсув, щоб і світи не були однакові між собою.
+func _apply_water_shader(mat: ShaderMaterial, variant: int = 0) -> void:
 	if mat == null:
 		return
 	var cheap := not Quality.real_water_of(Quality.effective())
 	# Примусовий вибір для порівняння наживо: 0 — дешевий, 1 — повний, 2 — без освітлення,
 	# 3 — непрозорий і без освітлення.
-	var path := "res://src/run3d/water_cheap.gdshader" if cheap \
+	# ТИПОВО В «ПЛАВНО» — БЕЗ ОСВІТЛЕННЯ. Заміряно наживо на пляжі: дешева освітлена вода
+	# 64,7 мс, без освітлення 51,1 — тобто освітлення на піксель коштує 13,6 мс, стільки ж,
+	# скільки все інше у воді разом. Втрата у вигляді: вода не реагує на колір сонця
+	# (вечірнє світло) і не має зблиску на гребенях. Прозорість лишили: непрозора дала б ще
+	# 2,8 мс, але забрала б прибережну піну навколо буїв і скель.
+	var path := "res://src/run3d/water_unlit.gdshader" if cheap \
 		else "res://src/run3d/water.gdshader"
 	match _water_force:
 		0: path = "res://src/run3d/water_cheap.gdshader"
@@ -1385,14 +1398,14 @@ func _apply_water_shader(mat: ShaderMaterial) -> void:
 		3: path = "res://src/run3d/water_opaque.gdshader"
 	mat.shader = load(path)
 	if path != "res://src/run3d/water.gdshader":
-		mat.set_shader_parameter("layer_tex", water_layer_tex())
+		mat.set_shader_parameter("layer_tex", water_layer_tex(variant + _world_salt))
 
 
 ## Перемкнути всі водяні матеріали — коли дорослий змінив якість, не перезапускаючи гру.
 func reapply_water_shader() -> void:
-	_apply_water_shader(_water_mat)
-	for m in _canal_mats:
-		_apply_water_shader(m as ShaderMaterial)
+	_apply_water_shader(_water_mat, 0)
+	for i in range(_canal_mats.size()):
+		_apply_water_shader(_canal_mats[i] as ShaderMaterial, i + 1)
 
 ## Кольори полотна: центр смугастий (парні/непарні ряди), узбіччя одноколірне.
 ## Видимість тепер на рівні шару: на воді нема центру, на морі нема й узбіч.
@@ -1942,7 +1955,8 @@ func _layout_canal() -> void:
 			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF   # те саме, що й бічна вода
 			var mat := ShaderMaterial.new()
 			mat.shader = load("res://src/run3d/water.gdshader")
-			_apply_water_shader(mat)
+			# Кожному каналу свій візерунок: +1, бо нульовий узяло море.
+			_apply_water_shader(mat, _canal_mats.size() + 1)
 			mat.set_shader_parameter("depth_ok", depth_texture_available())
 			mat.set_shader_parameter("amplitude", 0.03)
 			# Обидва боки каналу — локально ОДНАКОВА геометрія (лише зсунута по X), тож без
