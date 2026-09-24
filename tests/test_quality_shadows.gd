@@ -171,3 +171,29 @@ func test_scena_perekliuchaie_tuman_na_lotu() -> void:
 	assert_true(e.fog_enabled, "у «Гарно» туман вмикається без перезапуску")
 	assert_false(hz.call("is_enabled"), "а завіси гаснуть")
 	SaveService.set_setting(Quality.KEY, Quality.SMOOTH)
+
+
+## Масштаб рендера: у «Плавно» 3D малюється в меншому буфері, у «Гарно» — у повному.
+func test_masshtab_rendera_zalezhyt_vid_yakosti() -> void:
+	assert_almost_eq(Quality.scale_of(Quality.SMOOTH), 0.87, 0.001,
+		"«Плавно» — 0,87: заміряно 9,1 мс виграшу, і оком не видно")
+	assert_almost_eq(Quality.scale_of(Quality.PRETTY), 1.0, 0.001, "«Гарно» — повний")
+	assert_almost_eq(Quality.scale_of("казна-що"), Quality.scale_of(Quality.DEFAULT), 0.001,
+		"невідомий стан — це типовий, а не збій")
+
+
+## І це доходить до в'юпорта, причому дослід не має права перебити вибір дорослого:
+## прапорець scaleNN лише ПЕРЕКРИВАЄ, а базою лишається якість.
+func test_doslid_ne_navyazuie_povnyi_masshtab() -> void:
+	SaveService.set_setting(Quality.KEY, Quality.SMOOTH)
+	var run: Node = load("res://src/run3d/run3d.tscn").instantiate()
+	add_child_autofree(run)
+	await wait_frames(3)
+	var vp := get_tree().root
+	assert_almost_eq(vp.scaling_3d_scale, 0.87, 0.001, "у «Плавно» буфер менший")
+	run.call("debug_strip", PackedStringArray(["scale70"]))
+	assert_almost_eq(vp.scaling_3d_scale, 0.70, 0.001, "прапорець досліду перекриває")
+	run.call("debug_strip", PackedStringArray([]))
+	assert_almost_eq(vp.scaling_3d_scale, 0.87, 0.001,
+		"без прапорця повертається вибір якості, а НЕ одиниця")
+	vp.scaling_3d_scale = 1.0

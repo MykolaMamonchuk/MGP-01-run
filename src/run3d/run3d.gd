@@ -432,7 +432,9 @@ func _reapply_strip() -> void:
 	# прогоні: окремою збіркою числа вже не порівняти через тротлінг.
 	var vp := get_viewport()
 	if vp != null:
-		var sc := 1.0
+		# База — з налаштування якості, а не одиниця: інакше дослід нав'язував би повну
+		# роздільність там, де дорослий обрав «Плавно». Прапорець scaleNN лише перекриває.
+		var sc := Quality.scale_of(Quality.effective())
 		for f in _strip_flags:
 			if String(f).begins_with("scale"):
 				# Цифри після "scale" — десяткові розряди: "5" це 0.5, "45" це 0.45.
