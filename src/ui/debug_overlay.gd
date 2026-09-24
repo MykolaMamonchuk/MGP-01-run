@@ -44,6 +44,7 @@ const FPS_FAIR := 40.0
 var mode: Mode = Mode.FULL
 
 var _road_btn: Button = null
+var _strip_btn: Button = null
 var _run: Node = null
 var _panel: PanelContainer
 var _corner: Control
@@ -96,6 +97,20 @@ func _ready() -> void:
 	# ПОРІВНЯННЯ ПОЛОТНА ДОРОГИ НАЖИВО. Три стилі (Track.set_road_style) відрізняються на
 	# 0,3-0,6% пікселів, тобто на знімку їх майже не розрізнити — а оком у русі різниця в
 	# тому, чи є поперечні лінії, видна одразу. Тому перемикач у самій грі: тиснеш і бачиш.
+	# ДРУГА КНОПКА — варіанти досліду НАЖИВО, у русі. Потрібна тому, що заморожена проба
+	# на пляжі показала 43 мс, а гра в русі — 156: заморозка там нерепрезентативна. Єдиний
+	# чесний спосіб — перемикати прапорці на ходу й читати числа з цієї ж накладки.
+	_strip_btn = Button.new()
+	_strip_btn.anchor_left = 1.0
+	_strip_btn.anchor_right = 1.0
+	_strip_btn.offset_left = -340.0
+	_strip_btn.offset_right = -24.0
+	_strip_btn.offset_top = 236.0
+	_strip_btn.offset_bottom = 308.0
+	_strip_btn.add_theme_font_size_override("font_size", 22)
+	_strip_btn.pressed.connect(_cycle_strip)
+	root.add_child(_strip_btn)
+
 	_road_btn = Button.new()
 	# Явні прив'язка й відступи, а не PRESET: пресет перетирає position, і кнопка їде за
 	# межі екрана. Місце — під кнопкою паузи справа, щоб не перекривати її пальцем.
@@ -118,6 +133,37 @@ func setup(run: Node) -> void:
 	# Кнопка знає про трасу лише звідси: у _ready() гри ще нема, і без цього виклику вона
 	# лишалась би схованою назавжди.
 	_refresh_road_btn()
+
+
+## Варіанти досліду, які перемикає друга кнопка. Список навмисно короткий і саме про те,
+## що зараз досліджують: на пляжі — вода. Міняється разом із задачею.
+const STRIP_SETS := [
+	{"назва": "як є", "flags": []},
+	{"назва": "без води", "flags": ["water"]},
+	{"назва": "без глибини", "flags": ["waterdepth"]},
+	{"назва": "без хвилі", "flags": ["waterflat"]},
+	{"назва": "без глиб.+хвилі", "flags": ["waterdepth", "waterflat"]},
+	{"назва": "вода проста", "flags": ["watersimple"]},
+	{"назва": "вода непідсв.", "flags": ["waterunlit"]},
+]
+
+var _strip_i := 0
+
+
+func _cycle_strip() -> void:
+	if _run == null or not _run.has_method("debug_strip"):
+		return
+	_strip_i = (_strip_i + 1) % STRIP_SETS.size()
+	var set_i: Dictionary = STRIP_SETS[_strip_i]
+	_run.call("debug_strip", PackedStringArray(set_i["flags"]))
+	_refresh_strip_btn()
+
+
+func _refresh_strip_btn() -> void:
+	if _strip_btn == null:
+		return
+	_strip_btn.visible = _run != null and _run.has_method("debug_strip") and mode != Mode.HIDDEN
+	_strip_btn.text = "дослід: " + String((STRIP_SETS[_strip_i] as Dictionary)["назва"])
 
 
 ## Назви кнопкою — словами, якими ми про це говоримо, а не назвами полів.
@@ -145,6 +191,7 @@ func _refresh_road_btn() -> void:
 	_road_btn.visible = tr != null and mode != Mode.HIDDEN
 	if tr != null:
 		_road_btn.text = String(ROAD_LABELS.get(String(tr.call("road_style")), "дорога: ?"))
+	_refresh_strip_btn()
 
 
 func _track() -> Node:

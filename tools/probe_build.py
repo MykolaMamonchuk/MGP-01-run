@@ -64,6 +64,27 @@ def probe_parses(path: str) -> bool:
 	return True
 
 
+def print_plan(path: str) -> None:
+	"""Надрукувати, ЩО саме проба збирається міряти.
+
+	Навіщо. Правка списку варіантів редактором один раз тихо не лягла (не збігся анкер), а
+	збірка все одно поїхала — і телефон п'ятнадцять хвилин міряв варіанти від попереднього
+	досліду на чужому рівні. Помилку видно було тільки в кінці, по назвах у журналі. Тепер
+	план друкується ПЕРЕД збіркою, і розбіжність видно одразу.
+	"""
+	try:
+		text = io.open(path, encoding="utf-8").read()
+	except OSError:
+		return
+	for key in ("const POINTS", "const VARIANTS"):
+		i = text.find(key)
+		if i < 0:
+			continue
+		end = text.find("\n]", i)
+		end = text.find("\n", i) if end < 0 else end + 2
+		print("   " + text[i:end].replace("\n", "\n   "))
+
+
 def main() -> int:
 	if sys.argv[1] == "off":
 		if os.path.exists(BAK):
@@ -96,6 +117,8 @@ def main() -> int:
 		block = block.replace(anchor, 'keystore/release="%s"\nkeystore/release_user="androiddebugkey"\nkeystore/release_password="android"\n%s' % (ks, anchor), 1)
 	io.open(CFG, "w", encoding="utf-8").write(s[:a] + block + s[b:])
 	print("ключ підставлено в %s" % preset if only_keys else "проба увімкнена в пресеті %s" % preset)
+	if not only_keys:
+		print_plan(PROBES[feature])
 	return 0
 
 

@@ -506,7 +506,9 @@ func _reapply_strip() -> void:
 	if _strip_flags.has("watersimple") or _strip_flags.has("waterunlit"):
 		if not _strip_orig.has("wsimple"):
 			var sw := StandardMaterial3D.new()
-			sw.albedo_color = Color(0.31, 0.76, 0.97)
+			# Колір беремо З СВІТУ, а не прибитий: інакше порівняння вигляду нечесне —
+			# на пляжі прибитий блакитний виглядав блідою плівкою замість моря.
+			sw.albedo_color = Palette.of(world.get("water"), Color(0.31, 0.76, 0.97))
 			sw.roughness = 1.0
 			# ПЕРША РЕДАКЦІЯ ЦЬОГО ТЕСТУ БУЛА ХИБНА: матеріал лишався освітленим на піксель,
 			# як і шейдер води (diffuse_burley), тож замір порівнював освітлену воду з
@@ -516,7 +518,7 @@ func _reapply_strip() -> void:
 		if _strip_flags.has("waterunlit"):
 			if not _strip_orig.has("wunlit"):
 				var su := StandardMaterial3D.new()
-				su.albedo_color = Color(0.31, 0.76, 0.97)
+				su.albedo_color = Palette.of(world.get("water"), Color(0.31, 0.76, 0.97))
 				su.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 				_strip_orig["wunlit"] = su
 		simple_water = _strip_orig["wunlit"] if _strip_flags.has("waterunlit") \
