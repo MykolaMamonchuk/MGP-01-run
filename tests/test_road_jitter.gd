@@ -60,3 +60,20 @@ func test_dzhytter_spravdi_rozkydaie() -> void:
 	assert_gt(shifts.size(), 8, "зсуви мають бути різні, а не один на всіх")
 	assert_gt(yaws.size(), 6, "повороти теж — вони ламають сітку найпомітніше")
 	assert_gt(lens.size(), 3, "довжина хай ледь дихає, але не завмирає зовсім")
+
+
+## У стилях без зазору поперек плитки СТИКАЮТЬСЯ, тож зсув уздовж мусить бути нульовим:
+## інакше верхні грані накладуться одна на одну й підуть миготіти.
+func test_bez_zazoru_plytky_ne_nakladaiutsia() -> void:
+	var track := Track.new()
+	add_child_autofree(track)
+	await wait_frames(2)
+	assert_eq(track.road_style(), "grid", "типово — «grid»: прибрана основа дає 4,9 мс")
+	for style in ["flat", "grid"]:
+		track.set_road_style(style)
+		var bm := (track._mm_surface.multimesh as MultiMesh).mesh as BoxMesh
+		assert_almost_eq(bm.size.z, 1.0, 0.0001,
+			"у стилі «%s» плитка на всю клітинку, тобто зазору поперек немає" % style)
+	track.set_road_style("base")
+	var bm2 := (track._mm_surface.multimesh as MultiMesh).mesh as BoxMesh
+	assert_lt(bm2.size.z, 1.0, "у «base» зазор є, і саме крізь нього видно основу")

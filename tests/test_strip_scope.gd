@@ -46,6 +46,11 @@ func _changed(flag: String) -> Array:
 
 func test_roadbase_chipaie_lyshe_osnovu() -> void:
 	var track: Node = _run.get_node("Track")
+	# ОСНОВА ТЕПЕР СХОВАНА ЗА ЗАМОВЧУВАННЯМ (стиль «grid» — прибрана основа дає 4,9 мс), тож
+	# прапорець на неї нічого б не змінив. Тест перевіряє ОБСЯГ прапорця, а не стан сцени,
+	# тому вмикаємо стиль, у якому основа є. Без цього тест «проходив би на порожнечі».
+	track.call("set_road_style", "base")
+	await wait_frames(2)
 	var expected: Array = (track.get("_mm_center") as Array).duplicate()
 	var diff := _changed("roadbase")
 	assert_eq(diff.size(), expected.size(),
