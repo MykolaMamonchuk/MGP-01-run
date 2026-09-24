@@ -41,6 +41,11 @@ const ADJ_SATURATION := 1.15
 const ADJ_CONTRAST := 1.05
 ## Сонце 1.1 (run3d.tscn) + амбієнт 0.55: разом середні тони не перевищують 1.0 і не пересвічуються.
 const AMBIENT_ENERGY := 0.35
+## Тепле навколишнє світло до того, як світ скаже своє. Те саме число, що в run3d.tscn;
+## тримаємо його ТУТ, бо декор відтворює навколишнє світло випроміненням і мусить брати
+## його з одного джерела — інакше копії розійдуться мовчки, і це буде видно не як збій, а
+## як «щось із кольором не так».
+const AMBIENT_COLOR := Color(1, 0.96, 0.88)
 ## Compatibility (тобто ВЕБ-ЗБІРКА) на тих самих числах світить помітно яскравіше за
 ## мобільний рушій, і світлі поверхні обрізаються в чистий білий. Заміряно 20.09.2026 на
 ## рівні 2: чисто білих пікселів 0,19% на мобільному проти 3,66% у Compatibility — у
@@ -251,8 +256,55 @@ var _strip_timer: Timer = null
 var _shared_mats := {}
 
 
+## Ключі кеша досліду, що стосуються МАТЕРІАЛІВ декору (див. debug_strip).
+##
+## Префікси навмисно без двокрапки там, де ключ її не має: маркери звуться `nrm12` і
+## `orm12_0` — за номером ШАРУ, а не матеріалу. З двокрапкою вони б не підпали під чистку,
+## і цикл відновлення крутився б щосекунди ще довго ПІСЛЯ досліду, знову й знову знімаючи
+## «оригінал» із уже виставленого трасою стану.
+const _STRIP_MAT_KEYS := ["nrm", "shade:", "tf:", "cull:", "alb:", "spec:", "emis:", "orm"]
+
+## Прапорці, якими дослід пише в матеріали декору САМ. Лише на них траса відступає; решта
+## (зокрема `noemis`, який просто знімає оптимізацію) лишає керування трасі — інакше та
+## перестала б стежити за лінивими шарами саме тоді, коли це найпотрібніше.
+const _STRIP_MAT_FLAGS := ["unshaded", "pervertex", "unwalls", "nonormal", "nometal",
+	"norough", "noao", "onemat", "onetex", "flat", "cullback", "nofilter", "nomip",
+	"nospec", "noambient", "ambemis"]
+
+
+## ПОКИ ТРИВАЄ ДОСЛІД, МАТЕРІАЛАМИ ДЕКОРУ КЕРУЄ ВІН, а не траса. Інакше обидва пишуть у ті
+## самі СПІЛЬНІ матеріали, і перемагає траса: `apply_decor_shading` кличеться зі зміни
+## світла світу, тобто фактично щокадру, а дослід повторюється раз на секунду. Рецензія
+## показала наслідок: усі варіанти серії закінчували в ОДНАКОВОМУ стані матеріалів, тобто
+## проба міряла шум замість прапорців, і заодно поламались старі `unshaded` / `pervertex` /
+## `unwalls`.
+##
+## І навпаки, коли дослід скінчився, вертати матеріали мусить НЕ кеш «як було», а стан
+## якості. Кеш тут отруєний за побудовою: типовий стан — «Плавно», тож на момент його зняття
+## траса вже поставила своє, і саме це запам'яталось як «оригінал». Це та сама пастка з
+## memory bank, лише з іншого боку. Тому ключі матеріалів викидаємо — і просимо трасу
+## розставити все наново.
 func debug_strip(flags: PackedStringArray) -> void:
 	_strip_flags = flags
+	if track != null:
+		# Чистка мусить іти ДО того, як траса розставлятиме: інакше цикл відновлення
+		# перепише щойно виставлене отруєними значеннями.
+		if flags.is_empty():
+			for k in _strip_orig.keys():
+				for pref in _STRIP_MAT_KEYS:
+					if String(k).begins_with(pref):
+						_strip_orig.erase(k)
+						break
+		var owns := false
+		for f in flags:
+			if _STRIP_MAT_FLAGS.has(String(f)):
+				owns = true
+				break
+		track.set("strip_owns_decor_mats", owns)
+		# `noemis` знімає САМУ оптимізацію — прапорці вміють лише забирати намальоване,
+		# тож без окремого важеля її ціну не довести.
+		track.set("force_ambient_emis", 0 if flags.has("noemis") else -1)
+		track.apply_decor_shading()
 	# Повтор потрібен, лише поки є що чіпати: під час досліду або поки вертаємо все на місце.
 	if _strip_timer != null:
 		if flags.is_empty() and _strip_orig.is_empty():
@@ -695,6 +747,8 @@ func _reapply_strip() -> void:
 				or _strip_flags.has("unshaded") or _strip_flags.has("pervertex") \
 				or _strip_flags.has("unwalls") or _strip_flags.has("cullback") \
 				or _strip_flags.has("nofilter") or _strip_flags.has("nomip") \
+				or _strip_flags.has("nospec") or _strip_flags.has("noambient") \
+				or _strip_flags.has("ambemis") \
 				or _strip_orig.has("nrm%d" % idx):
 			var mm := mi.multimesh
 			if mm != null and mm.mesh != null:
@@ -755,6 +809,47 @@ func _reapply_strip() -> void:
 						bm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 					else:
 						bm.texture_filter = int(_strip_orig[tk]) as BaseMaterial3D.TextureFilter
+					# ВІДБЛИСК І НАВКОЛИШНЄ СВІТЛО — дешевша половина того ж питання. Зняти
+					# освітлення зі стін цілком коштує виглядом: пласкішають дахи, яскравішає
+					# все містечко. Тому спершу міряємо, скільки коштують ОКРЕМІ доданки
+					# освітлення, які форму НЕ несуть: відблиск (Schlick-GGX у фрагменті) і
+					# навколишнє світло. Якщо ціна там — вигляд лишається як є.
+					var pk := "spec:%d" % mid
+					if not _strip_orig.has(pk):
+						_strip_orig[pk] = [bm.specular_mode, bm.disable_ambient_light]
+					bm.specular_mode = BaseMaterial3D.SPECULAR_DISABLED \
+						if _strip_flags.has("nospec") \
+						else int((_strip_orig[pk] as Array)[0]) as BaseMaterial3D.SpecularMode
+					bm.disable_ambient_light = _strip_flags.has("noambient") \
+						or _strip_flags.has("ambemis") \
+						or bool((_strip_orig[pk] as Array)[1])
+					# НАВКОЛИШНЄ СВІТЛО ВИПРОМІНЕННЯМ. Замір: гілка навколишнього світла
+					# коштує 8,3 мс, але просто вимкнути її не можна — затінені грані падають
+					# у чорне (знімок 24.09). Проте навколишнє світло в нас РІВНЕ:
+					# `albedo * ambient_color * energy`, без жодної залежності від нормалі й
+					# напрямку. Такий самий сталий доданок дає випромінення з множенням на
+					# ту саму текстуру кольору — а воно гілки освітлення не вмикає взагалі.
+					# Тобто картинка та сама, а варіант шейдера коротший.
+					var ek := "emis:%d" % mid
+					if not _strip_orig.has(ek):
+						_strip_orig[ek] = [bm.emission_enabled, bm.emission,
+							bm.emission_texture, bm.emission_operator,
+							bm.emission_energy_multiplier]
+					if _strip_flags.has("ambemis") and env != null and env.environment != null:
+						var amb := env.environment.ambient_light_color
+						var ac := bm.albedo_color
+						bm.emission_enabled = true
+						bm.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY
+						bm.emission_texture = bm.albedo_texture
+						bm.emission = Color(amb.r * ac.r, amb.g * ac.g, amb.b * ac.b)
+						bm.emission_energy_multiplier = env.environment.ambient_light_energy
+					else:
+						var eo := _strip_orig[ek] as Array
+						bm.emission_enabled = bool(eo[0])
+						bm.emission = eo[1] as Color
+						bm.emission_texture = eo[2] as Texture2D
+						bm.emission_operator = int(eo[3]) as BaseMaterial3D.EmissionOperator
+						bm.emission_energy_multiplier = float(eo[4])
 					var kk := "cull:%d" % mid
 					if not _strip_orig.has(kk):
 						_strip_orig[kk] = bm.cull_mode
@@ -1167,6 +1262,12 @@ func _setup_sky() -> void:
 	e.background_mode = Environment.BG_COLOR
 	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	e.ambient_light_energy = AMBIENT_ENERGY
+	e.ambient_light_color = AMBIENT_COLOR
+	# Декор відтворює навколишнє світло випроміненням, тож мусить знати його з ПЕРШОГО ж
+	# кадру. Без цього шари, заведені до першого _set_sky (а `rebuild()` в `_enter_world`
+	# іде саме до нього), лишались би без нього зовсім.
+	if track != null and track.has_method("set_ambient_light"):
+		track.set_ambient_light(e.ambient_light_color, e.ambient_light_energy)
 	e.fog_enabled = true
 	# Туман по ГЛИБИНІ, а не показниковий. Показниковий нівечить усе однаково: щоб сховати
 	# кінець дороги на 42 м, треба така густина, що й бочка за три кроки блякне. Тут ближче
@@ -1230,6 +1331,13 @@ func _set_sky(t: float) -> void:
 		env.environment.ambient_light_color = c.lightened(0.35).lerp(Palette.WHITE, 0.45)
 		env.environment.fog_light_color = c.lightened(0.2)
 		env.environment.ambient_light_energy = AMBIENT_ENERGY * _light_k
+		# Декор відтворює навколишнє світло випроміненням (Quality.AMBIENT_EMIS), тож після
+		# КОЖНОЇ зміни освітлення світу треба віддати йому нові числа. Інакше вечірній рівень
+		# носив би навколишнє світло полудня — і помилку було б видно не як збій, а як
+		# «щось із кольором не так», тобто найдовше.
+		if track != null and track.has_method("set_ambient_light"):
+			track.set_ambient_light(env.environment.ambient_light_color,
+				env.environment.ambient_light_energy)
 	sun.light_energy = energy * _light_k
 	sun.light_color = Palette.WHITE.lerp(Palette.SUN_EVENING, t)
 	var want_fireflies := t > 0.6 or bool(level.get("night", false))
