@@ -16,6 +16,22 @@ extends GutTest
 
 const SHADER_PATH := "res://src/run3d/water.gdshader"
 
+## УСІ варіанти води. Контракт має триматись на кожному, а не лише на повному: у стані
+## «Плавно» типово малюється `water_unlit`, і прибиті до `water.gdshader` перевірки його
+## просто не бачили. Рецензія це й показала.
+const ALL_SHADERS := [
+	"res://src/run3d/water.gdshader",
+	"res://src/run3d/water_cheap.gdshader",
+	"res://src/run3d/water_unlit.gdshader",
+	"res://src/run3d/water_opaque.gdshader",
+]
+## Де `unshaded` — СВІДОМЕ рішення, а не недогляд: воно коштує 13,6 мс на пляжі, і ціна у
+## вигляді (нема реакції на колір сонця й зблиску) прийнята замовником.
+const UNSHADED_OK := [
+	"res://src/run3d/water_unlit.gdshader",
+	"res://src/run3d/water_opaque.gdshader",
+]
+
 var _track: Track
 
 
@@ -31,6 +47,14 @@ func before_each() -> void:
 	await wait_process_frames(2)
 
 
+func _code_of(path: String) -> String:
+	var code_lines := PackedStringArray()
+	for line in (load(path) as Shader).code.split("\n"):
+		if not String(line).strip_edges().begins_with("//"):
+			code_lines.append(line)
+	return "\n".join(code_lines)
+
+
 func _code_lines() -> String:
 	# Шапка файлу СВІДОМО згадує ці слова — там пояснено, чому саме такі готові шейдери
 	# відкинули. Тож перевіряємо не весь текст, а лише рядки коду (без "//"-коментарів).
@@ -42,27 +66,51 @@ func _code_lines() -> String:
 
 
 func test_shader_avoids_mobile_unsafe_features() -> void:
-	var code := _code_lines()
-	# Кольоровий SCREEN_TEXTURE нам не потрібен (лише глибина), unshaded/blend_add — те, через
-	# що раніше відкидались готові шейдери спільноти.
-	for banned in ["hint_screen_texture", "unshaded", "blend_add"]:
-		assert_eq(code.find(banned), -1, "мобільний рендерер: %s не повинен використовуватись" % banned)
+	# Кольоровий SCREEN_TEXTURE нам не потрібен (лише глибина), blend_add — те, через що
+	# раніше відкидались готові шейдери спільноти. Перевіряємо ВСІ варіанти, бо в «Плавно»
+	# малюється не той, що лежав тут раніше.
+	for path in ALL_SHADERS:
+		var code := _code_of(path)
+		for banned in ["hint_screen_texture", "blend_add"]:
+			assert_eq(code.find(banned), -1,
+				"%s: %s не повинен використовуватись" % [path.get_file(), banned])
+		if not UNSHADED_OK.has(path):
+			assert_eq(code.find("unshaded"), -1,
+				"%s: unshaded тут не свідоме рішення, а недогляд" % path.get_file())
 
 
 ## hint_depth_texture ТЕПЕР дозволено (виправлене правило), але лише якщо шейдер малюється у
 ## прозорому проході — інакше DEPTH_TEXTURE читає сам себе замість дна/предмета за водою
 ## (нотатка продюсера: ця помилка вже коштувала два заходи поспіль).
 func test_depth_texture_used_only_in_transparent_pass() -> void:
-	var code := _code_lines()
-	assert_ne(code.find("hint_depth_texture"), -1, "прибережна піна: шейдер має читати глибину сцени")
-	assert_ne(code.find("blend_mix"), -1, "DEPTH_TEXTURE безпечний лише в прозорому проході (render_mode blend_mix)")
-	assert_ne(code.find("depth_draw_never"), -1, "вода не повинна сама писати в буфер глибини (depth_draw_never)")
-	assert_ne(code.find("ALPHA = 1.0"), -1, "прозорий прохід не повинен зробити воду видимо прозорою (ALPHA = 1.0)")
+	# Правило перевіряємо на КОЖНОМУ варіанті: хто читає глибину — мусить бути в прозорому
+	# проході. `water_opaque` глибини не читає саме тому, що з прозорого проходу вийшов.
+	for path in ALL_SHADERS:
+		var code := _code_of(path)
+		if code.find("hint_depth_texture") == -1:
+			continue
+		assert_ne(code.find("blend_mix"), -1,
+			"%s: DEPTH_TEXTURE безпечний лише в прозорому проході" % path.get_file())
+		assert_ne(code.find("depth_draw_never"), -1,
+			"%s: вода не повинна сама писати в буфер глибини" % path.get_file())
+		assert_ne(code.find("ALPHA = 1.0"), -1,
+			"%s: прозорий прохід не має зробити воду видимо прозорою" % path.get_file())
+	# І окремо: хоча б один варіант глибину читає, інакше піна зникла й тест стереже порожнечу.
+	var readers := 0
+	for path in ALL_SHADERS:
+		if _code_of(path).find("hint_depth_texture") != -1:
+			readers += 1
+	assert_gt(readers, 0, "прибережна піна має лишатись хоча б в одному варіанті")
 
 
 func test_shader_exposes_uniforms_track_gd_relies_on() -> void:
+	for path in ALL_SHADERS:
+		_assert_uniforms(path)
+
+
+func _assert_uniforms(path: String) -> void:
 	var mat := ShaderMaterial.new()
-	mat.shader = load(SHADER_PATH)
+	mat.shader = load(path)
 	# track.gd керує водою саме через ці імена (_water_mat.set_shader_parameter(...) і
 	# _layout_canal()) — якщо їх перейменують у шейдері, гра мовчки лишиться без кольору
 	# й хвиль, а помилки ніхто не побачить (сеттер неіснуючого параметра не падає).
@@ -70,7 +118,8 @@ func test_shader_exposes_uniforms_track_gd_relies_on() -> void:
 	for u in mat.shader.get_shader_uniform_list():
 		names.append(u.get("name", ""))
 	for expected in ["color", "color_light", "scroll", "amplitude", "flow"]:
-		assert_true(names.has(expected), "шейдер має uniform '%s'" % expected)
+		assert_true(names.has(expected),
+			"%s має uniform '%s'" % [path.get_file(), expected])
 
 
 ## Замовник помітив на око: обидва боки каналу текли візуально ОДНАКОВО (дзеркальна копія),
@@ -145,10 +194,20 @@ func test_deshevyi_shejder_maie_zapechenyi_vizerunok() -> void:
 
 ## Море й канали мусять узяти РІЗНІ запечені візерунки: інакше вся вода в грі має однаковий
 ## малюнок, і це видно там, де море й канал в одному кадрі.
+## БУВ ВАКУУМНИМ. `before_each` створює голий Track без `rebuild()`, тож `_canal_mats`
+## порожній і цикл по каналах не виконувався ЖОДНОГО разу — рецензія довела це, зробивши
+## `water_layer_tex` завжди нульовим: тест лишався зеленим. Тепер піднімаємо світ із
+## каналами, і лише тоді перевіряємо.
 func test_more_i_kanaly_berut_rizni_vizerunky() -> void:
 	if Quality.real_water_of(Quality.effective()):
 		return
+	var worlds: Dictionary = load("res://src/run3d/run3d.gd").load_worlds()
+	var meadow: Dictionary = worlds.get("meadow", {})
+	assert_false(meadow.is_empty(), "світ «meadow» є в даних")
+	_track.rebuild(meadow, false)
 	await wait_frames(3)
+	assert_gt(_track._canal_mats.size(), 0,
+		"у цьому світі мають бути канали, інакше сторож знову перевіряє порожнечу")
 	var sea = _track._water_mat.get_shader_parameter("layer_tex")
 	assert_not_null(sea, "морю потрібен запечений візерунок")
 	for m in _track._canal_mats:

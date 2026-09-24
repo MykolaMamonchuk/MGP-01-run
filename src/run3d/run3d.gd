@@ -560,16 +560,23 @@ func _reapply_strip() -> void:
 		#   tilexz — прибрати зазор зовсім.
 		var bm := ((surf as MultiMeshInstance3D).multimesh as MultiMesh).mesh as BoxMesh
 		if bm != null:
-			if not _strip_orig.has("tilesize"):
-				_strip_orig["tilesize"] = bm.size
-			var base_size: Vector3 = _strip_orig["tilesize"]
-			if _strip_flags.has("tilexz"):
-				bm.size = Vector3(base_size.x + Track.TILE_GAP, base_size.y,
+			# ЧІПАЄМО ЛИШЕ ЗА СВОЇМ ПРАПОРЦЕМ. У `bm.size` тепер є законний власник —
+			# Track._apply_road_style, який ставить зазор під стиль полотна. Раніше цей блок
+			# запам'ятовував розмір при ПЕРШОМУ дотику незалежно від прапорців і потім
+			# щосекунди повертав його: досить було раз увімкнути будь-який дослід, і стиль
+			# «base» мовчки малювався без зазору. Той самий взірець, за який уже платили тричі.
+			var want_x := _strip_flags.has("tilexz")
+			var want_z := _strip_flags.has("tilez")
+			if want_x or want_z:
+				if not _strip_orig.has("tilesize"):
+					_strip_orig["tilesize"] = bm.size
+				var base_size: Vector3 = _strip_orig["tilesize"]
+				bm.size = Vector3(
+					base_size.x + (Track.TILE_GAP if want_x else 0.0), base_size.y,
 					base_size.z + Track.TILE_GAP)
-			elif _strip_flags.has("tilez"):
-				bm.size = Vector3(base_size.x, base_size.y, base_size.z + Track.TILE_GAP)
-			else:
-				bm.size = base_size
+			elif _strip_orig.has("tilesize"):
+				bm.size = _strip_orig["tilesize"]
+				_strip_orig.erase("tilesize")
 	# Решта «полотен» траси: узбіччя, обрив, шов, край, хмари. Кожне вкриває помітну частку
 	# екрана, а перевірені досі основа й плитка виявились безкоштовними — отже дивимось усі.
 	for name in ["side", "cliff"]:
