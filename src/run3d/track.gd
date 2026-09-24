@@ -1374,11 +1374,17 @@ func _apply_water_shader(mat: ShaderMaterial) -> void:
 	if mat == null:
 		return
 	var cheap := not Quality.real_water_of(Quality.effective())
-	if _water_force >= 0:
-		cheap = _water_force == 0
-	mat.shader = load("res://src/run3d/water_cheap.gdshader" if cheap
-		else "res://src/run3d/water.gdshader")
-	if cheap:
+	# Примусовий вибір для порівняння наживо: 0 — дешевий, 1 — повний, 2 — без освітлення,
+	# 3 — непрозорий і без освітлення.
+	var path := "res://src/run3d/water_cheap.gdshader" if cheap \
+		else "res://src/run3d/water.gdshader"
+	match _water_force:
+		0: path = "res://src/run3d/water_cheap.gdshader"
+		1: path = "res://src/run3d/water.gdshader"
+		2: path = "res://src/run3d/water_unlit.gdshader"
+		3: path = "res://src/run3d/water_opaque.gdshader"
+	mat.shader = load(path)
+	if path != "res://src/run3d/water.gdshader":
 		mat.set_shader_parameter("layer_tex", water_layer_tex())
 
 
