@@ -77,3 +77,38 @@ func test_porozhniy_doslid_nichogo_ne_minyaie() -> void:
 		if after.has(k) and after[k] != before[k]:
 			diff.append(k)
 	assert_eq(diff.size(), 0, "порожній дослід змінив %d вузлів: %s" % [diff.size(), diff])
+
+
+## МАТЕРІАЛИ ДЕКОРУ СПІЛЬНІ, А ШАРИ ЗАВОДЯТЬСЯ ЛІНИВО.
+##
+## Раніше «оригінал» матеріалу запам'ятовувався за НОМЕРОМ ШАРУ. Шар, створений уже під час
+## досліду, брав за оригінал ВЖЕ ЗМІНЕНИЙ спільний матеріал — і після досліду повертав його
+## в змінений стан. Наслідок заміряний: після послідовності unshaded → onemat → onetex →
+## порожньо чотири шари з сорока п'яти лишались непідсвіченими, і це були шари стін. Контроль
+## у пробі падав зі 175,7 до 133,1, тобто на 24%, і весь замір ішов у смітник.
+##
+## Тепер ключ — сам матеріал. Тест іде ТІЄЮ САМОЮ послідовністю, бо прямий перехід
+## «unshaded → порожньо» ваду не показував: вона з'являлась лише після проміжних варіантів.
+func test_materialy_vertaiutsia_pislia_poslidovnosti() -> void:
+	_run.set("_demo_any_level", true)
+	_run.call("_start_level", 1)
+	await wait_frames(10)
+	var mms: Array = _run.get_node("Track").get("_decor_mm")
+	assert_gt(mms.size(), 10, "шари декору мають існувати, інакше сторож перевіряє порожнечу")
+	var base := _modes(mms)
+	for step in [["unshaded"], ["onemat"], ["onetex"], []]:
+		_run.call("debug_strip", PackedStringArray(step))
+		await wait_frames(2)
+	assert_eq(_modes(mms), base,
+		"після порожнього списку режим затінення мусить повернутись на ВСІХ шарах")
+
+
+func _modes(mms: Array) -> Array:
+	var out := []
+	for mm in mms:
+		var m = (mm as MultiMeshInstance3D).multimesh.mesh
+		if m != null and m.get_surface_count() > 0:
+			var bm = m.surface_get_material(0)
+			if bm != null:
+				out.append(bm.shading_mode)
+	return out

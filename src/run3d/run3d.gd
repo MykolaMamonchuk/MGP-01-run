@@ -694,7 +694,18 @@ func _reapply_strip() -> void:
 					var bm := mm.mesh.surface_get_material(si) as BaseMaterial3D
 					if bm == null:
 						continue
-					var nk := "nrm%d_%d" % [idx, si]
+					# КЛЮЧ — ЗА САМИМ МАТЕРІАЛОМ, а не за номером шару. Матеріали в декору
+					# СПІЛЬНІ: PropLibrary віддає один і той самий об'єкт кільком шарам. А
+					# шари заводяться ЛІНИВО, у міру того як їде траса. Тому шар, створений
+					# уже під час досліду, запам'ятовував «оригінал» зміненого матеріалу — і
+					# після досліду повертав його в змінений стан.
+					#
+					# Заміряно наслідок: після послідовності unshaded -> onemat -> onetex ->
+					# порожньо чотири шари з сорока п'яти лишались непідсвіченими, і це були
+					# шари стін, тобто велика частка екрана. Контроль у пробі падав зі 175,7
+					# до 133,1 — двадцять чотири відсотки, і замір ішов у смітник.
+					var mid := bm.get_instance_id()
+					var nk := "nrm:%d" % mid
 					if not _strip_orig.has(nk):
 						_strip_orig[nk] = bm.normal_texture
 						_strip_orig["nrm%d" % idx] = true
@@ -703,7 +714,7 @@ func _reapply_strip() -> void:
 					# колір (baked_color із Meshy), тобто світло в них уже намальоване, і
 					# рушій рахує його вдруге. Міняємо ЛИШЕ режим затінення: текстура,
 					# колір, прозорість і все інше лишаються як були.
-					var sk := "shade%d_%d" % [idx, si]
+					var sk := "shade:%d" % mid
 					if not _strip_orig.has(sk):
 						_strip_orig[sk] = bm.shading_mode
 					# Три режими: як є (на піксель), НА ВЕРШИНУ і без освітлення зовсім.
@@ -727,7 +738,7 @@ func _reapply_strip() -> void:
 					# Тут міряємо іншу річ: чи коштує сама лінійна фільтрація з рівнями
 					# деталізації. Luanti на цьому ж телефоні тримає 60 к/с із вимкненою
 					# фільтрацією взагалі, тож варто знати ціну.
-					var tk := "tf%d_%d" % [idx, si]
+					var tk := "tf:%d" % mid
 					if not _strip_orig.has(tk):
 						_strip_orig[tk] = bm.texture_filter
 					if _strip_flags.has("nofilter"):
@@ -736,13 +747,13 @@ func _reapply_strip() -> void:
 						bm.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR
 					else:
 						bm.texture_filter = int(_strip_orig[tk]) as BaseMaterial3D.TextureFilter
-					var kk := "cull%d_%d" % [idx, si]
+					var kk := "cull:%d" % mid
 					if not _strip_orig.has(kk):
 						_strip_orig[kk] = bm.cull_mode
 					bm.cull_mode = BaseMaterial3D.CULL_BACK if _strip_flags.has("cullback") \
 						else int(_strip_orig[kk]) as BaseMaterial3D.CullMode
 					var paintable := is_wall and bm.albedo_texture != null
-					var ak := "alb%d_%d" % [idx, si]
+					var ak := "alb:%d" % mid
 					if not _strip_orig.has(ak):
 						_strip_orig[ak] = bm.albedo_color
 					var mul := 1.0
