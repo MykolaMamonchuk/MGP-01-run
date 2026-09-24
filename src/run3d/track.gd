@@ -724,6 +724,8 @@ func _decor_layer(kind: String, override: Dictionary, variant: int = 0, no_sway:
 			or (_shadow_skip.has("fences") and FENCE_KINDS.has(kind)):
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_decor_mm.append(mi)
+	# Шари заводяться ЛІНИВО, тож режим затінення ставимо одразу при створенні.
+	apply_decor_shading()
 	_decor_no_sway.append(no_sway)
 	_decor_layer_of[key] = _decor_mm.size() - 1
 	return _decor_mm.size() - 1
@@ -789,6 +791,8 @@ func _decor_layer_custom(key: String, mesh: Mesh, mat: Material) -> int:
 	var mi := _make_canvas(mesh, 0, 16.0)
 	mi.material_override = mat
 	_decor_mm.append(mi)
+	# Шари заводяться ЛІНИВО, тож режим затінення ставимо одразу при створенні.
+	apply_decor_shading()
 	_decor_no_sway.append(false)   # містки/поручні — не будівлі, дихання лишаємо
 	_decor_layer_of[key] = _decor_mm.size() - 1
 	return _decor_mm.size() - 1
@@ -1404,6 +1408,44 @@ static func tile_jitter(row_seed: int, lane: int) -> Array:
 	var sz := 1.0 - float((h >> 24) % 100) / 100.0 * JITTER_LEN
 	var sx := 1.0 - float((h >> 3) % 100) / 100.0 * JITTER_WIDE
 	return [dx, dz, yaw, sx, sz]
+
+## ОСВІТЛЕННЯ ДЕКОРУ НА ВЕРШИНУ, а не на піксель.
+##
+## Заміряно на Redmi 8A, рівень 7, дві заморожені точки (контролі 0,1% і 0,4%):
+##   на піксель (як було)  48,6 мс @1.0 і 48,1
+##   НА ВЕРШИНУ            41,7 (-6,9) і 40,0 (-8,1)
+##   без освітлення зовсім 35,7 (-12,9) і 33,3 (-14,8)
+##
+## Тобто на вершину дає ПОЛОВИНУ виграшу від повного вимкнення — і майже безкоштовно у
+## вигляді: 3,36% змінених пікселів проти 36,24%. Грані лишаються, бо вершини наших пропсів
+## РОЗЩЕПЛЕНІ по гранях (перевірено: 100% позицій мають кілька нормалей), тож усі три кути
+## грані дістають однакове світло, і вона лишається рівною.
+##
+## ЧОМУ ЦЕ НЕ ЗРОБИЛИ РАНІШЕ. У memory bank стояло «освітлення на вершину ГІРШЕ за на
+## піксель на 47 одиниць». Те число знято до виправлень діагностики — зокрема до того, як
+## знайшлось аліасування ключів матеріалів, що давало 24% похибки. Перезамір на полагодженій
+## інфраструктурі показав протилежне.
+##
+## БЕЗ ЗАПАМ'ЯТОВУВАННЯ ОРИГІНАЛУ — і це навмисно. Матеріали декору СПІЛЬНІ між шарами, а
+## шари заводяться ЛІНИВО. Тому будь-який кеш «як було» отруюється: шар, створений уже після
+## перемикання, запам'ятав би вже змінений спільний матеріал і повертав би його в змінений
+## стан. Спробував — повернулось 4 шари з 45. Це та сама пастка, на якій раніше згорів замір.
+##
+## Натомість ставимо режим ЯВНО в обидва боки. Це безпечно, бо всі матеріали наших пропсів
+## приїжджають з освітленням на піксель (перевірено: усі 45 шарів мали режим 1), і тест
+## стереже, що після повернення в «Гарно» вони саме такими й стають.
+func apply_decor_shading() -> void:
+	var mode := BaseMaterial3D.SHADING_MODE_PER_VERTEX \
+		if Quality.vertex_lit_of(Quality.effective()) \
+		else BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	for mi in _decor_mm:
+		var mesh := (mi as MultiMeshInstance3D).multimesh.mesh
+		if mesh == null:
+			continue
+		for si in range(mesh.get_surface_count()):
+			var bm := mesh.surface_get_material(si) as BaseMaterial3D
+			if bm != null:
+				bm.shading_mode = mode
 
 ## Перемкнути стиль полотна. Кличе налагоджувальна накладка для порівняння наживо.
 func set_road_style(style: String) -> void:

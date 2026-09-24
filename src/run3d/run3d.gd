@@ -915,7 +915,9 @@ func _ready() -> void:
 	Quality.applied.connect(func(_st):
 		_sync_haze()
 		if track != null and track.has_method("reapply_water_shader"):
-			track.reapply_water_shader())
+			track.reapply_water_shader()
+		if track != null and track.has_method("apply_decor_shading"):
+			track.apply_decor_shading())
 
 	Events.profile_changed.connect(_apply_profile)
 	Events.session_warning.connect(_on_session_warning)

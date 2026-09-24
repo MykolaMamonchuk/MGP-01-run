@@ -197,3 +197,51 @@ func test_doslid_ne_navyazuie_povnyi_masshtab() -> void:
 	assert_almost_eq(vp.scaling_3d_scale, 0.87, 0.001,
 		"без прапорця повертається вибір якості, а НЕ одиниця")
 	vp.scaling_3d_scale = 1.0
+
+
+## Освітлення декору на вершину: половина виграшу від повного вимкнення, але грані цілі.
+func test_svitlo_dekoru_na_vershynu_zalezhyt_vid_yakosti() -> void:
+	assert_true(Quality.vertex_lit_of(Quality.SMOOTH), "«Плавно» — на вершину: -6,9 мс")
+	assert_false(Quality.vertex_lit_of(Quality.PRETTY), "«Гарно» — на піксель")
+	assert_eq(Quality.vertex_lit_of("казна-що"), Quality.vertex_lit_of(Quality.DEFAULT),
+		"невідомий стан — це типовий, а не збій")
+
+
+## І це доходить до МАТЕРІАЛІВ декору, зокрема до шарів, заведених ПІЗНІШЕ: вони
+## створюються ліниво, у міру того як їде траса.
+func test_dekor_distaie_rezhym_zatinennia() -> void:
+	SaveService.set_setting(Quality.KEY, Quality.SMOOTH)
+	var run: Node = load("res://src/run3d/run3d.tscn").instantiate()
+	add_child_autofree(run)
+	await wait_frames(3)
+	run.set("_demo_any_level", true)
+	run.call("_start_level", 1)
+	await wait_frames(10)
+	var mms: Array = run.get_node("Track").get("_decor_mm")
+	assert_gt(mms.size(), 10, "шари декору мають існувати, інакше сторож перевіряє порожнечу")
+	var per_vertex := 0
+	var total := 0
+	for mm in mms:
+		var mesh = (mm as MultiMeshInstance3D).multimesh.mesh
+		if mesh == null or mesh.get_surface_count() == 0:
+			continue
+		var bm = mesh.surface_get_material(0)
+		if bm == null:
+			continue
+		total += 1
+		if bm.shading_mode == BaseMaterial3D.SHADING_MODE_PER_VERTEX:
+			per_vertex += 1
+	assert_eq(per_vertex, total, "у «Плавно» ВСІ шари декору рахують світло на вершину")
+	# А вибір дорослого повертає на піксель, без перезапуску.
+	Quality.set_current(Quality.PRETTY)
+	await wait_frames(2)
+	var back := 0
+	for mm in mms:
+		var mesh = (mm as MultiMeshInstance3D).multimesh.mesh
+		if mesh == null or mesh.get_surface_count() == 0:
+			continue
+		var bm = mesh.surface_get_material(0)
+		if bm != null and bm.shading_mode != BaseMaterial3D.SHADING_MODE_PER_VERTEX:
+			back += 1
+	assert_eq(back, total, "у «Гарно» всі повертаються на піксель")
+	SaveService.set_setting(Quality.KEY, Quality.SMOOTH)
