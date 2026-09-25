@@ -1683,6 +1683,12 @@ static func water_layer_tex(variant: int) -> Texture2D:
 ## прибите число.
 ## Примусовий вибір для порівняння наживо: -1 — за якістю, 0 — дешевий, 1 — повний.
 var _water_force := -1
+## Те саме, але ЛИШЕ для каналів. Потрібне тому, що море й канали мають різні вимоги до
+## прозорості: біля моря стоять перешкоди, і прибережна піна навколо них — та причина, через
+## яку непрозору воду там не взяли, хоч вона й дешевша. У каналах перешкод немає ЖОДНОЇ,
+## отже й піні там нема навколо чого бути. -2 означає «як у моря», решта — як у _water_force.
+const CANAL_AS_SEA := -2
+var _canal_force := CANAL_AS_SEA
 
 
 func force_water_shader(mode: int) -> void:
@@ -1690,9 +1696,15 @@ func force_water_shader(mode: int) -> void:
 	reapply_water_shader()
 
 
+func force_canal_shader(mode: int) -> void:
+	_canal_force = mode
+	reapply_water_shader()
+
+
 ## `variant` — котрий із запечених візерунків брати. Море й канали мусять отримати різні,
 ## а `_world_salt` додає зсув, щоб і світи не були однакові між собою.
-func _apply_water_shader(mat: ShaderMaterial, variant: int = 0) -> void:
+func _apply_water_shader(mat: ShaderMaterial, variant: int = 0,
+		force: int = CANAL_AS_SEA, is_canal: bool = false) -> void:
 	if mat == null:
 		return
 	var cheap := not Quality.real_water_of(Quality.effective())
@@ -1705,7 +1717,11 @@ func _apply_water_shader(mat: ShaderMaterial, variant: int = 0) -> void:
 	# 2,8 мс, але забрала б прибережну піну навколо буїв і скель.
 	var path := "res://src/run3d/water_unlit.gdshader" if cheap \
 		else "res://src/run3d/water.gdshader"
-	match _water_force:
+	# КАНАЛИ ЩЕ Й НЕПРОЗОРІ — див. Quality.OPAQUE_CANAL. Море лишається прозорим, бо саме
+	# навколо перешкод у морі й потрібна прибережна піна; у каналах перешкод немає.
+	if cheap and is_canal and Quality.opaque_canal_of(Quality.effective()):
+		path = "res://src/run3d/water_opaque.gdshader"
+	match (_water_force if force == CANAL_AS_SEA else force):
 		0: path = "res://src/run3d/water_cheap.gdshader"
 		1: path = "res://src/run3d/water.gdshader"
 		2: path = "res://src/run3d/water_unlit.gdshader"
@@ -1719,7 +1735,7 @@ func _apply_water_shader(mat: ShaderMaterial, variant: int = 0) -> void:
 func reapply_water_shader() -> void:
 	_apply_water_shader(_water_mat, 0)
 	for i in range(_canal_mats.size()):
-		_apply_water_shader(_canal_mats[i] as ShaderMaterial, i + 1)
+		_apply_water_shader(_canal_mats[i] as ShaderMaterial, i + 1, _canal_force, true)
 
 ## Кольори полотна: центр смугастий (парні/непарні ряди), узбіччя одноколірне.
 ## Видимість тепер на рівні шару: на воді нема центру, на морі нема й узбіч.
@@ -2274,7 +2290,11 @@ func _layout_canal() -> void:
 			var mat := ShaderMaterial.new()
 			mat.shader = load("res://src/run3d/water.gdshader")
 			# Кожному каналу свій візерунок: +1, бо нульовий узяло море.
-			_apply_water_shader(mat, _canal_mats.size() + 1)
+			# `true` — це КАНАЛ, і без цього він народжувався б прозорим, а непрозорим
+			# ставав лише після наступної зміни якості. Тобто в грі, де якість не чіпають,
+			# правка не діяла б зовсім — а тест цього не бачив, бо міряв стан ПІСЛЯ
+			# перемикання.
+			_apply_water_shader(mat, _canal_mats.size() + 1, CANAL_AS_SEA, true)
 			mat.set_shader_parameter("depth_ok", depth_texture_available())
 			mat.set_shader_parameter("amplitude", 0.03)
 			# Обидва боки каналу — локально ОДНАКОВА геометрія (лише зсунута по X), тож без

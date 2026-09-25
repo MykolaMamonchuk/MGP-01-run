@@ -169,17 +169,53 @@ func test_canal_water_uses_world_color_not_shader_default() -> void:
 		assert_false(c.is_equal_approx(default_color), "колір каналу з water.json, не запасний")
 
 
-## Море й канали беруть ОДИН І ТОЙ САМИЙ шейдер — який саме, залежить від стану якості
-## (у «Плавно» дешевий із запеченим візерунком), але він мусить бути спільний. Раніше тут
-## стояв прибитий шлях, і тест падав від самої появи дешевого варіанта, хоч намір —
-## «однаковий у моря й каналів» — не порушено.
+## Море й канали беруть шейдер З ОДНОГО НАБОРУ, але НЕ обов'язково той самий — і це зміна
+## наміру, а не послаблення сторожа. У «Плавно» канали ще й НЕПРОЗОРІ (Quality.OPAQUE_CANAL):
+## прозорий прохід не пише глибину, і все за водою малюється теж; непрозорість це знімає,
+## але забирає прибережну піну навколо перешкод. У морі перешкоди є — там піна потрібна; у
+## каналах їх немає ЖОДНОЇ, тож там ця ціна не платиться. Заміряно: -1,6 мс, вигляд не
+## відрізнити.
+##
+## БУВ ВАКУУМНИМ — удруге в цьому файлі. `before_each` створює голу трасу без `rebuild()`,
+## тож `_canal_mats` порожній і цикл по каналах не виконувався ЖОДНОГО разу: тест лишався
+## зеленим і тоді, коли канали брали геть інший шейдер. Виявилось це так, що правка, яка
+## МУСИЛА його зламати, його не зламала.
 func test_sea_and_canal_water_share_same_shader() -> void:
-	var want := SHADER_PATH if Quality.real_water_of(Quality.effective()) \
-		else "res://src/run3d/water_unlit.gdshader"
-	assert_eq(_track._water_mat.shader.resource_path, want)
+	_track.rebuild(_world("meadow"), false)
+	await wait_process_frames(2)
+	assert_gt(_track._canal_mats.size(), 0,
+		"у цьому світі є канали, інакше сторож знову перевіряє порожнечу")
+	var cheap := not Quality.real_water_of(Quality.effective())
+	var want_sea := "res://src/run3d/water_unlit.gdshader" if cheap else SHADER_PATH
+	var want_canal := want_sea
+	if cheap and Quality.opaque_canal_of(Quality.effective()):
+		want_canal = "res://src/run3d/water_opaque.gdshader"
+	assert_eq(_track._water_mat.shader.resource_path, want_sea,
+		"море лишається прозорим — навколо перешкод у ньому потрібна піна")
 	for m in _track._canal_mats:
-		assert_eq(m.shader.resource_path, want,
-			"канал має той самий шейдер, що й море")
+		assert_eq(m.shader.resource_path, want_canal,
+			"канал бере той шейдер, який каже стан якості")
+
+
+## І окремо: канал мусить бути правильним ВІДРАЗУ ПІСЛЯ СТВОРЕННЯ, а не лише після
+## наступної зміни якості. Перша редакція саме цим і схибила: `_layout_canal` заводив
+## матеріал, не сказавши, що це канал, тож у грі, де дорослий якість не чіпає, правка не
+## діяла б зовсім.
+func test_kanal_pravylnyi_vidrazu_pislia_stvorennia() -> void:
+	if Quality.real_water_of(Quality.effective()):
+		return
+	var fresh := Track.new()
+	add_child_autofree(fresh)
+	await wait_process_frames(2)
+	fresh.rebuild(_world("meadow"), false)
+	await wait_process_frames(2)
+	assert_gt(fresh._canal_mats.size(), 0, "канали заведено")
+	var want := "res://src/run3d/water_opaque.gdshader" \
+		if Quality.opaque_canal_of(Quality.effective()) \
+		else "res://src/run3d/water_unlit.gdshader"
+	for m in fresh._canal_mats:
+		assert_eq((m as ShaderMaterial).shader.resource_path, want,
+			"без жодного перемикання якості")
 
 
 ## І дешевий шейдер мусить отримати запечену текстуру — інакше вода буде порожньою.

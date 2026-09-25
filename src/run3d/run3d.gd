@@ -545,6 +545,13 @@ func _reapply_strip() -> void:
 			and not _strip_flags.has("water")
 	for mi in (track.get("_canal_water") as Array):
 		_strip_hide(mi, "water")
+		_strip_hide(mi, "canal")
+	# КАНАЛИ ОКРЕМО ВІД МОРЯ. `water` знімає обидва, `canal` — лише канали; а `canalopaque`
+	# робить непрозорими САМЕ їх. Розділення не примха: непрозора вода дає 2,8 мс, але
+	# забирає прибережну піну навколо перешкод — а в каналах перешкод немає жодної, тож там
+	# ця ціна не платиться взагалі. Міряємо, чи виграш той самий.
+	if track.has_method("force_canal_shader"):
+		track.force_canal_shader(3 if _strip_flags.has("canalopaque") else Track.CANAL_AS_SEA)
 	# РОЗКЛАД САМОЇ ВОДИ. Вона виявилась найдорожчою системою (+32,5 мс), маючи 73 виклики
 	# й 36 тисяч примітивів — отже вся ціна в піксельному шейдері. Три підозри, і кожна
 	# міряється окремо:
@@ -1220,6 +1227,20 @@ func _enter_world(id: String, instant: bool, rebuild_track: bool = true) -> void
 		id = String(worlds.keys()[0])
 	world = worlds[id]
 	world_id = id
+	# КЕШ ВИДИМОСТІ ДОСЛІДУ ПРИВ'ЯЗАНИЙ ДО СВІТУ, і без цього рядка він бреше.
+	#
+	# `_strip_orig["water"]` і ключі `vis:` запам'ятовують «як було» ПРИ ПЕРШОМУ проході
+	# досліду. А перший прохід стається в меню, на лузі, де МОРЯ НЕМАЄ ЗОВСІМ — отже
+	# запам'ятовувалось «невидиме», і далі море не з'являлось уже ніде. Знімок пляжу через
+	# це показав рівне зелене поле замість води, і я мало не записав це в регресію правки,
+	# якої там не було.
+	#
+	# Новий світ — новий «як було». Прапорці лишаються активними, бо `_reapply_strip`
+	# повторюється щосекунди й зніме стан заново, уже з правильного світу.
+	for k in _strip_orig.keys():
+		var ks := String(k)
+		if ks == "water" or ks.begins_with("vis:"):
+			_strip_orig.erase(k)
 	if mode:
 		mode.exit()
 	mode = _make_mode(String(world.get("mode", "run")))
