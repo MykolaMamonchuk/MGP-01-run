@@ -47,7 +47,7 @@ func _build() -> void:
 			remove_child(c)
 			c.queue_free()
 	var cols: Array = GooseRig.STATES
-	($Камера as Camera3D).look_at_from_position(Vector3(1.8, 1.9, 3.0), Vector3(0.3, 0.2, -1.9))
+	($Камера as Camera3D).look_at_from_position(Vector3(-0.5, 3.8, 2.6), Vector3(-0.5, 0.1, -1.8))
 	var method := RenderingServer.get_current_rendering_method()
 	var k: float = load("res://src/run3d/run3d.gd").light_scale_for(method)
 	var env := ($Світ as WorldEnvironment).environment
