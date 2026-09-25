@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://clnwvxis6ja5a"
-path="res://.godot/imported/house_terra_6_proxy600_house_terra_6_proxy600.jpg-ae8699e457490716b6da3802b7e2eeee.ctex"
+path.s3tc="res://.godot/imported/house_terra_6_proxy600_house_terra_6_proxy600.jpg-ae8699e457490716b6da3802b7e2eeee.s3tc.ctex"
+path.etc2="res://.godot/imported/house_terra_6_proxy600_house_terra_6_proxy600.jpg-ae8699e457490716b6da3802b7e2eeee.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "fe0e324015ffa5d394c3d4ec79ff0abb"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/props/_exp/house_terra_6_proxy600_house_terra_6_proxy600.jpg"
-dest_files=["res://.godot/imported/house_terra_6_proxy600_house_terra_6_proxy600.jpg-ae8699e457490716b6da3802b7e2eeee.ctex"]
+dest_files=["res://.godot/imported/house_terra_6_proxy600_house_terra_6_proxy600.jpg-ae8699e457490716b6da3802b7e2eeee.s3tc.ctex", "res://.godot/imported/house_terra_6_proxy600_house_terra_6_proxy600.jpg-ae8699e457490716b6da3802b7e2eeee.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0

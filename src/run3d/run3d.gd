@@ -251,6 +251,8 @@ var _idle_t := 0.0
 var _strip_flags := PackedStringArray()
 ## Початковий стан ефектів — щоб повертати саме його, а не «увімкнено».
 var _strip_orig := {}
+## Спрайт хати для досліду `terramesh_sprite` — один на всі шари, див. _reapply_strip.
+var _terra_sprite: Mesh = null
 ## Таймер повтору досліду. Стоїть, поки досліду нема — див. debug_strip().
 var _strip_timer: Timer = null
 var _shared_mats := {}
@@ -790,9 +792,19 @@ func _reapply_strip() -> void:
 			if tm != "":
 				if not _strip_orig.has(tk):
 					_strip_orig[tk] = mi.multimesh.mesh
-				var path := "res://assets/props/house_terra_6.glb" if tm == "orig" \
-					else "res://assets/props/_exp/house_terra_6_%s.glb" % tm
-				var nm := PropLibrary.mesh_at(path)
+				var nm: Mesh = null
+				if tm == "sprite":
+					# Спрайт із 8 боків — будуємо ОДИН раз і тримаємо: дослід повторюється
+					# щосекунди, і нова дощечка щоразу вважалась би новою сіткою.
+					if _terra_sprite == null:
+						_terra_sprite = PropLibrary._sprite_mesh({
+							"sprite": "res://assets/props/_exp/house_terra_6_sprite8.png",
+							"height": 2.268, "frames": 8})
+					nm = _terra_sprite
+				else:
+					var path := "res://assets/props/house_terra_6.glb" if tm == "orig" \
+						else "res://assets/props/_exp/house_terra_6_%s.glb" % tm
+					nm = PropLibrary.mesh_at(path)
 				if nm != null and mi.multimesh.mesh != nm:
 					mi.multimesh.mesh = nm
 					swapped_mesh = true
