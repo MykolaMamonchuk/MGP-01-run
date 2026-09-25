@@ -154,7 +154,10 @@ func apply(preset: Dictionary, duration: float = 0.0) -> void:
 	_tw.tween_property(cam, "position", pos, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	var start_basis := cam.global_transform.basis
 	var target := Transform3D().looking_at(look - pos, Vector3.UP).basis
-	_tw.tween_method(func(t: float): cam.basis = start_basis.slerp(target, t), 0.0, 1.0, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# МЕТОДОМ, А НЕ ЛЯМБДОЮ: лямбда захоплювала `cam`, і якщо камеру звільняли раніше, ніж
+	# добіг твін, рушій падав із «Lambda capture at index 0 was freed» — у чужому коді, як
+	# плаваюче падіння сусіднього тесту (четверта така лямбда за 25.09, див. docs/MEMORY.md).
+	_tw.tween_method(_turn_cam.bind(start_basis, target), 0.0, 1.0, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	get_tree().create_timer(duration * 0.5).timeout.connect(_set_projection_if_current.bind(ortho, preset, _gen))
 
 
@@ -174,3 +177,9 @@ func _set_projection(ortho: bool, preset: Dictionary) -> void:
 		cam.projection = Camera3D.PROJECTION_PERSPECTIVE
 		cam.fov = float(preset.get("fov", 62.0))
 		_base_fov = cam.fov          # ривок поля зору рахується від пресета, а не від себе
+
+
+## Крок повороту камери між двома орієнтаціями (для твіна в apply).
+func _turn_cam(t: float, from_basis: Basis, to_basis: Basis) -> void:
+	if is_instance_valid(cam):
+		cam.basis = from_basis.slerp(to_basis, t)
