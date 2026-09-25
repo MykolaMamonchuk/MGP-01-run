@@ -322,7 +322,35 @@ static func opaque_canal_of(name: String) -> bool:
 
 ## Масштаб рендера для стану. Чиста функція — щоб перевірялась тестом.
 static func scale_of(name: String) -> float:
+	# ПРИМУСОВИЙ МАСШТАБ РЕНДЕРА З КОМАНДНОГО РЯДКА: `--scale=0.82`.
+	#
+	# Потрібен, щоб міряти драбину масштабу на телефоні НЕ правлячи джерело: збірки
+	# різнитимуться лише рядком у пресеті експорту, а не числом у коді, яке можна забути
+	# відкотити. Ту саму роль для рівнів грає `--level=`.
+	#
+	# Значення поза (0, 1] ігноруємо мовчки: це ручка заміру, і зламаний аргумент не має
+	# псувати гру. 0 або від'ємне дало б порожній кадр.
+	var forced := _cmdline_scale()
+	if forced > 0.0:
+		return forced
 	return float(SCALE.get(name, SCALE[DEFAULT]))
+
+
+static var _cmdline_scale_cache := -1.0
+
+
+static func _cmdline_scale() -> float:
+	if _cmdline_scale_cache >= 0.0:
+		return _cmdline_scale_cache
+	_cmdline_scale_cache = 0.0
+	for a in OS.get_cmdline_args() + OS.get_cmdline_user_args():
+		var arg := String(a)
+		if arg.begins_with("--scale="):
+			var v := float(arg.substr(8))
+			if v > 0.0 and v <= 1.0:
+				_cmdline_scale_cache = v
+			break
+	return _cmdline_scale_cache
 
 
 static func _lights(n: Node) -> Array:

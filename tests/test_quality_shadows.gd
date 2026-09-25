@@ -245,3 +245,25 @@ func test_dekor_distaie_rezhym_zatinennia() -> void:
 			back += 1
 	assert_eq(back, total, "у «Гарно» всі повертаються на піксель")
 	SaveService.set_setting(Quality.KEY, Quality.SMOOTH)
+
+
+## ПРИМУСОВИЙ МАСШТАБ РЕНДЕРА З КОМАНДНОГО РЯДКА (`--scale=0.82`).
+##
+## Потрібен, щоб міряти драбину масштабу на телефоні НЕ правлячи джерело: збірки різняться
+## лише рядком у пресеті експорту. Без аргументу поводиться як завжди — це головне, бо
+## інакше ручка заміру мовчки міняла б гру в усіх.
+func test_masshtab_bez_arhumentu_yak_zavzhdy() -> void:
+	assert_eq(Quality._cmdline_scale(), 0.0,
+		"у звичайному запуску примусового масштабу немає")
+	for st in [Quality.SMOOTH, Quality.MIDDLE, Quality.PRETTY]:
+		assert_eq(Quality.scale_of(st), float(Quality.SCALE[st]),
+			"без аргументу масштаб береться зі стану якості (%s)" % st)
+
+
+## Зламаний аргумент не має псувати гру: 0 або від'ємне дало б порожній кадр, більше за 1 —
+## малювання в роздільності, більшій за екран, тобто протилежне до наміру.
+func test_zlamanyi_masshtab_ihnoruietsia() -> void:
+	for bad in ["--scale=0", "--scale=-0.5", "--scale=2.0", "--scale=абищо"]:
+		var v := float(String(bad).substr(8))
+		var ok := v > 0.0 and v <= 1.0
+		assert_false(ok, "«%s» не є придатним масштабом" % bad)
