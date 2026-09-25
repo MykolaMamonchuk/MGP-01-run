@@ -81,7 +81,8 @@ func test_chysla_berutsia_zi_svitla_svitu() -> void:
 	assert_gt(mats.size(), 0, "шари декору є")
 	for m in mats:
 		var bm := m as BaseMaterial3D
-		assert_almost_eq(bm.emission_energy_multiplier, ENERGY, 0.001,
+		assert_almost_eq(bm.emission_energy_multiplier,
+			Track.emission_energy_for(ENERGY, RenderingServer.get_current_rendering_method()), 0.001,
 			"енергія випромінення — це енергія навколишнього світла")
 		assert_eq(bm.emission_texture, bm.albedo_texture,
 			"на ту саму текстуру кольору, інакше візерунок у тіні зникне")
@@ -390,3 +391,25 @@ func test_polotno_pravylne_vzhe_pry_stvorenni() -> void:
 		assert_eq((bm as BaseMaterial3D).shading_mode, want,
 			"%s: режим виставлено при створенні, без rebuild()" % key)
 	assert_eq(seen, 2, "обидва шари полотна оглянуто")
+
+
+## ГАММА COMPATIBILITY. У `mobile` випромінення й навколишнє світло збігаються один в один —
+## і саме там я перевіряв правку на Маку, бо це рушій проєкту за замовчуванням. Але телефон і
+## веб працюють у `gl_compatibility`, і там випромінення світило ВДВІЧІ слабше: замовник
+## побачив «темні, тьмяні» будинки. Навколишнє світло там проходить sRGB-перетворення, а
+## випромінення ні, тож потрібна енергія — `енергія ^ (1 / 2,2)`.
+##
+## Числа нижче — заміряний рендером множник, при якому випромінення дає ту саму яскравість
+## затіненої грані, що й навколишнє світло. Сторож стереже, щоб формула лягала на них.
+func test_hamma_compatibility() -> void:
+	for pair in [[0.20, 2.35], [0.35, 1.72], [0.60, 1.30]]:
+		var e: float = pair[0]
+		var measured: float = pair[1]
+		var k := Track.emission_energy_for(e, "gl_compatibility") / e
+		assert_almost_eq(k, measured, 0.1,
+			"енергія %.2f: формула дає множник %.2f, заміряно %.2f" % [e, k, measured])
+	# У mobile і forward_plus поправки немає: там вони збігались і без неї.
+	for m in ["mobile", "forward_plus"]:
+		assert_almost_eq(Track.emission_energy_for(0.35, m), 0.35, 0.0001,
+			"%s: випромінення дорівнює навколишньому світлу без поправки" % m)
+

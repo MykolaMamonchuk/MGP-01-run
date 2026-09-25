@@ -1601,7 +1601,33 @@ func _apply_ambient_emis(bm: BaseMaterial3D, on: bool) -> void:
 	bm.emission_operator = BaseMaterial3D.EMISSION_OP_MULTIPLY if tex != null \
 		else BaseMaterial3D.EMISSION_OP_ADD
 	bm.emission = Color(_amb_color.r * ac.r, _amb_color.g * ac.g, _amb_color.b * ac.b)
-	bm.emission_energy_multiplier = _amb_energy
+	bm.emission_energy_multiplier = emission_energy_for(_amb_energy,
+		RenderingServer.get_current_rendering_method())
+
+
+## ЕНЕРГІЯ ВИПРОМІНЕННЯ, ЯКА ДАЄ ТЕ САМЕ, ЩО НАВКОЛИШНЄ СВІТЛО, — окремо для кожного рушія.
+##
+## У `mobile` вони збігаються один в один, і саме там я перевіряв правку на Маку — бо це
+## рушій проєкту за замовчуванням. Але гравці бачать `gl_compatibility`: так запускається
+## телефон і так завжди працює веб. І там випромінення світило ВДВІЧІ слабше: затінені
+## грані хат отримували половину заповнювального світла, і замовник одразу побачив, що
+## будинки «темні, тьмяні».
+##
+## Причина — гамма. У Compatibility навколишнє світло проходить sRGB-перетворення, а
+## випромінення додається без нього. Тому потрібна енергія не лінійна, а
+## `енергія ^ (1 / 2,2)`. Заміряно рендером (сонце вбік, дивимось на затінену грань):
+##
+##   енергія | потрібний множник | формула
+##     0,20  |     ~2,3-2,4      |  2,40
+##     0,35  |     ~1,7-1,75     |  1,77
+##     0,60  |     ~1,3          |  1,32
+##
+## Усі шість замірів (з текстурою й без) лягають на формулу. Чиста функція — щоб перевірялась
+## тестом без рушія.
+static func emission_energy_for(ambient_energy: float, method: String) -> float:
+	if method == "gl_compatibility":
+		return pow(maxf(ambient_energy, 0.0), 1.0 / 2.2)
+	return ambient_energy
 
 ## ВІДСІКАННЯ ДРІБНИЦІ ЗА ЕКРАННИМ РОЗМІРОМ, а не за метрами.
 ##
