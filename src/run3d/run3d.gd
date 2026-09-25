@@ -269,7 +269,8 @@ const _STRIP_MAT_KEYS := ["nrm", "shade:", "tf:", "cull:", "alb:", "spec:", "emi
 ## перестала б стежити за лінивими шарами саме тоді, коли це найпотрібніше.
 const _STRIP_MAT_FLAGS := ["unshaded", "pervertex", "unwalls", "nonormal", "nometal",
 	"norough", "noao", "onemat", "onetex", "flat", "cullback", "nofilter", "nomip",
-	"nospec", "noambient", "ambemis", "roadunlit", "roadvertex", "roadnoamb"]
+	"nospec", "noambient", "ambemis", "roadunlit", "roadvertex", "roadnoamb",
+	"terrapixel", "allpixel"]
 
 
 ## ПОКИ ТРИВАЄ ДОСЛІД, МАТЕРІАЛАМИ ДЕКОРУ КЕРУЄ ВІН, а не траса. Інакше обидва пишуть у ті
@@ -784,6 +785,7 @@ func _reapply_strip() -> void:
 				or _strip_flags.has("nofilter") or _strip_flags.has("nomip") \
 				or _strip_flags.has("nospec") or _strip_flags.has("noambient") \
 				or _strip_flags.has("ambemis") \
+				or _strip_flags.has("terrapixel") or _strip_flags.has("allpixel") \
 				or _strip_orig.has("nrm%d" % idx):
 			var mm := mi.multimesh
 			if mm != null and mm.mesh != null:
@@ -905,6 +907,19 @@ func _reapply_strip() -> void:
 						bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 						var c0 := _strip_orig[ak] as Color
 						bm.albedo_color = Color(c0.r * mul, c0.g * mul, c0.b * mul, c0.a)
+					# ОСВІТЛЕННЯ НА ПІКСЕЛЬ ДЛЯ НАДЩІЛЬНИХ СІТОК. 22.09 доведено тестом
+					# із силуетом: у house_terra_6 зрізали 94% вершин — і НУЛЬ. Але тоді світло
+					# рахувалось на ПІКСЕЛЬ, і вершини не важили. Відтоді ми самі перевели
+					# декор на вершину — і тепер світло рахується на кожну з ~213 тисяч вершин
+					# двадцяти чотирьох хат `house_terra_*` (8-11 тисяч вершин кожна, проти
+					# 258-498 у міських будинків). Тобто правка, що дала -5…-8 мс глобально,
+					# могла зробити вершини дорогими саме на кількох надщільних моделях.
+					#   terrapixel — лише house_terra_* назад на піксель, решта на вершині;
+					#   allpixel   — увесь декор на піксель (перевірка, чи вершина ще виграє).
+					elif _strip_flags.has("allpixel") or (_strip_flags.has("terrapixel")
+							and String(key).begins_with("house_terra")):
+						bm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
+						bm.albedo_color = _strip_orig[ak] as Color
 					elif _strip_flags.has("pervertex"):
 						bm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
 					else:
