@@ -1118,12 +1118,17 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 			_add_authored_record(ids, data, rec, true)
 
 
+## Знак «поворот не задано — крути навмання». NAN, а не -1: від'ємний кут — звичайний кут.
+## З -1 будинки правого боку (-PI/2, фасадом до дороги) та рукотворні маркери з yaw_deg < 0
+## шість днів ставали під випадковим поворотом (docs/MEMORY.md, 25.09).
+const RANDOM_YAW := NAN
+
 ## Записати предмет у пачку ряду. z, поворот і фаза — випадкові, як було в кожного Critter3D.
-## yaw ≥ 0 — фіксований поворот (орієнтири-арки мають дивитись на камеру, а не крутитись).
+## Заданий yaw (будь-якого знака) — фіксований поворот; RANDOM_YAW — випадковий.
 ## stretch — додатковий масштаб ЛИШЕ вздовж локальної осі Z ДО повороту на yaw (за
 ## замовчуванням 1.0 — нічого не міняє). Треба, щоб видовжити предмет уздовж одного виміру,
 ## не роздуваючи решту: настилу містка ширший канал дає довшу дошку, а не товщу й вищу.
-func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0, stretch: float = 1.0, no_sway: bool = false, tag: String = "") -> void:
+func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = RANDOM_YAW, stretch: float = 1.0, no_sway: bool = false, tag: String = "") -> void:
 	var variant := PropLibrary.pick(kind)
 	ids.append(_decor_layer(kind, override, variant, no_sway, tag))
 	# Доведення моделі (data/props.json): згенерована модель майже ніколи не приходить одразу
@@ -1137,8 +1142,9 @@ func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, o
 	# усім, що в грі кидає жереб за таймером — зокрема з пташкою, що перелітає дорогу. Через
 	# це та сама ділянка діставала різні повороти залежно від того, коли саме пролетіла
 	# пташка: предмети не зникали, але «переверталися», і в русі це читається як тремтіння.
-	data.append(_rng.randf_range(-0.4, 0.4) if yaw < 0.0 else 0.0)
-	data.append((_rng.randf() * TAU if yaw < 0.0 else yaw) + extra_yaw)
+	var random_yaw := is_nan(yaw)
+	data.append(_rng.randf_range(-0.4, 0.4) if random_yaw else 0.0)
+	data.append((_rng.randf() * TAU if random_yaw else yaw) + extra_yaw)
 	data.append(s * float(tw["scale"]))
 	# фазу зсуваємо на поточний час, щоб у мить появи вона була такою ж, як у старого Critter3D
 	data.append(_rng.randf() * 10.0 - _decor_t)
@@ -2176,7 +2182,7 @@ func _decorate(row: Node3D) -> void:
 			_add_decor(ids, data, String(walls_far[randi() % walls_far.size()]), {},
 				side * (edge + randf_range(wf_near, wf_far)),
 				-0.05 if _sea else 0.0,
-				randf_range(float(far_scale[0]), float(far_scale[1])), -1.0, 1.0, true)
+				randf_range(float(far_scale[0]), float(far_scale[1])), RANDOM_YAW, 1.0, true)
 		if _sea:
 			# гребені хвиль із піною — плавають довкола траси, але лише у ВОДІ (до піску)
 			if randf() < 0.3:
@@ -2346,7 +2352,7 @@ func _kind_half_extent(kind: String, no_sway: bool = false) -> Vector2:
 
 
 ## Консервативна «половина радіуса» виду — більша з половин X/Z. Пропси на узбіччі
-## отримують ВИПАДКОВИЙ поворот (_add_decor, yaw < 0 → randf()*TAU), тож наперед не відомо,
+## отримують ВИПАДКОВИЙ поворот (_add_decor, RANDOM_YAW → randf()*TAU), тож наперед не відомо,
 ## яка сторона мешу ляже впоперек смуги — беремо гірший випадок (по діагоналі майже
 ## квадратна скриня «дотягується» на 40% далі, ніж по своїй короткій стороні), щоб зазор
 ## між двома пропсами рятував і тоді, коли обидва розвернуло довгою віссю назустріч.
