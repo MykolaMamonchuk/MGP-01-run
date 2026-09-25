@@ -15,7 +15,7 @@ roughness = 1.0
 
 [sub_resource type="PlaneMesh" id="Ground"]
 material = SubResource("Grass")
-size = Vector2(14, 8)
+size = Vector2(26, 16)
 
 [node name="HouseCompare" type="Node3D"]
 script = ExtResource("1")

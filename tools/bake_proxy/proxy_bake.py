@@ -42,7 +42,16 @@ def tris(o): return sum(len(p.vertices) - 2 for p in o.data.polygons)
 # Тому AO множимо в колір оригіналу в його власній UV, а на оболонки переносимо вже готовий
 # колір — у ньому затінення немає, і сусідні оболонки на нього не впливають.
 _hm = high.data.materials[0]; _hn = _hm.node_tree
-_col = [n for n in _hn.nodes if n.type == 'TEX_IMAGE' and n.image and 'color' in n.image.name][0]
+# Текстуру кольору беремо за ПІДКЛЮЧЕННЯМ до базового кольору матеріалу, а не за назвою:
+# у house_terra_6 вона звалась baked_color, а в house_terra_6_optimize — texture_0, і пошук
+# за словом «color» падав з IndexError.
+def _base_color_tex(nt):
+    for l in nt.links:
+        if l.to_socket.name == "Base Color" and l.from_node.type == 'TEX_IMAGE' and l.from_node.image:
+            return l.from_node
+    return [n for n in nt.nodes if n.type == 'TEX_IMAGE' and n.image
+            and 'normal' not in n.image.name and 'metallic' not in n.image.name][0]
+_col = _base_color_tex(_hn)
 _W, _H = _col.image.size
 _ao = bpy.data.images.new("ao_src", _W, _H, alpha=False)
 _aon = _hn.nodes.new('ShaderNodeTexImage'); _aon.image = _ao
