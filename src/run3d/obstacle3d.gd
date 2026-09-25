@@ -39,6 +39,98 @@ var _mesh: MeshInstance3D
 var _dir := 1.0
 var _box_y := 0.0
 
+## СКЕЛЕТНА ТВАРИНА (поле "rig" у світі): модель зі скелетом і процедурною анімацією
+## (src/run3d/goose_rig.gd), а не меш, що хитається цілим. Значення поля — роль:
+##   "stand" — стоїть на доріжці; герой наближається — шипить, пробігає поруч — кусає;
+##   "walk"  — переходить дорогу, дивиться туди, куди йде;
+##   "fly"   — летить на висоті голови, під нею треба пригнутись.
+## Реакція лише ВИГЛЯДУ: габарит і дія перешкоди ті самі, що й без рига, — дитина має
+## бачити, що гуска сердиться, але правила гри від цього не змінюються.
+var _rig: GooseRig
+var _rig_mode := ""
+var _rig_state := ""
+var _rig_t := 0.0
+var _rig_scale := 1.0
+
+## Модель скелетної тварини вибирається НА КОЖЕН ЕКЗЕМПЛЯР, а не на мапу, як решта пропсів
+## (PropLibrary.pick). Правило «одна мапа — один тип» стоїть заради рядів: паркани різної
+## висоти поруч стрибали б. Гуска ж стоїть сама, і замовник хоче бачити всіх трьох (26.09).
+## Лічильник, а не жереб: той самий порядок появи дає ті самі моделі.
+static var _rig_counter := 0
+var _rig_variant := 0
+
+
+## Поставити скелетну модель виду `prop_name` у роль `mode`. false — моделі або скелета нема.
+## _mesh стає порожнім вузлом-носієм: усі анімації й підйоми нижче крутять саме його, а
+## модель зі скелетом сидить усередині й ворушить кістками сама.
+func _setup_rig(prop_name: String, mode: String) -> bool:
+	var n := PropLibrary.variants(prop_name)
+	if n <= 0:
+		return false
+	var v := _rig_counter % n
+	var e := PropLibrary._entry(prop_name, v)
+	var path := String(e.get("path", ""))
+	if path == "" or not ResourceLoader.exists(path):
+		return false
+	var scene := load(path) as PackedScene
+	if scene == null:
+		return false
+	var model := scene.instantiate() as Node3D
+	var rig := GooseRig.new()
+	if model == null or not rig.build(model):
+		if model != null:
+			model.free()
+		return false
+	_rig_counter += 1
+	# Ті самі правки матеріалу, що й у решти пропсів: без карт нормалей, задні грані геть.
+	for mi in model.find_children("*", "MeshInstance3D", true, false):
+		PropLibrary._drop_normal_maps((mi as MeshInstance3D).mesh)
+	_mesh = MeshInstance3D.new()
+	_mesh.name = "Rig"
+	_mesh.add_child(model)
+	_rig = rig
+	_rig_mode = mode
+	_rig_variant = v
+	# Меш-анімації з даних (breathe/wobble…) качали б модель цілою поверх кісток.
+	anim = ""
+	return true
+
+
+## Роль → стан рига на цей кадр. Герой стоїть у z = 0, перешкоди їдуть до нього з -Z.
+const HISS_FROM_M := 7.0     ## з якої відстані гуска починає шипіти
+const BITE_WITHIN_M := 1.6   ## ближче за це — кидається кусати
+
+func _rig_state_now() -> String:
+	match _rig_mode:
+		"stand":
+			if absf(position.z) < BITE_WITHIN_M:
+				return "bite"
+			if position.z < 0.0 and -position.z < HISS_FROM_M:
+				return "hiss"
+			return "stand"
+		"walk":
+			return "walk"
+		"fly":
+			return "fly"
+	return "stand"
+
+
+func _tick_rig(delta: float) -> void:
+	var st := _rig_state_now()
+	if st != _rig_state:
+		# Час від початку стану: кидок «кусає» має починатись із замаху, а не з середини.
+		_rig_state = st
+		_rig_t = 0.0
+		_rig.state = st
+	_rig_t += delta
+	var lift := _rig.pose(_rig_t)
+	if _rig_mode == "fly":
+		# Висоту польоту задає "y" світу (під нею пригинаються); від рига лише погойдування.
+		_mesh.position.y = _box_y + (lift - 0.35 * _rig.height) * _rig_scale
+	if moves:
+		# Модель дивиться в +Z; іти вздовж +X — поворот на +90°.
+		_mesh.rotation.y = PI * 0.5 * _dir
+
 
 func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = true) -> void:
 	kind = k
@@ -73,16 +165,24 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		# тип вибираємо ОДИН раз на екземпляр: меш і доведення мусять бути від тієї самої
 		# моделі (див. PropLibrary.pick)
 		var variant := PropLibrary.pick(prop_name)
-		var prop_mesh := PropLibrary.mesh(prop_name, variant)
-		if prop_mesh != null:
-			_mesh = MeshInstance3D.new()
-			_mesh.mesh = prop_mesh
-		else:
-			_mesh = VoxelBuilder.instance(voxel_name)
+		# Скелетна тварина: свій екземпляр моделі зі скелетом (див. _setup_rig). Не вийшло
+		# (моделі нема, скелета нема) — звичайний шлях нижче, тобто меш або воксель.
+		var rig_mode := String(def.get("rig", ""))
+		if rig_mode != "" and _setup_rig(prop_name, rig_mode):
+			variant = _rig_variant
+		var prop_mesh: Mesh = null
+		if _rig == null:
+			prop_mesh = PropLibrary.mesh(prop_name, variant)
+			if prop_mesh != null:
+				_mesh = MeshInstance3D.new()
+				_mesh.mesh = prop_mesh
+			else:
+				_mesh = VoxelBuilder.instance(voxel_name)
 		_mesh.position.y = y
 		# доведення моделі з data/props.json поверх масштабу зі світу (для вокселя — 1.0 / 0°)
 		var tw := PropLibrary.tweak(prop_name, variant)
 		_base_scale = Vector3.ONE * float(def.get("scale", 1.0)) * float(tw["scale"])
+		_rig_scale = _base_scale.x
 		_mesh.scale = _base_scale
 		_mesh.rotation.y += deg_to_rad(float(tw["yaw_deg"]))
 		add_child(_mesh)
@@ -91,7 +191,7 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		# низькополігональній моделі роздутий меш вилазить назовні окремими чорними
 		# трикутниками — саме це й було видно на гусці й на ринковому візку. Тому для
 		# справжніх моделей обведення не малюємо: у них силует тримає сама форма.
-		if prop_mesh == null:
+		if prop_mesh == null and _rig == null:
 			var outline := MeshInstance3D.new()
 			outline.mesh = _mesh.mesh
 			outline.scale = Vector3.ONE * OUTLINE_SCALE
@@ -251,6 +351,8 @@ func tick(delta: float) -> void:
 			_mesh.rotation.y = 0.0 if _dir > 0 else PI
 		# лапки «біжать»
 		_mesh.position.y = _box_y + absf(sin(_t * 14.0)) * 0.05
+	if _rig != null:
+		_tick_rig(delta)
 	match anim:
 		"sway":
 			_mesh.rotation.z = sin(_t * 1.8) * 0.08

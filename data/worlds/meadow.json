@@ -226,7 +226,8 @@
 			"shape": "critter",
 			"prop": "goose",
 			"marker": "none",
-			"breaks": "soft"
+			"breaks": "soft",
+			"rig": "stand"
 		},
 		"haycart": {
 			"voxel": "haycart",
@@ -290,7 +291,24 @@
 			"marker": "none",
 			"breaks": "soft",
 			"move_speed": 0.9,
-			"authored_only": true
+			"authored_only": true,
+			"rig": "walk"
+		},
+		"goose_fly": {
+			"voxel": "cow",
+			"prop": "goose",
+			"rig": "fly",
+			"action": "duck",
+			"tumble": true,
+			"y": 1.0,
+			"box": [
+				0.95,
+				0.45,
+				0.5
+			],
+			"shape": "high_frame",
+			"marker": "none",
+			"breaks": "soft"
 		}
 	},
 	"road_color": "#CF9B57",

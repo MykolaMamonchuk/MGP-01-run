@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dqdk04vny8msf"
-path="res://.godot/imported/goose_1.glb-1a35dcdf70d22c4a5cb53e7f6249c38c.scn"
+uid="uid://dj5xu2viw8xfb"
+path="res://.godot/imported/goose_3.glb-89d9de07ebca3e8a9e4c2d6da5e3bfdd.scn"
 
 [deps]
 
-source_file="res://assets/props/_exp/goose/goose_1.glb"
-dest_files=["res://.godot/imported/goose_1.glb-1a35dcdf70d22c4a5cb53e7f6249c38c.scn"]
+source_file="res://assets/props/goose_3.glb"
+dest_files=["res://.godot/imported/goose_3.glb-89d9de07ebca3e8a9e4c2d6da5e3bfdd.scn"]
 
 [params]
 

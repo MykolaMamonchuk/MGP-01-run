@@ -1,7 +1,7 @@
 @tool
 extends Node3D
 
-## ПОРІВНЯННЯ ГУСОК: нинішня (assets/props/goose.glb) і три нові з ригом — у п'яти станах.
+## ПОРІВНЯННЯ ГУСОК: стара (assets/props/_exp/goose/goose_old.glb) і три нові з ригом, що тепер у грі (assets/props/goose_1..3.glb) — у п'яти станах.
 ##
 ## Нові — з docs/refs/incoming/goose, почищені від зайвої Icosphere (копії в
 ## assets/props/_exp/goose). Анімації в моделях немає, рух процедурний: src/run3d/goose_rig.gd.
@@ -15,10 +15,10 @@ extends Node3D
 ## Стара гуска — ОСТАННІЙ ряд: вона лише для порівняння й у всіх стовпчиках однакова, а на
 ## широкому екрані телефона ближній ряд найбільший.
 const MODELS := [
-	["ГУСКА 1", "res://assets/props/_exp/goose/goose_1.glb"],
-	["ГУСКА 2", "res://assets/props/_exp/goose/goose_2.glb"],
-	["ГУСКА 3", "res://assets/props/_exp/goose/goose_3.glb"],
-	["У ГРІ ЗАРАЗ", "res://assets/props/goose.glb"],
+	["ГУСКА 1", "res://assets/props/goose_1.glb"],
+	["ГУСКА 2", "res://assets/props/goose_2.glb"],
+	["ГУСКА 3", "res://assets/props/goose_3.glb"],
+	["БУЛО", "res://assets/props/_exp/goose/goose_old.glb"],
 ]
 const STATE_NAMES := {"stand": "стоїть", "walk": "іде", "bite": "кусає", "hiss": "шипить", "fly": "летить"}
 

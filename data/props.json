@@ -102,7 +102,11 @@
 	"clothesline": "res://assets/props/clothesline.glb",
 	"banner_line": "res://assets/props/banner_line.glb",
 	"xbox_red": "res://assets/props/xbox_red.glb",
-	"goose": "res://assets/props/goose.glb",
+	"goose": [
+		{"path": "res://assets/props/goose_1.glb", "scale": 0.35},
+		{"path": "res://assets/props/goose_2.glb", "scale": 0.35},
+		{"path": "res://assets/props/goose_3.glb", "scale": 0.35}
+	],
 	"gate_post": "res://assets/props/gate_post.glb",
 	"fence": [
 		"res://assets/props/fence_low_1.glb",

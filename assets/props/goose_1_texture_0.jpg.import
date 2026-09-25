@@ -2,23 +2,25 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://dkk68qwfm3pd3"
-path="res://.godot/imported/goose_2_Image_2.webp-8d27da6c6f96e19b1989368e3fd7910f.ctex"
+uid="uid://bsl6tg54eg2km"
+path.s3tc="res://.godot/imported/goose_1_texture_0.jpg-a52a688114ba83914523bb71fdb0de5b.s3tc.ctex"
+path.etc2="res://.godot/imported/goose_1_texture_0.jpg-a52a688114ba83914523bb71fdb0de5b.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "6767a2f329428822d54fd252cc430d40"
+"md5": "3e73c6b395124ead5d533560f710ee6c"
 }
 
 [deps]
 
-source_file="res://assets/props/_exp/goose/goose_2_Image_2.webp"
-dest_files=["res://.godot/imported/goose_2_Image_2.webp-8d27da6c6f96e19b1989368e3fd7910f.ctex"]
+source_file="res://assets/props/goose_1_texture_0.jpg"
+dest_files=["res://.godot/imported/goose_1_texture_0.jpg-a52a688114ba83914523bb71fdb0de5b.s3tc.ctex", "res://.godot/imported/goose_1_texture_0.jpg-a52a688114ba83914523bb71fdb0de5b.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -39,5 +41,5 @@ process/premult_alpha=false
 process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
-process/size_limit=0
+process/size_limit=512
 detect_3d/compress_to=1

@@ -6,9 +6,9 @@
 extends GutTest
 
 const MODELS := [
-	"res://assets/props/_exp/goose/goose_1.glb",
-	"res://assets/props/_exp/goose/goose_2.glb",
-	"res://assets/props/_exp/goose/goose_3.glb",
+	"res://assets/props/goose_1.glb",
+	"res://assets/props/goose_2.glb",
+	"res://assets/props/goose_3.glb",
 ]
 
 
