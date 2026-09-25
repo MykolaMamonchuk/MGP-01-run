@@ -828,7 +828,8 @@ func _reapply_strip() -> void:
 			if _strip_flags.has("farcards"):
 				if not _strip_orig.has(fk):
 					_strip_orig[fk] = mi.multimesh.mesh
-				var cm := _far_card_mesh(String(key).split("#")[0])
+				# Вид — до першого «#» і до «|» особливих налаштувань (kind|{json}#farL#wall).
+				var cm := _far_card_mesh(String(key).split("#")[0].split("|")[0])
 				if cm != null and mi.multimesh.mesh != cm:
 					mi.multimesh.mesh = cm
 			elif _strip_orig.has(fk):
@@ -1160,6 +1161,9 @@ func _ready() -> void:
 	for a in OS.get_cmdline_args() + OS.get_cmdline_user_args():
 		if String(a).begins_with("--strip="):
 			raw = String(a).substr(8).strip_edges()
+	# Шари далеких хат ділимо лише тоді, коли їх справді міряють (див. Track.far_cards_split).
+	Track.far_cards_split = OS.has_feature("strip_probe") or raw.contains("farcards") \
+		or raw.contains("nofar")
 	if raw != "":
 		debug_strip(PackedStringArray(raw.split(",", false)))
 	# ПРОГІН УСІХ РІВНІВ — окрема проба, вмикається прапорцем збірки `sweep`.

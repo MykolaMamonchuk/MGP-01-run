@@ -12,18 +12,20 @@ extends Node3D
 ## редакторі (анімація йде й там) або запустити в Compatibility, як на телефоні:
 ##   /Applications/Godot.app/Contents/MacOS/Godot --rendering-method gl_compatibility \
 ##       res://src/debug/goose_compare.tscn
+## Стара гуска — ОСТАННІЙ ряд: вона лише для порівняння й у всіх стовпчиках однакова, а на
+## широкому екрані телефона ближній ряд найбільший.
 const MODELS := [
-	["У ГРІ ЗАРАЗ", "res://assets/props/goose.glb"],
 	["ГУСКА 1", "res://assets/props/_exp/goose/goose_1.glb"],
 	["ГУСКА 2", "res://assets/props/_exp/goose/goose_2.glb"],
 	["ГУСКА 3", "res://assets/props/_exp/goose/goose_3.glb"],
+	["У ГРІ ЗАРАЗ", "res://assets/props/goose.glb"],
 ]
 const STATE_NAMES := {"stand": "стоїть", "walk": "іде", "bite": "кусає", "hiss": "шипить", "fly": "летить"}
 
 ## Зріст гуски у грі, м: коробка перешкоди goose у data/worlds/meadow.json має висоту 0,6.
 const HEIGHT_M := 0.6
-const COL_GAP := 1.3
-const ROW_GAP := 1.5
+const COL_GAP := 1.05
+const ROW_GAP := 1.1
 
 var _rigs: Array = []   # [GooseRig, Node3D-модель, база_y]
 var _t := 0.0
@@ -47,7 +49,8 @@ func _build() -> void:
 			remove_child(c)
 			c.queue_free()
 	var cols: Array = GooseRig.STATES
-	($Камера as Camera3D).look_at_from_position(Vector3(-0.5, 3.8, 2.6), Vector3(-0.5, 0.1, -1.8))
+	($Камера as Camera3D).look_at_from_position(Vector3(-0.3, 5.2, 4.6), Vector3(-0.3, 0.25, -1.55))
+	($Камера as Camera3D).fov = 32.0
 	var method := RenderingServer.get_current_rendering_method()
 	var k: float = load("res://src/run3d/run3d.gd").light_scale_for(method)
 	var env := ($Світ as WorldEnvironment).environment
@@ -58,19 +61,19 @@ func _build() -> void:
 	for ci in range(cols.size()):
 		var lb := _label(String(STATE_NAMES[cols[ci]]), Color(1.0, 0.95, 0.6))
 		lb.name = "Г_стан%d" % ci
-		lb.position = Vector3(_col_x(ci, cols.size()), 1.1, 0.8)
+		lb.position = Vector3(_col_x(ci, cols.size()), 0.95, -float(MODELS.size()) * ROW_GAP + 0.2)
 		add_child(lb)
 	for ri in range(MODELS.size()):
 		var z := -float(ri) * ROW_GAP
 		var title := _label(String(MODELS[ri][0]), Color(1, 1, 1))
 		title.name = "Г_ряд%d" % ri
-		title.position = Vector3(_col_x(0, cols.size()) - 1.1, 0.35, z)
+		title.position = Vector3(_col_x(0, cols.size()) - 0.85, 0.3, z)
 		add_child(title)
 		var scene := load(String(MODELS[ri][1])) as PackedScene
 		if scene == null:
 			continue
 		# Стара гуска без скелета — лише один екземпляр у першому стовпчику.
-		var n := cols.size() if ri > 0 else 1
+		var n := cols.size() if ri < MODELS.size() - 1 else 1
 		for ci in range(n):
 			var holder := Node3D.new()
 			holder.name = "Г_%d_%d" % [ri, ci]

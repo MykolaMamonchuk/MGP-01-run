@@ -79,3 +79,16 @@ func test_debug_hud_flag_only_where_intended() -> void:
 	assert_eq(flagged, DEBUG_HUD_PRESETS,
 		"прапорець debug_hud має стояти лише у випробувальних збірках, а стоїть у: %s"
 		% [flagged])
+
+
+## Ручки досліду з командного рядка (`--strip=`, `--scale=`, `--level=`) не мають лишитись у
+## пресеті. Збірки для заміру якраз і різняться рядком `command_line/extra_args`, і якщо його
+## забути повернути, реліз мовчки поїде з досліднім станом: `nofar` ховає хати, `--scale=`
+## міняє роздільність, `--level=` кидає одразу в рівень. Рецензія 25.09.
+func test_no_experiment_knobs_in_extra_args() -> void:
+	var f := FileAccess.open(PRESETS, FileAccess.READ)
+	for line in f.get_as_text().split("\n"):
+		if not line.begins_with("command_line/extra_args"):
+			continue
+		for knob in ["--strip=", "--scale=", "--level="]:
+			assert_false(line.contains(knob), "у пресеті лишилась ручка досліду %s: %s" % [knob, line])

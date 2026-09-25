@@ -65,3 +65,86 @@ func test_polit_pidnimaie_a_kusannia_kydaie_shyiu() -> void:
 	var head_now := r.skel.get_bone_global_pose(r.head).origin.dot(r.fwd)
 	var head_rest := r.skel.get_bone_global_rest(r.head).origin.dot(r.fwd)
 	assert_gt(head_now, head_rest + 0.1 * r.height, "кусає — голова кидається вперед")
+
+
+## Кінець ланцюга — НАЙГЛИБША кістка, а не найдальша від кореня: крило гуски 3 йде
+## зигзагом (лікоть уперед, кінчик назад), і розкрите крило законно заводить лікоть до тулуба.
+func _end_bone(r: GooseRig, i: int) -> int:
+	var b := i
+	while r.skel.get_bone_children(b).size() > 0:
+		var best := -1
+		var depth := -1
+		for k in r.skel.get_bone_children(b):
+			var d := _depth(r, k)
+			if d > depth:
+				depth = d
+				best = k
+		b = best
+	return b
+
+
+func _depth(r: GooseRig, i: int) -> int:
+	var d := 0
+	for k in r.skel.get_bone_children(i):
+		d = maxi(d, 1 + _depth(r, k))
+	return d
+
+
+## НАПРЯМ, а не просто рух: розправлене крило йде НАЗОВНІ й УГОРУ, на всіх трьох моделях.
+## Рецензія 25.09: у гуски 3 знак брався за першою кісткою крила, і крила в «шипить» і
+## «летить» ішли всередину тулуба, а тест «стан рухає кістки» лишався зеленим — шия сама
+## давала досить обертів.
+func test_kryla_rozpravliaiutsia_nazovni_i_vhoru() -> void:
+	for path in MODELS:
+		var r := _rig(path)
+		for st in ["hiss", "fly"]:
+			r.state = st
+			# Політ — на СЕРЕДИНІ змаху (sin(9t) = 0): угорі крило майже прямовисне, і зсув
+			# назовні там законно малий. Сам змах перевіряється нижче окремо.
+			r.pose(0.0 if st == "fly" else PI / 18.0)
+			# Глобальні пози скелет рахує ліниво — без цього читаємо позу попереднього стану.
+			r.skel.force_update_all_bone_transforms()
+			for w in r.wings:
+				var e := _end_bone(r, w)
+				var d := r.skel.get_bone_global_pose(e).origin - r.skel.get_bone_global_rest(e).origin
+				var out := r._side_of(w)
+				assert_gt(d.dot(out), 0.05 * r.height, "%s, %s: кінець крила йде назовні" % [path, st])
+				assert_gt(d.dot(r.up), 0.0, "%s, %s: кінець крила йде вгору" % [path, st])
+
+
+func test_kydok_shyiei_na_vsikh_modeliakh() -> void:
+	for path in MODELS:
+		var r := _rig(path)
+		r.state = "bite"
+		r.pose(0.55 * 1.4)
+		r.skel.force_update_all_bone_transforms()
+		var now := r.skel.get_bone_global_pose(r.head).origin.dot(r.fwd)
+		var rest := r.skel.get_bone_global_rest(r.head).origin.dot(r.fwd)
+		assert_gt(now, rest + 0.1 * r.height, "%s: кусає — голова кидається вперед" % path)
+
+
+## Повторна розкладка не дописує ролі до старих (пастка для перешкоди, що перебудовує модель).
+func test_povtornyi_build_ne_dubliuie_roli() -> void:
+	var model := (load(MODELS[0]) as PackedScene).instantiate()
+	add_child_autofree(model)
+	var r := GooseRig.new()
+	r.build(model)
+	var n := [r.neck.size(), r.wings.size(), r.legs.size()]
+	r.build(model)
+	assert_eq([r.neck.size(), r.wings.size(), r.legs.size()], n, "ролі ті самі після другого build()")
+
+
+## Змах: у верхній фазі кінчик крила вищий, ніж у нижній, — на кожній моделі.
+func test_zmakh_kryla() -> void:
+	for path in MODELS:
+		var r := _rig(path)
+		r.state = "fly"
+		for w in r.wings:
+			var e := _end_bone(r, w)
+			r.pose(PI / 18.0)           # sin(9t) = 1, крила вгорі
+			r.skel.force_update_all_bone_transforms()
+			var hi := r.skel.get_bone_global_pose(e).origin.dot(r.up)
+			r.pose(3.0 * PI / 18.0)     # sin(9t) = -1, крила внизу
+			r.skel.force_update_all_bone_transforms()
+			var lo := r.skel.get_bone_global_pose(e).origin.dot(r.up)
+			assert_gt(hi - lo, 0.15 * r.height, "%s: змах піднімає й опускає крило" % path)

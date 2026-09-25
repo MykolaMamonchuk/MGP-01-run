@@ -974,13 +974,17 @@ func _prewarm_authored(records: Array, no_sway: bool) -> void:
 			continue
 		var override: Dictionary = (rec as Dictionary).get("override", {}) \
 			if typeof((rec as Dictionary).get("override", {})) == TYPE_DICTIONARY else {}
-		var seen_key := [kind, no_sway, override]
+		# Тег далекої хати теж входить у ключ шару: без нього прогрів заводив би шар
+		# «…#wall», а далека хата в бігу — свій «…#farL#wall», тобто новий шар посеред гри.
+		var tag := far_card_tag(kind, float((rec as Dictionary).get("x_m", 0.0)),
+			float((rec as Dictionary).get("yaw_deg", 0.0)))
+		var seen_key := [kind, no_sway, override, tag]
 		if _prewarmed.has(seen_key):
 			continue
 		_prewarmed[seen_key] = true
 		if not _kind_exists(kind):
 			continue
-		_decor_layer(kind, override, PropLibrary.pick(kind), no_sway)
+		_decor_layer(kind, override, PropLibrary.pick(kind), no_sway, tag)
 
 
 ## Повернутися до повністю процедурного декору (рівні без authored .tscn — усі, поки що).
@@ -1040,7 +1044,16 @@ func _authored_bridge_near(side: float, dist: float) -> bool:
 ## лише тоді, коли проба чи налаштування підмінить у ньому сітку на картку.
 const FAR_CARD_X := 10.0
 
+## Чи ділити далекі хати в окремі шари. ЛИШЕ для досліду: окремий шар — це другий
+## MultiMesh на ту саму сітку, тобто зайвий виклик малювання на кожен вид хати (і ще один у
+## тіні, див. NEVER_SWAYS). У звичайній грі поділ нічого не дає, поки картки не стали
+## налаштуванням, — тож за замовчуванням вимкнено. Вмикає Run3D, коли в досліді є
+## farcards/nofar або зібрано пробу `strip_probe`.
+static var far_cards_split := false
+
 static func far_card_tag(kind: String, x_m: float, yaw_deg: float) -> String:
+	if not far_cards_split:
+		return ""
 	if not kind.begins_with("house_terra"):
 		return ""
 	if x_m > -FAR_CARD_X:

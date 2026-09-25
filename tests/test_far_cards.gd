@@ -6,6 +6,51 @@
 extends GutTest
 
 
+## Поділ на шари — лише для досліду (Track.far_cards_split); тут його вмикаємо і завжди
+## повертаємо, щоб не протік у решту набору.
+func before_each() -> void:
+	Track.far_cards_split = true
+
+
+func after_each() -> void:
+	Track.far_cards_split = false
+
+
+## У звичайній грі далекі хати НЕ діляться: окремий шар — це зайвий виклик малювання на кожен
+## вид хати (і ще один у тіні). Рецензія 25.09 знайшла, що поділ ішов і в релізі.
+func test_u_zvychainii_hri_podilu_nema() -> void:
+	Track.far_cards_split = false
+	assert_eq(Track.far_card_tag("house_terra_3", -12.0, 90.0), "",
+		"без досліду далека хата лишається в спільному шарі")
+
+
+func _world(name: String) -> Dictionary:
+	var f := FileAccess.open("res://data/worlds/%s.json" % name, FileAccess.READ)
+	return JSON.parse_string(f.get_as_text())
+
+
+## Той самий шлях, яким іде гра: записи цеглинки → прогрів → декорування. Далека хата мусить
+## мати СВІЙ шар «#farL» уже після прогріву, а не заводити його посеред бігу; без досліду —
+## жодного зайвого шару взагалі.
+func test_shar_dalekoi_khaty_ie_vzhe_pislia_prohrivu() -> void:
+	var near := {"z_m": 20.0, "kind": "house_terra_3", "x_m": -8.0, "yaw_deg": 90.0}
+	var far := {"z_m": 20.0, "kind": "house_terra_3", "x_m": -12.0, "yaw_deg": 90.0}
+	for split in [true, false]:
+		Track.far_cards_split = split
+		var t := Track.new()
+		add_child_autofree(t)
+		await wait_process_frames(2)
+		t.rebuild(_world("meadow"), false)
+		await wait_process_frames(2)
+		t.add_authored_timeline([], [near, far])
+		var keys: Array = t._decor_layer_of.keys().map(func(k): return String(k))
+		var far_layers := keys.filter(func(k): return k.begins_with("house_terra_3") and k.contains("#farL"))
+		if split:
+			assert_eq(far_layers.size(), 1, "у досліді далека хата має свій шар уже після прогріву")
+		else:
+			assert_eq(far_layers.size(), 0, "без досліду шару #farL нема")
+
+
 func test_daleka_liva_khata_do_kartky() -> void:
 	assert_eq(Track.far_card_tag("house_terra_3", -12.0, 90.0), "farL",
 		"хата ліворуч за 12 м під поворотом 90° — у шар картки")

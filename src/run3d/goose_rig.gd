@@ -37,6 +37,7 @@ var fwd := Vector3.BACK
 var height := 1.0
 
 var _rest_global: Array[Transform3D] = []
+var _end_cache: Dictionary = {}
 var _rest_root_pos := Vector3.ZERO
 
 
@@ -48,8 +49,16 @@ func build(model: Node) -> bool:
 	skel = found[0] as Skeleton3D
 	var n := skel.get_bone_count()
 	_rest_global.clear()
+	_end_cache.clear()
 	for i in range(n):
 		_rest_global.append(skel.get_bone_global_rest(i))
+	# Повторний build() (інша модель чи та сама вдруге) не має дописувати ролі до старих.
+	head = -1
+	neck.clear()
+	wings.clear()
+	legs.clear()
+	tail = -1
+	root = -1
 	_classify()
 	return head >= 0
 
@@ -135,7 +144,8 @@ func _classify() -> void:
 	while b >= 0 and skel.get_bone_parent(b) >= 0 \
 			and _pos(skel.get_bone_parent(b)).dot(fwd) < _pos(root).dot(fwd) - 0.05 * height:
 		b = skel.get_bone_parent(b)
-	tail = b
+	# Хвіст, що збігся з коренем, анімувати не можна: фінальний оберт тіла його затирає.
+	tail = b if b != root else -1
 
 
 func _has_ancestor_in(i: int, arr: Array[int]) -> bool:
@@ -169,16 +179,37 @@ func _rot(i: int, turns: Array) -> void:
 	skel.set_bone_pose_rotation(i, q)
 
 
-## Знак, з яким треба крутити кістку навколо `axis`, щоб її кінчик пішов у бік `target`.
+## Знак, з яким треба крутити кістку навколо `axis`, щоб КІНЕЦЬ ЇЇ ЛАНЦЮГА пішов у бік
+## `target`. Саме ланцюга, а не самої кістки: у гуски 3 перша кістка крила дивиться вперед,
+## а все крило тягнеться назад, і знак за першою кісткою заводив крило всередину тулуба.
 func _toward(i: int, axis: Vector3, target: Vector3) -> float:
-	var v := _tip(i) - _pos(i)
+	if i < 0:
+		return 1.0
+	var v := _chain_end(i) - _pos(i)
 	var s := signf(axis.cross(v).dot(target))
 	return s if s != 0.0 else 1.0
 
 
+## Найдальша від кістки точка серед її нащадків — кінець ланцюга (кінчик крила, пальці лапи).
+func _chain_end(i: int) -> Vector3:
+	if _end_cache.has(i):
+		return _end_cache[i] as Vector3
+	var best := _tip(i)
+	var stack: Array[int] = [i]
+	while not stack.is_empty():
+		var b: int = stack.pop_back()
+		var t := _tip(b)
+		if t.distance_to(_pos(i)) > best.distance_to(_pos(i)):
+			best = t
+		for k in skel.get_bone_children(b):
+			stack.append(k)
+	_end_cache[i] = best
+	return best
+
+
 func _side_of(i: int) -> Vector3:
 	var side := up.cross(fwd).normalized()
-	return side * signf((_tip(i) - _pos(i)).dot(side))
+	return side * signf((_chain_end(i) - _pos(i)).dot(side))
 
 
 ## Один кадр. `t` — час у секундах; повертає зсув усієї моделі вгору (для польоту), м.
