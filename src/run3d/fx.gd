@@ -9,6 +9,16 @@ extends RefCounted
 
 static var _mats: Dictionary = {}
 static var _dot: GradientTexture2D = null
+## По ОДНОМУ живому матеріалу на кожен вид ефекту — щоб його шейдер не вмирав.
+##
+## Рушій тримає скомпільований шейдер матеріалу частинок (і StandardMaterial3D) лише доти,
+## доки живий бодай один матеріал із тим самим набором властивостей. Щойно останній
+## звільнено — шейдер викидається, і наступна поява того самого ефекту компілює його ЗНОВУ.
+## Так іскри веселки коштували ~40 мс на Маку (Compatibility) при КОЖНІЙ появі, а не лише
+## при першій: інших іскор у кадрі нема, тож шейдер щоразу помирав разом із веселкою. З тієї
+## ж причини прогрів (preheat) для таких ефектів не діяв: його частинки жили 0,35 с і
+## забирали шейдер із собою. Тримаємо сам матеріал, а не вузол: вузол коштує кадру, матеріал ні.
+static var _keep: Dictionary = {}
 
 ## Скільки тримати прогрівальні частинки в кадрі, перш ніж прибрати.
 const PREHEAT_SEC := 0.35
@@ -55,10 +65,11 @@ static func preheat(host: Node3D, at: Vector3 = Vector3.ZERO) -> void:
 	shield.mesh = sph
 	shield.material_override = _shield_mat()
 	probe.add_child(shield)
-	host.get_tree().create_timer(PREHEAT_SEC).timeout.connect(
-		func() -> void:
-			if is_instance_valid(probe):
-				probe.queue_free())
+	# МЕТОДОМ самого вузла, не лямбдою: лямбда з захопленим probe лишалась висіти на таймері
+	# дерева, коли сцену звільняли раніше за 0,35 с (перезапуск рівня, тести), і падала вже в
+	# чужому коді — «Lambda capture at index 0 was freed» (docs/MEMORY.md). Метод рушій
+	# від'єднує сам разом із вузлом.
+	host.get_tree().create_timer(PREHEAT_SEC).timeout.connect(probe.queue_free)
 
 
 ## М'яка кругла пляма: біле в центрі, прозоре по краю. Множиться на колір частинки.
@@ -186,6 +197,19 @@ static func _auto_free(p: GPUParticles3D) -> void:
 	p.emitting = true
 
 
+## Запам'ятати перший матеріал ефекту kind назавжди (див. _keep). Ключ — вид ефекту, а не
+## значення: для шейдера важить лише НАБІР увімкнених властивостей, а в межах одного виду він
+## однаковий (колір, радіус і шкала міняють лише параметри).
+static func _retain(kind: String, m: Material) -> void:
+	if not _keep.has(kind):
+		_keep[kind] = m
+
+
+## Чи тримається живий матеріал ефекту kind. Для тестів.
+static func retained(kind: String) -> bool:
+	return _keep.has(kind) and is_instance_valid(_keep[kind])
+
+
 ## Вибух зірочки при зборі.
 static func burst(parent: Node, pos: Vector3, color: Color = Palette.STAR) -> void:
 	var p := _make(14, 0.5, true, 0.1, color)
@@ -199,6 +223,7 @@ static func burst(parent: Node, pos: Vector3, color: Color = Palette.STAR) -> vo
 	pm.scale_max = 1.3
 	pm.color_initial_ramp = _ramp([Palette.WHITE, color, Palette.AMBER_DEEP])
 	p.position = pos
+	_retain("burst", pm)
 	parent.add_child(p)
 	_auto_free(p)
 
@@ -222,6 +247,7 @@ static func ring(parent: Node, pos: Vector3, color: Color, seconds: float = 0.35
 	m.emission = color
 	m.emission_energy_multiplier = 1.4
 	mi.material_override = m
+	_retain("ring", m)   # кільце живе 0,35 с — без цього шейдер помирав би разом із ним
 	mi.position = pos
 	mi.scale = Vector3(0.4, 0.4, 0.4)
 	parent.add_child(mi)
@@ -245,6 +271,7 @@ static func dust(parent: Node, pos: Vector3) -> void:
 	pm.damping_min = 1.0
 	pm.damping_max = 2.0
 	p.position = pos
+	_retain("dust", pm)
 	parent.add_child(p)
 	_auto_free(p)
 
@@ -266,6 +293,7 @@ static func confetti(parent: Node, pos: Vector3, amount: int = 80) -> void:
 	pm.damping_max = 1.5
 	pm.color_initial_ramp = _ramp(Palette.RAMP_CONFETTI)
 	p.position = pos
+	_retain("confetti", pm)
 	parent.add_child(p)
 	_auto_free(p)
 
@@ -282,6 +310,7 @@ static func splash(parent: Node, pos: Vector3, color: Color = Palette.SPLASH_WAT
 	pm.scale_min = 0.5
 	pm.scale_max = 1.0
 	p.position = pos
+	_retain("splash", pm)
 	parent.add_child(p)
 	_auto_free(p)
 
@@ -302,6 +331,7 @@ static func sparkles(parent: Node, radius: float = 0.5, amount: int = 12) -> GPU
 	pm.color_initial_ramp = _ramp(Palette.RAMP_SPARKLE)
 	p.position.y = 0.7
 	p.emitting = true
+	_retain("sparkles", pm)
 	parent.add_child(p)
 	return p
 
@@ -322,6 +352,7 @@ static func hearts(parent: Node, pos: Vector3, amount: int = 6) -> void:
 	pm.scale_max = 1.2
 	pm.color_initial_ramp = _ramp(Palette.RAMP_HEARTS)
 	p.position = pos
+	_retain("hearts", pm)
 	parent.add_child(p)
 	_auto_free(p)
 
@@ -341,6 +372,7 @@ static func trail(parent: Node, color: Color, amount: int = 16) -> GPUParticles3
 	pm.scale_max = 1.0
 	pm.color_initial_ramp = _ramp([Palette.WHITE, color, color.darkened(0.2)])
 	p.emitting = true
+	_retain("trail", pm)
 	parent.add_child(p)
 	return p
 
@@ -401,5 +433,6 @@ static func ambient(parent: Node, kind: String) -> GPUParticles3D:
 	p.position = Vector3(0.0, 0.4 if kind == "glints" else 5.0, -12.0)
 	p.preprocess = 4.0
 	p.emitting = true
+	_retain("ambient_" + kind, pm)
 	parent.add_child(p)
 	return p

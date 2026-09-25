@@ -1809,6 +1809,10 @@ func _start_level(num: int) -> void:
 	# нема. Без цього перший пил з-під лап коштував 34 мс замість 5 — і це було видно як
 	# заїкання на самому початку рівня (виміряно: tools/perf/fx_bench.tscn).
 	FX.preheat(self, hero.position + Vector3(0.0, 0.4, 0.0))
+	# Веселка — окремий шейдер (літ + емісія, непрозорий), і без прогріву перша в сесії
+	# компілювала його в кадрі появи: 144–464 мс на Маку. Гріємо лише там, де вона буває.
+	if events_spawner.allowed_ids.has("rainbow"):
+		Rainbow3D.preheat(self, hero.position + Vector3(0.0, 0.4, 0.0))
 	if _countdown_tw:
 		_countdown_tw.kill()
 	_countdown_tw = create_tween()

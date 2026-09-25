@@ -4,6 +4,8 @@
 ##     /Applications/Godot.app/Contents/MacOS/Godot --path . --fixed-fps 60 res://tools/probe/probe.tscn
 ##
 ## Ручки: STAGE (menu | level | map), LEVEL, FRAMES, RESET, PROFILE, RESIZE, BURST, PAUSE, NUDGE,
+## EVENT=rainbow|friend|…|none + EVENT_AT=кадр (сплеск появи й стала ціна міні-події; none — контроль),
+## EVENT_TWICE=1 (запустити подію вдруге: разове на сесію проти щоразового),
 ## SHADOWS=0 (зняти кадр без проходу тіней — щоб заміряти його ціну),
 ## STRIP=roadbase,mm_seam (прапорці досліду — ДИВИТИСЬ, що зникає з кадру; ціну міряє телефон),
 ## DEBUG_HUD=0 (сховати дебаг-накладку: для знімків ВИГЛЯДУ вона затуляє чверть кадру),
@@ -84,7 +86,10 @@ func _ready() -> void:
 		AgeAdapt.set_profile(OS.get_environment("PROFILE") if OS.has_environment("PROFILE") else "older")
 		_run.menu.hide_menu()
 		_run._start_level(_level)
-		await _frames_passed(_frames)
+		if OS.has_environment("EVENT"):
+			await _event_run(OS.get_environment("EVENT"))
+		else:
+			await _frames_passed(_frames)
 	else:
 		await _frames_passed(_frames)
 
@@ -271,6 +276,7 @@ func _ready() -> void:
 		},
 		# Усі кадри, довші за SPIKE_MS, із контекстом. Найдовші — першими.
 		"spikes": _spikes_sorted(),
+		"event": _event,
 		"controls": _controls(_run),
 		"decor_cost": decor,
 	}
@@ -310,6 +316,87 @@ func _decor_cost() -> Array:
 	return out
 
 
+## EVENT=rainbow EVENT_AT=240 — запустити міні-подію на заданому кадрі рівня й окремо
+## порахувати кадри ДО неї і ПІСЛЯ. EVENT=none — контрольний прогін: усе те саме, але подію
+## не запускаємо. Випадкові події в обох вимкнено (allowed_ids = []), інакше на рівні з
+## веселкою вона могла б вискочити сама в одному прогоні й не вискочити в іншому.
+## УВАГА: rainbow міряти на рівні, де веселка є в подіях (LEVEL=3): гра гріє її шейдер лише
+## там, і на LEVEL=1 вийде непрогрітий сплеск, схожий на регресію. Якщо FRAMES < EVENT_AT +
+## вікна події, прогін просто триває довше.
+## Розрізняє два різні лиха: СПЛЕСК при появі (компіляція шейдера, завантаження — лікується
+## прогрівом) і СТАЛЕ падіння, поки подія на екрані (заповнення, щокадрова робота).
+var _event := {}
+var _all_ms: Array = []     ## усі кадри прогону (вікно _wall_ms обрізане до 480)
+const EVENT_FIRST := 10     ## «поява» — перші кадри після запуску
+const EVENT_HOLD := 120     ## «на екрані» — наступні кадри
+
+
+func _event_run(id: String) -> void:
+	var at := int(OS.get_environment("EVENT_AT")) if OS.has_environment("EVENT_AT") else 240
+	var es = _run.get("events_spawner")
+	es.set("allowed_ids", [])
+	var start := _all_ms.size()
+	await _frames_passed(at)
+	# «до» — не раніше за старт рівня: інакше при малому EVENT_AT сюди потрапив би сплеск відліку
+	var before: Array = _all_ms.slice(maxi(start, _all_ms.size() - 120))
+	var t0 := Time.get_ticks_usec()
+	if id != "none":
+		es.call("force", id)
+	var call_ms := float(Time.get_ticks_usec() - t0) / 1000.0
+	var mark := _all_ms.size()
+	await _frames_passed(EVENT_FIRST + EVENT_HOLD)
+	var after: Array = _all_ms.slice(mark)
+	var first: Array = after.slice(0, EVENT_FIRST)
+	var hold: Array = after.slice(EVENT_FIRST)
+	_event = {
+		"id": id, "at_frame": at,
+		"call_ms": snappedf(call_ms, 0.01),
+		"before_avg_ms": snappedf(_avg(before), 0.01),
+		"first_max_ms": snappedf(_max(first), 0.01),
+		"first_frames_ms": first.map(func(x): return snappedf(float(x), 0.1)),
+		"hold_avg_ms": snappedf(_avg(hold), 0.01),
+		"hold_max_ms": snappedf(_max(hold), 0.01),
+	}
+	# EVENT_TWICE=1 — запустити ту саму подію вдруге й поміряти так само. Перша поява платить
+	# за все, що рушій робить РАЗ на сесію (компіляція шейдера); друга — лише те, що
+	# коштує ЩОРАЗУ (створення вузлів, виділення буферів). Без другої їх не розрізнити.
+	var used := EVENT_FIRST + EVENT_HOLD
+	if OS.get_environment("EVENT_TWICE") == "1" and id != "none":
+		var t1 := Time.get_ticks_usec()
+		es.call("force", id)
+		var call2 := float(Time.get_ticks_usec() - t1) / 1000.0
+		var mark2 := _all_ms.size()
+		await _frames_passed(EVENT_FIRST + EVENT_HOLD)
+		var after2: Array = _all_ms.slice(mark2)
+		var first2: Array = after2.slice(0, EVENT_FIRST)
+		_event["second"] = {
+			"call_ms": snappedf(call2, 0.01),
+			"first_max_ms": snappedf(_max(first2), 0.01),
+			"first_frames_ms": first2.map(func(x): return snappedf(float(x), 0.1)),
+			"hold_avg_ms": snappedf(_avg(after2.slice(EVENT_FIRST)), 0.01),
+		}
+		used += EVENT_FIRST + EVENT_HOLD
+	var rest := _frames - at - used
+	if rest > 0:
+		await _frames_passed(rest)
+
+
+static func _avg(v: Array) -> float:
+	if v.is_empty():
+		return 0.0
+	var t := 0.0
+	for x in v:
+		t += float(x)
+	return t / float(v.size())
+
+
+static func _max(v: Array) -> float:
+	var m := 0.0
+	for x in v:
+		m = maxf(m, float(x))
+	return m
+
+
 func _frames_passed(n: int) -> void:
 	for i in range(n):
 		var t0 := Time.get_ticks_usec()
@@ -317,6 +404,7 @@ func _frames_passed(n: int) -> void:
 		var ms := float(Time.get_ticks_usec() - t0) / 1000.0
 		_frame_no += 1
 		_wall_ms.append(ms)
+		_all_ms.append(ms)
 		if ms > SPIKE_MS:
 			_spikes.append(_spike_context(ms))
 		# тримаємо останні 8 секунд при 60 к/с — те саме вікно, що й у накладці

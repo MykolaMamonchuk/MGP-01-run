@@ -146,6 +146,8 @@ func _start(e: Dictionary) -> void:
 			arc.position = Vector3(float(arc.lane) * Hero3D.LANE_W, 0.0, -9.0)
 			spawner.add_child(arc)
 			AudioMgr.sfx("rainbow")
+			if OS.has_feature("debug_hud"):
+				_log_appearance("ВЕСЕЛКА")
 		"friend":
 			# Тут тепер лише ПОКАЗ уже готового тіла. Раніше стояло Friend3D.new() +
 			# setup(), тобто побудова вокселів і матеріалів просто в кадрі: 368 і 325 мс за
@@ -170,6 +172,41 @@ func _start(e: Dictionary) -> void:
 		_:
 			pass
 	get_tree().create_timer(dur + 1.0).timeout.connect(_finish.bind(id))
+
+
+## Лише в збірці з debug_hud: найгірший кадр із перших APPEAR_FRAMES після появи події —
+## у журнал телефона (`adb logcat -s godot:V`). Сплеск компіляції шейдера живе не в самому
+## виклику, а в кадрі, коли новий матеріал уперше МАЛЮЄТЬСЯ, тож годинник довкола виклику
+## (як у друга) його не бачить.
+const APPEAR_FRAMES := 10
+
+
+## Поруч друкуємо КОНТРОЛЬ — найгірший із стількох же кадрів через секунду, коли подія вже
+## нічого не створює: на Redmi 8A і звичайний кадр буває 50 мс, тож число без контролю бреше.
+func _log_appearance(label: String) -> void:
+	var worst := await _worst_of(APPEAR_FRAMES)
+	if not is_inside_tree():
+		return
+	for i in 60:
+		await get_tree().process_frame
+		if not is_inside_tree():
+			return
+	var control := await _worst_of(APPEAR_FRAMES)
+	print("%s: найгірший кадр із %d після появи %.1f мс, контроль %.1f мс" % [label,
+		APPEAR_FRAMES, worst, control])
+
+
+func _worst_of(n: int) -> float:
+	var worst := 0.0
+	var last := Time.get_ticks_usec()
+	for i in n:
+		await get_tree().process_frame
+		if not is_inside_tree():
+			return worst
+		var now := Time.get_ticks_usec()
+		worst = maxf(worst, float(now - last) / 1000.0)
+		last = now
+	return worst
 
 
 func _finish(id: String) -> void:
