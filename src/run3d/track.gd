@@ -724,7 +724,8 @@ func _sync_far() -> void:
 ## variant — номер типу моделі (data/props.json може тримати кілька різних моделей на вид).
 ## Кожен тип отримує СВІЙ шар: MultiMesh малює один меш на пачку, тож змішати їх в одному
 ## шарі неможливо — це не обмеження, яке варто обходити, а те, як влаштоване пакетне малювання.
-func _decor_layer(kind: String, override: Dictionary, variant: int = 0, no_sway: bool = false) -> int:
+func _decor_layer(kind: String, override: Dictionary, variant: int = 0, no_sway: bool = false,
+		tag: String = "") -> int:
 	if NEVER_SWAYS.has(kind):
 		no_sway = true          # будівля не дихає ніде — і шар у неї один, а не два
 	var key := kind if override.is_empty() else kind + "|" + JSON.stringify(override)
@@ -739,6 +740,11 @@ func _decor_layer(kind: String, override: Dictionary, variant: int = 0, no_sway:
 	# придорожній кущ — свій.
 	# Позначку кладемо через "#", як і номер типу: усе, що по той бік "#", — різновид того
 	# самого виду, і той, хто розбирає ключ, і далі бачить у ньому "bush".
+	# Позначка місця (зараз лише «farL» — далека смуга ліворуч, див. FAR_CARD_X) іде ПЕРЕД
+	# «#wall»: решта коду впізнає будинок за закінченням «#wall», а вид — за частиною до
+	# першого «#», і для обох ця хата лишається тим самим будинком.
+	if tag != "":
+		key += "#" + tag
 	if no_sway:
 		key += "#wall"
 	if _decor_layer_of.has(key):
@@ -1024,6 +1030,26 @@ func _authored_bridge_near(side: float, dist: float) -> bool:
 
 ## Один запис із авторського таймлайну — тим самим шляхом, що й випадковий декор (_add_decor),
 ## щоб MultiMesh-пачки й усі інваріанти test_track_batching.gd лишались тими самими.
+## ДАЛЕКА ЛІВА ХАТА — у власний шар, щоб її можна було намалювати карткою (дослід 25.09).
+##
+## Хати лугу стоять двома смугами: ближня за 7-9 м від осі дороги (48%) і дальня за 10-15 м
+## (46%). Дальню камера бачить майже під тим самим кутом увесь час, поки та в кадрі, тож її
+## можна малювати плоскою карткою, знятою саме під цим кутом (src/debug/far_card_capture).
+## Лише ліворуч: там усі далекі хати стоять під одним поворотом, 90°, а праворуч повороти
+## розкидані, і одна картка на вид не лягає. Окремий шар — це та сама модель; зміниться він
+## лише тоді, коли проба чи налаштування підмінить у ньому сітку на картку.
+const FAR_CARD_X := 10.0
+
+static func far_card_tag(kind: String, x_m: float, yaw_deg: float) -> String:
+	if not kind.begins_with("house_terra"):
+		return ""
+	if x_m > -FAR_CARD_X:
+		return ""
+	if absf(fposmod(yaw_deg, 360.0) - 90.0) > 1.0:
+		return ""
+	return "farL"
+
+
 func _add_authored_record(ids: PackedInt32Array, data: PackedFloat32Array, rec: Dictionary, no_sway: bool = false) -> void:
 	var kind := String(rec.get("kind", ""))
 	if kind == "" or not _kind_exists(kind):
@@ -1032,9 +1058,11 @@ func _add_authored_record(ids: PackedInt32Array, data: PackedFloat32Array, rec: 
 		_add_authored_bridge(ids, data, float(rec.get("x_m", 0.0)))
 		return
 	var override: Dictionary = rec.get("override", {}) if typeof(rec.get("override", {})) == TYPE_DICTIONARY else {}
+	var x_m := float(rec.get("x_m", 0.0))
+	var yaw_deg := float(rec.get("yaw_deg", 0.0))
 	_add_decor(ids, data, kind, override,
-		float(rec.get("x_m", 0.0)), float(rec.get("y_m", 0.0)), float(rec.get("scale", 1.0)),
-		deg_to_rad(float(rec.get("yaw_deg", 0.0))), 1.0, no_sway)
+		x_m, float(rec.get("y_m", 0.0)), float(rec.get("scale", 1.0)),
+		deg_to_rad(yaw_deg), 1.0, no_sway, far_card_tag(kind, x_m, yaw_deg))
 
 
 ## Авторський місток. Маркер каже ЛИШЕ «тут місток і на цьому борті» — розмір і точне місце
@@ -1082,9 +1110,9 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 ## stretch — додатковий масштаб ЛИШЕ вздовж локальної осі Z ДО повороту на yaw (за
 ## замовчуванням 1.0 — нічого не міняє). Треба, щоб видовжити предмет уздовж одного виміру,
 ## не роздуваючи решту: настилу містка ширший канал дає довшу дошку, а не товщу й вищу.
-func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0, stretch: float = 1.0, no_sway: bool = false) -> void:
+func _add_decor(ids: PackedInt32Array, data: PackedFloat32Array, kind: String, override: Dictionary, x: float, y: float, s: float, yaw: float = -1.0, stretch: float = 1.0, no_sway: bool = false, tag: String = "") -> void:
 	var variant := PropLibrary.pick(kind)
-	ids.append(_decor_layer(kind, override, variant, no_sway))
+	ids.append(_decor_layer(kind, override, variant, no_sway, tag))
 	# Доведення моделі (data/props.json): згенерована модель майже ніколи не приходить одразу
 	# в потрібному розмірі й розвороті, а правити це в самому .glb довго. Для вокселя обидва
 	# значення типово 1.0 / 0°, тож нічого не змінюється.

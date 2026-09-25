@@ -253,6 +253,49 @@ var _strip_flags := PackedStringArray()
 var _strip_orig := {}
 ## Спрайт хати для досліду `terramesh_sprite` — один на всі шари, див. _reapply_strip.
 var _terra_sprite: Mesh = null
+## Картки далеких хат для досліду `farcards`, за видом. Див. _far_card_mesh.
+var _far_cards := {}
+var _far_card_meta := {}
+
+
+## Плоска картка далекої хати. Знімок покриває квадрат span_m, центр на висоті center_y_m;
+## картку повертаємо на (card_yaw − 90°) ВСЕРЕДИНІ сітки, бо шар і далі ставить екземпляр
+## під поворотом хати (90°), — тож разом виходить рівно той кут, під яким хату знімали.
+func _far_card_mesh(kind: String) -> Mesh:
+	if _far_cards.has(kind):
+		return _far_cards[kind]
+	if _far_card_meta.is_empty():
+		var f := FileAccess.open("res://assets/props/_exp/cards/cards.json", FileAccess.READ)
+		if f == null:
+			return null
+		_far_card_meta = JSON.parse_string(f.get_as_text())
+	var m: Dictionary = _far_card_meta.get(kind, {})
+	var tex := load("res://assets/props/_exp/cards/%s_L.png" % kind) as Texture2D
+	if m.is_empty() or tex == null:
+		_far_cards[kind] = null
+		return null
+	var span := float(m["span_m"])
+	var q := QuadMesh.new()
+	q.size = Vector2(span, span)
+	q.center_offset = Vector3(0, float(m["center_y_m"]), 0)
+	var arr := q.get_mesh_arrays()
+	var rot := Basis(Vector3.UP, deg_to_rad(float(m["card_yaw_deg"]) - 90.0))
+	var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var ns: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+	for i in range(vs.size()):
+		vs[i] = rot * vs[i]
+		ns[i] = rot * ns[i]
+	arr[Mesh.ARRAY_VERTEX] = vs
+	arr[Mesh.ARRAY_NORMAL] = ns
+	arr[Mesh.ARRAY_TANGENT] = null
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arr)
+	var sm := ShaderMaterial.new()
+	sm.shader = load("res://src/run3d/far_card.gdshader")
+	sm.set_shader_parameter("tex", tex)
+	am.surface_set_material(0, sm)
+	_far_cards[kind] = am
+	return am
 ## Таймер повтору досліду. Стоїть, поки досліду нема — див. debug_strip().
 var _strip_timer: Timer = null
 var _shared_mats := {}
@@ -776,6 +819,21 @@ func _reapply_strip() -> void:
 				mi.multimesh.mesh = fm
 		elif _strip_orig.has("flat%d" % idx):
 			mi.multimesh.mesh = _strip_orig["flat%d" % idx]
+		# КАРТКИ ДАЛЕКИХ ХАТ (дослід 25.09). Далекі хати лівого боку лежать в окремих шарах
+		# «…#farL#wall» (Track.far_card_tag). `farcards` підміняє в них сітку на плоску
+		# картку, зняту під кутом ігрової камери; `nofar` ховає їх зовсім — стеля виграшу.
+		if String(key).contains("#farL"):
+			_strip_hide(mi, "nofar")
+			var fk := "farcard%d" % idx
+			if _strip_flags.has("farcards"):
+				if not _strip_orig.has(fk):
+					_strip_orig[fk] = mi.multimesh.mesh
+				var cm := _far_card_mesh(String(key).split("#")[0])
+				if cm != null and mi.multimesh.mesh != cm:
+					mi.multimesh.mesh = cm
+			elif _strip_orig.has(fk):
+				mi.multimesh.mesh = _strip_orig[fk]
+				_strip_orig.erase(fk)
 		# ПІДМІНА СІТКИ ХАТ (дослід 25.09). `terramesh_<варіант>` ставить ОДНУ модель замість
 		# УСІХ шарів house_terra*: одна хата — це 3 екземпляри з ~22, тобто ефект нижчий за
 		# поріг вимірювання, а всі разом — уже помітна частка ціни забудови. Опорою служить
@@ -1095,10 +1153,15 @@ func _ready() -> void:
 	# ДИВИТИСЬ на наслідок у справжньому вікні на Маку (tools/probe), не збираючи APK: ціну
 	# міряє телефон, а що при цьому зникло з екрана — видно й тут. Порожнє значення нічого
 	# не вмикає, і, як усюди в досліді, прапорець може лише ЗАБРАТИ, а не додати.
-	if OS.has_environment("STRIP"):
-		var raw := OS.get_environment("STRIP").strip_edges()
-		if raw != "":
-			debug_strip(PackedStringArray(raw.split(",", false)))
+	# `--strip=` у командному рядку робить те саме на ТЕЛЕФОНІ, де змінних середовища не
+	# передати: збірки для живого заміру різняться лише рядком у пресеті експорту (як
+	# `--level=` і `--scale=`). Так розгортка 17 рівнів може йти з прапорцем і без нього.
+	var raw := OS.get_environment("STRIP").strip_edges() if OS.has_environment("STRIP") else ""
+	for a in OS.get_cmdline_args() + OS.get_cmdline_user_args():
+		if String(a).begins_with("--strip="):
+			raw = String(a).substr(8).strip_edges()
+	if raw != "":
+		debug_strip(PackedStringArray(raw.split(",", false)))
 	# ПРОГІН УСІХ РІВНІВ — окрема проба, вмикається прапорцем збірки `sweep`.
 	if OS.has_feature("sweep") and ResourceLoader.exists("res://src/ui/sweep_probe.gd"):
 		var sw: Node = load("res://src/ui/sweep_probe.gd").new()
