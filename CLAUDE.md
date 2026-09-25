@@ -22,7 +22,7 @@
 
 ## Тести
 
-`godot` **не в PATH**. Повний набір — 454 тести, ~23 с:
+`godot` **не в PATH**. Повний набір — 804 тести, ~23 с:
 
 ```bash
 G=/Applications/Godot.app/Contents/MacOS/Godot
