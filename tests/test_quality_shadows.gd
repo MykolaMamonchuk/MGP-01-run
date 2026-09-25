@@ -175,8 +175,11 @@ func test_scena_perekliuchaie_tuman_na_lotu() -> void:
 
 ## Масштаб рендера: у «Плавно» 3D малюється в меншому буфері, у «Гарно» — у повному.
 func test_masshtab_rendera_zalezhyt_vid_yakosti() -> void:
-	assert_almost_eq(Quality.scale_of(Quality.SMOOTH), 0.87, 0.001,
-		"«Плавно» — 0,87: заміряно 9,1 мс виграшу, і оком не видно")
+	# 0,80 — з драбини, а не з голови: жива розгортка, чотири прогони плюс повторний
+	# контроль. 34,5 мс проти 35,4 на 0,82, тобто -0,92 мс за -4,7% пікселів; крива гладка.
+	# Нижче свідомо не йдемо: вигляд помітно м'якшає, а віддача падає.
+	assert_almost_eq(Quality.scale_of(Quality.SMOOTH), 0.80, 0.001,
+		"«Плавно» — 0,80, і це число має мінятись лише разом із новим заміром драбини")
 	assert_almost_eq(Quality.scale_of(Quality.PRETTY), 1.0, 0.001, "«Гарно» — повний")
 	assert_almost_eq(Quality.scale_of("казна-що"), Quality.scale_of(Quality.DEFAULT), 0.001,
 		"невідомий стан — це типовий, а не збій")
@@ -190,11 +193,11 @@ func test_doslid_ne_navyazuie_povnyi_masshtab() -> void:
 	add_child_autofree(run)
 	await wait_frames(3)
 	var vp := get_tree().root
-	assert_almost_eq(vp.scaling_3d_scale, 0.87, 0.001, "у «Плавно» буфер менший")
+	assert_almost_eq(vp.scaling_3d_scale, 0.80, 0.001, "у «Плавно» буфер менший")
 	run.call("debug_strip", PackedStringArray(["scale70"]))
 	assert_almost_eq(vp.scaling_3d_scale, 0.70, 0.001, "прапорець досліду перекриває")
 	run.call("debug_strip", PackedStringArray([]))
-	assert_almost_eq(vp.scaling_3d_scale, 0.87, 0.001,
+	assert_almost_eq(vp.scaling_3d_scale, 0.80, 0.001,
 		"без прапорця повертається вибір якості, а НЕ одиниця")
 	vp.scaling_3d_scale = 1.0
 
