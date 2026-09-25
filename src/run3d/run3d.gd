@@ -706,6 +706,7 @@ func _reapply_strip() -> void:
 		_strip_hide(sp, "noobstacles")
 	var layers: Array = track.get("_decor_mm")
 	var by_key: Dictionary = track.get("_decor_layer_of")
+	var swapped_mesh := false
 	var n := 0
 	var p := 0
 	for key in by_key:
@@ -773,6 +774,32 @@ func _reapply_strip() -> void:
 				mi.multimesh.mesh = fm
 		elif _strip_orig.has("flat%d" % idx):
 			mi.multimesh.mesh = _strip_orig["flat%d" % idx]
+		# ПІДМІНА СІТКИ ХАТ (дослід 25.09). `terramesh_<варіант>` ставить ОДНУ модель замість
+		# УСІХ шарів house_terra*: одна хата — це 3 екземпляри з ~22, тобто ефект нижчий за
+		# поріг вимірювання, а всі разом — уже помітна частка ціни забудови. Опорою служить
+		# `terramesh_orig`: та сама house_terra_6, тільки оригінальна, щоб порівнювати сітку з
+		# сіткою, а не суміш хат із однією.
+		#   proxy1200 / proxy600 — нова оболонка із запеченим виглядом оригіналу;
+		#   facadeA / facadeB    — оригінал без граней, яких не видно з дороги.
+		if String(key).begins_with("house_terra"):
+			var tm := ""
+			for f in _strip_flags:
+				if String(f).begins_with("terramesh_"):
+					tm = String(f).substr(10)
+			var tk := "terramesh%d" % idx
+			if tm != "":
+				if not _strip_orig.has(tk):
+					_strip_orig[tk] = mi.multimesh.mesh
+				var path := "res://assets/props/house_terra_6.glb" if tm == "orig" \
+					else "res://assets/props/_exp/house_terra_6_%s.glb" % tm
+				var nm := PropLibrary.mesh_at(path)
+				if nm != null and mi.multimesh.mesh != nm:
+					mi.multimesh.mesh = nm
+					swapped_mesh = true
+			elif _strip_orig.has(tk):
+				mi.multimesh.mesh = _strip_orig[tk]
+				_strip_orig.erase(tk)
+				swapped_mesh = true
 		# КАРТИ НОРМАЛЕЙ. Сплощення пропсів зрізало виклики малювання з 262 до 145 і дало
 		# лише 13,7 одиниць, а спільний матеріал поверх УСІХ шарів — 56,3 при тих самих
 		# 252 викликах. Різниця між ними в тому, що другий накривав ще й 32 ТЕКСТУРНІ
@@ -964,6 +991,11 @@ func _reapply_strip() -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF \
 			if _strip_flags.has("decorshadow") \
 			else int(_strip_orig[ck]) as GeometryInstance3D.ShadowCastingSetting
+	# Підмінена сітка приїхала зі СВОЇМИ матеріалами — на піксель і з гілкою навколишнього
+	# світла. Без цього рядка порівняння було б нечесним: нова модель платила б за освітлення,
+	# якого решта гри вже не платить. Траса розставляє їм те саме, що й усім шарам декору.
+	if swapped_mesh and track.has_method("apply_decor_shading"):
+		track.apply_decor_shading()
 
 
 func _ready() -> void:
