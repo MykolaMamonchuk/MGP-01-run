@@ -269,7 +269,7 @@ const _STRIP_MAT_KEYS := ["nrm", "shade:", "tf:", "cull:", "alb:", "spec:", "emi
 ## перестала б стежити за лінивими шарами саме тоді, коли це найпотрібніше.
 const _STRIP_MAT_FLAGS := ["unshaded", "pervertex", "unwalls", "nonormal", "nometal",
 	"norough", "noao", "onemat", "onetex", "flat", "cullback", "nofilter", "nomip",
-	"nospec", "noambient", "ambemis"]
+	"nospec", "noambient", "ambemis", "roadunlit", "roadvertex", "roadnoamb"]
 
 
 ## ПОКИ ТРИВАЄ ДОСЛІД, МАТЕРІАЛАМИ ДЕКОРУ КЕРУЄ ВІН, а не траса. Інакше обидва пишуть у ті
@@ -552,6 +552,34 @@ func _reapply_strip() -> void:
 	# ця ціна не платиться взагалі. Міряємо, чи виграш той самий.
 	if track.has_method("force_canal_shader"):
 		track.force_canal_shader(3 if _strip_flags.has("canalopaque") else Track.CANAL_AS_SEA)
+	# ОСВІТЛЕННЯ ПОЛОТНА ДОРОГИ. Розклад чотирьох світів (25.09) дав дорозі 13-15,5 мс на
+	# лузі, хмаринках і пляжі — найбільше, що лишилось, і це ЗАПОВНЕННЯ, а не геометрія:
+	# примітиви падають до 8-30 тис., а кадр — на п'ятнадцять мілісекунд.
+	#
+	# Гіпотеза, яку тут міряємо. Полотно пласке, видно з нього майже лише ВЕРХНЮ грань, а в
+	# неї нормаль завжди вгору. Тіні в «Плавно» вимкнено. Отже освітлення на кожному пікселі
+	# дороги рахує ОДНЕ Й ТЕ САМЕ число — марна робота на майже весь екран.
+	#   roadunlit — стеля: скільки коштує освітлення дороги взагалі;
+	#   roadnoamb — скільки з того коштує сама гілка навколишнього світла (на декорі це було
+	#               86% усієї ціни, і саме її вдалось віддати випроміненню без втрат).
+	for key in ["_mm_surface", "_mm_edge"]:
+		var mi = track.get(key)
+		if mi == null:
+			continue
+		var bm := (mi as MultiMeshInstance3D).material_override as BaseMaterial3D
+		if bm == null:
+			continue
+		var rk := "road:%d" % bm.get_instance_id()
+		if not _strip_orig.has(rk):
+			_strip_orig[rk] = [bm.shading_mode, bm.disable_ambient_light]
+		if _strip_flags.has("roadunlit"):
+			bm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		elif _strip_flags.has("roadvertex"):
+			bm.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
+		else:
+			bm.shading_mode = int((_strip_orig[rk] as Array)[0]) as BaseMaterial3D.ShadingMode
+		bm.disable_ambient_light = _strip_flags.has("roadnoamb") \
+			or bool((_strip_orig[rk] as Array)[1])
 	# РОЗКЛАД САМОЇ ВОДИ. Вона виявилась найдорожчою системою (+32,5 мс), маючи 73 виклики
 	# й 36 тисяч примітивів — отже вся ціна в піксельному шейдері. Три підозри, і кожна
 	# міряється окремо:
@@ -1022,12 +1050,12 @@ func _ready() -> void:
 		probe.run = self
 		add_child(probe)
 
-	Quality.applied.connect(func(_st):
-		_sync_haze()
-		if track != null and track.has_method("reapply_water_shader"):
-			track.reapply_water_shader()
-		if track != null and track.has_method("apply_decor_shading"):
-			track.apply_decor_shading())
+	# МЕТОДОМ, А НЕ ЛЯМБДОЮ. Лямбда, що захоплює цю сцену, лишається на автозавантаженні
+	# `Quality` НАЗАВЖДИ: Godot не роз'єднує її, коли вузол звільнено, бо прив'язки до
+	# об'єкта немає. У грі сцена одна, тож це не було видно; у тестах кожна наступна зміна
+	# якості падала з «Lambda capture at index 0 was freed». Зв'язок із МЕТОДОМ рушій знімає
+	# сам разом із вузлом.
+	Quality.applied.connect(_on_quality_applied)
 
 	Events.profile_changed.connect(_apply_profile)
 	Events.session_warning.connect(_on_session_warning)
@@ -1222,6 +1250,15 @@ func _make_mode(kind: String) -> ModeBase:
 
 
 ## rebuild_track false — той самий біом, дорогу не перебудовуємо (лише доріжки, якщо змінились); режим/спавнери — завжди.
+## Стан якості змінився: перерахувати те, що від нього залежить.
+func _on_quality_applied(_st: String) -> void:
+	_sync_haze()
+	if track != null and track.has_method("reapply_water_shader"):
+		track.reapply_water_shader()
+	if track != null and track.has_method("apply_decor_shading"):
+		track.apply_decor_shading()
+
+
 func _enter_world(id: String, instant: bool, rebuild_track: bool = true) -> void:
 	if not worlds.has(id):
 		id = String(worlds.keys()[0])

@@ -558,10 +558,19 @@ func _on_buy(num: int, b: Button, badge: Control) -> void:
 	var centre := b.position + b.size * 0.5
 	_build(num)          # вузол став відкритим — пружно з'являється
 	_burst(centre)
-	get_tree().create_timer(0.5).timeout.connect(func():
-		_busy = false
-		if visible:
-			_on_node(num))
+	# МЕТОДОМ, А НЕ ЛЯМБДОЮ. Лямбда тут захоплює саму сцену (`_busy`, `visible`, `_on_node`),
+	# і якщо екран закрили раніше, ніж спрацює півсекундний таймер, рушій падає з «Lambda
+	# capture at index 0 was freed» — причому падає там, де саме йшло виконання, а не тут.
+	# У наборі тестів це виглядало як плаваюче падіння чужого тесту. Зв'язок із МЕТОДОМ
+	# рушій знімає разом із вузлом, тож нічого не лишається висіти.
+	get_tree().create_timer(0.5).timeout.connect(_after_buy.bind(num))
+
+
+## Купівлю завершено: відпустити блокування й, якщо екран ще видно, відкрити вузол.
+func _after_buy(num: int) -> void:
+	_busy = false
+	if visible:
+		_on_node(num)
 
 
 ## Підсвітка ціни: плашка збільшується й червоніє, потім назад.

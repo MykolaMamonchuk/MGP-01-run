@@ -325,3 +325,68 @@ func test_povzuche_svitlo_ne_pererahovuie_shchokadru() -> void:
 		"за 600 кадрів повзучого світла перерахунків має бути кілька, а не кожен кадр "
 		+ "(було %d)" % applies)
 	assert_gt(applies, 0, "і не нуль: світло таки змінилось, декор мусить це наздогнати")
+
+
+
+## ОСВІТЛЕННЯ ПОЛОТНА ДОРОГИ — НА ВЕРШИНУ. Плитка це коробка, у грані стала нормаль, світло
+## напрямлене, тіні в «Плавно» вимкнено — отже на вершину й на піксель дають те саме число.
+## Перевірено рендером: різниця 1-2 з 255. Заміряно: -2,55 мс на лузі, -3,90 на хмаринках.
+func test_polotno_svititsia_za_stanom_yakosti() -> void:
+	var t := _track
+	var mats: Array = []
+	for key in ["_mm_surface", "_mm_edge"]:
+		var mi = t.get(key)
+		assert_not_null(mi, "шар %s існує, інакше сторож перевіряє порожнечу" % key)
+		var bm = (mi as MultiMeshInstance3D).material_override as BaseMaterial3D
+		assert_not_null(bm, "у шару %s є матеріал" % key)
+		mats.append(bm)
+	# ОДРАЗУ ПІСЛЯ СТВОРЕННЯ, без жодного перемикання якості: рівно на цьому спіймали канали.
+	var want := BaseMaterial3D.SHADING_MODE_PER_VERTEX \
+		if Quality.vertex_lit_of(Quality.effective()) \
+		else BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	for bm in mats:
+		assert_eq((bm as BaseMaterial3D).shading_mode, want,
+			"полотно бере режим зі стану якості вже при створенні")
+	# І слідує за станом в обидва боки.
+	#
+	# Стан ПРИБИВАЄМО НАПРЯМУ, а не через `apply_state`. Той крім прибивання ще й застосовує
+	# стан до в'юпорта — міняє масштаб рендера, — а це будить `resized` у Control'ів, серед
+	# яких трапляється звільнений попереднім тестом. Тест падав не через дорогу, а через це:
+	# поодинці був зелений, у наборі ні. Предмет цього сторожа — як ТРАСА ЧИТАЄ стан якості;
+	# застосування стану до в'юпорта стереже test_quality_shadows.
+	Quality._pinned = Quality.PRETTY
+	t.apply_decor_shading()
+	for bm in mats:
+		assert_eq((bm as BaseMaterial3D).shading_mode, BaseMaterial3D.SHADING_MODE_PER_PIXEL,
+			"у «Гарно» полотно вертається на піксель")
+	Quality._pinned = Quality.SMOOTH
+	t.apply_decor_shading()
+	for bm in mats:
+		assert_eq((bm as BaseMaterial3D).shading_mode, BaseMaterial3D.SHADING_MODE_PER_VERTEX,
+			"у «Плавно» — на вершину")
+	Quality.unpin()
+
+
+## І ОКРЕМО: полотно правильне ВЖЕ ПРИ СТВОРЕННІ траси, без жодної перебудови світу.
+##
+## Сторож вище цього не ловить: `before_each` робить `rebuild()`, а той заводить шари декору
+## й тим самим кличе `apply_decor_shading()` — режим доїжджає обхідним шляхом. Тут беремо
+## голу трасу, якої ніхто не перебудовував: якщо виставлення при створенні прибрати,
+## світ без жодного шару декору лишив би дорогу на пікселі. Рівно цим схибили канали.
+func test_polotno_pravylne_vzhe_pry_stvorenni() -> void:
+	var fresh := Track.new()
+	add_child_autofree(fresh)
+	await wait_process_frames(2)
+	var want := BaseMaterial3D.SHADING_MODE_PER_VERTEX \
+		if Quality.vertex_lit_of(Quality.effective()) \
+		else BaseMaterial3D.SHADING_MODE_PER_PIXEL
+	var seen := 0
+	for key in ["_mm_surface", "_mm_edge"]:
+		var mi = fresh.get(key)
+		assert_not_null(mi, "шар %s існує" % key)
+		var bm = (mi as MultiMeshInstance3D).material_override as BaseMaterial3D
+		assert_not_null(bm, "у шару %s є матеріал" % key)
+		seen += 1
+		assert_eq((bm as BaseMaterial3D).shading_mode, want,
+			"%s: режим виставлено при створенні, без rebuild()" % key)
+	assert_eq(seen, 2, "обидва шари полотна оглянуто")

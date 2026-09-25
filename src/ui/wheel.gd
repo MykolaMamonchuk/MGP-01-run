@@ -137,7 +137,16 @@ func _on_stop(sector: int) -> void:
 	var tw := create_tween().set_pause_mode(Tween.TWEEN_PAUSE_PROCESS)
 	tw.tween_interval(1.4)
 	tw.tween_property(_disc, "scale", Vector2.ZERO, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-	tw.tween_callback(func():
-		visible = false
-		_spinning = false
-		finished.emit(reward))
+	# МЕТОДОМ, А НЕ ЛЯМБДОЮ: лямбда захоплює саме колесо, і якщо його закрили раніше, ніж
+	# добіг твін (а це 1,7 с), рушій падає з «Lambda capture at index 0 was freed» — причому
+	# у тому місці, де саме йшло виконання, тобто виглядає як падіння чужого коду. У наборі
+	# тестів це давало плаваюче падіння сусіднього тесту. Зв'язок із методом рушій знімає
+	# разом із вузлом.
+	tw.tween_callback(_on_spin_done.bind(reward))
+
+
+## Обертання скінчилось: сховати колесо й віддати виграш.
+func _on_spin_done(reward: Dictionary) -> void:
+	visible = false
+	_spinning = false
+	finished.emit(reward)

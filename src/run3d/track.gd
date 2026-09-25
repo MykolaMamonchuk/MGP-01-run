@@ -532,6 +532,11 @@ func _ready() -> void:
 	edge_mesh.size = Vector3(EDGE_W, TILE_H, 1.0)
 	_mm_edge = _make_canvas(edge_mesh, ROWS * 2, 6.0, true)
 	_mm_edge.material_override = _tinted_material()
+	# ОДРАЗУ, а не лише після наступної зміни якості: інакше в грі, де дорослий якість не
+	# чіпає, правка не діяла б зовсім. Рівно на цьому вже спіймали канали.
+	_apply_road_shading(BaseMaterial3D.SHADING_MODE_PER_VERTEX \
+		if Quality.vertex_lit_of(Quality.effective()) \
+		else BaseMaterial3D.SHADING_MODE_PER_PIXEL)
 	# поперечний шов: на всю ширину ряду, завтовшки рівно як зазор між плитками
 	var xseam_mesh := BoxMesh.new()
 	xseam_mesh.size = Vector3(LANES_W, 0.44, TILE_GAP)
@@ -1523,6 +1528,7 @@ func apply_decor_shading() -> void:
 		else BaseMaterial3D.SHADING_MODE_PER_PIXEL
 	if strip_owns_decor_mats:
 		return
+	_apply_road_shading(mode)
 	var emis := Quality.ambient_emis_of(Quality.effective()) \
 		if force_ambient_emis < 0 else force_ambient_emis == 1
 	emis = emis and _amb_energy >= 0.0
@@ -1536,6 +1542,29 @@ func apply_decor_shading() -> void:
 				continue
 			bm.shading_mode = mode
 			_apply_ambient_emis(bm, emis)
+
+
+## ОСВІТЛЕННЯ ПОЛОТНА ДОРОГИ — НА ВЕРШИНУ, і тут це не компроміс, а точна рівність.
+##
+## Плитка дороги — це коробка: у кожної грані СТАЛА нормаль. Світло напрямлене, тіні в
+## «Плавно» вимкнено, відблиску на шорсткому матеріалі немає. Отже освітлення на кожному
+## пікселі грані рахує ОДНЕ Й ТЕ САМЕ число — а на вершину рахує його тричі на грань і
+## розтягує. Перевірено рендером: різниця 1-2 з 255, тобто округлення.
+##
+## Скільки це коштувало (Redmi 8A, дві точки на світ, контроль 0,0-0,45%):
+##   на вершину       луг -2,55   хмаринки -3,90
+##   без освітлення   луг -3,95   хмаринки -5,80   (стеля, але пласкі грані)
+##   без навкол. св.  луг -0,40   хмаринки -0,90   (нижче порога, трюк декору тут не працює)
+## На пляжі нуль, і це не збій: там `sea: true`, полотна дороги немає зовсім.
+##
+## Беремо на вершину: 57-74% стелі за нульової ціни у вигляді.
+func _apply_road_shading(mode: int) -> void:
+	for mi in [_mm_surface, _mm_edge]:
+		if mi == null:
+			continue
+		var bm := (mi as MultiMeshInstance3D).material_override as BaseMaterial3D
+		if bm != null:
+			bm.shading_mode = mode
 
 
 ## НАВКОЛИШНЄ СВІТЛО ВИПРОМІНЕННЯМ. Чому саме так — див. Quality.AMBIENT_EMIS.
