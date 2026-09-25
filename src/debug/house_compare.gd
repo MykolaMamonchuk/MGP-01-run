@@ -28,6 +28,7 @@ extends Node3D
 const ROWS := [
 	["НОВА: house_terra_6_optimize", [
 		["ОРИГІНАЛ\n26611 верш", "res://assets/props/_exp/_src/house_terra_6_optimize.glb"],
+		["8000 тр\n23985 верш", "res://assets/props/_exp/house_terra_6_opt8000.glb"],
 		["6000 тр\n17985 верш", "res://assets/props/_exp/house_terra_6_opt6000.glb"],
 		["4000 тр\n11988 верш", "res://assets/props/_exp/house_terra_6_opt4000.glb"],
 		["2000 тр\n5985 верш", "res://assets/props/_exp/house_terra_6_opt2000.glb"],
@@ -73,7 +74,7 @@ func _build() -> void:
 			remove_child(c)
 			c.queue_free()
 	# Камера — як у грі: трохи збоку й згори, фасади до неї.
-	($Камера as Camera3D).look_at_from_position(Vector3(0.0, 5.2, 9.0), Vector3(0, 1.0, -3.0))
+	($Камера as Camera3D).look_at_from_position(Vector3(0.0, 5.8, 10.5), Vector3(0, 1.0, -3.0))
 	var method := RenderingServer.get_current_rendering_method()
 	var k: float = load("res://src/run3d/run3d.gd").light_scale_for(method)
 	var env := ($Світ as WorldEnvironment).environment
