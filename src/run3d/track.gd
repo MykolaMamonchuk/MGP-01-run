@@ -2199,7 +2199,7 @@ func _decorate(row: Node3D) -> void:
 			var tall := (i + (1 if side > 0.0 else 0)) % 2 == 0
 			_add_decor(ids, data, String(walls_near[randi() % walls_near.size()]), {},
 				side * (edge + randf_range(NEAR_MIN, NEAR_MAX)), 0.0, 1.25 if tall else 0.85,
-				-1.0, 1.0, true)
+				RANDOM_YAW, 1.0, true)
 		# дрібне — часто
 		if not kinds.is_empty() and randf() < 0.9:
 			var kind := String(kinds[randi() % kinds.size()])

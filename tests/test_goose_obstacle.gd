@@ -54,6 +54,32 @@ func test_letiucha_tse_pryhnys() -> void:
 	o.tick(0.1)
 	assert_eq(o._rig_state, "fly")
 	assert_gt(o._mesh.position.y, 0.8, "летить на висоті голови, а не по землі")
+	# Сама висота — з даних світу, вона правдива й без рига. Риг видно з руху: тіло
+	# погойдується в такт змахам.
+	var ys := {}
+	for i in range(6):
+		o.tick(0.05)
+		ys[snappedf(o._mesh.position.y, 0.001)] = true
+	assert_gt(ys.size(), 2, "летюча гуска погойдується — риг справді крутить її")
+
+
+## Прогрів: спавнер читає сцени скелетних гусок наперед, і поява гуски вже не йде на диск.
+## Інакше кожна гуска — повний load .glb просто в кадрі бігу (рецензія 26.09).
+func test_prohriv_chytaie_stseny_husok() -> void:
+	PropLibrary._scene_cache.clear()
+	var sp := Spawner3D.new()
+	sp.world = _world()
+	sp._prewarm_props()
+	for i in range(PropLibrary.variants("goose")):
+		var path := String(PropLibrary._entry("goose", i)["path"])
+		assert_true(PropLibrary._scene_cache.has(path), "%s прогріто" % path.get_file())
+	sp.free()
+
+
+func test_druzky_husky_ne_koloru_yashchyka() -> void:
+	var o := _goose("cow")
+	o.shatter()
+	assert_true(true, "розбилась без помилок")
 
 
 func test_ta_shcho_khodyt_dyvytsia_kudy_ide() -> void:

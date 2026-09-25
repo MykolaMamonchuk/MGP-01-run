@@ -164,6 +164,8 @@ func configure(p: Dictionary, w: Dictionary, h: Hero3D, m: ModeBase, r: Node) ->
 	coin_mult = 1
 	reset_power()
 	_prewarm_props()
+	# Той самий порядок появи гусок на рівні — ті самі моделі, і після перезапуску теж.
+	Obstacle3D._rig_counter = 0
 
 
 ## Прочитати меші ВСІХ перешкод світу наперед, поки триває завантаження рівня.
@@ -187,6 +189,9 @@ func _prewarm_props() -> void:
 		var prop := String(d.get("prop", d.get("voxel", kind)))
 		for v in range(PropLibrary.variants(prop)):
 			PropLibrary.mesh(prop, v)
+			# Скелетна тварина бере не меш, а цілу сцену (Obstacle3D._setup_rig).
+			if d.has("rig"):
+				PropLibrary.scene(String(PropLibrary._entry(prop, v).get("path", "")))
 
 
 ## Скільки монеток дає злиток номіналу value: пікап «×2» (цілий) × множник суперсили (дробовий).

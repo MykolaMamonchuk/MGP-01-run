@@ -61,3 +61,29 @@ func test_pravi_khaty_fasadom_do_dorohy() -> void:
 			root.free()
 	assert_gt(total, 500, "хати знайдено")
 	assert_eq(bad, 0, "усі хати обох боків фасадом до дороги")
+
+
+
+## «Навмання» не може давати той самий кут сотням предметів. Рецензія 26.09: виклик «ближньої
+## стіни» лишився з -1.0, і 1715 маркерів Лісу стали під одним кутом -57,3°. Сторож вище дивився
+## лише на хати й цього не бачив.
+func test_vypadkovyi_kut_ne_povtoriuietsia_sotniamy() -> void:
+	var counts := {}
+	var total := 0
+	for dir in DirAccess.get_directories_at("res://levels/chunks"):
+		for f in DirAccess.get_files_at("res://levels/chunks/%s" % dir):
+			if not f.begins_with("dress_"):
+				continue
+			var txt := FileAccess.get_file_as_string("res://levels/chunks/%s/%s" % [dir, f])
+			for line in txt.split("\n"):
+				if line.begins_with("yaw_deg = "):
+					total += 1
+					var v := line.substr(10)
+					counts[v] = int(counts.get(v, 0)) + 1
+	assert_gt(total, 1000, "повороти знайдено")
+	for v in counts:
+		var a := fposmod(float(v), 360.0)
+		if absf(a - 90.0) < 0.5 or absf(a - 270.0) < 0.5:
+			continue   # хати фасадом до дороги — навмисно однакові
+		assert_lt(float(counts[v]) / float(total), 0.01,
+			"кут %s трапляється %d разів із %d — «навмання» так не буває" % [v, counts[v], total])

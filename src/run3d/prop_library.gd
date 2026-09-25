@@ -37,6 +37,7 @@ const PATH := "res://data/props.json"
 static var _map: Dictionary = {}
 static var _loaded := false
 static var _mesh_cache: Dictionary = {}
+static var _scene_cache: Dictionary = {}
 static var _world_key := ""
 
 
@@ -217,6 +218,19 @@ static func mesh(kind: String, variant: int = 0) -> Mesh:
 	root.queue_free()
 	_mesh_cache[key] = found
 	return found
+
+
+## ЦІЛА СЦЕНА моделі (зі скелетом) — для скелетних тварин (Obstacle3D, поле "rig"). Кешується,
+## як і меш: без кешу кожна поява гуски читала б .glb з диска просто в кадрі бігу (рецензія
+## 26.09: 0,35-0,5 мс на Маку на кожну, на телефоні — кілька). Прогріває Spawner3D.
+static func scene(path: String) -> PackedScene:
+	if _scene_cache.has(path):
+		return _scene_cache[path]
+	if path == "" or not ResourceLoader.exists(path):
+		return null
+	var ps := load(path) as PackedScene
+	_scene_cache[path] = ps
+	return ps
 
 
 ## Меш із КОНКРЕТНОГО файлу, повз каталог видів. Потрібно лише заміру (tools/lod/decimate.py):

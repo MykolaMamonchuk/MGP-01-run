@@ -69,10 +69,7 @@ func _setup_rig(prop_name: String, mode: String) -> bool:
 		return false
 	var v := _rig_counter % n
 	var e := PropLibrary._entry(prop_name, v)
-	var path := String(e.get("path", ""))
-	if path == "" or not ResourceLoader.exists(path):
-		return false
-	var scene := load(path) as PackedScene
+	var scene := PropLibrary.scene(String(e.get("path", "")))
 	if scene == null:
 		return false
 	var model := scene.instantiate() as Node3D
@@ -418,6 +415,13 @@ func shatter() -> void:
 	var c := Palette.W_CRATE
 	if is_instance_valid(_mesh) and _mesh.mesh != null:
 		c = Debris.color_of(_mesh.mesh, Palette.W_CRATE)
+	elif _rig != null and is_instance_valid(_mesh):
+		# У скелетної тварини _mesh — порожній носій; колір — з самої моделі (біла гуска
+		# інакше пшикала б кольором ящика).
+		for mi in _mesh.find_children("*", "MeshInstance3D", true, false):
+			if (mi as MeshInstance3D).mesh != null:
+				c = Debris.color_of((mi as MeshInstance3D).mesh, Palette.W_CRATE)
+				break
 	var centre := position + Vector3(0.0, _box_y + box.y * 0.5, 0.0)
 	if is_inside_tree():
 		FX.burst(get_parent(), centre, c)
