@@ -1,56 +1,69 @@
-## Сторож: пропси оточення НЕ мають карт нормалей і НЕ двосторонні.
+## НОРМАЛІ ПРОПСІВ НАЗОВНІ: інакше відсікання задніх граней робить стіни невидимими.
 ##
-## Заміряно 22.09.2026 на Redmi 8A сходами масштабу рендера: карти нормалей коштують
-## 36 одиниць показника зі 194, тобто 19% усієї ціни декору, — і це найбільша окрема стаття
-## в матеріалах. Для порівняння, шорсткість, метал і затінення коштують нуль, а зрізання 94%
-## вершин з моделі — теж нуль.
+## 23.09 гра ввімкнула відсікання задніх граней для всіх пропсів (PropLibrary._drop_normal_maps,
+## −19% ціни декору). 26.09 замовник: «будинки, які були процедурно згенеровані, — там немає
+## стін». tools/make_house.py обходив вершини граней у зворотний бік, і 13 моделей мали 67–74%
+## площі, повернутої всередину: поки матеріали були двосторонні, цього не було видно.
 ##
-## Сторож потрібен, бо вимкнення живе в PropLibrary, а моделі приходять від художника ІЗ
-## картами. Достатньо комусь додати новий шлях завантаження меша повз бібліотеку — і третина
-## виграшу тихо повернеться назад.
+## Міра: частка площі трикутників, чия нормаль дивиться до центру габариту. У коробки BoxMesh
+## це 0%, у звичайних моделей 3–25%, у відкритих (ящик із рейок, візок) до 48%.
 extends GutTest
 
-
-## Скільки пропсів із текстурами взагалі оглянуто — без цього числа сторож може бути
-## зелений просто тому, що нічого не знайшов (див. урок «сторож, що перевіряє порожнечу»).
-var _seen := 0
-var _textured := 0
+const MAKE_HOUSE := ["house_red", "house_teal", "house_straw", "house_small", "city_house_a",
+	"city_house_b", "wall_house", "barn", "mill", "kiosk", "well", "garden", "awning_stall"]
 
 
-func _props_with_normals() -> Array:
-	var bad: Array = []
-	_seen = 0
-	_textured = 0
-	var f := FileAccess.open("res://data/props.json", FileAccess.READ)
-	if f == null:
-		return bad
-	var data = JSON.parse_string(f.get_as_text())
-	if typeof(data) != TYPE_DICTIONARY:
-		return bad
-	for kind in (data as Dictionary).keys():
-		if String(kind).begins_with("_"):
+func _inward(m: Mesh) -> float:
+	var c := m.get_aabb().get_center()
+	var inw := 0.0
+	var tot := 0.0
+	for si in m.get_surface_count():
+		var arr := m.surface_get_arrays(si)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var idx = arr[Mesh.ARRAY_INDEX]
+		var indexed: bool = idx != null and (idx as PackedInt32Array).size() > 0
+		var n: int = (idx as PackedInt32Array).size() if indexed else v.size()
+		for t in range(0, n, 3):
+			var a := v[idx[t]] if indexed else v[t]
+			var b := v[idx[t + 1]] if indexed else v[t + 1]
+			var e := v[idx[t + 2]] if indexed else v[t + 2]
+			# Лицьова грань у Godot — за годинниковою стрілкою: нормаль (e-a)×(b-a).
+			var nn := (e - a).cross(b - a)
+			var area := nn.length() * 0.5
+			if area < 1e-9:
+				continue
+			tot += area
+			if nn.dot((a + b + e) / 3.0 - c) < 0.0:
+				inw += area
+	return inw / maxf(tot, 1e-9)
+
+
+func _mesh(path: String) -> Mesh:
+	var sc := (load(path) as PackedScene).instantiate()
+	var m := PropLibrary._first_mesh(sc)
+	sc.free()
+	return m
+
+
+func test_mira_pravylna_na_etaloni() -> void:
+	var am := ArrayMesh.new()
+	am.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, BoxMesh.new().get_mesh_arrays())
+	assert_almost_eq(_inward(am), 0.0, 0.001, "у коробки Godot усі грані назовні")
+
+
+func test_budynky_make_house_zi_stinamy() -> void:
+	for k in MAKE_HOUSE:
+		var f := _inward(_mesh("res://assets/props/%s.glb" % k))
+		assert_lt(f, 0.35, "%s: %.0f%% площі всередину — стіни зникнуть від відсікання" % [k, f * 100.0])
+
+
+func test_zhoden_props_ne_vyvernutyi() -> void:
+	var d := DirAccess.open("res://assets/props")
+	for f in d.get_files():
+		if not f.ends_with(".glb"):
 			continue
-		var m := PropLibrary.mesh(String(kind))
+		var m := _mesh("res://assets/props/" + f)
 		if m == null:
 			continue
-		_seen += 1
-		for si in range(m.get_surface_count()):
-			var bm := m.surface_get_material(si) as BaseMaterial3D
-			if bm == null:
-				continue
-			if bm.albedo_texture != null:
-				_textured += 1
-			if bm.normal_enabled or bm.normal_texture != null:
-				bad.append("нормаль:%s#%d" % [kind, si])
-			if bm.cull_mode == BaseMaterial3D.CULL_DISABLED:
-				bad.append("двосторонній:%s#%d" % [kind, si])
-	return bad
-
-
-## Обидві правки живуть в одному місці (PropLibrary) і стережуться разом: кожна дає ~19%
-## ціни декору, і кожну легко втратити, додавши новий шлях завантаження меша повз бібліотеку.
-func test_propsy_otochennia_bez_kart_normalei() -> void:
-	var bad := _props_with_normals()
-	assert_gt(_seen, 30, "сторож справді оглянув пропси, а не порожнечу")
-	assert_gt(_textured, 5, "серед оглянутих є ТЕКСТУРНІ — саме в них були карти нормалей")
-	assert_eq(bad, [], "пропси з картами нормалей (мають бути вимкнені в PropLibrary): %s" % [bad])
+		var x := _inward(m)
+		assert_lt(x, 0.6, "%s: %.0f%% площі всередину — модель вивернута" % [f, x * 100.0])

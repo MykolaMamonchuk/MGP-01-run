@@ -76,6 +76,10 @@ def part(name, material, build):
     me = bpy.data.meshes.new(name)
     bm = bmesh.new()
     build(bm)
+    # Нормалі НАЗОВНІ. box() обходить вершини граней у зворотний бік, тож без цього кожна
+    # стіна «дивилась» усередину будинку. Поки матеріали були двосторонні, цього не було
+    # видно; щойно гра ввімкнула відсікання задніх граней (23.09), стіни зникли (26.09).
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces[:])
     bm.normal_update()
     bm.to_mesh(me)
     bm.free()
