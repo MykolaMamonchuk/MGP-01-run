@@ -14,14 +14,27 @@ extends Node3D
 ## Під кожною — вершини й трикутники так, як їх рахує Godot, і скільки текстура займає у
 ## відеопам'яті (стиснена, з mipmap) і на диску.
 ##
-## Живе: крила млина крутяться (вузол «sails»), сосна гойдається на вітрі (кістки скелета).
+## Живе (за назвою вузла в .glb): «sails» — крила млина крутяться; «cap» — шапка гриба дихає
+## (трохи більшає); Skeleton3D — дерево гойдається на вітрі.
 ##   /Applications/Godot.app/Contents/MacOS/Godot --rendering-method gl_compatibility \
 ##       res://src/debug/model_compare.tscn
 const ROOT := "res://assets/props/_exp/models/"
-const MODELS := ["hut", "hut_2", "hut_3", "kiosk_1", "mill_1", "pine_3_2"]
+## Список моделей — з теки (кожна модель — підтека з <модель>_high.glb): нові моделі
+## з'являються тут самі, без правки цього файла.
+static func models() -> Array:
+	var out: Array = []
+	var d := DirAccess.open(ROOT)
+	if d == null:
+		return out
+	for n in d.get_directories():
+		if ResourceLoader.exists(ROOT + "%s/%s_high.glb" % [n, n]):
+			out.append(n)
+	out.sort()
+	return out
 const REFS := "res://docs/refs/incoming/test_models/%s_test_draw"
 
-@export_enum("hut", "hut_2", "hut_3", "kiosk_1", "mill_1", "pine_3_2") var model := "hut":
+## Назва підтеки в assets/props/_exp/models (hut, mill_2, mushroom_red_3…).
+@export var model := "hut":
 	set(v):
 		model = v
 		if is_inside_tree(): _build()
@@ -31,6 +44,7 @@ const REFS := "res://docs/refs/incoming/test_models/%s_test_draw"
 		if is_inside_tree(): _build()
 
 var _sails: Array[Node3D] = []
+var _caps: Array[Node3D] = []
 var _rigs: Array[Skeleton3D] = []
 var _t := 0.0
 
@@ -44,6 +58,11 @@ func _process(delta: float) -> void:
 	for s in _sails:
 		if is_instance_valid(s):
 			s.rotation.z = -_t * 1.4          # крила — навколо осі до камери
+	for c in _caps:
+		if is_instance_valid(c):
+			# Шапка гриба «дихає»: трохи більшає й повертається (замовник 26.09).
+			var k := 1.0 + 0.06 * (0.5 + 0.5 * sin(_t * 2.2))
+			c.scale = Vector3(k, 1.0 + (k - 1.0) * 0.5, k)
 	for sk in _rigs:
 		if not is_instance_valid(sk):
 			continue
@@ -56,6 +75,7 @@ func _process(delta: float) -> void:
 
 func _build() -> void:
 	_sails.clear()
+	_caps.clear()
 	_rigs.clear()
 	for c in get_children():
 		if String(c.name).begins_with("М_"):
@@ -74,9 +94,9 @@ func _build() -> void:
 	if all_models:
 		cols = [["СИЛЬНІ\nповна + 1024", "high", 1024], ["СЕРЕДНІ\nсередня + 512", "mid", 512],
 			["СЛАБКІ\nсередня + 256", "mid", 256], ["НАЙПРОСТІША\nпроста + 256", "low", 256]]
-		for ri in MODELS.size():
+		for ri in models().size():
 			for ci in cols.size():
-				cells.append([ri, ci, MODELS[ri], cols[ci][1], cols[ci][2], MODELS[ri]])
+				cells.append([ri, ci, models()[ri], cols[ci][1], cols[ci][2], models()[ri]])
 	else:
 		cols = [["ТЕКСТУРА 1024", "", 1024], ["ТЕКСТУРА 512", "", 512], ["ТЕКСТУРА 256", "", 256]]
 		var rows := [["ПОВНА", "high"], ["СЕРЕДНЯ", "mid"], ["ПРОСТА", "low"]]
@@ -85,7 +105,7 @@ func _build() -> void:
 				cells.append([ri, ci, model, rows[ri][1], cols[ci][2], rows[ri][0]])
 	var col_gap := 2.8
 	var row_gap := 3.2 if all_models else 3.8
-	var n_rows := MODELS.size() if all_models else 3
+	var n_rows := models().size() if all_models else 3
 	var cam := $Камера as Camera3D
 	cam.fov = 42.0
 	var mid_z := -float(n_rows - 1) * row_gap * 0.5
@@ -197,6 +217,9 @@ func _instance(path: String, tex_path: String) -> Node3D:
 	var sails := inst.find_child("sails", true, false) as Node3D
 	if sails != null:
 		_sails.append(sails)
+	var cap := inst.find_child("cap", true, false) as Node3D
+	if cap != null:
+		_caps.append(cap)
 	for sk in inst.find_children("*", "Skeleton3D", true, false):
 		_rigs.append(sk as Skeleton3D)
 	return inst

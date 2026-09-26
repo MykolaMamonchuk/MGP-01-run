@@ -1,9 +1,0 @@
-{
-  "_note": "Параметри заміру схожості з малюнком (tools/modelkit/measure.py). az/el — кут камери як на малюнку, crop — прямокутник малюнка без підставок, квітів і кущів, яких у моделі нема навмисно (частки 0..1: x0,y0,x1,y1).",
-  "hut":      {"ref": "hut_test_draw.jpg",      "az": -12, "el": 12, "crop": "0.27,0.2,0.75,0.72"},
-  "hut_2":    {"ref": "hut_2_test_draw.jpg",    "az": 25,  "el": 8,  "crop": "0.2,0.18,0.82,0.81"},
-  "hut_3":    {"ref": "hut_3_test_draw.jpg",    "az": 0,   "el": 6,  "crop": "0.27,0.24,0.74,0.72"},
-  "kiosk_1":  {"ref": "kiosk_1_test_draw.jpg",  "az": -30, "el": 22, "crop": "0.22,0.1,0.86,0.76"},
-  "mill_1":   {"ref": "mill_1_test_draw.jpg",   "az": 0,   "el": 6,  "crop": "0.29,0.18,0.72,0.76"},
-  "pine_3_2": {"ref": "pine_3_2_test_draw.png", "az": 0,   "el": 4,  "crop": "0,0,1,1"}
-}

@@ -233,3 +233,20 @@ VOXEL=fox_voxel godot res://src/debug/model_preview.tscn
 за точною віссю, тож частина не плющиться. `tests/test_heroes_v15.gd` звіряє те саме в метрах.
 
 `heroes.json` скрипти не редагують — блок `parts` друкується в консоль.
+
+## Моделі «за малюнком» (`modelkit/`)
+
+Будинки, дерева, декор, зібрані в Blender скриптом за малюнком замовника (малюнки —
+`docs/refs/incoming/test_models/`, не в git). Модель — `tools/modelkit/<модель>.py`: палітра
+`PAL` (кольори — кластерами з малюнка) і `build(m, k)` із заготовок `kit.py`.
+
+    Blender -b --python tools/modelkit/build.py -- --model mill_2 --detail high   # high | mid | low
+    python3 tools/modelkit/measure.py [модель]      # схожість із малюнком; ціль ≥ 80% «разом»
+
+- вихід: `assets/props/_exp/models/<модель>/<модель>_<detail>.glb` + текстури `_1024/_512/_256.jpg`
+  (у збірки не йде — виключено в пресетах; сторож `test_export_presets`);
+- параметри заміру — `tools/modelkit/refs/<модель>.json` (`ref`, `az`, `el`, `crop`), окремий файл
+  на модель;
+- рухомі частини — об'єкти `part_<назва>__…` у `build()` і `return {"parts": {назва: точка_обертання}}`:
+  `sails` крутиться, `cap` дихає; скелет — `return {"rig": [(кістка, голова, хвіст, батько), …]}`;
+- дивитись: `src/debug/model_compare.tscn` (модель — поле `model`, або `all_models`).
