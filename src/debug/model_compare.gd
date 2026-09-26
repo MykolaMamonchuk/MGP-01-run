@@ -9,7 +9,8 @@ extends Node3D
 ##     вершини — у підписі, у простих форм їх менше),
 ##     стовпчики — текстура 1024 / 512 / 256; ліворуч — малюнок замовника;
 ##   • усі моделі — рядок на модель, стовпчики — план якості замовника (26.09): СИЛЬНІ (повна +
-##     1024), СЕРЕДНІ (~3000 + 512), СЛАБКІ (~3000 + 256) і для порівняння НАЙПРОСТІША (~1500 + 256).
+##     1024), СЕРЕДНІ (середня + 512), СЛАБКІ (середня + 256) і для порівняння НАЙПРОСТІША
+##     (проста + 256).
 ## Під кожною — вершини й трикутники так, як їх рахує Godot, і скільки текстура займає у
 ## відеопам'яті (стиснена, з mipmap) і на диску.
 ##
@@ -83,7 +84,7 @@ func _build() -> void:
 			for ci in cols.size():
 				cells.append([ri, ci, model, rows[ri][1], cols[ci][2], rows[ri][0]])
 	var col_gap := 2.8
-	var row_gap := 3.2
+	var row_gap := 3.2 if all_models else 3.8
 	var n_rows := MODELS.size() if all_models else 3
 	var cam := $Камера as Camera3D
 	cam.fov = 42.0
@@ -93,7 +94,7 @@ func _build() -> void:
 	for ci in cols.size():
 		var t := _label(String(cols[ci][0]), Color(1.0, 0.95, 0.6), 40)
 		t.name = "М_стовп%d" % ci
-		t.position = Vector3(_x(ci, cols.size(), col_gap), 0.1, 2.0)
+		t.position = Vector3(_x(ci, cols.size(), col_gap), 0.1, 1.8)
 		add_child(t)
 	var seen_rows := {}
 	for c in cells:

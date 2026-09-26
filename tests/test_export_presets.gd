@@ -92,3 +92,15 @@ func test_no_experiment_knobs_in_extra_args() -> void:
 			continue
 		for knob in ["--strip=", "--scale=", "--level="]:
 			assert_false(line.contains(knob), "у пресеті лишилась ручка досліду %s: %s" % [knob, line])
+
+
+## Тестові моделі «за малюнком» (assets/props/_exp/models) гра не використовує, а важать ~20 МБ
+## у збірці. Кожен пресет виключає їх — або саме цю теку, або весь _exp (Web). Сторож потрібен,
+## бо пресет правлять мишею в редакторі, і рядок легко випадає непомітно (рецензія 26.09).
+func test_test_models_not_shipped() -> void:
+	var presets := _presets()
+	assert_gt(presets.size(), 0, "пресети знайдено")
+	for p in presets:
+		var ex: String = p["exclude"]
+		assert_true(ex.contains("assets/props/_exp/models/*") or ex.contains("assets/props/_exp/*"),
+			"пресет %s тягне тестові моделі в збірку" % p["name"])
