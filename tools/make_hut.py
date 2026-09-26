@@ -36,7 +36,8 @@ PAL = {
     "door": "#8F472E",
     "door_line": "#6E3320",
     "frame": "#A85538",
-    "glass": "#411A0F",
+    "glass": "#7FB6D3",
+    "glass_hi": "#D8F0FA",
     "step": "#B4B0B0",
     "stone": "#8F7B7C",
     "lantern": "#C4854D",
@@ -151,6 +152,28 @@ def mat_door(name):
     return m
 
 
+def mat_glass(name):
+    """Скло, яке читається як скло: блакитне, світліше вгорі, з косим білим відблиском.
+    Темно-брунатне скло з малюнка в грі виглядало діркою або ґудзиком (замовник 26.09)."""
+    m = mat_flat(name, "glass")
+    nt = m.node_tree
+    b = nt.nodes["Principled BSDF"]
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    wave = nt.nodes.new("ShaderNodeTexWave")
+    wave.wave_type = "BANDS"
+    wave.bands_direction = "DIAGONAL"
+    wave.inputs["Scale"].default_value = 6.0
+    nt.links.new(tc.outputs["Object"], wave.inputs["Vector"])
+    ramp = nt.nodes.new("ShaderNodeValToRGB")
+    ramp.color_ramp.elements[0].color = rgb(PAL["glass"])
+    ramp.color_ramp.elements[1].color = rgb(PAL["glass_hi"])
+    ramp.color_ramp.elements[0].position = 0.78
+    ramp.color_ramp.elements[1].position = 0.86
+    nt.links.new(wave.outputs["Fac"], ramp.inputs["Fac"])
+    nt.links.new(ramp.outputs["Color"], b.inputs["Base Color"])
+    return m
+
+
 # ---------- геометрія ----------
 
 def link(me, name, mat, smooth=True):
@@ -234,6 +257,31 @@ def arch_curve(name, mat, w, h_side, y, thick, depth, z0=0.0):
     return ob
 
 
+def window(name, m, base, facing, w=0.2, h_side=0.16):
+    """Арочне вікно, збудоване лицем до −Y у початку координат і повернуте на свою стіну.
+    base — середина низу вікна на площині стіни."""
+    made = []
+    r = w * 0.5
+    prof = [(-r, 0.0), (r, 0.0)]
+    for i in range(0, 11):
+        ang = math.pi * i / 10.0
+        prof.append((r * math.cos(ang), h_side + r * math.sin(ang)))
+    made.append(prism(name + "_glass", m["glass"], [(x * 0.9, z * 0.95 + 0.005) for x, z in prof], 0.004, 0.016))
+    made.append(arch_curve(name + "_frame", m["frame"], w, h_side, -0.006, 0.024, 0.0))
+    made.append(box(name + "_v", m["frame"], (0.0, -0.01, (h_side + r) * 0.5), (0.022, 0.02, h_side + r)))
+    made.append(box(name + "_h", m["frame"], (0.0, -0.01, h_side * 0.8), (w, 0.02, 0.022)))
+    sill = box(name + "_sill", m["frame"], (0.0, -0.035, -0.02), (w + 0.09, 0.07, 0.035))
+    soften(sill, 0.012, 2)
+    made.append(sill)
+    rot = {"-y": 0.0, "+x": math.pi / 2, "-x": -math.pi / 2, "+y": math.pi}[facing]
+    for ob in made:
+        # Повернути навколо початку координат і перенести на стіну — однаково для всіх частин.
+        mw = ob.matrix_world.copy()
+        ob.matrix_world = (__import__("mathutils").Matrix.Translation(base)
+                           @ __import__("mathutils").Matrix.Rotation(rot, 4, "Z") @ mw)
+    return made
+
+
 def main():
     a = parse_args(sys.argv)
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -244,7 +292,7 @@ def main():
         "cap": mat_clay("cap", "cap", 0.08, 9.0),
         "door": mat_door("door"),
         "frame": mat_clay("frame", "frame", 0.08, 9.0),
-        "glass": mat_flat("glass", "glass"),
+        "glass": mat_glass("glass"),
         "step": mat_clay("step", "step", 0.1, 8.0),
         "stone": mat_clay("stone", "stone", 0.12, 10.0),
         "lantern": mat_clay("lantern", "lantern", 0.08, 9.0),
@@ -290,9 +338,10 @@ def main():
     ring = bpy.context.active_object
     ring.name = "win_ring"
     ring.data.materials.append(m["frame"])
-    cyl("win_glass", m["glass"], (0.0, fy + 0.01, 1.0), 0.1, 0.02, rot=(math.pi / 2, 0, 0), verts=20)
-    box("win_v", m["frame"], (0.0, fy - 0.005, 1.0), (0.018, 0.02, 0.2))
-    box("win_h", m["frame"], (0.0, fy - 0.005, 1.0), (0.2, 0.02, 0.018))
+    # Скло трохи втоплене за рамку, хрестовина — перед склом і товща: так вікно має глибину.
+    cyl("win_glass", m["glass"], (0.0, fy + 0.012, 1.0), 0.1, 0.012, rot=(math.pi / 2, 0, 0), verts=20)
+    box("win_v", m["frame"], (0.0, fy - 0.008, 1.0), (0.026, 0.024, 0.2))
+    box("win_h", m["frame"], (0.0, fy - 0.008, 1.0), (0.2, 0.024, 0.026))
 
     # Віддушина під гребенем: коротка брунатна планка з поличкою.
     box("vent", m["frame"], (0.0, fy, 1.27), (0.025, 0.03, 0.12))
@@ -322,8 +371,12 @@ def main():
     stone = bpy.context.active_object
     stone.scale = (0.9, 0.35, 1.2)
     stone.data.materials.append(m["stone"])
-    sw = box("side_win", m["frame"], (hw + 0.01, 0.12, 0.42), (0.03, 0.2, 0.28))
-    soften(sw, 0.02, 2)
+    # Вікна по боках і ззаду (замовник 26.09: «має бути по боках»): арочні, з рамкою,
+    # хрестовиною, втопленим склом і підвіконням.
+    for sx in (-1, 1):
+        for wy in (-0.2, 0.22):
+            window("side_win", m, (sx * (hw + 0.02), wy, 0.3), "+x" if sx > 0 else "-x")
+    window("back_win", m, (0.0, hd + 0.012, 0.3), "+y")
     bpy.ops.mesh.primitive_uv_sphere_add(radius=0.05, segments=10, ring_count=6, location=(0.34, fy + 0.005, 0.44))
     peb = bpy.context.active_object
     peb.scale = (0.7, 0.3, 1.0)
