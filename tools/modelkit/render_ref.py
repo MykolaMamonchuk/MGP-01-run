@@ -32,7 +32,8 @@ def main():
     ap.add_argument("--el", type=float, default=12.0)
     ap.add_argument("--size", type=int, default=512)
     # Звідки світло (градуси навколо вертикалі): −40 — спереду зліва, +40 — справа. Частина
-    # малюнків освітлена справа, і з лівим світлом правий скат програвав через світло.
+    # малюнків освітлена справа; з лівим світлом правий скат виходив темнішим, і падав
+    # «колір на місці» (на «разом» бік світла впливає мало).
     ap.add_argument("--light-az", type=float, default=-40.0)
     a = ap.parse_args(argv)
     bpy.ops.wm.read_factory_settings(use_empty=True)
