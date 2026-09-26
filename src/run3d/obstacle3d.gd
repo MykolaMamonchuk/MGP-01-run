@@ -52,6 +52,17 @@ var _rig_state := ""
 var _rig_t := 0.0
 var _rig_scale := 1.0
 
+## «З'явитись збоку» (поле "arrive" у світі: {"from_m": 9, "done_m": 5}): гуска чекає за краєм
+## дороги й приходить у свою доріжку, поки герой наближається, — дитина бачить «телеграф», а не
+## раптову появу. Позиція рахується від ВІДСТАНІ до героя, а не від часу: за будь-якої швидкості
+## бігу гуска вже у доріжці, коли до неї done_m. Зіткнення перевіряються лише в |z| < 1,2 м,
+## тобто вже на місці.
+var _arrive_from := 0.0
+var _arrive_done := 0.0
+var _arrive_x0 := 0.0
+var _arrive_x1 := 0.0
+var _arrive_ready := false
+
 ## Модель скелетної тварини вибирається НА КОЖЕН ЕКЗЕМПЛЯР, а не на мапу, як решта пропсів
 ## (PropLibrary.pick). Правило «одна мапа — один тип» стоїть заради рядів: паркани різної
 ## висоти поруч стрибали б. Гуска ж стоїть сама, і замовник хоче бачити всіх трьох (26.09).
@@ -97,7 +108,32 @@ func _setup_rig(prop_name: String, mode: String) -> bool:
 const HISS_FROM_M := 7.0     ## з якої відстані гуска починає шипіти
 const BITE_WITHIN_M := 1.6   ## ближче за це — кидається кусати
 
+## Звідки гуска приходить: з того боку, де її доріжка (середня — по черзі), на 1,4 м за
+## краєм доріжки, тобто вже за краєм дороги.
+func _init_arrive() -> void:
+	_arrive_ready = true
+	_arrive_x1 = position.x
+	var side := signf(_arrive_x1)
+	if side == 0.0:
+		side = 1.0 if _rig_counter % 2 == 0 else -1.0
+	_arrive_x0 = _arrive_x1 + side * 1.4
+	position.x = _arrive_x0
+
+
+## 0 — ще чекає за краєм, 1 — уже в доріжці.
+func arrive_k() -> float:
+	if _arrive_from <= 0.0:
+		return 1.0
+	return smoothstep(-_arrive_from, -_arrive_done, position.z)
+
+
 func _rig_state_now() -> String:
+	if _arrive_from > 0.0 and _rig_mode != "fly":
+		var k := arrive_k()
+		if k <= 0.0:
+			return "alert" if -position.z < _arrive_from + 3.0 else "peck"
+		if k < 1.0:
+			return "flee"   # дріботить лапами й махає крилами — біжить навперейми
 	match _rig_mode:
 		"stand":
 			if absf(position.z) < BITE_WITHIN_M:
@@ -113,6 +149,14 @@ func _rig_state_now() -> String:
 
 
 func _tick_rig(delta: float) -> void:
+	if _arrive_from > 0.0:
+		if not _arrive_ready:
+			_init_arrive()
+		var k := arrive_k()
+		position.x = lerpf(_arrive_x0, _arrive_x1, k)
+		# Поки біжить — дзьобом туди, куди біжить; на місці — до героя.
+		var run_yaw := PI * 0.5 * signf(_arrive_x1 - _arrive_x0)
+		_mesh.rotation.y = lerpf(run_yaw, 0.0, smoothstep(0.85, 1.0, k)) if k > 0.0 else run_yaw * 0.5
 	var st := _rig_state_now()
 	if st != _rig_state:
 		# Час від початку стану: кидок «кусає» має починатись із замаху, а не з середини.
@@ -167,6 +211,10 @@ func setup(k: String, def: Dictionary, l: int, assist: bool, with_mesh: bool = t
 		var rig_mode := String(def.get("rig", ""))
 		if rig_mode != "" and _setup_rig(prop_name, rig_mode):
 			variant = _rig_variant
+			var arr: Dictionary = def.get("arrive", {})
+			if not arr.is_empty():
+				_arrive_from = float(arr.get("from_m", 9.0))
+				_arrive_done = float(arr.get("done_m", 5.0))
 		var prop_mesh: Mesh = null
 		if _rig == null:
 			prop_mesh = PropLibrary.mesh(prop_name, variant)

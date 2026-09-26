@@ -308,6 +308,30 @@
 			],
 			"shape": "high_frame",
 			"marker": "none",
+			"breaks": "soft",
+			"arrive": {
+				"from_m": 11.0,
+				"done_m": 6.0
+			}
+		},
+		"goose_run": {
+			"voxel": "cow",
+			"prop": "goose",
+			"rig": "stand",
+			"arrive": {
+				"from_m": 9.0,
+				"done_m": 5.0
+			},
+			"action": "side",
+			"tumble": true,
+			"y": 0.0,
+			"box": [
+				0.6,
+				0.6,
+				0.5
+			],
+			"shape": "critter",
+			"marker": "none",
 			"breaks": "soft"
 		}
 	},
@@ -340,6 +364,13 @@
 		"far2_scale": [
 			1.3,
 			1.7
+		]
+	},
+	"grazers": {
+		"prop": "goose",
+		"every_m": [
+			18.0,
+			38.0
 		]
 	}
 }

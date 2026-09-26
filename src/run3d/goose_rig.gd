@@ -9,7 +9,8 @@
 ##
 ## Стани (`state`): stand — стоїть і озирається; walk — перевальцем іде; bite — замах і
 ## кидок шиєю вперед; hiss — розправила крила, шия низько, шипить; fly — махає крилами,
-## лапи підібгані, тіло піднімається.
+## лапи підібгані, тіло піднімається; peck — пасеться, клює землю; alert — підняла голову й
+## витяглась (перший «телеграф» героєві); flee — лякається: махає крилами й дріботить лапами.
 ##
 ## Усі оберти задаються в осях МОДЕЛІ (вгору, вперед до дзьоба, вбік) і перекладаються в
 ## локальні осі кістки. Знак оберту не вгадується, а рахується: кістку крутимо в той бік,
@@ -18,7 +19,7 @@
 class_name GooseRig
 extends RefCounted
 
-const STATES := ["stand", "walk", "bite", "hiss", "fly"]
+const STATES := ["stand", "walk", "bite", "hiss", "fly", "peck", "alert", "flee"]
 
 var skel: Skeleton3D
 var state := "stand"
@@ -279,7 +280,43 @@ func pose(t: float) -> float:
 			for k in neck:
 				_rot(k, [[side, 0.9 / float(maxi(neck.size(), 1)) * _toward(k, side, fwd)]])
 			body_pitch = 0.35
+		"peck":
+			# Цикл 1,8 с: шия вниз до землі (0,2-0,45), два клювки, назад угору.
+			var c := fmod(t, 1.8) / 1.8
+			var down := smoothstep(0.1, 0.25, c) * (1.0 - smoothstep(0.6, 0.8, c))
+			var tap := sin(c * TAU * 6.0) * 0.08 * down
+			for k in neck:
+				_rot(k, [[side, (down * 1.5 / float(maxi(neck.size(), 1)) + tap) * _toward(k, side, fwd)]])
+			_rot(head, [[side, down * 0.4 * _toward(head, side, fwd)]])
+			body_pitch = down * 0.22
+			_rot(tail, [[up, sin(t * 2.5) * 0.1]])
+		"alert":
+			# Витяглась: шия трохи назад і вгору, голова короткими рухами роззирається.
+			var look := sin(t * 5.0) * 0.18 * step_blend(t)
+			for k in neck:
+				_rot(k, [[side, -0.12 / float(maxi(neck.size(), 1)) * _toward(k, side, fwd)],
+					[up, look / float(maxi(neck.size(), 1))]])
+			body_pitch = -0.06
+		"flee":
+			var ph := t * 11.0
+			body_roll = sin(ph) * 0.16
+			lift = absf(sin(ph)) * 0.05 * height
+			for l in legs:
+				var s := signf((_pos(l)).dot(side))
+				_rot(l, [[side, sin(ph + (0.0 if s > 0 else PI)) * 0.8 * _toward(l, side, fwd)]])
+			for w in wings:
+				var out := _side_of(w)
+				_rot(w, [[fwd, (0.3 + sin(t * 14.0) * 0.5) * _toward(w, fwd, up)],
+					[up, 0.9 * _toward(w, up, out)]])
+			for k in neck:
+				_rot(k, [[side, 0.5 / float(maxi(neck.size(), 1)) * _toward(k, side, fwd)]])
+			body_pitch = 0.2
 	# Тіло: корінь нахиляється й хитається, а в польоті ще й піднімається.
 	_rot(root, [[fwd, body_roll], [side, body_pitch * _toward(neck[0] if not neck.is_empty() else head, side, fwd)]])
 	skel.set_bone_pose_position(root, _rest_root_pos)
 	return lift
+
+
+## Роззирання в «alert» не має починатись ривком: перші 0,3 с амплітуда росте від нуля.
+static func step_blend(t: float) -> float:
+	return smoothstep(0.0, 0.3, t)

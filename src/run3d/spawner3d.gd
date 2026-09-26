@@ -246,6 +246,49 @@ func set_level(types: Array, dens: float, n_lanes: int, tut: bool) -> void:
 	hearts_lost_segment = 0
 
 
+## ГУСКИ, ЩО ПАСУТЬСЯ на узбіччі (GooseGrazer3D) — жива декорація першого світу. Вмикає рівень
+## полем "grazing_geese", а світ описує їх полем "grazers" ({"prop", "every_m": [a, b]}).
+## Жереб — СВІЙ генератор: зграйки не мають зсувати розстановку перешкод, яку тримає _rng.
+var grazers_on := false
+var _graze_rng := RandomNumberGenerator.new()
+var _graze_left := 10.0
+
+
+func set_grazers(on: bool) -> void:
+	grazers_on = on and world.has("grazers")
+	_graze_rng.seed = hash("grazers|%s" % String(world.get("id", "")))
+	_graze_left = 10.0
+
+
+func _advance_grazers(dist: float) -> void:
+	if not grazers_on:
+		return
+	_graze_left -= dist
+	if _graze_left > 0.0:
+		return
+	var g: Dictionary = world["grazers"]
+	var every: Array = g.get("every_m", [18.0, 38.0])
+	_graze_left = _graze_rng.randf_range(float(every[0]), float(every[1]))
+	# Зграйка: частіше одна-дві, зрідка до п'яти.
+	var r := _graze_rng.randf()
+	var count := 1 if r < 0.4 else (2 if r < 0.7 else (3 if r < 0.9 else _graze_rng.randi_range(4, 5)))
+	var side := -1.0 if _graze_rng.randf() < 0.5 else 1.0
+	var edge := float(lanes) * 0.5 * Hero3D.LANE_W + 0.1
+	var flock := GooseGrazer3D.Flock.new()
+	for i in range(count):
+		var goose := GooseGrazer3D.new()
+		if not goose.setup(String(g.get("prop", "goose")), _graze_rng):
+			goose.free()
+			return
+		goose.flock = flock
+		goose.leader = i == 0
+		goose.delay = _graze_rng.randf_range(0.12, 0.45)
+		goose.road_edge = edge
+		goose.position = Vector3(side * (edge + _graze_rng.randf_range(0.4, 1.0)), 0.0,
+			SPAWN_Z - _graze_rng.randf_range(0.0, 1.6) * float(i))
+		add_child(goose)
+
+
 func set_speed(s: float) -> void:
 	speed = s
 
@@ -303,6 +346,7 @@ func advance(dist: float, total_distance_m: Variant = null) -> void:
 	_last_free_z += dist
 	_advance_authored_pickups()
 	_advance_authored_gold()
+	_advance_grazers(dist)
 	if _authored_active:
 		_advance_authored()
 		return
@@ -1069,6 +1113,8 @@ func check(delta: float) -> void:
 				mode.assist(o)
 			if not o.hit and absf(o.position.z) < 1.2 and o.aabb().intersects(hero_box):
 				_resolve(o)
+		elif c is GooseGrazer3D:
+			(c as GooseGrazer3D).tick(delta)
 		elif c is Rainbow3D:
 			var rb := c as Rainbow3D
 			if not rb.used and absf(rb.position.z) < 0.4:

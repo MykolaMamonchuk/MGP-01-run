@@ -1784,6 +1784,7 @@ func _start_level(num: int) -> void:
 	spawner.magnet = float(profile.get("star_magnet", 1.0)) * _hero_magnet
 	# TODO(v1.3 §5): st.luck — частота пікапів живе у Spawner3D._schedule_pickup (Pickup3D.per_minute_total), множника ще нема
 	spawner.set_level(level.get("obstacle_types", []), float(level.get("density", 1.0)), lanes, bool(level.get("tutorial", false)))
+	spawner.set_grazers(bool(level.get("grazing_geese", false)))
 	_chunk_loader = LevelChunkLoader.new()
 	# Рівень, розставлений У СЦЕНІ: процедурний декор вимкнено, усе кладуть маркери.
 	# Поверхні траси (дорога, узбіччя, канал, вода) лишаються процедурними завжди —
