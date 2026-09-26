@@ -279,15 +279,22 @@ func _advance_grazers(dist: float) -> void:
 	var flock := GooseGrazer3D.Flock.new()
 	var track: Track = run.get("track") if run != null else null
 	var placed := 0
+	var spots: Array[Vector3] = []
 	for i in range(count):
 		# Місце без декору: та сама смуга, куди траса кладе ящики, бочки й дерева узбіччя.
 		# Кілька спроб; не знайшлось — ця гуска просто не приходить.
 		var pos := Vector3.ZERO
 		var found := false
 		for attempt in range(6):
-			pos = Vector3(side * (edge + _graze_rng.randf_range(0.4, 1.0)), 0.0,
-				SPAWN_Z - _graze_rng.randf_range(0.0, 1.8) * float(i + attempt))
-			if track == null or not track.decor_near(pos.x, pos.z, 0.45):
+			pos = Vector3(side * (edge + _graze_rng.randf_range(0.4, 0.9)), 0.0,
+				SPAWN_Z - _graze_rng.randf_range(0.7, 1.6) * float(placed + attempt))
+			# Ні в декорі, ні одна в одній: прогін на телефоні 26.09 бачив зграю, злиплу в
+			# купу, — гуски ставились без відстані між собою.
+			var crowded := false
+			for q in spots:
+				if q.distance_to(pos) < GooseGrazer3D.MIN_GAP:
+					crowded = true
+			if not crowded and (track == null or not track.decor_near(pos.x, pos.z, 0.45)):
 				found = true
 				break
 		if not found:
@@ -302,6 +309,7 @@ func _advance_grazers(dist: float) -> void:
 		goose.road_edge = edge
 		goose.position = pos
 		add_child(goose)
+		spots.append(pos)
 		placed += 1
 
 

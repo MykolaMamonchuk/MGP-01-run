@@ -14,8 +14,11 @@ extends Node3D
 const ALERT_M := 10.0
 const SCARE_M := 4.0
 ## Наскільки далеко від дороги гуска може відбігти, м від краю дороги. Канал Лужка — з +1,5,
-## поручень і настил містка — з +1,3; тулуб гуски — ~0,2 у кожен бік.
-const FLEE_MAX := 1.1
+## поручень і настил містка — з +1,3. Тікає гуска дзьобом назовні, а дзьоб — ~0,3 м від
+## центру: з 1,1 голова проходила крізь поручень (прогін на телефоні 26.09).
+const FLEE_MAX := 0.95
+## Найменша відстань між гусками зграї при появі, м.
+const MIN_GAP := 0.7
 
 ## Спільний стан зграї: коли злякалась ведуча (секунди від її переляку йдуть усім).
 class Flock:
@@ -117,8 +120,12 @@ func tick(delta: float) -> void:
 		var out := signf(position.x)
 		_yaw_goal = PI * 0.5 * out
 		var lim := road_edge + FLEE_MAX
-		if absf(position.x) < lim:
-			position.x += out * 1.4 * delta
+		var nx := position.x + out * 1.4 * delta
+		# Тікає, але не крізь ящик чи бочку: місце без декору перевірялось лише при появі,
+		# і на телефоні гуски забігали в бочки. Попереду предмет — лишається на місці й махає.
+		var tr := _track()
+		if absf(position.x) < lim and (tr == null or not tr.decor_near(nx + out * 0.25, position.z, 0.3)):
+			position.x = nx
 	elif ahead < ALERT_M and ahead > 0.0:
 		_set_state("alert")
 		# До героя: він у +Z, а модель дивиться в +Z — тобто поворот до нуля.
@@ -136,3 +143,15 @@ func tick(delta: float) -> void:
 	_posed = true
 	var lift := _rig.pose(_state_t)
 	_body.position.y = lift * _scale
+
+
+## Траса — щоб не тікати крізь її предмети. У тестах її можна підкласти напряму.
+var track_override: Track
+
+func _track() -> Track:
+	if track_override != null:
+		return track_override
+	var sp := get_parent() as Spawner3D
+	if sp == null or sp.run == null:
+		return null
+	return sp.run.get("track") as Track

@@ -185,3 +185,50 @@ func test_kliuie_do_zemli() -> void:
 		r.skel.force_update_all_bone_transforms()
 		var y := r.skel.get_bone_global_pose(r.head).origin.y
 		assert_lt(y, 0.5 * r.height, "%s: голова нижче половини зросту, коли клює" % path.get_file())
+
+
+## Прогін на телефоні 26.09: зграя злипалась у купу. Гуски однієї зграйки — не ближче MIN_GAP.
+func test_zghraia_ne_zlypaietsia() -> void:
+	var sp := Spawner3D.new()
+	add_child_autofree(sp)
+	sp.world = _world()
+	sp.lanes = 3
+	sp.set_grazers(true)
+	sp.spawning = true
+	var geese: Array = []
+	for i in 400:
+		# Світ їде, як у Spawner3D.advance: інакше всі зграйки з'являлись би в одній точці.
+		for c in sp.get_children():
+			(c as Node3D).position.z += 2.0
+		var before := sp.get_child_count()
+		sp._advance_grazers(2.0)
+		# Порівнюємо гусок ОДНІЄЇ зграйки — тих, що з'явились за цей крок.
+		var fresh: Array = sp.get_children().slice(before)
+		for a in range(fresh.size()):
+			for b in range(a + 1, fresh.size()):
+				if (fresh[a] as Node3D).position.distance_to((fresh[b] as Node3D).position) < GooseGrazer3D.MIN_GAP - 0.01:
+					geese.append([fresh[a], fresh[b]])
+	var total: int = sp.get_children().filter(func(c): return c is GooseGrazer3D).size()
+	assert_gt(total, 10, "гусок достатньо, щоб перевірка щось значила")
+	assert_eq(geese.size(), 0, "жодна пара гусок зграйки не стоїть одна в одній")
+
+
+
+class BoxInTheWay:
+	extends Track
+	var box_x := -2.5
+	func decor_near(x: float, _z: float, r: float) -> bool:
+		return absf(x - box_x) < r
+
+
+## І тікаючи, гуска не забігає в ящик чи бочку (на телефоні — забігала).
+func test_tikaie_ne_kriz_yashchyk() -> void:
+	var g := _grazer()
+	var t := BoxInTheWay.new()
+	add_child_autofree(t)
+	g.track_override = t
+	g.position = Vector3(-2.0, 0.0, -3.0)
+	for i in 60:
+		g.tick(0.05)
+	assert_eq(g._state, "flee", "злякалась")
+	assert_gt(g.position.x, t.box_x + 0.3, "зупинилась перед ящиком, а не в ньому (x=%.2f)" % g.position.x)
