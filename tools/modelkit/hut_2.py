@@ -74,8 +74,13 @@ def build(m, k):
         # Зелена смужка під звисом — ТОНКА, рівно вздовж лінії щипця й лише до краю стіни.
         # Перша версія була довгою широкою планкою, що вилазила на стіну й за край щипця
         # (замовник 26.09: «незрозумілі зелені вставки»).
-        edge = math.hypot(hw, PEAK - H)
-        box("trim%d" % side, m["trim"], (side * hw * 0.5, -hd - 0.012, (H + PEAK) * 0.5 - 0.035),
+        # Вкорочена на 3 см з нижнього кінця: торець зрізано поперек ската, тож повна довжина
+        # виступала нижнім кутом за край стіни на ~1 см (рецензія 26.09).
+        cut = 0.03
+        edge = math.hypot(hw, PEAK - H) - cut
+        mx = hw * 0.5 - (cut * 0.5) * math.cos(slope)
+        mz = (H + PEAK) * 0.5 + (cut * 0.5) * math.sin(slope)
+        box("trim%d" % side, m["trim"], (side * mx, -hd - 0.012, mz - 0.035),
             (edge, 0.018, 0.03), rot=(0.0, side * slope, 0.0))
     # Гребеня-циліндра нема: у нього торці запікались чорним (крихітні острівці розгортки);
     # заокруглені скати перекриваються на вершині самі.
@@ -90,11 +95,11 @@ def build(m, k):
     # Кругле вікно в щипці: товсте жовте кільце, темно-зелене скло з відблиском.
     ts, tr_ = k.DET["tor"]
     bpy.ops.mesh.primitive_torus_add(major_radius=0.12, minor_radius=0.028, major_segments=ts,
-                                     minor_segments=tr_, location=(0.0, fy, 0.98), rotation=(math.pi / 2, 0, 0))
+                                     minor_segments=tr_, location=(0.0, fy, 0.955), rotation=(math.pi / 2, 0, 0))
     ring = bpy.context.active_object
     ring.name = "win_ring"
     ring.data.materials.append(m["ring"])
-    cyl("win_glass", m["glass"], (0.0, fy + 0.012, 0.98), 0.12, 0.012, rot=(math.pi / 2, 0, 0))
+    cyl("win_glass", m["glass"], (0.0, fy + 0.012, 0.955), 0.12, 0.012, rot=(math.pi / 2, 0, 0))
 
     # Двері в сірій кам'яній арці, рожева ручка, сірий поріг.
     dw, dh = 0.3, 0.3
