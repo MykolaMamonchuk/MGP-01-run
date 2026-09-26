@@ -52,16 +52,22 @@ def main():
         if not os.path.exists(glb):
             print("%-16s — немає зібраної моделі (%s)" % (name, glb))
             continue
-        subprocess.run([BLENDER, "--background", "--python", "tools/modelkit/render_ref.py", "--",
+        rb = subprocess.run([BLENDER, "--background", "--python", "tools/modelkit/render_ref.py", "--",
                         glb, out, "--bg", bg, "--az", str(c["az"]), "--el", str(c["el"]),
                         "--light-az", str(c.get("light_az", -40))],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+                       capture_output=True, text=True, check=False)
+        if not os.path.exists(out):
+            # Справжня причина — у виводі Blender, а не в «файлу рендера нема» (рецензія 27.09).
+            err = [l for l in (rb.stdout + rb.stderr).splitlines() if "Error" in l or "Traceback" in l]
+            print("%-16s — Blender не зрендерив: %s" % (name, err[-1] if err else "код %d" % rb.returncode))
+            continue
         r = subprocess.run([sys.executable, "tools/ref_similarity.py", ref, out, "--ref-crop", c["crop"],
                             "--erase", ";".join(c.get("erase", []))],
                            capture_output=True, text=True)
         line = r.stdout.strip()
         if r.returncode != 0 or "разом" not in line:
-            print("%-16s — помилка заміру: %s" % (name, (r.stderr or r.stdout).strip().splitlines()[-1:]))
+            tail = (r.stderr or r.stdout).strip().splitlines()
+            print("%-16s — помилка заміру: %s" % (name, tail[-1] if tail else "код %d" % r.returncode))
             continue
         total = int(line.split("разом")[1].split("%")[0].strip())
         ok = total >= TARGET and "⚠" not in line

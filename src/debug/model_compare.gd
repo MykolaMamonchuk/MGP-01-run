@@ -99,6 +99,7 @@ func _build() -> void:
 	if not Engine.is_editor_hint():
 		env.ambient_light_energy = 0.35 * k
 		($Сонце as DirectionalLight3D).light_energy = 0.9 * k
+	var names := models()   # диск — один раз на побудову
 	var cells: Array = []   # [ряд, стовпчик, модель, деталізація, текстура, підпис ряду]
 	var cols: Array
 	if all_models:
@@ -109,7 +110,6 @@ func _build() -> void:
 		cols = []
 		for ci in PER_ROW:
 			cols.append(["", q[0], q[1]])
-		var names := models()
 		for i in names.size():
 			cells.append([i / PER_ROW, i % PER_ROW, names[i], q[0], q[1], ""])
 	else:
@@ -120,7 +120,7 @@ func _build() -> void:
 				cells.append([ri, ci, model, rows[ri][1], cols[ci][2], rows[ri][0]])
 	var col_gap := 2.8
 	var row_gap := 3.2 if all_models else 3.8
-	var n_rows := int(ceil(float(models().size()) / PER_ROW)) if all_models else 3
+	var n_rows := int(ceil(float(names.size()) / PER_ROW)) if all_models else 3
 	var cam := $Камера as Camera3D
 	cam.fov = 42.0
 	var mid_z := -float(n_rows - 1) * row_gap * 0.5
@@ -147,6 +147,12 @@ func _build() -> void:
 		var base := ROOT + "%s/%s_%s" % [c[2], c[2], c[3]]
 		var inst := _instance(base + ".glb", base + "_%d.jpg" % c[4])
 		if inst == null:
+			# Видимий слід замість порожнього місця: інакше модель без цього рівня
+			# деталізації мовчки зникала з сітки (рецензія 27.09 — 18 моделей без mid/low).
+			var miss := _label("%s\nнемає %s" % [c[2], c[3]], Color(1.0, 0.45, 0.4), 28)
+			miss.name = "М_немає_%d_%d" % [ri, ci]
+			miss.position = Vector3(_x(ci, cols.size(), col_gap), 0.4, z)
+			add_child(miss)
 			continue
 		inst.name = "М_%d_%d" % [ri, ci]
 		inst.position = Vector3(_x(ci, cols.size(), col_gap), 0, z)
