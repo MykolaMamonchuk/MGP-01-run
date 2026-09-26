@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dc6ough006u2j"
-path="res://.godot/imported/hut_2_low_hut_2_tex.jpg-7221345d2352cc4295228c33d0666af3.ctex"
+path.s3tc="res://.godot/imported/hut_2_low_hut_2_tex.jpg-7221345d2352cc4295228c33d0666af3.s3tc.ctex"
+path.etc2="res://.godot/imported/hut_2_low_hut_2_tex.jpg-7221345d2352cc4295228c33d0666af3.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "20c2c924cd47253f45db79dd9f470362"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/props/_exp/models/hut_2/hut_2_low_hut_2_tex.jpg"
-dest_files=["res://.godot/imported/hut_2_low_hut_2_tex.jpg-7221345d2352cc4295228c33d0666af3.ctex"]
+dest_files=["res://.godot/imported/hut_2_low_hut_2_tex.jpg-7221345d2352cc4295228c33d0666af3.s3tc.ctex", "res://.godot/imported/hut_2_low_hut_2_tex.jpg-7221345d2352cc4295228c33d0666af3.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

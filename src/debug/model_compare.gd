@@ -5,7 +5,8 @@ extends Node3D
 ## світло на вершину, навколишнє світло випроміненням (див. awning_compare.gd).
 ##
 ## Два режими (поле `all_models` в інспекторі):
-##   • одна модель (`model`) — сітка 3×3: ряди — геометрія (повна / ~3000 / ~1500 вершин),
+##   • одна модель (`model`) — сітка 3×3: ряди — геометрія (повна / середня / проста; точні
+##     вершини — у підписі, у простих форм їх менше),
 ##     стовпчики — текстура 1024 / 512 / 256; ліворуч — малюнок замовника;
 ##   • усі моделі — рядок на модель, стовпчики — план якості замовника (26.09): СИЛЬНІ (повна +
 ##     1024), СЕРЕДНІ (~3000 + 512), СЛАБКІ (~3000 + 256) і для порівняння НАЙПРОСТІША (~1500 + 256).
@@ -61,20 +62,23 @@ func _build() -> void:
 			c.queue_free()
 	var method := RenderingServer.get_current_rendering_method()
 	var k: float = load("res://src/run3d/run3d.gd").light_scale_for(method)
+	# Світло як у грі, але лише в запущеній сцені: у редакторі (@tool) запис у ресурси
+	# позначав би сцену зміненою й зберігав інші числа (рецензія 26.09).
 	var env := ($Світ as WorldEnvironment).environment
-	env.ambient_light_energy = 0.35 * k
-	($Сонце as DirectionalLight3D).light_energy = 0.9 * k
+	if not Engine.is_editor_hint():
+		env.ambient_light_energy = 0.35 * k
+		($Сонце as DirectionalLight3D).light_energy = 0.9 * k
 	var cells: Array = []   # [ряд, стовпчик, модель, деталізація, текстура, підпис ряду]
 	var cols: Array
 	if all_models:
-		cols = [["СИЛЬНІ\nповна + 1024", "high", 1024], ["СЕРЕДНІ\n~3000 + 512", "mid", 512],
-			["СЛАБКІ\n~3000 + 256", "mid", 256], ["НАЙПРОСТІША\n~1500 + 256", "low", 256]]
+		cols = [["СИЛЬНІ\nповна + 1024", "high", 1024], ["СЕРЕДНІ\nсередня + 512", "mid", 512],
+			["СЛАБКІ\nсередня + 256", "mid", 256], ["НАЙПРОСТІША\nпроста + 256", "low", 256]]
 		for ri in MODELS.size():
 			for ci in cols.size():
 				cells.append([ri, ci, MODELS[ri], cols[ci][1], cols[ci][2], MODELS[ri]])
 	else:
 		cols = [["ТЕКСТУРА 1024", "", 1024], ["ТЕКСТУРА 512", "", 512], ["ТЕКСТУРА 256", "", 256]]
-		var rows := [["ПОВНА", "high"], ["~3000 ВЕРШИН", "mid"], ["~1500 ВЕРШИН", "low"]]
+		var rows := [["ПОВНА", "high"], ["СЕРЕДНЯ", "mid"], ["ПРОСТА", "low"]]
 		for ri in rows.size():
 			for ci in cols.size():
 				cells.append([ri, ci, model, rows[ri][1], cols[ci][2], rows[ri][0]])
@@ -167,12 +171,10 @@ func _instance(path: String, tex_path: String) -> Node3D:
 	var amb := env.ambient_light_color
 	var amb_e := env.ambient_light_energy
 	var tex: Texture2D = load(tex_path) if ResourceLoader.exists(tex_path) else null
-	var lo := INF
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		if m.mesh == null:
 			continue
-		lo = minf(lo, (m.transform * m.mesh.get_aabb()).position.y)
 		for si in m.mesh.get_surface_count():
 			var bm := (m.mesh.surface_get_material(si) as BaseMaterial3D)
 			if bm == null:

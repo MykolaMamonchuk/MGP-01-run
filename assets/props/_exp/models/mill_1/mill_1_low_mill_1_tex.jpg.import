@@ -3,22 +3,24 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b2awjhbghlt2l"
-path="res://.godot/imported/mill_1_low_mill_1_tex.jpg-0a58905acf0b14276ac54d0c828619ba.ctex"
+path.s3tc="res://.godot/imported/mill_1_low_mill_1_tex.jpg-0a58905acf0b14276ac54d0c828619ba.s3tc.ctex"
+path.etc2="res://.godot/imported/mill_1_low_mill_1_tex.jpg-0a58905acf0b14276ac54d0c828619ba.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
-"md5": "473f5f52af792506eb885d333b576597"
+"md5": "e69395ec5848a33283225dfe2d76f7d6"
 }
 
 [deps]
 
 source_file="res://assets/props/_exp/models/mill_1/mill_1_low_mill_1_tex.jpg"
-dest_files=["res://.godot/imported/mill_1_low_mill_1_tex.jpg-0a58905acf0b14276ac54d0c828619ba.ctex"]
+dest_files=["res://.godot/imported/mill_1_low_mill_1_tex.jpg-0a58905acf0b14276ac54d0c828619ba.s3tc.ctex", "res://.godot/imported/mill_1_low_mill_1_tex.jpg-0a58905acf0b14276ac54d0c828619ba.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

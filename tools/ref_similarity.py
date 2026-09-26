@@ -9,9 +9,9 @@
 Три числа:
   СИЛУЕТ — IoU масок об'єкта (тло — по рядках з країв, бо воно градієнтом), обидві вписані в
     квадрат зі збереженням пропорцій: міряє форму й пропорції, а не кадрування.
-  ПАЛІТРА — середнє двох: «покриття» (чи є кольори малюнка в моделі й навпаки: відстань до
-    найближчого кольору, в обидва боки) і «частки» (8 кольорів малюнка, перетин розподілів —
-    чи в тих самих пропорціях). Не залежить від того, чи дах піксель у піксель на місці.
+  ПАЛІТРА — ¼ «покриття» (чи є кольори малюнка в моделі й навпаки: відстань до найближчого
+    кольору, в обидва боки) + ¾ «частки» (8 кольорів малюнка, перетин розподілів — чи в тих
+    самих пропорціях). Не залежить від того, чи дах піксель у піксель на місці.
   КОЛІР НА МІСЦІ — по клітинках сітки 8×8, де є і модель, і малюнок: 100% мінус середня різниця
     кольору (RGB-відстань 100 = 0%). Найсуворіше: карає й за інший колір, і за зсув деталей.
 «Разом» — гармонійне середнє силуету й палітри: форма Й кольори, як просив замовник.
@@ -26,20 +26,45 @@ import argparse
 from PIL import Image
 
 
-def mask_of(im, thr):
-    """Маска об'єкта. Тло малюнків — ГРАДІЄНТ (угорі світліше), тож колір тла береться для
-    кожного рядка окремо з лівого й правого країв, а не з кутів: з кутами низ кадру ставав
-    «об'єктом», а кремові стіни — «тлом» (рецензія 26.09)."""
+def mask_of(im, thr, alpha=None):
+    """Маска об'єкта.
+
+    Рендер моделі — з прозорим тлом: маска просто з альфа-каналу.
+    Малюнок — тло ЗАЛИВКОЮ від країв кадру: піксель іде в тло, якщо він майже такий, як сусід,
+    що вже в тлі (крок ≤ 6), і не дуже далекий від кольору країв свого рядка (≤ thr·1.6). Так
+    плавні градієнти й віньєтка — тло, а різкий край об'єкта зупиняє заливку. Усе, до чого
+    заливка не дійшла, — об'єкт, тож дірки всередині (скло, кремова стіна) заповнюються самі.
+    Попередня версія порівнювала кожен піксель лише з краями рядка і давала решето
+    (рецензія 26.09)."""
     w, h = im.size
+    if alpha is not None:
+        return alpha.point(lambda v: 255 if v > 127 else 0)
     px = im.load()
+    rowbg = []
+    for y in range(h):
+        edge = [px[x, y] for x in (1, 2, 3, w - 4, w - 3, w - 2)]
+        rowbg.append(tuple(sum(c[i] for c in edge) / len(edge) for i in range(3)))
+    far = (thr * 1.6) ** 2
+    bg = bytearray(w * h)
+    stack = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+    for x, y in stack:
+        bg[y * w + x] = 1
+    while stack:
+        x, y = stack.pop()
+        c = px[x, y]
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < w and 0 <= ny < h and not bg[ny * w + nx]:
+                n = px[nx, ny]
+                step = sum((n[i] - c[i]) ** 2 for i in range(3))
+                rb = rowbg[ny]
+                if step <= 36 and sum((n[i] - rb[i]) ** 2 for i in range(3)) <= far:
+                    bg[ny * w + nx] = 1
+                    stack.append((nx, ny))
     m = Image.new("L", im.size, 0)
     mp = m.load()
     for y in range(h):
-        edge = [px[x, y] for x in (1, 2, 3, w - 4, w - 3, w - 2)]
-        bg = tuple(sum(c[i] for c in edge) / len(edge) for i in range(3))
         for x in range(w):
-            c = px[x, y]
-            if sum((c[i] - bg[i]) ** 2 for i in range(3)) > thr * thr:
+            if not bg[y * w + x]:
                 mp[x, y] = 255
     return m
 
@@ -76,14 +101,24 @@ def main():
         white = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
         ref = Image.alpha_composite(white, rgba)
     ref = ref.convert("RGB")
-    ours = Image.open(a.ours).convert("RGB")
+    ours_raw = Image.open(a.ours)
+    ours_alpha = ours_raw.convert("RGBA").split()[3] if ours_raw.mode in ("RGBA", "LA") else None
+    ours = ours_raw.convert("RGBA")
+    if ours_alpha is not None:
+        # колір — на тлі кольору кутів малюнка, щоб напівпрозорі краї не чорніли
+        bgc = Image.new("RGBA", ours.size, ref.getpixel((2, 2)) + (255,))
+        ours = Image.alpha_composite(bgc, ours)
+    ours = ours.convert("RGB")
     x0, y0, x1, y1 = [float(v) for v in a.ref_crop.split(",")]
     w, h = ref.size
     ref = ref.crop((int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h)))
     ref = ref.resize((256, int(256 * ref.size[1] / ref.size[0])))
-    ours = ours.resize((256, int(256 * ours.size[1] / ours.size[0])))
+    oh = int(256 * ours.size[1] / ours.size[0])
+    ours = ours.resize((256, oh))
+    if ours_alpha is not None:
+        ours_alpha = ours_alpha.resize((256, oh))
     ri, rm = norm(ref, mask_of(ref, a.thr), a.size)
-    oi, om = norm(ours, mask_of(ours, a.thr), a.size)
+    oi, om = norm(ours, mask_of(ours, a.thr, ours_alpha), a.size)
     rmp, omp, rip, oip = rm.load(), om.load(), ri.load(), oi.load()
     inter = union = 0
     for y in range(a.size):
@@ -137,7 +172,9 @@ def main():
             hst[min(range(len(cent)), key=lambda i: d2(c, cent[i]))] += 1
         return [v / max(len(src), 1) for v in hst]
     shares = 100.0 * sum(min(x, y) for x, y in zip(dist(sr), dist(so)))
-    palette = (coverage + shares) / 2
+    # Частки важать утричі більше за покриття: покриття ≈ 90-100%, щойно колір є хоч цяткою, і
+    # «рожева стіна з сірою цяткою» проти «сірої з рожевою» проходила поріг (рецензія 26.09).
+    palette = 0.25 * coverage + 0.75 * shares
     # «Разом» — гармонійне середнє силуету й палітри: погане одне число не перекривається
     # гарним іншим (з простим середнім і «силует 13% / палітра 97%», і «100% / 9%» давали 55%).
     total = 2 * shape * palette / max(shape + palette, 1e-9)

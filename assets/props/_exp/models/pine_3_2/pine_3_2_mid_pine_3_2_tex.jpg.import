@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://42tkhef5de2s"
-path="res://.godot/imported/pine_3_2_mid_pine_3_2_tex.jpg-1551662cff1a4a671824206cc815737f.ctex"
+path.s3tc="res://.godot/imported/pine_3_2_mid_pine_3_2_tex.jpg-1551662cff1a4a671824206cc815737f.s3tc.ctex"
+path.etc2="res://.godot/imported/pine_3_2_mid_pine_3_2_tex.jpg-1551662cff1a4a671824206cc815737f.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "889b4f2b4ddfa387737ac26ba5c16fbd"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/props/_exp/models/pine_3_2/pine_3_2_mid_pine_3_2_tex.jpg"
-dest_files=["res://.godot/imported/pine_3_2_mid_pine_3_2_tex.jpg-1551662cff1a4a671824206cc815737f.ctex"]
+dest_files=["res://.godot/imported/pine_3_2_mid_pine_3_2_tex.jpg-1551662cff1a4a671824206cc815737f.s3tc.ctex", "res://.godot/imported/pine_3_2_mid_pine_3_2_tex.jpg-1551662cff1a4a671824206cc815737f.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

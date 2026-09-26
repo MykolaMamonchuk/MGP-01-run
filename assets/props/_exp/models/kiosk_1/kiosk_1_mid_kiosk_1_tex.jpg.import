@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ceuv1ns55sqoo"
-path="res://.godot/imported/kiosk_1_mid_kiosk_1_tex.jpg-bc602e357a7ca6e62b0731c0ef13f0aa.ctex"
+path.s3tc="res://.godot/imported/kiosk_1_mid_kiosk_1_tex.jpg-bc602e357a7ca6e62b0731c0ef13f0aa.s3tc.ctex"
+path.etc2="res://.godot/imported/kiosk_1_mid_kiosk_1_tex.jpg-bc602e357a7ca6e62b0731c0ef13f0aa.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "1ea38388eeea71703fd074ea2dbbe648"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/props/_exp/models/kiosk_1/kiosk_1_mid_kiosk_1_tex.jpg"
-dest_files=["res://.godot/imported/kiosk_1_mid_kiosk_1_tex.jpg-bc602e357a7ca6e62b0731c0ef13f0aa.ctex"]
+dest_files=["res://.godot/imported/kiosk_1_mid_kiosk_1_tex.jpg-bc602e357a7ca6e62b0731c0ef13f0aa.s3tc.ctex", "res://.godot/imported/kiosk_1_mid_kiosk_1_tex.jpg-bc602e357a7ca6e62b0731c0ef13f0aa.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0

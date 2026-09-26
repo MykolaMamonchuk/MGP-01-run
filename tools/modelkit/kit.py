@@ -451,6 +451,8 @@ def finish(obj, img, out_dir, base, tex_size, parts=None, rig=None):
     """Спільний кінець: один матеріал із запеченою текстурою, рухомі частини, скелет, три
     розміри текстури окремими файлами (для сцени порівняння) і .glb."""
     import numpy as np
+    if tex_size not in (256, 512, 1024, 2048):
+        raise RuntimeError("розмір текстури %d: лише 256/512/1024/2048 (менші рахуються усередненням)" % tex_size)
     out_mat = bpy.data.materials.new(base + "_baked")
     out_mat.use_nodes = True
     b = out_mat.node_tree.nodes["Principled BSDF"]

@@ -38,6 +38,10 @@ def main():
     sc.render.engine = "CYCLES"
     sc.cycles.samples = 32
     sc.render.resolution_x = sc.render.resolution_y = a.size
+    # Прозоре тло: маска моделі — з альфа-каналу, без дір там, де колір моделі схожий на тло
+    # (кремові стіни на персиковому — рецензія 26.09). Колір тла лишається для світла.
+    sc.render.film_transparent = True
+    sc.render.image_settings.color_mode = "RGBA"
     sc.view_settings.view_transform = "Standard"
     w = bpy.data.worlds.new("w")
     sc.world = w
