@@ -121,3 +121,67 @@ func test_poriadok_po_rivniakh() -> void:
 	assert_true(bool(by_id[4].get("grazing_geese", false)), "рівень 4: пасуться")
 	assert_eq((by_id[4]["obstacle_types"] as Array).size(), 0, "рівень 4 — усі види: вперше перебігає й летить")
 	assert_false(bool(by_id[1].get("grazing_geese", false)), "рівень 1 — ще без гусок")
+
+
+## Під меню, мапою й відліком дорога теж їде (advance) — гуски там не з'являються; clear()
+## (вихід у меню) їх вимикає зовсім. Рецензія 26.09: гуски пропливали під меню застиглими.
+func test_husky_lyshe_v_bihu() -> void:
+	var sp := Spawner3D.new()
+	add_child_autofree(sp)
+	sp.world = _world()
+	sp.lanes = 3
+	sp.set_grazers(true)
+	sp.spawning = false
+	for i in 60:
+		sp._advance_grazers(2.0)
+	assert_eq(sp.get_children().filter(func(c): return c is GooseGrazer3D).size(), 0,
+		"поза бігом (меню, відлік) — жодної гуски")
+	sp.clear()
+	assert_false(sp.grazers_on, "clear() вимикає гусок до наступного рівня")
+
+
+## Рівень 4: дорога 3 → 5 доріжок. Гуска на узбіччі відступає разом із краєм.
+func test_rozshyrennia_dorohy_vidsuvaie_husku() -> void:
+	var sp := Spawner3D.new()
+	add_child_autofree(sp)
+	sp.lanes = 3
+	var g := GooseGrazer3D.new()
+	var rng := RandomNumberGenerator.new()
+	g.setup("goose", rng)
+	g.road_edge = 1.6
+	g.position = Vector3(2.2, 0.0, -30.0)
+	sp.add_child(g)
+	sp.lanes = 5
+	g.tick(0.016)
+	assert_gt(g.position.x, 2.6 + 0.3, "після розширення гуска знову за краєм (край 2,6)")
+
+
+## Підхід збоку стартує ЗА КРАЄМ дороги для будь-якої доріжки й ширини — не в сусідній доріжці.
+func test_pidkhid_startuie_za_kraiem_dorohy() -> void:
+	for n_lanes in [3, 5]:
+		var sp := Spawner3D.new()
+		add_child_autofree(sp)
+		sp.lanes = n_lanes
+		var edge := float(n_lanes) * 0.5 + 0.1
+		for lane in range(-(n_lanes / 2), n_lanes / 2 + 1):
+			var o := Obstacle3D.new()
+			o.setup("goose_run", _world()["obstacles"]["goose_run"], lane, false)
+			o.position.z = -30.0
+			sp.add_child(o)
+			o.tick(0.016)
+			assert_gt(absf(o.position.x), edge + 0.3,
+				"%d доріжок, доріжка %d: гуска чекає за краєм (x=%.2f, край %.1f)" % [n_lanes, lane, o.position.x, edge])
+
+
+## «Клює траву» — голова справді опускається до землі, а не кивок (рецензія 26.09).
+func test_kliuie_do_zemli() -> void:
+	for path in ["res://assets/props/goose_1.glb", "res://assets/props/goose_2.glb", "res://assets/props/goose_3.glb"]:
+		var model := (load(path) as PackedScene).instantiate()
+		add_child_autofree(model)
+		var r := GooseRig.new()
+		r.build(model)
+		r.state = "peck"
+		r.pose(0.9 * 0.5)   # середина опускання (цикл 1,8 с)
+		r.skel.force_update_all_bone_transforms()
+		var y := r.skel.get_bone_global_pose(r.head).origin.y
+		assert_lt(y, 0.5 * r.height, "%s: голова нижче половини зросту, коли клює" % path.get_file())

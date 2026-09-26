@@ -13,8 +13,9 @@ extends Node3D
 
 const ALERT_M := 10.0
 const SCARE_M := 4.0
-## Наскільки далеко від дороги гуска може відбігти, м від краю дороги. Канал Лужка — з +1,5.
-const FLEE_MAX := 1.3
+## Наскільки далеко від дороги гуска може відбігти, м від краю дороги. Канал Лужка — з +1,5,
+## поручень і настил містка — з +1,3; тулуб гуски — ~0,2 у кожен бік.
+const FLEE_MAX := 1.1
 
 ## Спільний стан зграї: коли злякалась ведуча (секунди від її переляку йдуть усім).
 class Flock:
@@ -38,13 +39,19 @@ var _state_t := 0.0
 var _scared_t := -1.0
 var _yaw_goal := 0.0
 var _next_idle := 0.0
+var _posed := false
+## Свій лічильник моделей, а не Obstacle3D._rig_counter: інакше гуски на узбіччі зсували б, яка
+## модель дістанеться гускам-перешкодам.
+static var _counter := 0
+## Далі за це — поза скелета не рахується (рецензія 26.09: до 9 гусок у кадрі).
+const POSE_FAR_M := 22.0
 
 
 func setup(prop_name: String, rng: RandomNumberGenerator) -> bool:
 	var n := PropLibrary.variants(prop_name)
 	if n <= 0:
 		return false
-	var v := Obstacle3D._rig_counter % n
+	var v := _counter % n
 	var scene := PropLibrary.scene(String(PropLibrary._entry(prop_name, v).get("path", "")))
 	if scene == null:
 		return false
@@ -54,7 +61,7 @@ func setup(prop_name: String, rng: RandomNumberGenerator) -> bool:
 		if model != null:
 			model.free()
 		return false
-	Obstacle3D._rig_counter += 1
+	_counter += 1
 	for mi in model.find_children("*", "MeshInstance3D", true, false):
 		PropLibrary._drop_normal_maps((mi as MeshInstance3D).mesh)
 	_body = Node3D.new()
@@ -84,6 +91,14 @@ func tick(delta: float) -> void:
 		return
 	_t += delta
 	_state_t += delta
+	# Дорога розширилась (рівень 4: 3 → 5 доріжок) — гуска відступає разом із краєм, а не
+	# лишається посеред нової доріжки.
+	var sp := get_parent() as Spawner3D
+	if sp != null:
+		var e := float(sp.lanes) * 0.5 * Hero3D.LANE_W + 0.1
+		if absf(e - road_edge) > 0.01:
+			position.x += signf(position.x) * (e - road_edge)
+			road_edge = e
 	var ahead := -position.z
 	var scared := false
 	if leader and flock != null and ahead < SCARE_M:
@@ -115,5 +130,9 @@ func tick(delta: float) -> void:
 			_set_state("stand" if _state == "peck" else "peck")
 			_yaw_goal += (fmod(_t * 3.1, 1.6) - 0.8)
 	_body.rotation.y = lerp_angle(_body.rotation.y, _yaw_goal, clampf(delta * 5.0, 0.0, 1.0))
+	# Далека гуска — кілька пікселів: позу скелета не перераховуємо, стоїть як стояла.
+	if ahead > POSE_FAR_M and _posed:
+		return
+	_posed = true
 	var lift := _rig.pose(_state_t)
 	_body.position.y = lift * _scale

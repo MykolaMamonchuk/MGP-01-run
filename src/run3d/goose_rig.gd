@@ -186,7 +186,10 @@ func _rot(i: int, turns: Array) -> void:
 func _toward(i: int, axis: Vector3, target: Vector3) -> float:
 	if i < 0:
 		return 1.0
-	var v := _chain_end(i) - _pos(i)
+	# Кістка шиї — напрям до ГОЛОВИ, а не до найдальшої точки: у гуски 2 найдальша точка
+	# верхньої кістки шиї — кінчик дзьоба, майже на її висоті, і знак виходив протилежний
+	# (шия гнулась назад і гасила решту — «клює» стояло кивком).
+	var v := (_pos(head) - _pos(i)) if neck.has(i) else (_chain_end(i) - _pos(i))
 	var s := signf(axis.cross(v).dot(target))
 	return s if s != 0.0 else 1.0
 
@@ -285,18 +288,22 @@ func pose(t: float) -> float:
 			var c := fmod(t, 1.8) / 1.8
 			var down := smoothstep(0.1, 0.25, c) * (1.0 - smoothstep(0.6, 0.8, c))
 			var tap := sin(c * TAU * 6.0) * 0.08 * down
+			# Шия — майже до землі: у рецензії 26.09 голова опускалась лише до 0,65-0,78 зросту,
+			# і це читалось як кивок, а не «клює траву».
 			for k in neck:
-				_rot(k, [[side, (down * 1.5 / float(maxi(neck.size(), 1)) + tap) * _toward(k, side, fwd)]])
-			_rot(head, [[side, down * 0.4 * _toward(head, side, fwd)]])
-			body_pitch = down * 0.22
+				_rot(k, [[side, (down * 2.3 / float(maxi(neck.size(), 1)) + tap) * _toward(k, side, fwd)]])
+			_rot(head, [[side, down * 0.5 * _toward(head, side, fwd)]])
+			body_pitch = down * 0.45
 			_rot(tail, [[up, sin(t * 2.5) * 0.1]])
 		"alert":
 			# Витяглась: шия трохи назад і вгору, голова короткими рухами роззирається.
-			var look := sin(t * 5.0) * 0.18 * step_blend(t)
+			# Роззирається рвучко: різкий поворот голови, пауза, у другий бік.
+			var look := (1.0 if fmod(t, 1.4) < 0.7 else -1.0) * 0.55 * step_blend(t)
 			for k in neck:
-				_rot(k, [[side, -0.12 / float(maxi(neck.size(), 1)) * _toward(k, side, fwd)],
+				_rot(k, [[side, -0.3 / float(maxi(neck.size(), 1)) * _toward(k, side, fwd)],
 					[up, look / float(maxi(neck.size(), 1))]])
-			body_pitch = -0.06
+			_rot(head, [[up, look * 0.5]])
+			body_pitch = -0.1
 		"flee":
 			var ph := t * 11.0
 			body_roll = sin(ph) * 0.16

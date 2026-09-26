@@ -67,3 +67,69 @@ func test_zhoden_props_ne_vyvernutyi() -> void:
 			continue
 		var x := _inward(m)
 		assert_lt(x, 0.6, "%s: %.0f%% площі всередину — модель вивернута" % [f, x * 100.0])
+
+
+## Точніше: кожен окремий ШМАТОК сітки (стіна, стовп, вікно — окремі коробки) мусить мати всі
+## грані назовні. Міра по всій моделі цього не бачить: рецензія 26.09 знайшла, що перший
+## перерахунок лишив вивернутою половину граней кожної коробки (glTF приходить із роз'єднаними
+## гранями, і Blender перераховував кожну окремо), а модель у цілому мала «нормальні» 10-27%.
+func _worst_piece(m: Mesh) -> float:
+	var tris: Array = []
+	for si in m.get_surface_count():
+		var arr := m.surface_get_arrays(si)
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var idx = arr[Mesh.ARRAY_INDEX]
+		var indexed: bool = idx != null and (idx as PackedInt32Array).size() > 0
+		var n: int = (idx as PackedInt32Array).size() if indexed else v.size()
+		for t in range(0, n, 3):
+			tris.append([v[idx[t]] if indexed else v[t], v[idx[t + 1]] if indexed else v[t + 1],
+				v[idx[t + 2]] if indexed else v[t + 2]])
+	# Шматки — за спільними ПОЗИЦІЯМИ вершин (об'єднання множин).
+	var parent := range(tris.size())
+	var owner := {}
+	var find := func(a: int) -> int:
+		while parent[a] != a:
+			parent[a] = parent[parent[a]]
+			a = parent[a]
+		return a
+	for i in tris.size():
+		for p in tris[i]:
+			var key := Vector3i(roundi(p.x * 1e4), roundi(p.y * 1e4), roundi(p.z * 1e4))
+			if owner.has(key):
+				var ra: int = find.call(i)
+				var rb: int = find.call(owner[key])
+				if ra != rb:
+					parent[ra] = rb
+			else:
+				owner[key] = i
+	var groups := {}
+	for i in tris.size():
+		var r: int = find.call(i)
+		if not groups.has(r):
+			groups[r] = []
+		groups[r].append(tris[i])
+	var worst := 0.0
+	for r in groups:
+		var g: Array = groups[r]
+		if g.size() < 12:
+			continue   # лише замкнені коробки й більші; пласка табличка «всередину» не має
+		var c := Vector3.ZERO
+		for t in g:
+			c += (t[0] + t[1] + t[2]) / 3.0
+		c /= float(g.size())
+		var inw := 0.0
+		var tot := 0.0
+		for t in g:
+			var nn: Vector3 = (t[2] - t[0]).cross(t[1] - t[0])
+			var area := nn.length() * 0.5
+			tot += area
+			if nn.dot((t[0] + t[1] + t[2]) / 3.0 - c) < 0.0:
+				inw += area
+		worst = maxf(worst, inw / maxf(tot, 1e-9))
+	return worst
+
+
+func test_kozhna_korobka_budynku_nazovni() -> void:
+	for k in MAKE_HOUSE:
+		var w := _worst_piece(_mesh("res://assets/props/%s.glb" % k))
+		assert_lt(w, 0.05, "%s: у найгіршого шматка %.0f%% площі всередину" % [k, w * 100.0])

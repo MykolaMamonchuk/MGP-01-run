@@ -1051,6 +1051,21 @@ const FAR_CARD_X := 10.0
 ## farcards/nofar або зібрано пробу `strip_probe`.
 static var far_cards_split := false
 
+## Чи стоїть поблизу точки (x, z у координатах траси) якийсь предмет декору — ящик, бочка,
+## дерево, огорожа. Потрібно гускам на узбіччі (GooseGrazer3D): смуга між дорогою й каналом
+## та сама, куди траса кладе придорожній декор, і без перевірки гуска стояла б у ящику.
+func decor_near(x: float, z: float, r: float) -> bool:
+	for i in range(_rows.size()):
+		var zr: float = _rows[i].position.z
+		if absf(zr - z) > r + 1.0:
+			continue
+		var d := _decor_data[i]
+		for j in range(0, d.size(), DECOR_STRIDE):
+			if absf(d[j] - x) < r and absf(zr + d[j + 2] - z) < r:
+				return true
+	return false
+
+
 static func far_card_tag(kind: String, x_m: float, yaw_deg: float) -> String:
 	if not far_cards_split:
 		return ""

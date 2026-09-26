@@ -105,18 +105,23 @@ func _setup_rig(prop_name: String, mode: String) -> bool:
 
 
 ## Роль → стан рига на цей кадр. Герой стоїть у z = 0, перешкоди їдуть до нього з -Z.
+const POSE_FAR_M := 22.0    ## далі — поза скелета не рахується
 const HISS_FROM_M := 7.0     ## з якої відстані гуска починає шипіти
 const BITE_WITHIN_M := 1.6   ## ближче за це — кидається кусати
 
-## Звідки гуска приходить: з того боку, де її доріжка (середня — по черзі), на 1,4 м за
-## краєм доріжки, тобто вже за краєм дороги.
+## Звідки гуска приходить: з того боку, де її доріжка, і ЗА КРАЄМ ДОРОГИ — край рахується від
+## справжньої кількості доріжок (3 → ±1,6, 5 → ±2,6). Інакше вона «чекала» б у сусідній
+## доріжці й дитина об'їжджала б її саме туди, куди гуска потім прибіжить (рецензія 26.09).
+## Середня доріжка — з боку, що залежить від місця на трасі (стало для того самого рівня).
 func _init_arrive() -> void:
 	_arrive_ready = true
 	_arrive_x1 = position.x
 	var side := signf(_arrive_x1)
 	if side == 0.0:
-		side = 1.0 if _rig_counter % 2 == 0 else -1.0
-	_arrive_x0 = _arrive_x1 + side * 1.4
+		side = 1.0 if int(absf(position.z) * 10.0) % 2 == 0 else -1.0
+	var sp := get_parent() as Spawner3D
+	var edge := (float(sp.lanes) * 0.5 * Hero3D.LANE_W + 0.1) if sp != null else 1.6
+	_arrive_x0 = side * (edge + 0.6)
 	position.x = _arrive_x0
 
 
@@ -158,6 +163,9 @@ func _tick_rig(delta: float) -> void:
 		var run_yaw := PI * 0.5 * signf(_arrive_x1 - _arrive_x0)
 		_mesh.rotation.y = lerpf(run_yaw, 0.0, smoothstep(0.85, 1.0, k)) if k > 0.0 else run_yaw * 0.5
 	var st := _rig_state_now()
+	# Далека гуска — кілька пікселів: позу не перераховуємо (але вперше — завжди).
+	if position.z < -POSE_FAR_M and _rig_state != "":
+		return
 	if st != _rig_state:
 		# Час від початку стану: кидок «кусає» має починатись із замаху, а не з середини.
 		_rig_state = st

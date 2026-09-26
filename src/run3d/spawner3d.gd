@@ -261,7 +261,9 @@ func set_grazers(on: bool) -> void:
 
 
 func _advance_grazers(dist: float) -> void:
-	if not grazers_on:
+	# Лише в самому бігу: під меню, мапою й відліком дорога теж їде (advance), але гуски
+	# там стояли б застиглими — check() їх не «оживляє» (рецензія 26.09).
+	if not grazers_on or not spawning:
 		return
 	_graze_left -= dist
 	if _graze_left > 0.0:
@@ -275,18 +277,32 @@ func _advance_grazers(dist: float) -> void:
 	var side := -1.0 if _graze_rng.randf() < 0.5 else 1.0
 	var edge := float(lanes) * 0.5 * Hero3D.LANE_W + 0.1
 	var flock := GooseGrazer3D.Flock.new()
+	var track: Track = run.get("track") if run != null else null
+	var placed := 0
 	for i in range(count):
+		# Місце без декору: та сама смуга, куди траса кладе ящики, бочки й дерева узбіччя.
+		# Кілька спроб; не знайшлось — ця гуска просто не приходить.
+		var pos := Vector3.ZERO
+		var found := false
+		for attempt in range(6):
+			pos = Vector3(side * (edge + _graze_rng.randf_range(0.4, 1.0)), 0.0,
+				SPAWN_Z - _graze_rng.randf_range(0.0, 1.8) * float(i + attempt))
+			if track == null or not track.decor_near(pos.x, pos.z, 0.45):
+				found = true
+				break
+		if not found:
+			continue
 		var goose := GooseGrazer3D.new()
 		if not goose.setup(String(g.get("prop", "goose")), _graze_rng):
 			goose.free()
 			return
 		goose.flock = flock
-		goose.leader = i == 0
+		goose.leader = placed == 0
 		goose.delay = _graze_rng.randf_range(0.12, 0.45)
 		goose.road_edge = edge
-		goose.position = Vector3(side * (edge + _graze_rng.randf_range(0.4, 1.0)), 0.0,
-			SPAWN_Z - _graze_rng.randf_range(0.0, 1.6) * float(i))
+		goose.position = pos
 		add_child(goose)
+		placed += 1
 
 
 func set_speed(s: float) -> void:
@@ -294,6 +310,8 @@ func set_speed(s: float) -> void:
 
 
 func clear() -> void:
+	# Вихід у меню / зміна рівня: гуски на узбіччі — лише там, де їх увімкне наступний рівень.
+	grazers_on = false
 	for c in get_children():
 		if c is MultiMeshInstance3D:
 			# Пачки злитків переживають зміну рівня: вони не вміст траси, а спосіб її
