@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://jtjx5t6wqqna"
-path.s3tc="res://.godot/imported/hut_test_hut_color.jpg-f907f2bfef90ed59fbeeb794a9ca404f.s3tc.ctex"
-path.etc2="res://.godot/imported/hut_test_hut_color.jpg-f907f2bfef90ed59fbeeb794a9ca404f.etc2.ctex"
+uid="uid://bhmhu1ijc23n0"
+path.s3tc="res://.godot/imported/hut_high_hut_final.jpg-90801e1c18c94e45345c4ea2355bc12d.s3tc.ctex"
+path.etc2="res://.godot/imported/hut_high_hut_final.jpg-90801e1c18c94e45345c4ea2355bc12d.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "21820ac26d34de9c40a2c13b182ad958"
+"md5": "1dee0177c04b0a4715a0ae32db0e029d"
 }
 
 [deps]
 
-source_file="res://assets/props/_exp/hut/hut_test_hut_color.jpg"
-dest_files=["res://.godot/imported/hut_test_hut_color.jpg-f907f2bfef90ed59fbeeb794a9ca404f.s3tc.ctex", "res://.godot/imported/hut_test_hut_color.jpg-f907f2bfef90ed59fbeeb794a9ca404f.etc2.ctex"]
+source_file="res://assets/props/_exp/hut/hut_high_hut_final.jpg"
+dest_files=["res://.godot/imported/hut_high_hut_final.jpg-90801e1c18c94e45345c4ea2355bc12d.s3tc.ctex", "res://.godot/imported/hut_high_hut_final.jpg-90801e1c18c94e45345c4ea2355bc12d.etc2.ctex"]
 
 [params]
 
