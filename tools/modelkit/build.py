@@ -28,6 +28,7 @@ def main():
     a = ap.parse_args(argv)
     model = importlib.import_module(a.model)
     kit.PAL = model.PAL
+    kit.MODEL_NAME = a.model
     details = getattr(model, "DETAIL", kit.DETAIL)
     kit.DET = details[a.detail]
     bpy.ops.wm.read_factory_settings(use_empty=True)

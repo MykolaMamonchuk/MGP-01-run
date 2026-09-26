@@ -23,6 +23,7 @@ DETAIL = {
     "low": dict(bev=1, arch=4, tor=(8, 3), sph=(4, 3), win=3, cyl=6, tube=0),
 }
 DET = DETAIL["high"]
+MODEL_NAME = "model"
 
 
 def srgb_to_linear(c):
@@ -112,6 +113,10 @@ def mat_roof(name, keys=("roof_edge", "roof", "roof_hi", "roof_line"), rows_scal
     nt.links.new(tc.outputs["Object"], rows.inputs["Vector"])
     shade = _ramp(nt, [(0.0, keys[0]), (0.55, keys[1]), (1.0, keys[2])])
     nt.links.new(rows.outputs["Fac"], shade.inputs["Fac"])
+    if seams <= 0:
+        # Без окремих лусочок — лише ряди (гладкі «подушки», як у hut_2).
+        nt.links.new(shade.outputs["Color"], nt.nodes["Principled BSDF"].inputs["Base Color"])
+        return m
     vor = nt.nodes.new("ShaderNodeTexVoronoi")
     vor.feature = "DISTANCE_TO_EDGE"
     vor.inputs["Scale"].default_value = seams
@@ -311,10 +316,19 @@ def join_all():
     for ob in bpy.data.objects:
         if ob.type == "MESH":
             ob.select_set(True)
-    bpy.context.view_layer.objects.active = [o for o in bpy.data.objects if o.type == "MESH" and not o.name.startswith("part_")][0]
+    # Головний об'єкт — «body» (стоїть у початку координат без повороту), а не перший за
+    # абеткою: рецензія 26.09 знайшла, що ним ставало back_win_frame — повернутий на 180° і
+    # зсунутий, і вся модель у .glb стояла задом наперед, а переходи кольору по висоті з'їхали.
+    mains = [o for o in bpy.data.objects if o.type == "MESH" and not o.name.startswith("part_")]
+    if not mains:
+        raise RuntimeError("модель без головного меша: усі об'єкти — рухомі частини")
+    bpy.context.view_layer.objects.active = next((o for o in mains if o.name == "body"), mains[0])
     bpy.ops.object.join()
     hut = bpy.context.active_object
-    hut.name = "hut"
+    # І незалежно від того, хто головний, — трансформацію в геометрію: об'єкт стоїть у
+    # (0,0,0) без повороту, тож «Object»-координати матеріалів = світові.
+    bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+    hut.name = MODEL_NAME
     for p in hut.data.polygons:
         p.use_smooth = True
     return hut
@@ -337,7 +351,7 @@ def bake(hut, size):
     w.node_tree.nodes["Background"].inputs[1].default_value = 1.0
     imgs = {}
     for kind in ("color", "ao"):
-        img = bpy.data.images.new("hut_" + kind, size, size)
+        img = bpy.data.images.new(MODEL_NAME + "_" + kind, size, size)
         for mat in hut.data.materials:
             nt = mat.node_tree
             node = nt.nodes.get("bake_target") or nt.nodes.new("ShaderNodeTexImage")
@@ -367,7 +381,7 @@ def bake(hut, size):
     k = 0.78 + 0.22 * ao.reshape(-1, 4)[:, :1]
     col[:, :3] *= k
     col[:, 3] = 1.0
-    final = bpy.data.images.new("hut_final", size, size)
+    final = bpy.data.images.new(MODEL_NAME + "_tex", size, size)
     final.pixels.foreach_set(col.ravel())
     return final
 
@@ -381,7 +395,7 @@ def separate_parts(obj, parts):
     for name, pivot in parts.items():
         vg = obj.vertex_groups.get(name)
         if vg is None:
-            continue
+            raise RuntimeError("рухома частина «%s»: немає об'єктів part_%s__… — опечатка в назві?" % (name, name))
         bpy.ops.object.select_all(action="DESELECT")
         obj.select_set(True)
         bpy.context.view_layer.objects.active = obj
@@ -456,6 +470,8 @@ def finish(obj, img, out_dir, base, tex_size, parts=None, rig=None):
     img.pixels.foreach_get(full)
     full = full.reshape(tex_size, tex_size, 4)
     for size in (1024, 512, 256):
+        if size > tex_size:
+            continue   # більшого за запечений не буває
         f = tex_size // size
         arr = full.reshape(size, f, size, f, 4).mean(axis=(1, 3)) if f > 1 else full
         im = bpy.data.images.new("%s_%d" % (base, size), size, size)
