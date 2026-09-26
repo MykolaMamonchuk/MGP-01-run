@@ -49,14 +49,20 @@ def main():
         im = Image.alpha_composite(Image.new("RGBA", src.size, (255, 255, 255, 255)), src).convert("RGB")
         bg = "#%02X%02X%02X" % im.getpixel((3, 3))
         out = os.path.join(tmp, name + ".png")
+        if not os.path.exists(glb):
+            print("%-16s — немає зібраної моделі (%s)" % (name, glb))
+            continue
         subprocess.run([BLENDER, "--background", "--python", "tools/modelkit/render_ref.py", "--",
                         glb, out, "--bg", bg, "--az", str(c["az"]), "--el", str(c["el"]),
                         "--light-az", str(c.get("light_az", -40))],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
         r = subprocess.run([sys.executable, "tools/ref_similarity.py", ref, out, "--ref-crop", c["crop"],
                             "--erase", ";".join(c.get("erase", []))],
-                           capture_output=True, text=True, check=True)
+                           capture_output=True, text=True)
         line = r.stdout.strip()
+        if r.returncode != 0 or "разом" not in line:
+            print("%-16s — помилка заміру: %s" % (name, (r.stderr or r.stdout).strip().splitlines()[-1:]))
+            continue
         total = int(line.split("разом")[1].split("%")[0].strip())
         ok = total >= TARGET and "⚠" not in line
         print("%-16s %s  %s" % (name, line, "✓" if ok else "✗ (ціль %d%%, рамка з полями)" % TARGET))

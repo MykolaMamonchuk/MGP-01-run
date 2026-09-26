@@ -8,8 +8,8 @@ extends Node3D
 ##   • одна модель (`model`) — сітка 3×3: ряди — геометрія (повна / середня / проста; точні
 ##     вершини — у підписі, у простих форм їх менше),
 ##     стовпчики — текстура 1024 / 512 / 256; ліворуч — малюнок замовника;
-##   • усі моделі — рядок на модель, стовпчики — план якості замовника (26.09): СИЛЬНІ (повна +
-##     1024), СЕРЕДНІ (середня + 512), СЛАБКІ (середня + 256) і для порівняння НАЙПРОСТІША
+##   • усі моделі — сітка по 9, кожна модель один раз у якості з поля `quality` (план замовника
+##     26.09): сильні (повна + 1024), середні (середня + 512), слабкі (середня + 256), найпростіша
 ##     (проста + 256).
 ## Під кожною — вершини й трикутники так, як їх рахує Godot, і скільки текстура займає у
 ## відеопам'яті (стиснена, з mipmap) і на диску.
@@ -42,6 +42,16 @@ const REFS := "res://docs/refs/incoming/test_models/%s_test_draw"
 	set(v):
 		all_models = v
 		if is_inside_tree(): _build()
+## У режимі «усі моделі» — у якій якості показувати (план замовника 26.09).
+@export_enum("сильні", "середні", "слабкі", "найпростіша") var quality := "середні":
+	set(v):
+		quality = v
+		if is_inside_tree(): _build()
+
+const QUALITY := {"сильні": ["high", 1024], "середні": ["mid", 512], "слабкі": ["mid", 256],
+	"найпростіша": ["low", 256]}
+## Скільки моделей у ряду в режимі «усі моделі».
+const PER_ROW := 9
 
 var _sails: Array[Node3D] = []
 var _caps: Array[Node3D] = []
@@ -92,11 +102,16 @@ func _build() -> void:
 	var cells: Array = []   # [ряд, стовпчик, модель, деталізація, текстура, підпис ряду]
 	var cols: Array
 	if all_models:
-		cols = [["СИЛЬНІ\nповна + 1024", "high", 1024], ["СЕРЕДНІ\nсередня + 512", "mid", 512],
-			["СЛАБКІ\nсередня + 256", "mid", 256], ["НАЙПРОСТІША\nпроста + 256", "low", 256]]
-		for ri in models().size():
-			for ci in cols.size():
-				cells.append([ri, ci, models()[ri], cols[ci][1], cols[ci][2], models()[ri]])
+		# Сітка: кожна модель — один раз, у вибраній якості; по PER_ROW у ряду. Раніше
+		# кожна модель мала свій ряд із 4 якостями, і на ~70 моделях вийшла колона, якої не
+		# роздивитись.
+		var q: Array = QUALITY[quality]
+		cols = []
+		for ci in PER_ROW:
+			cols.append(["", q[0], q[1]])
+		var names := models()
+		for i in names.size():
+			cells.append([i / PER_ROW, i % PER_ROW, names[i], q[0], q[1], ""])
 	else:
 		cols = [["ТЕКСТУРА 1024", "", 1024], ["ТЕКСТУРА 512", "", 512], ["ТЕКСТУРА 256", "", 256]]
 		var rows := [["ПОВНА", "high"], ["СЕРЕДНЯ", "mid"], ["ПРОСТА", "low"]]
@@ -105,13 +120,15 @@ func _build() -> void:
 				cells.append([ri, ci, model, rows[ri][1], cols[ci][2], rows[ri][0]])
 	var col_gap := 2.8
 	var row_gap := 3.2 if all_models else 3.8
-	var n_rows := models().size() if all_models else 3
+	var n_rows := int(ceil(float(models().size()) / PER_ROW)) if all_models else 3
 	var cam := $Камера as Camera3D
 	cam.fov = 42.0
 	var mid_z := -float(n_rows - 1) * row_gap * 0.5
 	cam.look_at_from_position(Vector3(-1.0, 3.0 + float(n_rows) * 1.25, 4.0 + float(n_rows) * 1.5),
 		Vector3(-1.0, 0.3, mid_z))
 	for ci in cols.size():
+		if String(cols[ci][0]) == "":
+			continue
 		var t := _label(String(cols[ci][0]), Color(1.0, 0.95, 0.6), 40)
 		t.name = "М_стовп%d" % ci
 		t.position = Vector3(_x(ci, cols.size(), col_gap), 0.1, 1.8)
@@ -121,7 +138,7 @@ func _build() -> void:
 		var ri: int = c[0]
 		var ci: int = c[1]
 		var z := -float(ri) * row_gap
-		if not seen_rows.has(ri):
+		if not seen_rows.has(ri) and String(c[5]) != "":
 			seen_rows[ri] = true
 			var title := _label(String(c[5]).to_upper(), Color(1, 1, 1), 40)
 			title.name = "М_ряд%d" % ri
@@ -134,7 +151,7 @@ func _build() -> void:
 		inst.name = "М_%d_%d" % [ri, ci]
 		inst.position = Vector3(_x(ci, cols.size(), col_gap), 0, z)
 		add_child(inst)
-		var lb := _label(_stats(inst, base + "_%d.jpg" % c[4]), Color(1, 1, 1), 24)
+		var lb := _label(("%s\n" % c[2] if all_models else "") + _stats(inst, base + "_%d.jpg" % c[4]), Color(1, 1, 1), 24)
 		lb.name = "М_підпис_%d_%d" % [ri, ci]
 		lb.position = Vector3(_x(ci, cols.size(), col_gap), 0.05, z + 1.1)
 		add_child(lb)
