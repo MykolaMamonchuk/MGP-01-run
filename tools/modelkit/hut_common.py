@@ -34,7 +34,8 @@ def bent_bar(name, mat, w, rise, y, thick, z_ends, steps=None):
 def bent_bar_on(name, mat, pts_xz, thick, wrap_r=None, y=0.0, off=0.0):
     """Брус круглого перерізу по довільній ламаній (x, z). Якщо wrap_r задано — брус лежить
     на круглій стіні радіуса wrap_r (з центром у 0,0): y = −√(R² − x²) − off, тож кінці не
-    висять у повітрі над вигнутою стіною (козирок над дверима круглої хатки)."""
+    висять у повітрі над вигнутою стіною (козирок над дверима круглої хатки). wrap_r може бути
+    й функцією висоти z — для стіни-дзвону, де радіус змінюється по висоті."""
     cu = bpy.data.curves.new(name, "CURVE")
     cu.dimensions = "3D"
     cu.bevel_depth = thick
@@ -44,7 +45,8 @@ def bent_bar_on(name, mat, pts_xz, thick, wrap_r=None, y=0.0, off=0.0):
     sp = cu.splines.new("POLY")
     sp.points.add(len(pts_xz) - 1)
     for p, (x, z) in zip(sp.points, pts_xz):
-        yy = -math.sqrt(max(wrap_r * wrap_r - x * x, 0.0)) - off if wrap_r else y
+        R = wrap_r(z) if callable(wrap_r) else wrap_r
+        yy = -math.sqrt(max(R * R - x * x, 0.0)) - off if wrap_r else y
         p.co = (x, yy, z, 1.0)
     ob = bpy.data.objects.new(name, cu)
     bpy.context.collection.objects.link(ob)
