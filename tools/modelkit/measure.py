@@ -9,6 +9,8 @@
     {"ref": "mushroom_red_3.png", "az": -20, "el": 10, "crop": "0,0,1,1", "light_az": -40}
 
 light_az (необов'язково) — звідки світло на малюнку: −40 зліва (типово), +40 справа.
+erase (необов'язково) — ["x0,y0,x1,y1", …]: кущі/квіти обабіч об'єкта замалювати тлом.
+crop — З ПОЛЯМИ: об'єкт не торкається рамки зліва, справа, згори (інакше ⚠ і ✗).
 
 az/el — кут камери як на малюнку, crop — прямокутник малюнка без підставок, квітів, кущів
 (частки 0..1: x0,y0,x1,y1). Скрипт рендерить повний варіант (render_ref.py, прозоре тло) і
@@ -51,11 +53,13 @@ def main():
                         glb, out, "--bg", bg, "--az", str(c["az"]), "--el", str(c["el"]),
                         "--light-az", str(c.get("light_az", -40))],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
-        r = subprocess.run([sys.executable, "tools/ref_similarity.py", ref, out, "--ref-crop", c["crop"]],
+        r = subprocess.run([sys.executable, "tools/ref_similarity.py", ref, out, "--ref-crop", c["crop"],
+                            "--erase", ";".join(c.get("erase", []))],
                            capture_output=True, text=True, check=True)
         line = r.stdout.strip()
-        total = int(line.split("разом")[1].strip().rstrip("%"))
-        print("%-16s %s  %s" % (name, line, "✓" if total >= TARGET else "✗ (ціль %d%%)" % TARGET))
+        total = int(line.split("разом")[1].split("%")[0].strip())
+        ok = total >= TARGET and "⚠" not in line
+        print("%-16s %s  %s" % (name, line, "✓" if ok else "✗ (ціль %d%%, рамка з полями)" % TARGET))
     print("рендери:", tmp)
 
 

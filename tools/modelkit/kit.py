@@ -283,7 +283,9 @@ def window(name, m, base, facing, w=0.2, h_side=0.16):
     made.append(arch_curve(name + "_frame", m["frame"], w, h_side, -0.006, FRAME_T))
     r = w * 0.5
     made.append(box(name + "_v", m["frame"], (0.0, -0.01, (h_side + r) * 0.5), (0.022, 0.02, h_side + r)))
-    made.append(box(name + "_h", m["frame"], (0.0, -0.01, h_side * 0.8), (w, 0.02, 0.022)))
+    # Горизонтальна планка на 3 мм попереду вертикальної: коли їхні лиця в одній площині,
+    # перетин запікався чорним квадратиком посередині хрестовини (рецензія 26.09).
+    made.append(box(name + "_h", m["frame"], (0.0, -0.013, h_side * 0.8), (w, 0.02, 0.022)))
     sill = box(name + "_sill", m["frame"], (0.0, -0.035, -0.02), (w + 0.09, 0.07, 0.035))
     soften(sill, 0.012, min(2, DET["bev"]))
     made.append(sill)

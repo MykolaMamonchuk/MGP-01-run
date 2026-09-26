@@ -28,7 +28,9 @@
 Контрольні пари з очікуваними числами — tools/modelkit/controls.py.
 
 Рендер має бути під тим самим кутом, що й малюнок. Підставку, квіти, кущі з малюнка, яких у
-моделі нема навмисно, відрізає --ref-crop x0,y0,x1,y1 (частки 0..1).
+моделі нема навмисно, відрізає --ref-crop x0,y0,x1,y1 (частки 0..1), а кущі й квіти ОБАБІЧ —
+--erase "x0,y0,x1,y1;…" (замальовуються тлом). Рамка — з ПОЛЯМИ: якщо об'єкт торкається її
+зліва, справа чи згори, міра пише ⚠ і таке число не приймається.
 
     python3 tools/ref_similarity.py малюнок.jpg рендер.png --ref-crop 0,0,1,0.78
 """
@@ -128,6 +130,7 @@ def main():
     ap.add_argument("ref")
     ap.add_argument("ours")
     ap.add_argument("--ref-crop", default="0,0,1,1")
+    ap.add_argument("--erase", default="", help="x0,y0,x1,y1;… — замалювати тлом (кущі обабіч)")
     ap.add_argument("--thr", type=float, default=28.0)
     ap.add_argument("--size", type=int, default=128)
     ap.add_argument("--grid", type=int, default=8)
@@ -147,15 +150,34 @@ def main():
         bgc = Image.new("RGBA", ours.size, ref.getpixel((2, 2)) + (255,))
         ours = Image.alpha_composite(bgc, ours)
     ours = ours.convert("RGB")
-    x0, y0, x1, y1 = [float(v) for v in a.ref_crop.split(",")]
     w, h = ref.size
+    # ERASE — прямокутники малюнка, які замальовуються кольором тла свого рядка (з лівого
+    # краю): кущі й квіти ОБАБІЧ будинку, яких прямокутне обрізання не прибирає. Інакше вони
+    # йшли в маску, а рамку підбирали впритул до будинку — і число трималось лише на ній
+    # (рецензія 26.09: hut з чесними полями 82 → 70).
+    if a.erase:
+        from PIL import ImageDraw
+        dr = ImageDraw.Draw(ref)
+        rp = ref.load()
+        for part in a.erase.split(";"):
+            ex0, ey0, ex1, ey1 = [float(v) for v in part.split(",")]
+            for yy in range(int(ey0 * h), min(h, int(ey1 * h) + 1)):
+                dr.line((int(ex0 * w), yy, int(ex1 * w), yy), fill=rp[2, yy])
+    x0, y0, x1, y1 = [float(v) for v in a.ref_crop.split(",")]
     ref = ref.crop((int(x0 * w), int(y0 * h), int(x1 * w), int(y1 * h)))
     ref = ref.resize((256, int(256 * ref.size[1] / ref.size[0])))
     oh = int(256 * ours.size[1] / ours.size[0])
     ours = ours.resize((256, oh))
     if ours_alpha is not None:
         ours_alpha = ours_alpha.resize((256, oh))
-    ri, rm = norm(ref, mask_of(ref, a.thr), a.size)
+    ref_mask = mask_of(ref, a.thr)
+    bb = ref_mask.getbbox()
+    touch = []
+    if bb is not None:
+        if bb[0] <= 1: touch.append("ліво")
+        if bb[2] >= ref_mask.size[0] - 1: touch.append("право")
+        if bb[1] <= 1: touch.append("верх")
+    ri, rm = norm(ref, ref_mask, a.size)
     oi, om = norm(ours, mask_of(ours, a.thr, ours_alpha), a.size)
     rmp, omp, rip, oip = rm.load(), om.load(), ri.load(), oi.load()
     inter = union = 0
@@ -230,8 +252,10 @@ def main():
     # «Разом» — гармонійне середнє силуету й палітри: погане одне число не перекривається
     # гарним іншим (з простим середнім і «силует 13% / палітра 97%», і «100% / 9%» давали 55%).
     total = 2 * shape * palette / max(shape + palette, 1e-9)
-    print("силует %.0f%%  палітра %.0f%%  колір на місці %.0f%%  разом %.0f%%"
-          % (shape, palette, color, total))
+    # Об'єкт торкається рамки — число залежить від рамки, а не від моделі: не приймати.
+    warn = ("  ⚠ торкається рамки: %s" % ", ".join(touch)) if touch else ""
+    print("силует %.0f%%  палітра %.0f%%  колір на місці %.0f%%  разом %.0f%%%s"
+          % (shape, palette, color, total, warn))
 
 
 if __name__ == "__main__":
