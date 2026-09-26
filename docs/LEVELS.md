@@ -11,3 +11,8 @@
 https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/6389761
 Дані: `data/phrases.json`, код: `src/run3d/phrase_book.gd`, інструменти: `tools/economy/`.
 Проєкт перших десяти рівнів: [docs/tasks/levels-1-10.md](tasks/levels-1-10.md).
+
+**Гуски Лужка — поведінка й порядок по рівнях** (26.09.2026) — дочірня сторінка:
+https://mmu-mgp.atlassian.net/wiki/spaces/MGPP1/pages/8781825
+Пасуться на 2–3, на 4 уперше перебігають і літають. Код: `src/run3d/goose_*.gd`, дані:
+`data/worlds/meadow.json` (`grazers`, `goose_run`, `goose_fly`), `data/levels.json` (`grazing_geese`).
