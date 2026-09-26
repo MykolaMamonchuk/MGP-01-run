@@ -45,7 +45,10 @@ def mask_of(im, thr, alpha=None):
     (рецензія 26.09)."""
     w, h = im.size
     if alpha is not None:
-        return alpha.point(lambda v: 255 if v > 127 else 0)
+        # Із альфи — але дірки, яких не видно з країв кадру (клітинки ґратки крил, щілини між
+        # рейками), заповнюються ТАК САМО, як на малюнку, де заливка тла в них не заходить.
+        # Інакше млин програвав через саму міру: малюнок сам проти себе давав 79% (рецензія 26.09).
+        return fill_holes(alpha.point(lambda v: 255 if v > 127 else 0))
     px = im.load()
     rowbg = []
     for y in range(h):
@@ -74,6 +77,30 @@ def mask_of(im, thr, alpha=None):
             if not bg[y * w + x]:
                 mp[x, y] = 255
     return m
+
+
+def fill_holes(m):
+    """Усе, до чого з країв кадру не дістатись по «порожньому», — частина об'єкта."""
+    w, h = m.size
+    mp = m.load()
+    seen = bytearray(w * h)
+    stack = [(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)]
+    stack = [(x, y) for x, y in stack if mp[x, y] == 0]
+    for x, y in stack:
+        seen[y * w + x] = 1
+    while stack:
+        x, y = stack.pop()
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < w and 0 <= ny < h and not seen[ny * w + nx] and mp[nx, ny] == 0:
+                seen[ny * w + nx] = 1
+                stack.append((nx, ny))
+    out = Image.new("L", m.size, 0)
+    op = out.load()
+    for y in range(h):
+        for x in range(w):
+            if not seen[y * w + x]:
+                op[x, y] = 255
+    return out
 
 
 def norm(im, m, size):

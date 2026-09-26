@@ -31,6 +31,9 @@ def main():
     ap.add_argument("--az", type=float, default=-12.0)
     ap.add_argument("--el", type=float, default=12.0)
     ap.add_argument("--size", type=int, default=512)
+    # Звідки світло (градуси навколо вертикалі): −40 — спереду зліва, +40 — справа. Частина
+    # малюнків освітлена справа, і з лівим світлом правий скат програвав через світло.
+    ap.add_argument("--light-az", type=float, default=-40.0)
     a = ap.parse_args(argv)
     bpy.ops.wm.read_factory_settings(use_empty=True)
     bpy.ops.import_scene.gltf(filepath=a.glb)
@@ -56,7 +59,7 @@ def main():
     sun.color = (1.0, 1.0, 1.0)
     so = bpy.data.objects.new("key", sun)
     sc.collection.objects.link(so)
-    so.rotation_euler = (math.radians(50), 0, math.radians(-40))
+    so.rotation_euler = (math.radians(50), 0, math.radians(a.light_az))
     meshes = [o for o in bpy.data.objects if o.type == "MESH"]
     lo = mathutils.Vector((1e9,) * 3)
     hi = mathutils.Vector((-1e9,) * 3)

@@ -6,7 +6,9 @@
 були записані. Тепер вони в tools/modelkit/refs/<модель>.json — ОКРЕМИЙ файл на модель, щоб
 кілька людей чи агентів могли додавати моделі паралельно без конфліктів:
 
-    {"ref": "mushroom_red_3.png", "az": -20, "el": 10, "crop": "0,0,1,1"}
+    {"ref": "mushroom_red_3.png", "az": -20, "el": 10, "crop": "0,0,1,1", "light_az": -40}
+
+light_az (необов'язково) — звідки світло на малюнку: −40 зліва (типово), +40 справа.
 
 az/el — кут камери як на малюнку, crop — прямокутник малюнка без підставок, квітів, кущів
 (частки 0..1: x0,y0,x1,y1). Скрипт рендерить повний варіант (render_ref.py, прозоре тло) і
@@ -39,11 +41,15 @@ def main():
         c = cfg[name]
         ref = os.path.join(REFS, c["ref"])
         glb = "assets/props/_exp/models/%s/%s_high.glb" % (name, name)
-        im = Image.open(ref).convert("RGB")
+        # Колір тла — ПІСЛЯ накладання прозорого PNG на біле (так його бачить і міра);
+        # без цього прозорий піксель давав випадковий зелений, що фарбував рендер.
+        src = Image.open(ref).convert("RGBA")
+        im = Image.alpha_composite(Image.new("RGBA", src.size, (255, 255, 255, 255)), src).convert("RGB")
         bg = "#%02X%02X%02X" % im.getpixel((3, 3))
         out = os.path.join(tmp, name + ".png")
         subprocess.run([BLENDER, "--background", "--python", "tools/modelkit/render_ref.py", "--",
-                        glb, out, "--bg", bg, "--az", str(c["az"]), "--el", str(c["el"])],
+                        glb, out, "--bg", bg, "--az", str(c["az"]), "--el", str(c["el"]),
+                        "--light-az", str(c.get("light_az", -40))],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
         r = subprocess.run([sys.executable, "tools/ref_similarity.py", ref, out, "--ref-crop", c["crop"]],
                            capture_output=True, text=True, check=True)
