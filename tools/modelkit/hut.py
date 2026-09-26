@@ -15,13 +15,13 @@ PAL = {
     # Кольори малюнка вже містять студійне світло; гра кладе своє зверху й загалом темніша,
     # тож основний колір стін і даху — на крок світліший за «сирі» кластери (друга спроба в
     # ігровому світлі вийшла брунатною).
-    "wall_hi": "#FAE8C4", "wall": "#F2D8AA", "wall_lo": "#E9C898", "wall_foot": "#DEB485",
-    "roof_hi": "#FFF6DA", "roof": "#FEEFC6", "roof_edge": "#F6DDAC", "roof_line": "#E4BF8A",
+    "wall_hi": "#EED8B0", "wall": "#E6C898", "wall_lo": "#DDB886", "wall_foot": "#D0A472",
+    "roof_hi": "#FFFAE6", "roof": "#FFF3D0", "roof_edge": "#F9E4B8", "roof_line": "#EBCD9C",
     "roof_under": "#B68D68",
     "chimney_hi": "#E7CA9C", "chimney_lo": "#CFA47A",
     "cap_hi": "#C27856", "cap": "#B65E3E",
-    "door_hi": "#94492F", "door": "#783A23", "door_line": "#4E2314",
-    "frame_hi": "#BC6E41", "frame": "#A55432",
+    "door_hi": "#8A4229", "door": "#6E341F", "door_line": "#4A2112",
+    "frame_hi": "#A85C38", "frame": "#8E472B",
     "glass": "#7FB6D3", "glass_hi": "#D8F0FA",
     "step_hi": "#BBB4B3", "step_lo": "#928584",
     "stone": "#928584", "stone_lo": "#90724F",
@@ -33,7 +33,8 @@ PAL = {
 def materials(k):
     return {
         "wall": k.mat_gradient("wall", [(0.0, "wall_foot"), (0.22, "wall_lo"), (0.55, "wall"), (1.0, "wall_hi")], 0.0, 1.4),
-        "roof": k.mat_roof("roof"),
+        # Лусочки на малюнку великі (~7 рядів на скат), дрібна сітка робила дах брунатним.
+        "roof": k.mat_roof("roof", rows_scale=6.0, seams=9.0),
         "chimney": k.mat_gradient("chimney", [(0.0, "chimney_lo"), (1.0, "chimney_hi")], 0.9, 1.5),
         "cap": k.mat_gradient("cap", [(0.0, "cap"), (1.0, "cap_hi")], 1.49, 1.62, 0.1, 9.0),
         "door": k.mat_door("door"),
@@ -47,8 +48,11 @@ def materials(k):
 
 def build(m, kit):
     W, D = 1.0, 0.95          # корпус: ширина (X) і глибина (Y)
-    H = 0.78                  # висота стіни до карниза
-    PEAK = 1.42               # гребінь щипця
+    # Пропорції — з малюнка (у пікселях фасаду, 320 пк = 1 м, 26.09): стіна до карниза 0,62,
+    # скат 55°, звис опускається нижче верху дверей. Було 0,78 / 1,42 — хата виходила
+    # «на ніжках», а дах коротким капелюхом.
+    H = 0.62                  # висота стіни до карниза
+    PEAK = 1.33               # гребінь щипця
     hw, hd = W * 0.5, D * 0.5
     # Корпус із щипцем, трохи ширший унизу — «ліплений», а не з лінійки.
     prof = [(-hw - 0.03, 0.0), (hw + 0.03, 0.0), (hw, H), (0.0, PEAK), (-hw, H)]
@@ -65,16 +69,19 @@ def build(m, kit):
         cx = side * (hw * 0.5 + 0.05)
         z_gable = PEAK - abs(cx) * math.tan(slope)
         cz = z_gable + (t * 0.5) / math.cos(slope) - 0.015
-        r = box("roof%d" % side, m["roof"], (cx, 0.0, cz), (run, D + 0.26, t),
+        r = box("roof%d" % side, m["roof"], (cx, 0.0, cz), (run, D + 0.16, t),
                 rot=(0.0, side * slope, 0.0))
         soften(r, 0.03)
 
     # Димар ліворуч, ближче до фасаду (як на малюнку), крізь скат; шапка — брунатний «гриб».
-    ch = box("chimney", m["chimney"], (-0.33, -0.08, 1.18), (0.2, 0.2, 0.62))
+    # На малюнку димар далеко ліворуч (−0,47 м від осі) і його шапка — врівень із гребенем,
+    # а не над ним.
+    CX = -0.47
+    ch = box("chimney", m["chimney"], (CX, -0.08, 0.95), (0.22, 0.22, 0.76))
     soften(ch, 0.04)
-    cap = cyl("cap", m["cap"], (-0.33, -0.08, 1.52), 0.15, 0.07)
+    cap = cyl("cap", m["cap"], (CX, -0.08, 1.355), 0.16, 0.07)
     soften(cap, 0.02, min(2, kit.DET["bev"]))
-    cap2 = cyl("cap2", m["cap"], (-0.33, -0.08, 1.58), 0.09, 0.07)
+    cap2 = cyl("cap2", m["cap"], (CX, -0.08, 1.42), 0.11, 0.07)
     soften(cap2, 0.02, min(2, kit.DET["bev"]))
 
     fy = -hd - 0.012          # передня площина стіни (−Y — фасад)
@@ -82,17 +89,17 @@ def build(m, kit):
     # Кругле вікно в щипці: рамка-бублик, скло до середини бублика, хрестовина перед склом.
     ts, tr = kit.DET["tor"]
     bpy.ops.mesh.primitive_torus_add(major_radius=0.12, minor_radius=0.035, major_segments=ts,
-                                     minor_segments=tr, location=(0.0, fy, 1.0), rotation=(math.pi / 2, 0, 0))
+                                     minor_segments=tr, location=(0.0, fy, 0.81), rotation=(math.pi / 2, 0, 0))
     ring = bpy.context.active_object
     ring.name = "win_ring"
     ring.data.materials.append(m["frame"])
-    cyl("win_glass", m["glass"], (0.0, fy + 0.012, 1.0), 0.12, 0.012, rot=(math.pi / 2, 0, 0))
-    box("win_v", m["frame"], (0.0, fy - 0.008, 1.0), (0.026, 0.024, 0.22))
-    box("win_h", m["frame"], (0.0, fy - 0.008, 1.0), (0.22, 0.024, 0.026))
+    cyl("win_glass", m["glass"], (0.0, fy + 0.012, 0.81), 0.12, 0.012, rot=(math.pi / 2, 0, 0))
+    box("win_v", m["frame"], (0.0, fy - 0.008, 0.81), (0.026, 0.024, 0.22))
+    box("win_h", m["frame"], (0.0, fy - 0.008, 0.81), (0.22, 0.024, 0.026))
 
     # Віддушина під гребенем: коротка брунатна планка з поличкою.
-    box("vent", m["frame"], (0.0, fy, 1.27), (0.025, 0.03, 0.12))
-    box("vent_b", m["frame"], (0.0, fy - 0.01, 1.2), (0.07, 0.04, 0.025))
+    box("vent", m["frame"], (0.0, fy, 1.16), (0.025, 0.03, 0.12))
+    box("vent_b", m["frame"], (0.0, fy - 0.01, 1.09), (0.07, 0.04, 0.025))
 
     # Арочні двері: дошки (профіль — прямокутник + півколо) і товста рамка.
     dw, dh = 0.34, 0.36
@@ -114,7 +121,7 @@ def build(m, kit):
     # Вікна по боках і ззаду: арочні, з рамкою, хрестовиною, склом і підвіконням.
     for sx in (-1, 1):
         for wy in (-0.2, 0.22):
-            window("side_win", m, (sx * (hw + 0.02), wy, 0.3), "+x" if sx > 0 else "-x")
+            window("side_win", m, (sx * (hw + 0.02), wy, 0.24), "+x" if sx > 0 else "-x")
     window("back_win", m, (0.0, hd + 0.012, 0.3), "+y")
 
 
