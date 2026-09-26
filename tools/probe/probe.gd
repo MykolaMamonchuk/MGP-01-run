@@ -340,8 +340,7 @@ func _event_run(id: String) -> void:
 	# «до» — не раніше за старт рівня: інакше при малому EVENT_AT сюди потрапив би сплеск відліку
 	var before: Array = _all_ms.slice(maxi(start, _all_ms.size() - 120))
 	var t0 := Time.get_ticks_usec()
-	if id != "none":
-		es.call("force", id)
+	_fire_event(id, es)
 	var call_ms := float(Time.get_ticks_usec() - t0) / 1000.0
 	var mark := _all_ms.size()
 	await _frames_passed(EVENT_FIRST + EVENT_HOLD)
@@ -363,7 +362,7 @@ func _event_run(id: String) -> void:
 	var used := EVENT_FIRST + EVENT_HOLD
 	if OS.get_environment("EVENT_TWICE") == "1" and id != "none":
 		var t1 := Time.get_ticks_usec()
-		es.call("force", id)
+		_fire_event(id, es)
 		var call2 := float(Time.get_ticks_usec() - t1) / 1000.0
 		var mark2 := _all_ms.size()
 		await _frames_passed(EVENT_FIRST + EVENT_HOLD)
@@ -379,6 +378,21 @@ func _event_run(id: String) -> void:
 	var rest := _frames - at - used
 	if rest > 0:
 		await _frames_passed(rest)
+
+
+## Запустити подію. `widen` — розширення дороги, як посеред рівня 4 (Run3D._change_lanes):
+## 3 → 5, а вдруге (EVENT_TWICE) — 5 → 7. Так ривок розширення міряється на будь-якому рівні
+## й у будь-якому кадрі, не чекаючи половини рівня (docs/MEMORY.md, 26.09).
+func _fire_event(id: String, es) -> void:
+	if id == "none":
+		return
+	if id == "widen":
+		# Уже 7 доріжок — розширювати нема куди, і замір міряв би порожнечу: кажемо про це.
+		if int(_run.get("lanes")) >= 7:
+			push_warning("EVENT=widen: уже 7 доріжок, розширення не буде")
+		_run.call("_change_lanes", mini(int(_run.get("lanes")) + 2, 7))
+		return
+	es.call("force", id)
 
 
 static func _avg(v: Array) -> float:
@@ -438,6 +452,7 @@ func _spike_context(ms: float) -> Dictionary:
 		out["метрів"] = snappedf(float(_run.get("level_distance_m")), 0.1)
 		out["монет"] = int(_run.get("level_coins"))
 		out["стан"] = int(_run.get("state"))
+		out["доріжок"] = int(_run.get("lanes"))
 		var hero = _run.get("hero")
 		if hero != null:
 			out["доріжка"] = int(hero.get("lane"))

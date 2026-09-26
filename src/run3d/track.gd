@@ -553,6 +553,7 @@ func _ready() -> void:
 	_row_rx.resize(ROWS)
 	_decor_ids.resize(ROWS)
 	_decor_data.resize(ROWS)
+	_redecorate_due.resize(ROWS)
 	var side_x := LANES_W * 0.5 + SIDE_W * 0.5
 	for i in range(ROWS):
 		var row := Node3D.new()
@@ -1123,14 +1124,44 @@ func _decorate_authored(i: int, ids: PackedInt32Array, data: PackedFloat32Array)
 		return
 	var lo := _row_distance_m[i] - 0.5
 	var hi := _row_distance_m[i] + 0.5
-	for rec in _authored_decor:
-		var z := float((rec as Dictionary).get("z_m", 0.0))
-		if z >= lo and z < hi:
-			_add_authored_record(ids, data, rec)
-	for rec in _authored_buildings:
-		var z := float((rec as Dictionary).get("z_m", 0.0))
-		if z >= lo and z < hi:
-			_add_authored_record(ids, data, rec, true)
+	# Обидва списки ВІДСОРТОВАНІ за z_m (LevelTimeline.merge_by_z), тож шукаємо початок вікна
+	# двійковим пошуком і йдемо лише по записах цього ряду. Раніше тут був перебір УСЬОГО
+	# таймлайну на кожен ряд: записи цеглинок накопичуються, і до середини рівня 4 їх 2460.
+	# У звичайному бігу це ~0,7 мс на ряд (Мак), а розширення дороги (set_lanes) перекладає
+	# всі 44 ряди в одному кадрі — 29 мс на Маку й 606 мс ривка на Redmi 8A (docs/MEMORY.md, 26.09).
+	var k := authored_window_start(_authored_decor, lo)
+	while k < _authored_decor.size():
+		var rec: Dictionary = _authored_decor[k]
+		authored_visits += 1
+		if float(rec.get("z_m", 0.0)) >= hi:
+			break
+		_add_authored_record(ids, data, rec)
+		k += 1
+	k = authored_window_start(_authored_buildings, lo)
+	while k < _authored_buildings.size():
+		var rec: Dictionary = _authored_buildings[k]
+		authored_visits += 1
+		if float(rec.get("z_m", 0.0)) >= hi:
+			break
+		_add_authored_record(ids, data, rec, true)
+		k += 1
+
+
+## Скільки авторських записів переглянуто в _decorate_authored — лічильник для сторожа
+## tests/test_widen_hitch.gd: ряд має дивитись лише на свої записи, а не на весь таймлайн.
+var authored_visits := 0
+
+
+## Номер першого запису з z_m >= lo у списку, відсортованому за z_m (усі авторські списки
+## траси такі — див. merge_by_z). Нема такого — розмір списку.
+static func authored_window_start(recs: Array, lo: float) -> int:
+	if recs.is_empty():
+		return 0
+	return recs.bsearch_custom({"z_m": lo}, _z_less, true)
+
+
+static func _z_less(a, b) -> bool:
+	return float((a as Dictionary).get("z_m", 0.0)) < float((b as Dictionary).get("z_m", 0.0))
 
 
 ## Знак «поворот не задано — крути навмання». NAN, а не -1: від'ємний кут — звичайний кут.
@@ -1957,6 +1988,8 @@ func _decorate(row: Node3D) -> void:
 	for c in row.get_children():
 		c.queue_free()      # у ряді лишається лише живність — решта декору тепер у пачках
 	var i := int(row.get_meta("i", 0))
+	if i < _redecorate_due.size():
+		_redecorate_due[i] = 0
 	var ids := PackedInt32Array()
 	var data := PackedFloat32Array()
 	# ряд переставили — нове зерно малюнка покриття й напуску трави (те саме в обох режимах).
@@ -2578,9 +2611,14 @@ func set_lanes(n: int, animate: bool = true) -> void:
 	var rx := beach_x if _sea_side > 0 else side_x
 	for i in range(_rows.size()):
 		if animate:
-			_decorate(_rows[i])   # декор перекладається під нову ширину (при rebuild його кладе сам rebuild)
+			# Декор перекладається під нову ширину (при rebuild його кладе сам rebuild) — але
+			# НЕ всі 44 ряди в одному кадрі, а кожен у мить, коли рушає його ряд дороги. Разом
+			# це був ривок 606 мс на Redmi 8A посеред рівня 4 (docs/MEMORY.md, 26.09); тепер та
+			# сама робота розкладена на ~0,5 с, і декор їде разом зі своїм рядом.
+			_redecorate_due[i] = 1
 			var tw := create_tween()
 			tw.tween_interval(0.012 * float(i))
+			tw.tween_callback(_redecorate_if_due.bind(i))
 			tw.tween_method(_set_row_sx.bind(i), _row_sx[i], sx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			tw.parallel().tween_method(_set_row_lx.bind(i), _row_lx[i], lx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			tw.parallel().tween_method(_set_row_rx.bind(i), _row_rx[i], rx, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -2593,6 +2631,25 @@ func set_lanes(n: int, animate: bool = true) -> void:
 	_layout_canal()
 	if animate:
 		AudioMgr.sfx("rebuild")
+
+
+## Ряди, що чекають перекладання декору після set_lanes. Ряд, який тим часом перевклав
+## advance() (переставив уперед) або rebuild(), уже має декор під нову ширину — _decorate()
+## знімає прапорець сам, і вдруге ряд не перекладається.
+var _redecorate_due := PackedByteArray()
+
+
+func _redecorate_if_due(i: int) -> void:
+	if i < _redecorate_due.size() and _redecorate_due[i] != 0 and i < _rows.size():
+		_decorate(_rows[i])
+
+
+## Скільки рядів ще чекають перекладання декору (для тестів і проби).
+func redecorate_pending() -> int:
+	var n := 0
+	for f in _redecorate_due:
+		n += int(f != 0)
+	return n
 
 
 # Цілі для tween_method: анімуємо числа ряду, бо вузлів-мешів більше нема.
